@@ -1,0 +1,2 @@
+cache_owner_user_id,cache_type,placement_id,farm_id,farm_name,barn_id,barn_code,flock_id,flock_number,placement_code,placed_date,est_first_catch,age_days,head_count,is_active,is_removed,is_complete,is_in_barn,is_settled,status_text,sort_code,updated_at
+sample-user-id,dashboard,44444444-4444-4444-4444-444444444444,11111111-1111-1111-1111-111111111111,Local Test Farm,22222222-2222-2222-2222-222222222222,B1,33333333-3333-3333-3333-333333333333,1001,1001-B1,2026-03-01,2026-04-08,14,20000,TRUE,FALSE,FALSE,TRUE,TRUE,Active | Age 14 | In Barn,TST01-B1,2026-03-16T08:00:00Z

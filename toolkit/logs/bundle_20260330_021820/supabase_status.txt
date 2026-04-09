@@ -1,0 +1,2 @@
+failed to inspect container health: Error response from daemon: No such container: supabase_db_FlockTrax
+Try rerunning the command with --debug to troubleshoot the error.

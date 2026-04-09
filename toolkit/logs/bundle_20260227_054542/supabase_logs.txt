@@ -1,0 +1,7 @@
+unknown command "logs" for "supabase"
+                                     
+Did you mean this?                   
+    login                            
+    orgs                             
+                                     
+Try rerunning the command with --debug to troubleshoot the error.

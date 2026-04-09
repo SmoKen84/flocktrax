@@ -1,0 +1,2 @@
+CONTAINER ID   IMAGE                                          COMMAND                  CREATED       STATUS                   PORTS     NAMES
+4501f04a7df3   public.ecr.aws/supabase/vector:0.28.1-alpine   "sh -c 'cat <<'EOF' …"   2 weeks ago   Exited (0) 2 weeks ago             supabase_vector_supabase-sanity

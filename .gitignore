@@ -1,0 +1,43 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Local environment files
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Node / Expo / Next
+**/node_modules/
+**/.expo/
+**/.next/
+**/dist/
+**/web-build/
+**/*.tsbuildinfo
+
+# Local logs
+*.log
+*.err.log
+toolkit/logs/
+
+# Local Supabase state
+supabase/.temp/
+supabase/.branches/
+
+# Generated temp and scratch
+tmp/
+snapshots/
+
+# Local backups / gold copies
+_gold/
+
+# Generated output artifacts
+output/pdf/
+
+# One-off shell artifacts
+-Body
+-ContentType
+-Method
+iwr
+

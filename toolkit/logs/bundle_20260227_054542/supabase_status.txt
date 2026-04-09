@@ -1,0 +1,2 @@
+supabase_db_FlockTrax container is not ready: unhealthy
+Try rerunning the command with --debug to troubleshoot the error.

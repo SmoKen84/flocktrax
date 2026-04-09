@@ -1,0 +1,2 @@
+CONTAINER ID   IMAGE                                         COMMAND                   CREATED              STATUS                          PORTS     NAMES
+6567e2ada8ce   public.ecr.aws/supabase/postgres:15.8.1.094   "sh -c '\ncat <<'EOF'…"   About a minute ago   Restarting (1) 39 seconds ago             supabase_db_FlockTrax
