@@ -48,6 +48,7 @@ export type BarnRecord = {
 export type FlockRecord = {
   id: string;
   flockCode: string;
+  placementCode?: string | null;
   integrator: string;
   placedDate: string;
   estimatedFirstCatch: string;
@@ -63,6 +64,19 @@ export type PlacementDraftHint = {
   startDate: string;
   projectedEndDate: string;
   flockCode: string;
+};
+
+export type ActivityLogRecord = {
+  id: string;
+  occurredAt: string;
+  entryType: string;
+  actionKey: string;
+  details: string;
+  source: string | null;
+  placementCode: string | null;
+  farmName: string | null;
+  barnCode: string | null;
+  userName: string | null;
 };
 
 export type ActivePlacementRecord = {
@@ -101,6 +115,13 @@ export type ActivePlacementRecord = {
   latestMaleWeightCount: number | null;
   latestFemaleWeightDate: string | null;
   latestMaleWeightDate: string | null;
+  lh1Date: string | null;
+  lh3Date: string | null;
+  tileState: "live" | "awaiting" | "scheduled" | "empty";
+  placementIsActive: boolean;
+  flockIsInBarn: boolean;
+  barnIsEmpty: boolean;
+  canMarkBarnEmpty: boolean;
   hasWeightData: boolean;
 };
 
@@ -113,4 +134,63 @@ export type AdminDataBundle = {
   flocks: FlockRecord[];
   placementHints: PlacementDraftHint[];
   activePlacements: ActivePlacementRecord[];
+};
+
+export type AccessScopeType = "integrator_group" | "farm_group" | "farm";
+
+export type AccessCapability = string;
+
+export type AccessRoleKey = string;
+
+export type AccessActionPermission = {
+  actionId: string;
+  action: string;
+  menuAccess: boolean;
+  create: boolean;
+  read: boolean;
+  update: boolean;
+  delete: boolean;
+};
+
+export type AccessMembership = {
+  id: string;
+  scopeType: AccessScopeType;
+  scopeId: string;
+  scopeLabel: string;
+};
+
+export type AccessRoleTemplate = {
+  key: AccessRoleKey;
+  label: string;
+  description: string;
+  rank: number;
+  homeScope: AccessScopeType;
+  capabilities: AccessCapability[];
+  permissionRows: AccessActionPermission[];
+  assignableRoles: AccessRoleKey[];
+};
+
+export type AccessUserRecord = {
+  id: string;
+  displayName: string;
+  email: string;
+  role: AccessRoleKey;
+  assignedRoles: AccessRoleKey[];
+  roleLabel: string;
+  status: "active" | "invited" | "inactive";
+  memberships: AccessMembership[];
+  note: string;
+};
+
+export type AccessReview = {
+  canView: boolean;
+  canEdit: boolean;
+  canAssignRole: boolean;
+  reason: string;
+};
+
+export type UserAccessBundle = {
+  actingUserId: string | null;
+  roles: AccessRoleTemplate[];
+  users: AccessUserRecord[];
 };

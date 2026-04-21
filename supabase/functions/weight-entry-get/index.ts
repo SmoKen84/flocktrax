@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  getEnabledGoogleSheetsColumnMap,
+  getGoogleSheetsSyncContext,
+  getSheetRowByDate,
+} from "../_shared/google-sheets-read.ts";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -46,6 +51,22 @@ function getClient(accessToken: string) {
         Authorization: `Bearer ${accessToken}`,
       },
     },
+    auth: {
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
+
+function getAdminClient() {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars");
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       persistSession: false,
       detectSessionInUrl: false,
@@ -122,6 +143,78 @@ function normalizeBenchmark(row: Record<string, unknown> | null, breedId: string
   };
 }
 
+const WEIGHT_NUMERIC_FIELDS = new Set(["cnt_weighed", "avg_weight", "stddev_weight", "procure", "age_days"]);
+
+async function hydrateWeightEntryFromSheets(
+  supabase: ReturnType<typeof createClient>,
+  item: Record<string, unknown>,
+) {
+  const syncContext = await getGoogleSheetsSyncContext(supabase, String(item.placement_id));
+  if (!syncContext) {
+    return item;
+  }
+
+  const mapRows = await getEnabledGoogleSheetsColumnMap(supabase, syncContext.endpointId, ["public.log_weight"]);
+  if (mapRows.length === 0) {
+    return item;
+  }
+
+  const rowValues = await getSheetRowByDate(
+    syncContext.spreadsheetId,
+    syncContext.placementKey,
+    syncContext.headerRow,
+    syncContext.dateHeaderLabel,
+    String(item.log_date),
+  );
+  if (!rowValues) {
+    return item;
+  }
+
+  const nextItem = {
+    ...item,
+    male_sample: { ...(item.male_sample as Record<string, unknown>) },
+    female_sample: { ...(item.female_sample as Record<string, unknown>) },
+  };
+
+  for (const row of mapRows) {
+    const normalizedLabel = row.sheetLabel.trim().toUpperCase().replace(/\s+/g, " ");
+    if (!(normalizedLabel in rowValues)) {
+      continue;
+    }
+
+    const target =
+      row.sourceVariant?.toLowerCase() === "male"
+        ? nextItem.male_sample
+        : row.sourceVariant?.toLowerCase() === "female"
+          ? nextItem.female_sample
+          : null;
+
+    if (!target) {
+      if (row.sourceField === "other_note") {
+        const noteValue = coerceWeightValue(rowValues[normalizedLabel], row.sourceField, nextItem.male_sample.other_note);
+        nextItem.male_sample.other_note = noteValue;
+        nextItem.female_sample.other_note = noteValue;
+      }
+      continue;
+    }
+
+    target[row.sourceField] = coerceWeightValue(rowValues[normalizedLabel], row.sourceField, target[row.sourceField]);
+  }
+
+  return nextItem;
+}
+
+function coerceWeightValue(rawValue: string | null, fieldName: string, currentValue: unknown) {
+  const raw = String(rawValue ?? "").trim();
+  if (WEIGHT_NUMERIC_FIELDS.has(fieldName) || typeof currentValue === "number") {
+    if (!raw) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : currentValue ?? null;
+  }
+
+  return raw || null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders(req) });
@@ -146,6 +239,7 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = getClient(accessToken);
+    const adminSupabase = getAdminClient();
 
     const { data: placementRows, error: placementError } = await supabase
       .from("placements")
@@ -205,30 +299,37 @@ Deno.serve(async (req) => {
     if (maleBenchmarkResult.error) throw new Error(maleBenchmarkResult.error.message);
     if (femaleBenchmarkResult.error) throw new Error(femaleBenchmarkResult.error.message);
 
+    const item = {
+      placement_id: placement.id,
+      placement_code: placement.placement_key,
+      farm_name: farm?.farm_name ?? "",
+      barn_code: barn?.barn_code ?? "",
+      flock_number: flock?.flock_number ?? null,
+      placed_date: flock?.date_placed ?? null,
+      log_date: logDate,
+      placement_age_days: ageDays,
+      male_benchmark: normalizeBenchmark(
+        (maleBenchmarkResult.data?.[0] ?? null) as Record<string, unknown> | null,
+        maleBreedId,
+        ageDays,
+      ),
+      female_benchmark: normalizeBenchmark(
+        (femaleBenchmarkResult.data?.[0] ?? null) as Record<string, unknown> | null,
+        femaleBreedId,
+        ageDays,
+      ),
+      male_sample: normalizeSample(maleRow as Record<string, unknown> | null, "male", ageDays),
+      female_sample: normalizeSample(femaleRow as Record<string, unknown> | null, "female", ageDays),
+    };
+
+    const hydratedItem = await hydrateWeightEntryFromSheets(
+      adminSupabase,
+      item as Record<string, unknown>,
+    );
+
     return json(req, {
       ok: true,
-      item: {
-        placement_id: placement.id,
-        placement_code: placement.placement_key,
-        farm_name: farm?.farm_name ?? "",
-        barn_code: barn?.barn_code ?? "",
-        flock_number: flock?.flock_number ?? null,
-        placed_date: flock?.date_placed ?? null,
-        log_date: logDate,
-        placement_age_days: ageDays,
-        male_benchmark: normalizeBenchmark(
-          (maleBenchmarkResult.data?.[0] ?? null) as Record<string, unknown> | null,
-          maleBreedId,
-          ageDays,
-        ),
-        female_benchmark: normalizeBenchmark(
-          (femaleBenchmarkResult.data?.[0] ?? null) as Record<string, unknown> | null,
-          femaleBreedId,
-          ageDays,
-        ),
-        male_sample: normalizeSample(maleRow as Record<string, unknown> | null, "male", ageDays),
-        female_sample: normalizeSample(femaleRow as Record<string, unknown> | null, "female", ageDays),
-      },
+      item: hydratedItem,
     });
   } catch (error) {
     return json(req, { ok: false, error: String(error instanceof Error ? error.message : error) }, 500);

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { ActivePlacementDashboard } from "@/components/active-placement-dashboard";
-import { PageHeader } from "@/components/page-header";
+import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
 import { getAdminData } from "@/lib/admin-data";
 
 export default async function OverviewPage() {
@@ -9,43 +9,21 @@ export default async function OverviewPage() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Operations Overview"
-        title="See the operation, spot the gaps, and stay ahead of placement turnover."
-        body="This admin view is for planning and supervision. It keeps the desktop side dense and useful while the mobile app stays simple for line crews."
-        actions={
-          <>
+      <section className="panel hero-panel live-overview-hero">
+        <p className="hero-kicker">Operations Overview</p>
+        <div className="live-overview-hero-row">
+          <div className="live-overview-hero-copy">
+            <FlockTraxWordmark compact product="Admin" tone="accent" />
+          </div>
+          <div className="hero-actions">
             <Link className="button" href="/admin/placements/new">
-              Start Placement Wizard
+              Placements
             </Link>
             <Link className="button-secondary" href="/admin/farms">
               Review Farms
             </Link>
-          </>
-        }
-      />
-
-      <section className="grid-3">
-        <article className="card">
-          <p className="stat-label">Active Placements</p>
-          <p className="stat-value">{data.stats.activePlacements}</p>
-          <p className="stat-help">Placements visible to worker crews right now.</p>
-        </article>
-        <article className="card">
-          <p className="stat-label">Farm Groups</p>
-          <p className="stat-value">{data.farmGroups.length}</p>
-          <p className="stat-help">Operating companies managing one or more grow-out farms.</p>
-        </article>
-        <article className="card">
-          <p className="stat-label">Farms Online</p>
-          <p className="stat-value">{data.stats.farmsOnline}</p>
-          <p className="stat-help">Farm locations with active or near-term activity.</p>
-        </article>
-        <article className="card">
-          <p className="stat-label">Barns Ready</p>
-          <p className="stat-value">{data.stats.barnsReady}</p>
-          <p className="stat-help">Barns either in cycle now or available for the next placement plan.</p>
-        </article>
+          </div>
+        </div>
       </section>
 
       <ActivePlacementDashboard

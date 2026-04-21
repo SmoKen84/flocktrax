@@ -1,0 +1,45 @@
+{
+  "workbook": {
+    "spreadsheetId": "PASTE_GOOGLE_SHEET_ID_HERE",
+    "name": "Integrator Workbook"
+  },
+  "defaults": {
+    "headerRow": 6,
+    "dateHeaderLabel": "DATE"
+  },
+  "tabStrategy": {
+    "mode": "placement_key",
+    "description": "Each live flock worksheet/tab is named from public.placements.placement_key, for example 399-W2."
+  },
+  "datasets": [
+    {
+      "source": "public.log_daily",
+      "syncMode": "cell_update",
+      "fields": [
+        { "dbField": "am_temp", "sheetLabel": "AM Temp" },
+        { "dbField": "set_temp", "sheetLabel": "Set Temp" },
+        { "dbField": "rel_humidity", "sheetLabel": "Humidity" },
+        { "dbField": "comment", "sheetLabel": "Comments" }
+      ]
+    },
+    {
+      "source": "public.log_mortality",
+      "syncMode": "cell_update",
+      "fields": [
+        { "dbField": "male_dead", "sheetLabel": "Male Dead" },
+        { "dbField": "female_dead", "sheetLabel": "Female Dead" },
+        { "dbField": "male_cull", "sheetLabel": "Male Cull" },
+        { "dbField": "female_cull", "sheetLabel": "Female Cull" }
+      ]
+    },
+    {
+      "source": "public.log_weight",
+      "syncMode": "cell_update",
+      "fields": [
+        { "dbField": "male_avg", "sheetLabel": "Male Avg" },
+        { "dbField": "female_avg", "sheetLabel": "Female Avg" },
+        { "dbField": "sample_males", "sheetLabel": "Sample M" },
+        { "dbField": "sample_females", "sheetLabel": "Sample F" }
+      ]
+    }
+  ]

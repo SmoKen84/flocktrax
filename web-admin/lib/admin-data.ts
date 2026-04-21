@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 
 import type {
   ActivePlacementRecord,
+  ActivityLogRecord,
   AdminDataBundle,
   FarmGroupRecord,
   FarmRecord,
@@ -39,6 +40,7 @@ type BarnRow = {
   id: string;
   farm_id: string;
   barn_code: string | null;
+  sort_code: string | null;
   sqft: number | null;
   stdroc_head: string | null;
   is_active: boolean | null;
@@ -70,6 +72,11 @@ type PlacementRow = {
   date_removed: string | null;
   is_active: boolean | null;
   placement_key: string;
+  lh1_date: string | null;
+  lh3_date: string | null;
+  active_start?: string | null;
+  active_end?: string | null;
+  created_at?: string | null;
 };
 
 type PlacementLogRow = {
@@ -108,6 +115,97 @@ type WeightRow = {
   is_active: boolean | null;
 };
 
+type WeightSummary = {
+  female: { avgWeight: number | null; count: number | null; logDate: string | null };
+  male: { avgWeight: number | null; count: number | null; logDate: string | null };
+};
+
+type WeightEntryGetResponse = {
+  ok?: boolean;
+  item?: {
+    male_sample?: {
+      avg_weight?: number | null;
+      cnt_weighed?: number | null;
+    };
+    female_sample?: {
+      avg_weight?: number | null;
+      cnt_weighed?: number | null;
+    };
+  };
+};
+
+type ActivityLogRow = {
+  id: string;
+  occurred_at: string | null;
+  entry_type: string | null;
+  action_key: string | null;
+  details: string | null;
+  source: string | null;
+  placement_code: string | null;
+  farm_name: string | null;
+  barn_code: string | null;
+  user_name: string | null;
+};
+
+function emptyWeightSummary(): WeightSummary {
+  return {
+    female: { avgWeight: null, count: null, logDate: null },
+    male: { avgWeight: null, count: null, logDate: null },
+  };
+}
+
+async function fetchDashboardWeightSummary(
+  placementId: string,
+  logDate: string,
+): Promise<WeightSummary | null> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+    return null;
+  }
+
+  const endpoint = new URL("/functions/v1/weight-entry-get", supabaseUrl);
+  endpoint.searchParams.set("placement_id", placementId);
+  endpoint.searchParams.set("log_date", logDate);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${serviceRoleKey}`,
+        apikey: anonKey,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as WeightEntryGetResponse;
+    if (!payload.ok || !payload.item) {
+      return null;
+    }
+
+    return {
+      female: {
+        avgWeight: payload.item.female_sample?.avg_weight ?? null,
+        count: payload.item.female_sample?.cnt_weighed ?? null,
+        logDate,
+      },
+      male: {
+        avgWeight: payload.item.male_sample?.avg_weight ?? null,
+        count: payload.item.male_sample?.cnt_weighed ?? null,
+        logDate,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function getAdminData(): Promise<AdminDataBundle> {
   noStore();
 
@@ -142,8 +240,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         .order("farm_name"),
       supabase
         .from("barns")
-        .select("id,farm_id,barn_code,sqft,stdroc_head,is_active,active_flock_id,is_empty")
-        .order("barn_code"),
+        .select("id,farm_id,barn_code,sort_code,sqft,stdroc_head,is_active,active_flock_id,is_empty"),
       supabase
         .from("flocks")
         .select(
@@ -152,7 +249,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         .order("date_placed", { ascending: false }),
       supabase
         .from("placements")
-        .select("id,farm_id,barn_id,flock_id,date_removed,is_active,placement_key")
+        .select("id,farm_id,barn_id,flock_id,date_removed,is_active,placement_key,lh1_date,lh3_date,active_start,active_end,created_at")
         .order("placement_key"),
       supabase
         .from("v_placement_daily")
@@ -199,7 +296,10 @@ export async function getAdminData(): Promise<AdminDataBundle> {
 
     const farmGroupsRows = (farmGroupsResult.data ?? []) as FarmGroupRow[];
     const farmRows = (farmsResult.data ?? []) as FarmRow[];
-    const barnRows = (barnsResult.data ?? []) as BarnRow[];
+    const barnRows = ((barnsResult.data ?? []) as BarnRow[]).sort((left, right) => {
+      const farmCompare = String(left.farm_id).localeCompare(String(right.farm_id));
+      return farmCompare !== 0 ? farmCompare : compareBarnRows(left, right);
+    });
     const flockRows = (flocksResult.data ?? []) as FlockRow[];
     const placementRows = (placementsResult.data ?? []) as PlacementRow[];
     const placementLogRows = (placementLogsResult.data ?? []) as PlacementLogRow[];
@@ -257,16 +357,26 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       status: row.is_active === false ? "inactive" : (placementsByFarmId.get(row.id) ?? 0) > 0 ? "active" : "seasonal",
     }));
 
-    const flocks: FlockRecord[] = flockRows.map((row) => ({
-      id: row.id,
-      flockCode: row.flock_number?.toString() ?? "Unknown",
-      integrator: inferFlockIntegrator(row.farm_id, farmRows, farmGroups),
-      placedDate: row.date_placed ?? "",
-      estimatedFirstCatch: row.max_date ?? addDays(row.date_placed, 38),
-      femaleCount: row.start_cnt_females ?? 0,
-      maleCount: row.start_cnt_males ?? 0,
-      status: row.is_complete ? "complete" : row.is_active ? "active" : "scheduled",
-    }));
+    const flocks: FlockRecord[] = flockRows.map((row) => {
+      const linkedPlacements = placementRows.filter((placement) => placement.flock_id === row.id);
+      const primaryPlacement =
+        linkedPlacements.find((placement) => placement.is_active) ??
+        linkedPlacements.find((placement) => placement.date_removed === null) ??
+        linkedPlacements[0] ??
+        null;
+
+      return {
+        id: row.id,
+        flockCode: row.flock_number?.toString() ?? "Unknown",
+        placementCode: primaryPlacement?.placement_key ?? null,
+        integrator: inferFlockIntegrator(row.farm_id, farmRows, farmGroups),
+        placedDate: row.date_placed ?? "",
+        estimatedFirstCatch: row.max_date ?? addDays(row.date_placed, 38),
+        femaleCount: row.start_cnt_females ?? 0,
+        maleCount: row.start_cnt_males ?? 0,
+        status: row.is_complete ? "complete" : row.is_active ? "active" : "scheduled",
+      };
+    });
 
     const latestLogByPlacement = new Map<string, string>();
     for (const row of placementLogRows) {
@@ -287,13 +397,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       }
     >();
 
-    const latestWeightByPlacement = new Map<
-      string,
-      {
-        female: { avgWeight: number | null; count: number | null; logDate: string | null };
-        male: { avgWeight: number | null; count: number | null; logDate: string | null };
-      }
-    >();
+    const latestWeightByPlacement = new Map<string, WeightSummary>();
     const dailyFlagsByPlacement = new Map<
       string,
       {
@@ -366,10 +470,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         continue;
       }
 
-      const bucket = latestWeightByPlacement.get(row.placement_id) ?? {
-        female: { avgWeight: null, count: null, logDate: null },
-        male: { avgWeight: null, count: null, logDate: null },
-      };
+      const bucket = latestWeightByPlacement.get(row.placement_id) ?? emptyWeightSummary();
 
       if (!bucket[sexKey].logDate) {
         bucket[sexKey] = {
@@ -380,6 +481,69 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       }
 
       latestWeightByPlacement.set(row.placement_id, bucket);
+    }
+
+    const missingWeightDates = activePlacementsRaw.reduce<Array<{ placementId: string; logDate: string }>>((acc, row) => {
+      const bucket = latestWeightByPlacement.get(row.id);
+      if (!bucket) {
+        return acc;
+      }
+
+      const candidateDates = new Set<string>();
+      if (bucket.male.logDate && bucket.male.avgWeight === null) {
+        candidateDates.add(bucket.male.logDate);
+      }
+      if (bucket.female.logDate && bucket.female.avgWeight === null) {
+        candidateDates.add(bucket.female.logDate);
+      }
+
+      for (const logDate of candidateDates) {
+        acc.push({ placementId: row.id, logDate });
+      }
+
+      return acc;
+    }, []);
+
+    if (missingWeightDates.length > 0) {
+      const hydratedWeights = await Promise.all(
+        missingWeightDates.map(async ({ placementId, logDate }) => ({
+          placementId,
+          logDate,
+          summary: await fetchDashboardWeightSummary(placementId, logDate),
+        })),
+      );
+
+      for (const { placementId, logDate, summary } of hydratedWeights) {
+        if (!summary) {
+          continue;
+        }
+
+        const bucket = latestWeightByPlacement.get(placementId) ?? emptyWeightSummary();
+
+        if (
+          (bucket.male.logDate === logDate || !bucket.male.logDate) &&
+          summary.male.avgWeight !== null
+        ) {
+          bucket.male = {
+            avgWeight: summary.male.avgWeight,
+            count: summary.male.count,
+            logDate,
+          };
+        }
+
+        if (
+          (bucket.female.logDate === logDate || !bucket.female.logDate) &&
+          summary.female.avgWeight !== null
+        ) {
+          bucket.female = {
+            avgWeight: summary.female.avgWeight,
+            count: summary.female.count,
+            logDate,
+          };
+        }
+
+        latestWeightByPlacement.set(placementId, bucket);
+      }
     }
 
     for (const row of dailyFlagRows) {
@@ -411,64 +575,119 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       dailyFlagsByPlacement.set(row.placement_id, bucket);
     }
 
-    const activePlacements: ActivePlacementRecord[] = activePlacementsRaw.map((row) => {
-      const farm = farmById.get(row.farm_id);
-      const barn = barnById.get(row.barn_id);
-      const flock = flockById.get(row.flock_id);
+    const placementsByBarnId = placementRows.reduce<Map<string, PlacementRow[]>>((acc, row) => {
+      const bucket = acc.get(row.barn_id) ?? [];
+      bucket.push(row);
+      acc.set(row.barn_id, bucket);
+      return acc;
+    }, new Map());
+
+    const activePlacements: ActivePlacementRecord[] = barnRows.map((barn) => {
+      const rowsForBarn = (placementsByBarnId.get(barn.id) ?? []).slice().sort((left, right) =>
+        comparePlacementRows(left, right, flockById),
+      );
+      const activeRow = rowsForBarn.find((row) => row.is_active === true && row.date_removed === null) ?? null;
+      const scheduledRow =
+        rowsForBarn.find((row) => row.is_active !== true && row.date_removed === null) ?? null;
+      const row = activeRow ?? scheduledRow ?? null;
+      const farm = farmById.get(barn.farm_id);
       const farmGroup = farm?.farm_group_id ? groupById.get(farm.farm_group_id) : null;
-      const latestLogDate = latestLogByPlacement.get(row.id) ?? null;
-      const submissionStatus = deriveSubmissionStatus(latestLogDate, today);
+      const flock = row ? flockById.get(row.flock_id) : null;
+      const placedDate = flock?.date_placed ?? row?.active_start ?? "";
+      const latestLogDate = row ? latestLogByPlacement.get(row.id) ?? null : null;
+      const submissionStatus =
+        row && row.is_active === true ? deriveSubmissionStatus(latestLogDate, today) : "attention";
       const completionPercent =
-        submissionStatus === "submitted" ? 100 : submissionStatus === "pending" ? 80 : 55;
-      const placedDate = flock?.date_placed ?? "";
-      const mortalityTotals = mortalityTotalsByPlacement.get(row.id) ?? {
-        femaleTotal: 0,
-        maleTotal: 0,
-        femaleFirst7Days: 0,
-        maleFirst7Days: 0,
-        femaleLast7Days: 0,
-        maleLast7Days: 0,
-      };
-      const weightSummary = latestWeightByPlacement.get(row.id) ?? {
-        female: { avgWeight: null, count: null, logDate: null },
-        male: { avgWeight: null, count: null, logDate: null },
-      };
-      const dailyFlags = dailyFlagsByPlacement.get(row.id) ?? {
-        maintenance: false,
-        feedlines: false,
-        nippleLines: false,
-        birdHealthAlert: false,
-        latestLogDate: null,
-        completedTodayLabel: null,
-      };
+        row && row.is_active === true
+          ? submissionStatus === "submitted"
+            ? 100
+            : submissionStatus === "pending"
+              ? 80
+              : 55
+          : 0;
+      const mortalityTotals =
+        row && row.is_active === true
+          ? mortalityTotalsByPlacement.get(row.id) ?? {
+              femaleTotal: 0,
+              maleTotal: 0,
+              femaleFirst7Days: 0,
+              maleFirst7Days: 0,
+              femaleLast7Days: 0,
+              maleLast7Days: 0,
+            }
+          : {
+              femaleTotal: 0,
+              maleTotal: 0,
+              femaleFirst7Days: 0,
+              maleFirst7Days: 0,
+              femaleLast7Days: 0,
+              maleLast7Days: 0,
+            };
+      const weightSummary =
+        row && row.is_active === true
+          ? latestWeightByPlacement.get(row.id) ?? emptyWeightSummary()
+          : emptyWeightSummary();
+      const dailyFlags =
+        row && row.is_active === true
+          ? dailyFlagsByPlacement.get(row.id) ?? {
+              maintenance: false,
+              feedlines: false,
+              nippleLines: false,
+              birdHealthAlert: false,
+              latestLogDate: null,
+              completedTodayLabel: null,
+            }
+          : {
+              maintenance: false,
+              feedlines: false,
+              nippleLines: false,
+              birdHealthAlert: false,
+              latestLogDate: null,
+              completedTodayLabel: null,
+            };
       const startedFemaleCount = flock?.start_cnt_females ?? 0;
       const startedMaleCount = flock?.start_cnt_males ?? 0;
       const currentFemaleCount = Math.max(0, startedFemaleCount - mortalityTotals.femaleTotal);
       const currentMaleCount = Math.max(0, startedMaleCount - mortalityTotals.maleTotal);
-      const dashboardStatus = deriveDashboardStatus({
-        isActive: row.is_active === true,
-        maintenance: dailyFlags.maintenance,
-        feedlines: dailyFlags.feedlines,
-        nippleLines: dailyFlags.nippleLines,
-        birdHealthAlert: dailyFlags.birdHealthAlert,
-        completedTodayLabel: dailyFlags.completedTodayLabel,
+      const flockIsInBarn = Boolean(
+        row &&
+          (flock?.is_in_barn === true ||
+            (barn.is_empty === false && barn.active_flock_id === row.flock_id && row.is_active === true)),
+      );
+      const tileState = deriveTileState({
+        hasPlacement: !!row,
+        placementIsActive: row?.is_active === true,
+        flockIsInBarn,
       });
+      const dashboardStatus =
+        tileState === "live"
+          ? deriveDashboardStatus({
+              isActive: row?.is_active === true,
+              maintenance: dailyFlags.maintenance,
+              feedlines: dailyFlags.feedlines,
+              nippleLines: dailyFlags.nippleLines,
+              birdHealthAlert: dailyFlags.birdHealthAlert,
+              completedTodayLabel: dailyFlags.completedTodayLabel,
+            })
+          : deriveNonLiveDashboardStatus(tileState);
 
       return {
-        id: row.id,
-        placementCode: row.placement_key,
-        placementId: row.id,
+        id: row?.id ?? `barn-${barn.id}`,
+        placementCode:
+          row?.placement_key ??
+          (tileState === "empty" ? `Open ${barn.barn_code ?? "Barn"}` : `${flock?.flock_number ?? "TBD"}-${barn.barn_code ?? "Barn"}`),
+        placementId: row?.id ?? "",
         farmGroupId: farm?.farm_group_id ?? "ungrouped",
         farmGroupName: farmGroup?.groupName ?? farm?.farm_group_name ?? "Ungrouped",
-        farmId: row.farm_id,
+        farmId: barn.farm_id,
         farmName: farm?.farm_name ?? "Unnamed Farm",
-        barnId: row.barn_id,
-        barnCode: barn?.barn_code ?? "Barn",
-        flockCode: flock?.flock_number?.toString() ?? "Unknown",
+        barnId: barn.id,
+        barnCode: barn.barn_code ?? "Barn",
+        flockCode: flock?.flock_number?.toString() ?? "None",
         integrator: farmGroup?.integrator ?? "Not set",
         placedDate,
-        estimatedFirstCatch: flock?.max_date ?? addDays(placedDate, 38),
-        ageDays: daysSince(placedDate),
+        estimatedFirstCatch: flock?.max_date ?? (placedDate ? addDays(placedDate, 38) : ""),
+        ageDays: daysRelativeToToday(placedDate),
         headCount: currentFemaleCount + currentMaleCount,
         completionPercent,
         submissionStatus,
@@ -490,18 +709,43 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         latestMaleWeightCount: weightSummary.male.count,
         latestFemaleWeightDate: weightSummary.female.logDate,
         latestMaleWeightDate: weightSummary.male.logDate,
+        lh1Date: row?.lh1_date ?? null,
+        lh3Date: row?.lh3_date ?? null,
+        tileState,
+        placementIsActive: row?.is_active === true,
+        flockIsInBarn,
+        barnIsEmpty: barn.is_empty === true,
+        canMarkBarnEmpty: flockIsInBarn && isOnOrAfter(flock?.max_date ?? null, today),
         hasWeightData: !!(weightSummary.female.logDate || weightSummary.male.logDate),
       };
+    }).sort((left, right) => {
+      const groupCompare = left.farmGroupName.localeCompare(right.farmGroupName);
+      if (groupCompare !== 0) return groupCompare;
+
+      const farmCompare = left.farmName.localeCompare(right.farmName);
+      if (farmCompare !== 0) return farmCompare;
+
+      const leftBarn = barnById.get(left.barnId);
+      const rightBarn = barnById.get(right.barnId);
+
+      return compareBarnRows(
+        { sort_code: leftBarn?.sort_code ?? null, barn_code: leftBarn?.barn_code ?? left.barnCode },
+        { sort_code: rightBarn?.sort_code ?? null, barn_code: rightBarn?.barn_code ?? right.barnCode },
+      );
     });
+
+    const operationalPlacements = activePlacements.filter(
+      (placement) => placement.tileState === "live" || placement.tileState === "awaiting",
+    );
 
     return {
       stats: {
-        activePlacements: activePlacements.length,
+        activePlacements: operationalPlacements.length,
         farmsOnline: farms.filter((farm) => farm.status !== "inactive").length,
         barnsReady: barnRows.filter((barn) => barn.is_active !== false).length,
         flocksInCycle: flocks.filter((flock) => flock.status === "active").length,
       },
-      alerts: buildAlerts(activePlacements),
+      alerts: buildAlerts(operationalPlacements),
       farmGroups,
       farms,
       barnsByFarmId,
@@ -518,6 +762,113 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       `Admin data hit an unexpected error while reading Supabase: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
+}
+
+export type ActivityLogFilters = {
+  when?: string | null;
+  farm?: string | null;
+  barn?: string | null;
+  flock?: string | null;
+  user?: string | null;
+};
+
+export type ActivityLogPageBundle = {
+  entries: ActivityLogRecord[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+};
+
+export async function getActivityLogEntries(
+  filters: ActivityLogFilters = {},
+  page = 1,
+  pageSize = 50,
+): Promise<ActivityLogPageBundle> {
+  noStore();
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    throw new AdminDataError(
+      "Activity log could not connect to Supabase. Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in web-admin/.env.",
+    );
+  }
+
+  const normalizedPageSize = Math.max(1, Math.min(100, Math.trunc(pageSize) || 50));
+  const normalizedPage = Math.max(1, Math.trunc(page) || 1);
+  const rangeFrom = (normalizedPage - 1) * normalizedPageSize;
+  const rangeTo = rangeFrom + normalizedPageSize - 1;
+
+  let query = supabase
+    .from("activity_log")
+    .select("id,occurred_at,entry_type,action_key,details,source,placement_code,farm_name,barn_code,user_name", { count: "exact" })
+    .order("occurred_at", { ascending: false })
+    .range(rangeFrom, rangeTo);
+
+  const when = String(filters.when ?? "").trim();
+  const farm = String(filters.farm ?? "").trim();
+  const barn = String(filters.barn ?? "").trim();
+  const flock = String(filters.flock ?? "").trim();
+  const user = String(filters.user ?? "").trim();
+
+  if (when) {
+    const start = `${when}T00:00:00.000Z`;
+    const nextDate = new Date(`${when}T00:00:00.000Z`);
+    if (!Number.isNaN(nextDate.getTime())) {
+      nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+      query = query.gte("occurred_at", start).lt("occurred_at", nextDate.toISOString());
+    }
+  }
+
+  if (farm) {
+    query = query.ilike("farm_name", `%${farm}%`);
+  }
+
+  if (barn) {
+    query = query.ilike("barn_code", `%${barn}%`);
+  }
+
+  if (flock) {
+    query = query.ilike("placement_code", `%${flock}%`);
+  }
+
+  if (user) {
+    query = query.ilike("user_name", `%${user}%`);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    throw new AdminDataError(`Activity log failed to load from Supabase: ${error.message}`);
+  }
+
+  const entries = ((data ?? []) as ActivityLogRow[]).map((row) => ({
+    id: row.id,
+    occurredAt: row.occurred_at ?? "",
+    entryType: row.entry_type ?? "event",
+    actionKey: row.action_key ?? "activity",
+    details: row.details ?? "",
+    source: row.source ?? null,
+    placementCode: row.placement_code ?? null,
+    farmName: row.farm_name ?? null,
+    barnCode: row.barn_code ?? null,
+    userName: row.user_name ?? null,
+  }));
+
+  const totalCount = count ?? entries.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / normalizedPageSize));
+
+  return {
+    entries,
+    page: Math.min(normalizedPage, totalPages),
+    pageSize: normalizedPageSize,
+    totalCount,
+    totalPages,
+    hasPreviousPage: normalizedPage > 1,
+    hasNextPage: normalizedPage < totalPages,
+  };
 }
 
 function deriveDashboardStatus(flags: {
@@ -545,6 +896,42 @@ function deriveDashboardStatus(flags: {
   }
 
   return { label: "Pending", tone: "neutral" as const };
+}
+
+function deriveNonLiveDashboardStatus(tileState: ActivePlacementRecord["tileState"]) {
+  if (tileState === "awaiting") {
+    return { label: "Awaiting Arrival", tone: "warn" as const };
+  }
+
+  if (tileState === "scheduled") {
+    return { label: "Scheduled", tone: "neutral" as const };
+  }
+
+  return { label: "OFFLINE", tone: "neutral" as const };
+}
+
+function deriveTileState({
+  hasPlacement,
+  placementIsActive,
+  flockIsInBarn,
+}: {
+  hasPlacement: boolean;
+  placementIsActive: boolean;
+  flockIsInBarn: boolean;
+}): ActivePlacementRecord["tileState"] {
+  if (placementIsActive && flockIsInBarn) {
+    return "live";
+  }
+
+  if (placementIsActive) {
+    return "awaiting";
+  }
+
+  if (hasPlacement) {
+    return "scheduled";
+  }
+
+  return "empty";
 }
 
 function formatCompletionBadgeLabel(timestamp: string | null, today: string) {
@@ -625,6 +1012,21 @@ function parseCapacity(stdrocHead: string | null, sqft: number | null) {
   return 0;
 }
 
+function compareBarnRows(left: Pick<BarnRow, "sort_code" | "barn_code">, right: Pick<BarnRow, "sort_code" | "barn_code">) {
+  const leftSort = String(left.sort_code ?? "").trim().toLowerCase();
+  const rightSort = String(right.sort_code ?? "").trim().toLowerCase();
+
+  if (leftSort && rightSort && leftSort !== rightSort) {
+    return leftSort.localeCompare(rightSort, undefined, { numeric: true });
+  }
+
+  if (leftSort || rightSort) {
+    return leftSort ? -1 : 1;
+  }
+
+  return String(left.barn_code ?? "").localeCompare(String(right.barn_code ?? ""), undefined, { numeric: true });
+}
+
 function formatCityState(city: string | null, state: string | null) {
   const parts = [city, state].filter((value): value is string => Boolean(value && value.trim().length > 0));
   return parts.length > 0 ? parts.join(", ") : "Not set";
@@ -658,6 +1060,45 @@ function daysSince(date: string | null) {
   const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   const startUtc = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
   return Math.max(0, Math.ceil((todayUtc - startUtc) / 86400000));
+}
+
+function daysRelativeToToday(date: string | null) {
+  if (!date) {
+    return 0;
+  }
+
+  const start = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(start.getTime())) {
+    return 0;
+  }
+
+  const now = new Date();
+  const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const startUtc = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+  return Math.round((todayUtc - startUtc) / 86400000);
+}
+
+function comparePlacementRows(
+  left: PlacementRow,
+  right: PlacementRow,
+  flockById: Map<string, FlockRow>,
+) {
+  const leftDate = left.active_start ?? flockById.get(left.flock_id)?.date_placed ?? "9999-12-31";
+  const rightDate = right.active_start ?? flockById.get(right.flock_id)?.date_placed ?? "9999-12-31";
+  const dateCompare = leftDate.localeCompare(rightDate);
+  if (dateCompare !== 0) {
+    return dateCompare;
+  }
+
+  return String(left.created_at ?? "").localeCompare(String(right.created_at ?? ""));
+}
+
+function isOnOrAfter(date: string | null, compareTo: string) {
+  if (!date) {
+    return false;
+  }
+
+  return date <= compareTo;
 }
 
 function daysBetween(dateA: string | null, dateB: string | null) {

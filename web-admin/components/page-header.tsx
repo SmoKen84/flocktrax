@@ -4,7 +4,7 @@ import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
 
 type PageHeaderProps = {
   eyebrow: string;
-  title: string;
+  title: ReactNode;
   body: string;
   actions?: ReactNode;
 };

@@ -1,5 +1,5 @@
 type FlockTraxWordmarkProps = {
-  product: "Admin" | "Mobile";
+  product: "Admin" | "Mobile" | "Live";
   descriptor?: string;
   tone?: "default" | "light" | "accent";
   compact?: boolean;

@@ -100,6 +100,40 @@ function hasAnyOwnKeys(value: Record<string, unknown>) {
   return Object.keys(value).length > 0;
 }
 
+function normalizeNullableInteger(value: unknown) {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  if (typeof value === "boolean") return null;
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.trunc(parsed) : null;
+}
+
+function normalizeBoolean(value: unknown, fallback = true) {
+  if (value === undefined) return undefined;
+  if (value === null) return fallback;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return fallback;
+}
+
+function normalizeNullableText(value: unknown) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const text = String(value).trim();
+  return text ? text : null;
+}
+
+function assignIfDefined(target: Record<string, unknown>, key: string, value: unknown) {
+  if (value !== undefined) {
+    target[key] = value;
+  }
+}
+
 async function getDailyAgeTasks(
   supabase: ReturnType<typeof createClient>,
   ageDays: number | null,
@@ -359,12 +393,25 @@ Deno.serve(async (req) => {
   const dailyPayload = pickPresent(payload, dailyFields);
   const mortalityPayload = pickPresent(payload, mortalityFields);
 
+  assignIfDefined(mortalityPayload, "dead_female", normalizeNullableInteger(mortalityPayload.dead_female));
+  assignIfDefined(mortalityPayload, "dead_male", normalizeNullableInteger(mortalityPayload.dead_male));
+  assignIfDefined(mortalityPayload, "cull_female", normalizeNullableInteger(mortalityPayload.cull_female));
+  assignIfDefined(mortalityPayload, "cull_male", normalizeNullableInteger(mortalityPayload.cull_male));
+  assignIfDefined(mortalityPayload, "grade_litter", normalizeNullableInteger(mortalityPayload.grade_litter));
+  assignIfDefined(mortalityPayload, "grade_footpad", normalizeNullableInteger(mortalityPayload.grade_footpad));
+  assignIfDefined(mortalityPayload, "grade_feathers", normalizeNullableInteger(mortalityPayload.grade_feathers));
+  assignIfDefined(mortalityPayload, "grade_lame", normalizeNullableInteger(mortalityPayload.grade_lame));
+  assignIfDefined(mortalityPayload, "grade_pecking", normalizeNullableInteger(mortalityPayload.grade_pecking));
+  assignIfDefined(mortalityPayload, "cull_female_note", normalizeNullableText(mortalityPayload.cull_female_note));
+  assignIfDefined(mortalityPayload, "cull_male_note", normalizeNullableText(mortalityPayload.cull_male_note));
+  assignIfDefined(mortalityPayload, "dead_reason", normalizeNullableText(mortalityPayload.dead_reason));
+
   if (payload.daily_is_active !== undefined) {
     dailyPayload.daily_is_active = payload.daily_is_active;
   }
 
   if (payload.mortality_is_active !== undefined) {
-    mortalityPayload.mortality_is_active = payload.mortality_is_active;
+    mortalityPayload.mortality_is_active = normalizeBoolean(payload.mortality_is_active, true);
   }
 
   const shouldSaveDaily = hasAnyOwnKeys(pickPresent(payload, dailyFields)) || payload.daily_is_active !== undefined;
