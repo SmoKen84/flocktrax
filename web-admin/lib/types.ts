@@ -109,8 +109,22 @@ export type ActivePlacementRecord = {
   mortalityMaleLast7Days: number;
   mortalityFemaleFirst7Days: number;
   mortalityMaleFirst7Days: number;
+  mortalityFirst7DayBreakdown: Array<{
+    date: string;
+    label: string;
+    male: number;
+    female: number;
+  }>;
+  mortalityLast7DayBreakdown: Array<{
+    date: string;
+    label: string;
+    male: number;
+    female: number;
+  }>;
   latestFemaleWeight: number | null;
   latestMaleWeight: number | null;
+  latestFemaleWeightPercentExpected: number | null;
+  latestMaleWeightPercentExpected: number | null;
   latestFemaleWeightCount: number | null;
   latestMaleWeightCount: number | null;
   latestFemaleWeightDate: string | null;

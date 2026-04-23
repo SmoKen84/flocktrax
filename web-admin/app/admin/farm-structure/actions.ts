@@ -334,6 +334,8 @@ export async function updateFarmAction(formData: FormData) {
       state: coerce(formData.get("state")),
       zip: coerce(formData.get("zip")),
       map_url: coerce(formData.get("map_url")),
+      latitude: coerceNullableNumber(formData.get("latitude")),
+      longitude: coerceNullableNumber(formData.get("longitude")),
       is_active: coerce(formData.get("is_active")) === "on",
       updated_at: new Date().toISOString(),
     })

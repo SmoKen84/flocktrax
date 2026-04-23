@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
 
 const consoleLinks = [
   { label: "Live Dashboard", href: "/admin/overview" },
+  { label: "Feed Tickets", href: "/admin/feed-tickets" },
   { label: "Placements", href: "/admin/placements/new" },
   { label: "Rollups" },
   { label: "Sync Engine", href: "/admin/sync/googleapis-sheets/outbox" },
@@ -26,7 +27,6 @@ const configurationLinks = [
 const archiveLinks = [
   { label: "Flocks", href: "/admin/flocks" },
   { label: "Activity Log", href: "/admin/activity-log" },
-  { label: "Feed Tickets" },
 ];
 
 type AdminShellProps = {
@@ -38,6 +38,7 @@ type AdminShellProps = {
 
 export function AdminShell({ children, displayName, roleLabel, scopeLabel }: AdminShellProps) {
   const pathname = usePathname();
+  const [syncBadgeCount, setSyncBadgeCount] = useState(0);
   const now = new Date();
   const sidebarDate = new Intl.DateTimeFormat("en-US", {
     weekday: "short",
@@ -51,6 +52,44 @@ export function AdminShell({ children, displayName, roleLabel, scopeLabel }: Adm
     minute: "2-digit",
     timeZone: "America/Chicago",
   }).format(now);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSyncBadge() {
+      try {
+        const response = await fetch("/api/sync-engine-badge", {
+          method: "GET",
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { count?: number };
+        if (!cancelled) {
+          setSyncBadgeCount(typeof payload.count === "number" ? payload.count : 0);
+        }
+      } catch {
+        if (!cancelled) {
+          setSyncBadgeCount(0);
+        }
+      }
+    }
+
+    void loadSyncBadge();
+    const intervalId = window.setInterval(() => {
+      void loadSyncBadge();
+    }, 30000);
+
+    const handleFocus = () => {
+      void loadSyncBadge();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
 
   const renderNavItem = (item: { href?: string; label: string }) => {
     if (!item.href) {
@@ -70,7 +109,12 @@ export function AdminShell({ children, displayName, roleLabel, scopeLabel }: Adm
         href={item.href}
         key={item.href}
       >
-        {item.label}
+        <span>{item.label}</span>
+        {item.label === "Sync Engine" && syncBadgeCount > 0 ? (
+          <span className="sidebar-notification-badge" aria-label={`${syncBadgeCount} sync items need attention`}>
+            {syncBadgeCount}
+          </span>
+        ) : null}
       </Link>
     );
   };

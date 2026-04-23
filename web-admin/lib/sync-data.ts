@@ -37,6 +37,7 @@ export type GoogleSheetsOutboxRecord = {
   farmName: string | null;
   spreadsheetName: string | null;
   spreadsheetId: string | null;
+  payload: Record<string, unknown> | null;
 };
 
 export type GoogleSheetsCurrentOperation = {
@@ -58,6 +59,12 @@ export type GoogleSheetsOutboxFilters = {
   farmId?: string | null;
   entityType?: string | null;
   search?: string | null;
+};
+
+export type GoogleSheetsWorkerSettings = {
+  batchWrites: boolean;
+  batchLimit: number;
+  scheduleMinutes: number | null;
 };
 
 export type GoogleSheetsColumnMapRecord = {
@@ -116,6 +123,7 @@ type SyncOutboxRow = {
   attempts: number | null;
   last_error: string | null;
   endpoint_id: string;
+  payload: Record<string, unknown> | null;
 };
 
 type GoogleSheetsColumnRow = {
@@ -222,7 +230,7 @@ export async function getGoogleSheetsOutboxBundle(filters: GoogleSheetsOutboxFil
   const outboxQuery = admin
     .schema("platform")
     .from("sync_outbox")
-    .select("id,status,operation,entity_type,placement_id,placement_key,log_date,requested_at,processed_at,attempts,last_error,endpoint_id")
+    .select("id,status,operation,entity_type,placement_id,placement_key,log_date,requested_at,processed_at,attempts,last_error,endpoint_id,payload")
     .order("requested_at", { ascending: false })
     .limit(150);
 
@@ -234,7 +242,7 @@ export async function getGoogleSheetsOutboxBundle(filters: GoogleSheetsOutboxFil
     outboxQuery.eq("entity_type", filters.entityType);
   }
 
-  const [adapterResult, endpointsResult, sheetsResult, outboxResult, farmsResult, currentInProgressResult, totalCountResult, pendingCountResult, inProgressCountResult, failedCountResult, sentCountResult, rejectedCountResult] = await Promise.all([
+  const [adapterResult, endpointsResult, sheetsResult, outboxResult, farmsResult, currentInProgressResult, totalCountResult, pendingCountResult, inProgressCountResult, failedCountResult, sentCountResult, rejectedCountResult, settingsResult] = await Promise.all([
     admin
       .schema("platform")
       .from("sync_adapters")
@@ -251,7 +259,7 @@ export async function getGoogleSheetsOutboxBundle(filters: GoogleSheetsOutboxFil
     admin
       .schema("platform")
       .from("sync_outbox")
-      .select("id,status,operation,entity_type,placement_id,placement_key,log_date,requested_at,processed_at,attempts,last_error,endpoint_id")
+      .select("id,status,operation,entity_type,placement_id,placement_key,log_date,requested_at,processed_at,attempts,last_error,endpoint_id,payload")
       .eq("status", "in_progress")
       .order("claimed_at", { ascending: true })
       .limit(1)
@@ -262,6 +270,7 @@ export async function getGoogleSheetsOutboxBundle(filters: GoogleSheetsOutboxFil
     admin.schema("platform").from("sync_outbox").select("*", { count: "exact", head: true }).eq("status", "failed"),
     admin.schema("platform").from("sync_outbox").select("*", { count: "exact", head: true }).eq("status", "sent"),
     admin.schema("platform").from("sync_outbox").select("*", { count: "exact", head: true }).eq("status", "rejected"),
+    admin.schema("platform").from("settings").select("name,value,is_active").limit(100),
   ]);
 
   if (
@@ -276,7 +285,8 @@ export async function getGoogleSheetsOutboxBundle(filters: GoogleSheetsOutboxFil
     inProgressCountResult.error ||
     failedCountResult.error ||
     sentCountResult.error ||
-    rejectedCountResult.error
+    rejectedCountResult.error ||
+    settingsResult.error
   ) {
     throw new Error(
       adapterResult.error?.message ||
@@ -291,6 +301,7 @@ export async function getGoogleSheetsOutboxBundle(filters: GoogleSheetsOutboxFil
         failedCountResult.error?.message ||
         sentCountResult.error?.message ||
         rejectedCountResult.error?.message ||
+        settingsResult.error?.message ||
         "Unknown sync outbox error",
     );
   }
@@ -305,6 +316,7 @@ export async function getGoogleSheetsOutboxBundle(filters: GoogleSheetsOutboxFil
   const farms = new Map(
     ((farmsResult.data ?? []) as Array<{ id: string; farm_name: string | null }>).map((row) => [row.id, row.farm_name ?? null]),
   );
+  const settingsRows = ((settingsResult.data ?? []) as Array<{ name?: string | null; value?: unknown; is_active?: boolean | null }>);
 
   const rawItems: GoogleSheetsOutboxRecord[] = ((outboxResult.data ?? []) as SyncOutboxRow[]).map((row) => {
     const endpoint = endpoints.get(row.endpoint_id);
@@ -329,6 +341,7 @@ export async function getGoogleSheetsOutboxBundle(filters: GoogleSheetsOutboxFil
       farmName,
       spreadsheetName: sheet?.spreadsheet_name ?? null,
       spreadsheetId: sheet?.spreadsheet_id ?? null,
+      payload: row.payload ?? null,
     };
   });
 
@@ -354,6 +367,7 @@ export async function getGoogleSheetsOutboxBundle(filters: GoogleSheetsOutboxFil
           : null,
         spreadsheetName: sheets.get(currentInProgressRow.endpoint_id)?.spreadsheet_name ?? null,
         spreadsheetId: sheets.get(currentInProgressRow.endpoint_id)?.spreadsheet_id ?? null,
+        payload: currentInProgressRow.payload ?? null,
       }
     : null;
 
@@ -389,9 +403,12 @@ export async function getGoogleSheetsOutboxBundle(filters: GoogleSheetsOutboxFil
     return haystack.includes(normalizedSearch);
   });
 
+  const workerSettings = deriveGoogleSheetsWorkerSettings(settingsRows);
+
   return {
     adapter,
     items,
+    workerSettings,
     filters: {
       status: filters.status ?? "",
       farmId: filters.farmId ?? "",
@@ -419,6 +436,49 @@ export async function getGoogleSheetsOutboxBundle(filters: GoogleSheetsOutboxFil
       ).sort(),
       statuses: ["pending", "in_progress", "failed", "sent", "rejected"],
     },
+  };
+}
+
+function deriveGoogleSheetsWorkerSettings(
+  rows: Array<{ name?: string | null; value?: unknown; is_active?: boolean | null }>,
+): GoogleSheetsWorkerSettings {
+  let batchWrites = true;
+  let batchLimit = 25;
+  let scheduleMinutes: number | null = null;
+
+  for (const row of rows) {
+    if (row.is_active === false) {
+      continue;
+    }
+
+    const name = String(row.name ?? "").trim().toLowerCase();
+    const rawValue = String(row.value ?? "").trim().toLowerCase();
+
+    if (["googleapis_outbox_batch_writes", "googleapis_worker_batch_writes", "sync_worker_batch_writes"].includes(name)) {
+      batchWrites = ["1", "true", "yes", "on"].includes(rawValue);
+      continue;
+    }
+
+    if (["googleapis_outbox_batch_limit", "googleapis_worker_batch_limit", "sync_worker_batch_limit"].includes(name)) {
+      const parsed = Number.parseInt(String(row.value ?? ""), 10);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        batchLimit = parsed;
+      }
+      continue;
+    }
+
+    if (["googleapis_outbox_schedule_minutes", "googleapis_worker_schedule_minutes", "sync_worker_schedule_minutes"].includes(name)) {
+      const parsed = Number.parseInt(String(row.value ?? ""), 10);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        scheduleMinutes = parsed;
+      }
+    }
+  }
+
+  return {
+    batchWrites,
+    batchLimit,
+    scheduleMinutes,
   };
 }
 

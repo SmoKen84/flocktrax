@@ -26,6 +26,8 @@ export type FarmEditorRecord = {
   state: string;
   postalCode: string;
   mapUrl: string;
+  latitude: string;
+  longitude: string;
   isActive: boolean;
 };
 
@@ -71,6 +73,8 @@ type FarmRow = {
   state: string | null;
   zip: string | null;
   map_url: string | null;
+  latitude: number | null;
+  longitude: number | null;
   is_active: boolean | null;
 };
 
@@ -121,7 +125,7 @@ export async function getFarmStructureEditorBundle(options: {
   const farmPromise = options.farmId
     ? supabase
         .from("farms")
-        .select("id,farm_group_id,farm_code,farm_name,addr,city,state,zip,map_url,is_active")
+        .select("id,farm_group_id,farm_code,farm_name,addr,city,state,zip,map_url,latitude,longitude,is_active")
         .eq("id", options.farmId)
         .maybeSingle()
     : Promise.resolve({ data: null, error: null });
@@ -167,6 +171,8 @@ export async function getFarmStructureEditorBundle(options: {
           state: normalize(farmRow.state),
           postalCode: normalize(farmRow.zip),
           mapUrl: normalize(farmRow.map_url),
+          latitude: formatNumeric(farmRow.latitude),
+          longitude: formatNumeric(farmRow.longitude),
           isActive: farmRow.is_active !== false,
         }
       : null,

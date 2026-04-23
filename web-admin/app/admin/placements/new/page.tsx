@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { schedulePlacementAction, updatePlacementAction } from "@/app/admin/placements/new/actions";
+import { deleteScheduledPlacementAction, updatePlacementAction } from "@/app/admin/placements/new/actions";
+import { SchedulePlacementForm } from "@/app/admin/placements/new/schedule-placement-form";
 import { SchedulerFilters } from "@/app/admin/placements/new/scheduler-filters";
 import { PageHeader } from "@/components/page-header";
 import { getUserAccessBundle, resolveRoleTemplate } from "@/lib/access-control";
@@ -71,7 +72,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
   const selectedDate =
     (clearedSelection ? null : selectedDateParam) ??
     selectedPlacementById?.startDate ??
-    (selectedBarn ? bundle.recommendedStartByBarnId[selectedBarn.id] ?? "" : "");
+    null;
   const selectedMonth = selectedMonthParam ?? (selectedDate ? selectedDate.slice(0, 7) : new Date().toISOString().slice(0, 7));
   const windows = selectedBarn ? bundle.windowsByBarnId[selectedBarn.id] ?? [] : [];
   const recommendedStartDate = selectedBarn ? bundle.recommendedStartByBarnId[selectedBarn.id] ?? null : null;
@@ -103,6 +104,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
       : `(${windows.length} scheduled window${windows.length === 1 ? "" : "s"})`;
   const nextPlaceOffsetDays = bundle.settings.nextPlaceOffsetDays;
   const allowHistoricalEntry = bundle.settings.allowHistoricalEntry;
+  const getNextPlaceDate = (startDate: string) => addDays(startDate, nextPlaceOffsetDays);
   const buildHref = (options: {
     mode?: "blocked" | "placements";
     farm?: string | null;
@@ -141,7 +143,8 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
   const selectedDateIsPast = Boolean(selectedDate && selectedDate < todayIso);
   const canCreateForSelectedDate = Boolean(selectedBarn && selectedDate && (!selectedDateIsPast || allowHistoricalEntry));
 
-  const defaultProjectedEnd = selectedDate ? addDays(selectedDate, bundle.settings.growOutDays) : "";
+  const maleBreedOptions = bundle.breeds.filter((breed) => !breed.sex || breed.sex === "male" || breed.sex === "unsexed");
+  const femaleBreedOptions = bundle.breeds.filter((breed) => !breed.sex || breed.sex === "female" || breed.sex === "unsexed");
 
   return (
     <>
@@ -180,7 +183,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
           </div>
 
           <div className="placement-scheduler-calendar-header">
-            <Link className="button-ghost placement-scheduler-nav-button" href={buildHref({ month: calendar.previousMonth, date: null })}>
+            <Link className="button-ghost placement-scheduler-nav-button" href={buildHref({ month: calendar.previousMonth, date: null, placement: null })}>
               Prev
             </Link>
             <div className="placement-scheduler-calendar-heading">
@@ -188,7 +191,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
               <p className="placement-scheduler-calendar-meta">{calendarContextMeta}</p>
               <h2>{calendar.title}</h2>
             </div>
-            <Link className="button-ghost placement-scheduler-nav-button" href={buildHref({ month: calendar.nextMonth, date: null })}>
+            <Link className="button-ghost placement-scheduler-nav-button" href={buildHref({ month: calendar.nextMonth, date: null, placement: null })}>
               Next
             </Link>
           </div>
@@ -321,7 +324,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                     data-recommended={day.isRecommended}
                     data-active={day.isActive}
                     data-tone={day.tone}
-                    href={buildHref({ date: day.date })}
+                    href={buildHref({ date: day.date, placement: null })}
                     key={day.date}
                   >
                     {content}
@@ -343,15 +346,14 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
           {mode === "placements" ? (
             <div className="placement-scheduler-mode-stack">
               {selectedPlacement ? (
-                <form action={updatePlacementAction} className="placement-scheduler-form">
+                <form action={updatePlacementAction} className="placement-scheduler-form" key={`farm-edit-${selectedPlacement.id}`}>
                   <input name="mode" type="hidden" value={mode} />
                   <input name="farm_id" type="hidden" value={selectedFarm?.id ?? ""} />
                   <input name="barn_id" type="hidden" value={selectedBarn?.id ?? ""} />
                   <input name="placement_id" type="hidden" value={selectedPlacement.id} />
                   <input name="flock_id" type="hidden" value={selectedPlacement.flockId} />
                   <input name="flock_number" type="hidden" value={selectedPlacement.flockNumber ?? ""} />
-                  <input name="date_placed" type="hidden" value={selectedPlacement.startDate} />
-                  <input name="selected_date" type="hidden" value={selectedDate} />
+                    <input name="selected_date" type="hidden" value={selectedDate ?? ""} />
                   <input name="month" type="hidden" value={selectedMonth} />
 
                   <div className="helper-banner">
@@ -369,6 +371,10 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                         <strong>{formatDateLabel(selectedPlacement.startDate)}</strong>
                       </div>
                     </div>
+                    <label className="field">
+                      <span>Placed Date</span>
+                      <input defaultValue={selectedPlacement.startDate} name="date_placed" type="date" required />
+                    </label>
                     <label className="field">
                       <span>Projected End</span>
                       <input defaultValue={selectedPlacement.endDate} name="max_date" type="date" />
@@ -399,14 +405,28 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                         <input defaultValue={selectedPlacement.lh3Date ?? ""} name="lh3_date" type="date" />
                       </label>
                     </div>
-                    <label className="field">
-                      <span>Breed Males</span>
-                      <input defaultValue={selectedPlacement.breedMales ?? ""} name="breed_males" placeholder="Breed id or lookup value" />
-                    </label>
-                    <label className="field">
-                      <span>Breed Females</span>
-                      <input defaultValue={selectedPlacement.breedFemales ?? ""} name="breed_females" placeholder="Breed id or lookup value" />
-                    </label>
+                      <label className="field">
+                        <span>Breed Males</span>
+                        <select defaultValue={selectedPlacement.breedMales ?? ""} name="breed_males">
+                          <option value=""></option>
+                          {maleBreedOptions.map((breed) => (
+                            <option key={breed.id} value={breed.id}>
+                              {breed.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span>Breed Females</span>
+                        <select defaultValue={selectedPlacement.breedFemales ?? ""} name="breed_females">
+                          <option value=""></option>
+                          {femaleBreedOptions.map((breed) => (
+                            <option key={breed.id} value={breed.id}>
+                              {breed.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                   </div>
 
                   <div className="placement-scheduler-projection">
@@ -417,11 +437,20 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                     </p>
                   </div>
 
-                  <button className="button" type="submit">
-                    Save Placement
-                  </button>
-                </form>
-              ) : (
+                    <button className="button" type="submit">
+                      Save Placement
+                    </button>
+                    {selectedPlacement.isFuture ? (
+                      <button
+                        className="button button-ghost"
+                        formAction={deleteScheduledPlacementAction}
+                        type="submit"
+                      >
+                        Delete Scheduled Flock
+                      </button>
+                    ) : null}
+                  </form>
+                ) : (
                 <>
                   <div className="helper-banner">
                     Farm View gives you the month-at-a-glance picture. Click any placement key on the calendar to open that flock and placement in the editor here on the right.
@@ -451,14 +480,14 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                               placement: window.id,
                               date: window.startDate,
                             })}
-                            key={`${window.id}-farm-recap`}
-                          >
-                            <span>{window.placementCode}</span>
-                            <span>{window.startDate}</span>
-                            <span>{addDays(window.startDate, nextPlaceOffsetDays)}</span>
-                            <span>{window.barnCode}</span>
-                          </Link>
-                        ))
+                              key={`${window.id}-farm-recap`}
+                            >
+                              <span>{window.placementCode}</span>
+                              <span>{window.startDate}</span>
+                              <span>{getNextPlaceDate(window.startDate)}</span>
+                              <span>{window.barnCode}</span>
+                            </Link>
+                          ))
                       ) : (
                         <p className="meta-copy">No placement starts fall in this month for the selected farm.</p>
                       )}
@@ -468,14 +497,14 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
               )}
             </div>
           ) : selectedPlacement && selectedPlacement.isFuture ? (
-            <form action={updatePlacementAction} className="placement-scheduler-form">
+            <form action={updatePlacementAction} className="placement-scheduler-form" key={`future-edit-${selectedPlacement.id}`}>
               <input name="mode" type="hidden" value={mode} />
               <input name="farm_id" type="hidden" value={selectedFarm?.id ?? ""} />
               <input name="barn_id" type="hidden" value={selectedBarn?.id ?? ""} />
               <input name="placement_id" type="hidden" value={selectedPlacement.id} />
               <input name="flock_id" type="hidden" value={selectedPlacement.flockId} />
               <input name="flock_number" type="hidden" value={selectedPlacement.flockNumber ?? ""} />
-              <input name="selected_date" type="hidden" value={selectedDate} />
+                <input name="selected_date" type="hidden" value={selectedDate ?? ""} />
               <input name="month" type="hidden" value={selectedMonth} />
 
               <div className="helper-banner">
@@ -529,11 +558,25 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                 </div>
                 <label className="field">
                   <span>Breed Males</span>
-                  <input defaultValue={selectedPlacement.breedMales ?? ""} name="breed_males" placeholder="Breed id or lookup value" />
+                  <select defaultValue={selectedPlacement.breedMales ?? ""} name="breed_males">
+                    <option value=""></option>
+                    {maleBreedOptions.map((breed) => (
+                      <option key={breed.id} value={breed.id}>
+                        {breed.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <label className="field">
                   <span>Breed Females</span>
-                  <input defaultValue={selectedPlacement.breedFemales ?? ""} name="breed_females" placeholder="Breed id or lookup value" />
+                  <select defaultValue={selectedPlacement.breedFemales ?? ""} name="breed_females">
+                    <option value=""></option>
+                    {femaleBreedOptions.map((breed) => (
+                      <option key={breed.id} value={breed.id}>
+                        {breed.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
 
@@ -548,17 +591,23 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
               <button className="button" type="submit">
                 Update Scheduled Placement
               </button>
+              <button
+                className="button button-ghost"
+                formAction={deleteScheduledPlacementAction}
+                type="submit"
+              >
+                Delete Scheduled Flock
+              </button>
             </form>
           ) : selectedPlacement ? (
-            <form action={updatePlacementAction} className="placement-scheduler-form">
+            <form action={updatePlacementAction} className="placement-scheduler-form" key={`placement-edit-${selectedPlacement.id}`}>
               <input name="mode" type="hidden" value={mode} />
               <input name="farm_id" type="hidden" value={selectedFarm?.id ?? ""} />
               <input name="barn_id" type="hidden" value={selectedBarn?.id ?? ""} />
               <input name="placement_id" type="hidden" value={selectedPlacement.id} />
               <input name="flock_id" type="hidden" value={selectedPlacement.flockId} />
               <input name="flock_number" type="hidden" value={selectedPlacement.flockNumber ?? ""} />
-              <input name="date_placed" type="hidden" value={selectedPlacement.startDate} />
-              <input name="selected_date" type="hidden" value={selectedDate} />
+              <input name="selected_date" type="hidden" value={selectedDate ?? ""} />
               <input name="month" type="hidden" value={selectedMonth} />
 
               <div className="helper-banner">
@@ -576,6 +625,10 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                     <strong>{formatDateLabel(selectedPlacement.startDate)}</strong>
                   </div>
                 </div>
+                <label className="field">
+                  <span>Placed Date</span>
+                  <input defaultValue={selectedPlacement.startDate} name="date_placed" type="date" required />
+                </label>
                 <label className="field">
                   <span>Projected End</span>
                   <input defaultValue={selectedPlacement.endDate} name="max_date" type="date" />
@@ -608,11 +661,25 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                 </div>
                 <label className="field">
                   <span>Breed Males</span>
-                  <input defaultValue={selectedPlacement.breedMales ?? ""} name="breed_males" placeholder="Breed id or lookup value" />
+                  <select defaultValue={selectedPlacement.breedMales ?? ""} name="breed_males">
+                    <option value=""></option>
+                    {maleBreedOptions.map((breed) => (
+                      <option key={breed.id} value={breed.id}>
+                        {breed.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <label className="field">
                   <span>Breed Females</span>
-                  <input defaultValue={selectedPlacement.breedFemales ?? ""} name="breed_females" placeholder="Breed id or lookup value" />
+                  <select defaultValue={selectedPlacement.breedFemales ?? ""} name="breed_females">
+                    <option value=""></option>
+                    {femaleBreedOptions.map((breed) => (
+                      <option key={breed.id} value={breed.id}>
+                        {breed.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
 
@@ -629,45 +696,14 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
               </button>
             </form>
           ) : canCreateForSelectedDate ? (
-            <form action={schedulePlacementAction} className="placement-scheduler-form">
-              <input name="farm_id" type="hidden" value={selectedFarm?.id ?? ""} />
-              <input name="barn_id" type="hidden" value={selectedBarn?.id ?? ""} />
-              <input name="selected_date" type="hidden" value={selectedDate} />
-              <input name="month" type="hidden" value={selectedMonth} />
-
-              <div className="helper-banner">
-                {`Selected ${selectedDate} for barn ${selectedBarn?.barnCode ?? "the selected barn"}. This will create a new flock record and a linked placement together.`}
-              </div>
-
-              <div className="form-grid">
-                <label className="field">
-                  <span>Flock Number</span>
-                  <input name="flock_number" placeholder="Enter integrator flock number" required />
-                </label>
-                <label className="field">
-                  <span>Grow-out Days</span>
-                  <input defaultValue={bundle.settings.growOutDays} name="grow_out_days" type="number" />
-                </label>
-                <label className="field">
-                  <span>Start Females</span>
-                  <input name="start_cnt_females" type="number" />
-                </label>
-                <label className="field">
-                  <span>Start Males</span>
-                  <input name="start_cnt_males" type="number" />
-                </label>
-              </div>
-
-              <div className="placement-scheduler-projection">
-                <span>Projected Grow-Out</span>
-                <strong>{`${selectedDate} through ${defaultProjectedEnd}`}</strong>
-                <p>{`This window will be blocked on the barn calendar using the current grow-out duration of ${bundle.settings.growOutDays} days.`}</p>
-              </div>
-
-              <button className="button" type="submit">
-                Schedule Placement
-              </button>
-            </form>
+            <SchedulePlacementForm
+              barnCode={selectedBarn?.barnCode ?? null}
+              defaultGrowOutDays={bundle.settings.growOutDays}
+              farmId={selectedFarm?.id ?? ""}
+              month={selectedMonth}
+              selectedBarnId={selectedBarn?.id ?? ""}
+              selectedDate={selectedDate ?? ""}
+            />
           ) : (
             <div className="helper-banner">
               {selectedDateIsPast && !allowHistoricalEntry
@@ -683,49 +719,35 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
               <div className="placement-scheduler-window-list">
                 <div className="section-header">
                   <div>
-                    <p className="eyebrow">Scheduled Windows</p>
+                    <p className="eyebrow">Barn Schedule</p>
                     <h3>{selectedBarn ? `Barn ${selectedBarn.barnCode}` : "No barn selected"}</h3>
-                  </div>
-                </div>
-                {windows.length > 0 ? (
-                  windows.map((window) => (
-                    <div className="placement-scheduler-window-card" key={window.id}>
-                      <p className="table-title">{window.placementCode}</p>
-                      <p className="table-subtitle">{`Flock ${window.flockNumber ?? "TBD"}`}</p>
-                      <p className="meta-copy">{`${window.startDate} to ${window.endDate}`}</p>
-                      <span
-                        className="status-pill"
-                        data-tone={window.isFuture ? "warn" : window.isComplete ? "danger" : "good"}
-                      >
-                        {window.isFuture ? "Scheduled" : window.isComplete ? "Closed" : "Active"}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="meta-copy">No placement windows exist for this barn yet.</p>
-                )}
-              </div>
-
-              <div className="placement-scheduler-window-list">
-                <div className="section-header">
-                  <div>
-                    <p className="eyebrow">Placement Recap</p>
-                    <h3>Created Flocks</h3>
                   </div>
                 </div>
                 {windows.length > 0 ? (
                   <div className="placement-scheduler-recap-table">
                     <div className="placement-scheduler-recap-row placement-scheduler-recap-row-head">
                       <span>Flock</span>
-                      <span>Place Date</span>
+                      <span>St</span>
                       <span>Next Place</span>
                     </div>
                     {windows.slice().sort((left, right) => right.startDate.localeCompare(left.startDate)).map((window) => (
-                      <div className="placement-scheduler-recap-row" key={`${window.id}-recap`}>
-                        <span>{window.placementCode}</span>
-                        <span>{window.startDate}</span>
-                        <span>{addDays(window.startDate, nextPlaceOffsetDays)}</span>
-                      </div>
+                      <Link
+                        className="placement-scheduler-recap-row placement-scheduler-recap-link"
+                        data-state={getPlacementStateTone(window)}
+                        href={buildHref({
+                          barn: window.barnId,
+                          placement: window.id,
+                          date: window.startDate,
+                        })}
+                        key={`${window.id}-recap`}
+                      >
+                        <span className="placement-scheduler-recap-flock-cell">
+                          <strong>{window.placementCode}</strong>
+                          <small>{formatShortDate(window.startDate)}</small>
+                        </span>
+                        <span className="placement-scheduler-recap-state">{getPlacementStateLabel(window)}</span>
+                        <span>{formatShortDate(getNextPlaceDate(window.startDate))}</span>
+                      </Link>
                     ))}
                   </div>
                 ) : (
@@ -762,7 +784,7 @@ type CalendarWindow = {
   tone?: number;
 };
 
-function buildCalendar(month: string, windows: CalendarWindow[], selectedDate: string, recommendedStartDate: string | null) {
+function buildCalendar(month: string, windows: CalendarWindow[], selectedDate: string | null, recommendedStartDate: string | null) {
   const [year, monthValue] = month.split("-").map(Number);
   const firstDay = new Date(Date.UTC(year, monthValue - 1, 1));
   const firstGridDay = new Date(firstDay);
@@ -807,7 +829,7 @@ function buildCalendar(month: string, windows: CalendarWindow[], selectedDate: s
 function buildFarmCalendar(
   month: string,
   windows: Array<CalendarWindow & { barnCode: string }>,
-  selectedDate: string,
+  selectedDate: string | null,
   selectedBarnId: string | null,
 ) {
   const frame = buildMonthFrame(month);
@@ -880,6 +902,27 @@ function formatDateLabel(dateString: string | null | undefined) {
   const [year, month, day] = dateString.split("-");
   if (!year || !month || !day) return dateString;
   return `${month}/${day}/${year}`;
+}
+
+function formatShortDate(dateString: string | null | undefined) {
+  if (!dateString) return "--";
+  const [year, month, day] = dateString.split("-");
+  if (!year || !month || !day) return dateString;
+  return `${month}/${day}/${year.slice(-2)}`;
+}
+
+function getPlacementStateLabel(window: { isFuture?: boolean; isComplete?: boolean; isActive?: boolean }) {
+  if (window.isComplete) return "Closed";
+  if (window.isActive) return "Active";
+  if (window.isFuture) return "Scheduled";
+  return "Interim";
+}
+
+function getPlacementStateTone(window: { isFuture?: boolean; isComplete?: boolean; isActive?: boolean }) {
+  if (window.isComplete) return "closed";
+  if (window.isActive) return "active";
+  if (window.isFuture) return "scheduled";
+  return "interim";
 }
 
 function allowsGlobalSchedulerScope(roleKey: string | null) {

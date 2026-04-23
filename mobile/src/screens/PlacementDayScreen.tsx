@@ -14,6 +14,7 @@ import {
 } from "react-native";
 
 import { DashboardSettings, PlacementDayItem, PlacementSummary } from "../types";
+import { formatDateByPattern, formatShortDate } from "../utils/date-format";
 
 type Props = {
   item: PlacementDayItem | null;
@@ -25,7 +26,7 @@ type Props = {
   onChangeDate: (nextDate: string) => void;
   onLoadDate: (nextDate: string) => void;
   onOpenWeightEntry: () => void;
-  onSave: (item: PlacementDayItem) => Promise<void>;
+  onSave: (item: PlacementDayItem) => Promise<PlacementDayItem | void>;
 };
 
 type PlacementTab = "daily" | "mortality" | "grade";
@@ -71,7 +72,7 @@ export function PlacementDayScreen({
     setCalendarCursor(getMonthStart(logDate));
   }, [logDate]);
 
-  const displayLogDate = formatConfiguredDate(logDate, settings?.dow_date, logDate);
+  const displayLogDate = formatDateByPattern(logDate, settings?.dow_date, logDate);
   const dailyTaskSlots = buildDailyTaskSlots(draft?.daily_tasks);
 
   async function save() {
@@ -87,7 +88,16 @@ export function PlacementDayScreen({
       setSaving(true);
       setLocalMessage(null);
       await onSave(draft);
-      setLocalMessage("Saved to hosted FlockTrax.");
+      if (shouldAutoAdvanceHistoricalDate(logDate, settings)) {
+        const nextDate = addDaysToIsoDate(logDate, 1);
+        setLocalMessage(
+          `Saved. Loading ${formatShortDate(nextDate, settings?.short_date, nextDate)}...`,
+        );
+        onChangeDate(nextDate);
+        onLoadDate(nextDate);
+      } else {
+        setLocalMessage("Saved to hosted FlockTrax.");
+      }
       setHasUnsavedChanges(false);
     } catch (error) {
       setLocalMessage(error instanceof Error ? error.message : "Save failed.");
@@ -225,11 +235,21 @@ export function PlacementDayScreen({
               label=""
               value={placement.placement_code}
               accent
+              containerStyle={styles.summaryMetricCode}
               valueStyle={styles.summaryMetricValueCode}
               singleLine
             />
-            <SummaryMetric label="Placed" value={formatPlacedDate(draft.placed_date)} />
-            <SummaryMetric label="Age" value={`${draft.age_days ?? "--"}`} valueStyle={styles.summaryMetricValueAge} />
+            <SummaryMetric
+              label="Placed"
+              containerStyle={styles.summaryMetricPlaced}
+              value={formatPlacedSummaryDate(draft.placed_date)}
+            />
+            <SummaryMetric
+              label="Age"
+              containerStyle={styles.summaryMetricAge}
+              value={`${draft.age_days ?? "--"}`}
+              valueStyle={styles.summaryMetricValueAge}
+            />
           </View>
 
           <Text style={styles.entryLabel}>Entry Date:</Text>
@@ -305,6 +325,7 @@ export function PlacementDayScreen({
           <MortalityTab
             draft={draft}
             logDate={logDate}
+            shortDateSetting={settings?.short_date}
             onChangeDraft={(patch) => {
               setDraft({ ...draft, ...patch });
               setHasUnsavedChanges(true);
@@ -499,15 +520,23 @@ function DailyTab({
 type MortalityTabProps = {
   draft: PlacementDayItem;
   logDate: string;
+  shortDateSetting: string | null | undefined;
   onChangeDraft: (patch: Partial<PlacementDayItem>) => void;
 };
 
-function MortalityTab({ draft, logDate, onChangeDraft }: MortalityTabProps) {
+function MortalityTab({
+  draft,
+  logDate,
+  shortDateSetting,
+  onChangeDraft,
+}: MortalityTabProps) {
   return (
     <View style={styles.panel}>
       <View style={styles.panelHeaderRow}>
         <Text style={styles.panelTitleSerif}>Mortality</Text>
-        <Text style={styles.panelAccent}>{formatHeaderDate(logDate)}</Text>
+        <Text style={styles.panelAccent}>
+          {formatShortDate(logDate, shortDateSetting, logDate)}
+        </Text>
       </View>
 
       <View style={styles.mortalitySummaryCard}>
@@ -625,6 +654,7 @@ type SummaryMetricProps = {
   label: string;
   value: string;
   accent?: boolean;
+  containerStyle?: object;
   valueStyle?: object;
   singleLine?: boolean;
 };
@@ -633,11 +663,12 @@ function SummaryMetric({
   label,
   value,
   accent = false,
+  containerStyle,
   valueStyle,
   singleLine = false,
 }: SummaryMetricProps) {
   return (
-    <View style={[styles.summaryMetric, accent && styles.summaryMetricAccent]}>
+    <View style={[styles.summaryMetric, accent && styles.summaryMetricAccent, containerStyle]}>
       {label ? <Text style={styles.summaryMetricLabel}>{label}</Text> : <View style={styles.summaryMetricLabelSpacer} />}
       <Text
         adjustsFontSizeToFit={singleLine}
@@ -926,6 +957,21 @@ function toNullableNumber(value: string, fallback?: number) {
   return Number.isFinite(parsed) ? parsed : fallback ?? null;
 }
 
+function shouldAutoAdvanceHistoricalDate(
+  logDate: string,
+  settings: DashboardSettings | null,
+) {
+  if (settings?.allow_historical_entry !== true) {
+    return false;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(logDate)) {
+    return false;
+  }
+
+  return logDate < todayIsoDate();
+}
+
 function validateDraft(draft: PlacementDayItem, logDate: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(logDate)) {
     return "Log date must use MM/DD/YY.";
@@ -939,27 +985,12 @@ function validateDraft(draft: PlacementDayItem, logDate: string) {
   return null;
 }
 
-function formatPlacedDate(value: string | null | undefined) {
+function formatPlacedSummaryDate(value: string | null | undefined) {
   if (!value) return "--";
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
 
-function formatHeaderDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-US", {
-    month: "numeric",
-    day: "2-digit",
-    year: "numeric",
-  });
+  const dow = formatDateByPattern(value, "ddd", value);
+  const shortDate = formatShortDate(value, "mm/dd/yy", value);
+  return `${dow}\n${shortDate}`;
 }
 
 function buildDailyTaskSlots(tasks: PlacementDayItem["daily_tasks"] | undefined) {
@@ -979,38 +1010,6 @@ function buildDailyTaskSlots(tasks: PlacementDayItem["daily_tasks"] | undefined)
   }
 
   return filled;
-}
-
-function formatConfiguredDate(
-  value: string | null | undefined,
-  setting: string | null | undefined,
-  fallback = "--",
-) {
-  if (!value) return fallback;
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-
-  const normalized = (setting ?? "").trim().toLowerCase();
-  const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
-  const monthShort = date.toLocaleDateString("en-US", { month: "short" });
-  const monthUpper = monthShort.toUpperCase();
-  const month = date.toLocaleDateString("en-US", { month: "2-digit" });
-  const day = date.toLocaleDateString("en-US", { day: "2-digit" });
-  const yearShort = date.toLocaleDateString("en-US", { year: "2-digit" });
-
-  if (normalized.includes("upper") || normalized.includes("apr")) {
-    return `${weekday.toUpperCase()} ${day} ${monthUpper} ${yearShort}`;
-  }
-
-  if (normalized.includes("compact") || normalized.includes("ddmonyy")) {
-    return `${weekday} ${day}${monthShort}${yearShort}`;
-  }
-
-  if (normalized.includes("slash") || normalized.includes("mm/dd/yy")) {
-    return `${weekday} ${month}/${day}/${yearShort}`;
-  }
-
-  return `${weekday} ${monthShort} ${day}${yearShort}`;
 }
 
 function parseIsoDate(value: string) {
@@ -1036,6 +1035,16 @@ function toIsoDate(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function addDaysToIsoDate(value: string, days: number) {
+  const date = parseIsoDate(value);
+  date.setDate(date.getDate() + days);
+  return toIsoDate(date);
+}
+
+function todayIsoDate() {
+  return toIsoDate(new Date());
 }
 
 function buildCalendarDays(cursor: Date) {
@@ -1180,6 +1189,15 @@ const styles = StyleSheet.create({
     gap: 3,
     alignItems: "center",
   },
+  summaryMetricCode: {
+    flex: 1.05,
+  },
+  summaryMetricPlaced: {
+    flex: 1.2,
+  },
+  summaryMetricAge: {
+    flex: 0.75,
+  },
   summaryMetricAccent: {
     alignItems: "flex-start",
   },
@@ -1223,12 +1241,17 @@ const styles = StyleSheet.create({
   entryDateInputButton: {
     flex: 1,
     borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: "#D2B892",
-    backgroundColor: "#FCF7EF",
+    borderWidth: 2,
+    borderColor: "#C79A67",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 16,
     paddingVertical: 13,
     justifyContent: "center",
+    shadowColor: "#7B4B2A",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   entryDateInputText: {
     color: "#8D1F2B",
@@ -1365,13 +1388,18 @@ const styles = StyleSheet.create({
   inlineInput: {
     minHeight: 46,
     borderRadius: 15,
-    borderWidth: 1.5,
-    borderColor: "#D7C29E",
-    backgroundColor: "#FCF7EF",
+    borderWidth: 2,
+    borderColor: "#C79A67",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
     color: "#1F2A1F",
     fontSize: 16,
     fontWeight: "700",
+    shadowColor: "#7B4B2A",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   labeledField: {
     flex: 1,
@@ -1380,13 +1408,18 @@ const styles = StyleSheet.create({
   largeInput: {
     minHeight: 48,
     borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: "#D7C29E",
-    backgroundColor: "#FCF7EF",
+    borderWidth: 2,
+    borderColor: "#C79A67",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 14,
     paddingVertical: 12,
     color: "#1F2A1F",
     fontSize: 16,
+    shadowColor: "#7B4B2A",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   largeInputMultiline: {
     minHeight: 112,
@@ -1533,24 +1566,34 @@ const styles = StyleSheet.create({
     width: 64,
     minHeight: 48,
     borderRadius: 15,
-    borderWidth: 1.5,
-    borderColor: "#D7C29E",
-    backgroundColor: "#FCF7EF",
+    borderWidth: 2,
+    borderColor: "#C79A67",
+    backgroundColor: "#FFFFFF",
     textAlign: "center",
     color: "#1F2A1F",
     fontSize: 16,
     fontWeight: "700",
+    shadowColor: "#7B4B2A",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   mortalityReasonInput: {
     flex: 1,
     minHeight: 48,
     borderRadius: 15,
-    borderWidth: 1.5,
-    borderColor: "#D7C29E",
-    backgroundColor: "#FCF7EF",
+    borderWidth: 2,
+    borderColor: "#C79A67",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
     color: "#1F2A1F",
     fontSize: 15,
+    shadowColor: "#7B4B2A",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   metaFooterRow: {
     flexDirection: "row",

@@ -3,6 +3,7 @@ import {
   getEnabledGoogleSheetsColumnMap,
   getGoogleSheetsSyncContext,
   getSheetRowByDate,
+  isGoogleSheetsReadBeforeEditEnabled,
 } from "../_shared/google-sheets-read.ts";
 
 function corsHeaders(req: Request) {
@@ -321,6 +322,14 @@ Deno.serve(async (req) => {
       male_sample: normalizeSample(maleRow as Record<string, unknown> | null, "male", ageDays),
       female_sample: normalizeSample(femaleRow as Record<string, unknown> | null, "female", ageDays),
     };
+
+    const readBeforeEditEnabled = await isGoogleSheetsReadBeforeEditEnabled(adminSupabase);
+    if (!readBeforeEditEnabled) {
+      return json(req, {
+        ok: true,
+        item,
+      });
+    }
 
     const hydratedItem = await hydrateWeightEntryFromSheets(
       adminSupabase,

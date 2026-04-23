@@ -2,17 +2,28 @@
   "expo": {
     "name": "FlockTrax",
     "slug": "flocktrax-mobile",
-    "version": "0.1.0",
+    "scheme": "flocktrax",
+    "version": "1.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "../output/MC_Favicon2-transparent.png",
+    "splash": {
+      "image": "../output/MC_Favicon2-transparent.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F2E8D5"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
+      "bundleIdentifier": "com.flocktrax.mobile",
+      "buildNumber": "2",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.flocktrax.mobile",
       "adaptiveIcon": {
+        "foregroundImage": "../output/MC_Favicon2-transparent.png",
         "backgroundColor": "#F2E8D5"
       },
       "edgeToEdgeEnabled": true

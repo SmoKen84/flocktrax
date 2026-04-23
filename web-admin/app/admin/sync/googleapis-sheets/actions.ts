@@ -32,6 +32,57 @@ function resolveGoogleCredentialsPath() {
   return "";
 }
 
+async function processGoogleSheetsOutboxViaHostedWorker(limit: number): Promise<OutboxActionResult> {
+  const supabaseUrl = process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+
+  if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+    return {
+      ok: false,
+      message: "Results: the hosted worker could not start because the Supabase function environment is incomplete.",
+    };
+  }
+
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/googleapis-outbox-process`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${serviceRoleKey}`,
+        apikey: anonKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ limit }),
+      cache: "no-store",
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) {
+      const errorMessage =
+        typeof payload?.error === "string" && payload.error.trim().length > 0
+          ? payload.error.trim()
+          : `Hosted worker request failed with status ${response.status}.`;
+      return {
+        ok: false,
+        message: `Results: the hosted worker could not process the queue. ${errorMessage}`,
+      };
+    }
+
+    return {
+      ok: true,
+      message:
+        typeof payload.message === "string" && payload.message.trim().length > 0
+          ? `Results: ${payload.message.trim()}`
+          : `Results: the hosted worker processed ${payload.claimed ?? 0} queued row(s).`,
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "Results: the hosted worker could not be reached from the admin console.",
+    };
+  }
+}
+
 type RetryOutboxResult =
   | { ok: true }
   | { ok: false; reason: "not_retryable" | "other"; message: string };
@@ -40,6 +91,104 @@ export type OutboxActionResult = {
   ok: boolean;
   message: string;
 };
+
+async function replayGoogleSheetsOutbox(
+  admin: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
+  outboxId: string,
+): Promise<OutboxActionResult> {
+  const { data: outboxRow, error: loadError } = await admin
+    .schema("platform")
+    .from("sync_outbox")
+    .select("id,status,endpoint_id,adapter_id,entity_type,entity_id,operation,placement_id,placement_key,log_date,payload,dedupe_key")
+    .eq("id", outboxId)
+    .maybeSingle();
+
+  if (loadError || !outboxRow) {
+    return {
+      ok: false,
+      message: `Results: that outbox row could not be loaded for replay.${loadError?.message ? ` Error: ${loadError.message}` : ""}`,
+    };
+  }
+
+  const normalizedPayload =
+    outboxRow.payload && typeof outboxRow.payload === "object" && !Array.isArray(outboxRow.payload)
+      ? structuredClone(outboxRow.payload)
+      : {};
+  const replayedAt = new Date().toISOString();
+  const payload = {
+    ...normalizedPayload,
+    replay: {
+      replay_of_outbox_id: outboxRow.id,
+      replayed_at: replayedAt,
+    },
+  };
+
+  const replayDedupeKey = [
+    String(outboxRow.dedupe_key ?? "").trim() || `googleapis-replay|${outboxRow.id}`,
+    "replay",
+    replayedAt,
+  ].join("|");
+
+  const { data: insertedRow, error: insertError } = await admin
+    .schema("platform")
+    .from("sync_outbox")
+    .insert({
+      endpoint_id: outboxRow.endpoint_id,
+      adapter_id: outboxRow.adapter_id,
+      entity_type: outboxRow.entity_type,
+      entity_id: outboxRow.entity_id,
+      operation: outboxRow.operation,
+      placement_id: outboxRow.placement_id,
+      placement_key: outboxRow.placement_key,
+      log_date: outboxRow.log_date,
+      payload,
+      status: "pending",
+      attempts: 0,
+      last_error: null,
+      requested_at: replayedAt,
+      claimed_at: null,
+      processed_at: null,
+      dedupe_key: replayDedupeKey,
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !insertedRow) {
+    return {
+      ok: false,
+      message: `Results: that outbox row could not be replayed.${insertError?.message ? ` Error: ${insertError.message}` : ""}`,
+    };
+  }
+
+  const { error: auditError } = await admin.schema("platform").from("sync_audit").insert({
+    outbox_id: insertedRow.id,
+    endpoint_id: outboxRow.endpoint_id,
+    adapter_id: outboxRow.adapter_id,
+    request_summary: {
+      action: "replay_googleapis_outbox",
+      replay_of_outbox_id: outboxRow.id,
+      original_status: outboxRow.status,
+    },
+    response_summary: {
+      status: "pending",
+      replayed_at: replayedAt,
+    },
+    status_code: 202,
+    status: "logged",
+  });
+
+  if (auditError) {
+    return {
+      ok: false,
+      message: `Results: the replay row was queued, but audit logging failed. Error: ${auditError.message}`,
+    };
+  }
+
+  return {
+    ok: true,
+    message: "Results: 1 outbox row was replayed from its stored payload and moved to pending.",
+  };
+}
 
 async function retryGoogleSheetsOutboxViaFallback(
   admin: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
@@ -363,6 +512,31 @@ export async function retryGoogleSheetsOutboxAction(outboxId: string): Promise<O
   };
 }
 
+export async function replayGoogleSheetsOutboxAction(outboxId: string): Promise<OutboxActionResult> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) {
+    return {
+      ok: false,
+      message: "Results: sync database is unavailable for the replay request.",
+    };
+  }
+
+  const normalizedOutboxId = String(outboxId ?? "").trim();
+  if (!normalizedOutboxId) {
+    return {
+      ok: false,
+      message: "Results: the replay request did not include an outbox id.",
+    };
+  }
+
+  const result = await replayGoogleSheetsOutbox(admin, normalizedOutboxId);
+  if (result.ok) {
+    revalidatePath("/admin/sync/googleapis-sheets/outbox");
+  }
+
+  return result;
+}
+
 export async function retryGoogleSheetsOutboxBulkAction(input: {
   status?: string | null;
   farmId?: string | null;
@@ -511,21 +685,21 @@ export async function processGoogleSheetsOutboxAction(limitInput: number): Promi
     };
   }
 
-  const credentialsPath = resolveGoogleCredentialsPath();
-  if (!credentialsPath) {
-    return {
-      ok: false,
-      message: "Results: the local worker could not start because GOOGLE_APPLICATION_CREDENTIALS is not set on this machine.",
-    };
+  const hostedResult = await processGoogleSheetsOutboxViaHostedWorker(limit);
+  if (hostedResult.ok) {
+    revalidatePath("/admin/sync/googleapis-sheets/outbox");
+    return hostedResult;
   }
 
   const supabaseUrl = process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!supabaseUrl || !serviceRoleKey) {
-    return {
-      ok: false,
-      message: "Results: the local worker could not start because the hosted Supabase worker environment is incomplete.",
-    };
+    return hostedResult;
+  }
+
+  const credentialsPath = resolveGoogleCredentialsPath();
+  if (!credentialsPath) {
+    return hostedResult;
   }
 
   const workerDir = path.resolve(process.cwd(), "..", "toolkit", "sync_engine");
@@ -556,7 +730,7 @@ export async function processGoogleSheetsOutboxAction(limitInput: number): Promi
   revalidatePath("/admin/sync/googleapis-sheets/outbox");
   return {
     ok: true,
-    message: `Results: the local sync worker was launched for up to ${limit} queued rows. Checking queue progress now...`,
+    message: `Results: the hosted worker was unavailable, so the local sync worker was launched for up to ${limit} queued rows. Checking queue progress now...`,
   };
 }
 

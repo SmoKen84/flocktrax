@@ -155,6 +155,8 @@ Deno.serve(async (req) => {
           farm_group_id: "00000000-0000-0000-0000-000000000002",
           farm_group_name: "Sample Group",
           farm_name: "Sample Farm",
+          farm_latitude: 33.7501,
+          farm_longitude: -84.3885,
           barn_code: "Barn-A",
           placement_code: "123-Barn-A",
           placed_date: "2026-02-01",
@@ -195,12 +197,16 @@ Deno.serve(async (req) => {
             farm_id: "00000000-0000-0000-0000-000000000001",
             farm_name: "Sample Farm",
             farm_group_id: "00000000-0000-0000-0000-000000000002",
+            latitude: 33.7501,
+            longitude: -84.3885,
           },
         ],
       },
       settings: {
-        dow_date: "dow_mon_dd_yy",
+        dow_date: "ddd mmm dd",
+        short_date: "mm/dd/yy",
         first_lh: 42,
+        allow_historical_entry: false,
       },
       count: 1,
       mode: "adalo_test",
@@ -350,26 +356,51 @@ Deno.serve(async (req) => {
         ? requestedFarmGroupId || inferredSingleFarmGroupId
         : inferredSingleFarmGroupId;
 
-    let dowDateSetting = "dow_mon_dd_yy";
+    let dowDateSetting = "ddd mmm dd";
+    let shortDateSetting = "mm/dd/yy";
     let firstLivehaulDaysSetting = 38;
-    const { data: appSettingRows, error: appSettingsError } = await supabase
+    let allowHistoricalEntry = false;
+    const { data: publicAppSettingRows, error: publicAppSettingsError } = await supabase
       .from("app_settings")
       .select("name,value")
-      .in("name", ["DOW_Date", "First-LH"])
-      .eq("is_active", true)
-      .limit(10);
+      .limit(25);
 
-    if (!appSettingsError) {
-      for (const row of appSettingRows ?? []) {
-        if (row?.name === "DOW_Date" && typeof row.value === "string" && row.value.trim().length > 0) {
-          dowDateSetting = row.value.trim();
+    if (!publicAppSettingsError) {
+      for (const row of publicAppSettingRows ?? []) {
+        const name = String(row?.name ?? "").trim().toLowerCase();
+        const value = row?.value;
+
+        if (["dow_date", "dowdate"].includes(name) && typeof value === "string" && value.trim().length > 0) {
+          dowDateSetting = value.trim();
         }
 
-        if (row?.name === "First-LH") {
-          const parsed = Number(row.value);
+        if (["short_date", "shortdate"].includes(name) && typeof value === "string" && value.trim().length > 0) {
+          shortDateSetting = value.trim();
+        }
+
+        if (["first-lh", "first_lh", "firstlh"].includes(name)) {
+          const parsed = Number(value);
           if (Number.isFinite(parsed) && parsed > 0) {
             firstLivehaulDaysSetting = parsed;
           }
+        }
+      }
+    }
+
+    const { data: platformSettingRows, error: platformSettingsError } = await supabase
+      .schema("platform")
+      .from("settings")
+      .select("name,value")
+      .limit(25);
+
+    if (!platformSettingsError) {
+      for (const row of platformSettingRows ?? []) {
+        const name = String(row?.name ?? "").trim().toLowerCase();
+        const value = row?.value;
+        const rawValue = String(value ?? "").trim().toLowerCase();
+
+        if (["allow_historical_entry", "historical_entry", "historical_mode", "history_backfill"].includes(name)) {
+          allowHistoricalEntry = ["1", "true", "yes", "on"].includes(rawValue);
         }
       }
     }
@@ -499,7 +530,7 @@ Deno.serve(async (req) => {
     if (farmIds.length > 0) {
       const { data: farms, error: farmsError } = await supabase
         .from("farms")
-        .select("id,farm_name,farm_group_id")
+        .select("id,farm_name,farm_group_id,latitude,longitude")
         .in("id", farmIds);
 
       if (farmsError) {
@@ -666,6 +697,8 @@ Deno.serve(async (req) => {
         farm_group_id: typeof farm?.farm_group_id === "string" ? farm.farm_group_id : null,
         farm_group_name: null,
         farm_name: typeof farm?.farm_name === "string" ? farm.farm_name : "",
+        farm_latitude: typeof farm?.latitude === "number" ? farm.latitude : null,
+        farm_longitude: typeof farm?.longitude === "number" ? farm.longitude : null,
         barn_code: typeof barn?.barn_code === "string" ? barn.barn_code : "",
         placement_code: row.placement_key,
         placed_date: placedDate,
@@ -765,6 +798,8 @@ Deno.serve(async (req) => {
                 farm_id: item.farm_id,
                 farm_name: item.farm_name,
                 farm_group_id: item.farm_group_id,
+                latitude: item.farm_latitude,
+                longitude: item.farm_longitude,
               },
             ]),
           ).values(),
@@ -772,7 +807,9 @@ Deno.serve(async (req) => {
       },
       settings: {
         dow_date: dowDateSetting,
+        short_date: shortDateSetting,
         first_lh: firstLivehaulDaysSetting,
+        allow_historical_entry: allowHistoricalEntry,
       },
       count: count ?? items.length,
     });

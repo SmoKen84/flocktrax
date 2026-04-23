@@ -30,6 +30,8 @@ export type FarmOption = {
   farm_id: string;
   farm_name: string;
   farm_group_id: string | null;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export type PlacementFilterMeta = {
@@ -41,7 +43,9 @@ export type PlacementFilterMeta = {
 
 export type DashboardSettings = {
   dow_date: string | null;
+  short_date: string | null;
   first_lh: number | null;
+  allow_historical_entry: boolean;
 };
 
 export type DailyAgeTask = {
@@ -56,6 +60,8 @@ export type PlacementSummary = {
   farm_group_id: string | null;
   farm_group_name: string | null;
   farm_name: string;
+  farm_latitude: number | null;
+  farm_longitude: number | null;
   barn_code: string;
   placement_code: string;
   placed_date: string;
@@ -81,6 +87,19 @@ export type PlacementSummary = {
   is_complete: boolean;
   is_in_barn: boolean;
   is_settled: boolean;
+};
+
+export type DashboardWeatherForecast = {
+  farmName: string;
+  latitude: number;
+  longitude: number;
+  currentTemperature: number | null;
+  currentWeatherCode: number | null;
+  dailyHigh: number | null;
+  dailyLow: number | null;
+  dailyWeatherCode: number | null;
+  precipitationProbabilityMax: number | null;
+  timezone: string | null;
 };
 
 export type PlacementSummaryResponse = {

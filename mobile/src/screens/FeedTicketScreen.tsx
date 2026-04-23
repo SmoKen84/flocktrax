@@ -51,6 +51,11 @@ export function FeedTicketScreen({ item, loading, onBack, onSave }: Props) {
   const [draft, setDraft] = useState<FeedTicketItem | null>(item);
   const [ticketStarted, setTicketStarted] = useState(false);
   const [pendingDrop, setPendingDrop] = useState<PendingDropState>(buildPendingDrop());
+  const [selectedDropIndex, setSelectedDropIndex] = useState<number | null>(null);
+  const [showDropEditor, setShowDropEditor] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [dropMessage, setDropMessage] = useState<string | null>(null);
+  const [dropMessageTone, setDropMessageTone] = useState<"error" | "success">("error");
   const [pickerState, setPickerState] = useState<PickerState>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [calendarCursor, setCalendarCursor] = useState(() => getMonthStart(item?.delivered_at ?? new Date().toISOString()));
@@ -64,6 +69,11 @@ export function FeedTicketScreen({ item, loading, onBack, onSave }: Props) {
     setDraft(item);
     setTicketStarted(Boolean(item?.id));
     setPendingDrop(buildPendingDrop());
+    setSelectedDropIndex(null);
+    setShowDropEditor(false);
+    setShowDeleteModal(false);
+    setDropMessage(null);
+    setDropMessageTone("error");
     setPickerState(null);
     setIsCalendarOpen(false);
     setCalendarCursor(getMonthStart(item?.delivered_at ?? new Date().toISOString()));
@@ -127,9 +137,8 @@ export function FeedTicketScreen({ item, loading, onBack, onSave }: Props) {
       setSaving(true);
       setMessage(null);
       await onSave(draft);
-      setMessageTone("success");
-      setMessage("Feed ticket and drops saved.");
       setHasUnsavedChanges(false);
+      onBack();
     } catch (error) {
       setMessageTone("error");
       setMessage(error instanceof Error ? error.message : "Feed ticket save failed.");
@@ -145,11 +154,13 @@ export function FeedTicketScreen({ item, loading, onBack, onSave }: Props) {
     if (validation) {
       setMessageTone("error");
       setMessage(validation);
+      setDropMessageTone("error");
+      setDropMessage(validation);
       return;
     }
 
     const nextDrop: FeedDropEntry = {
-      id: null,
+      id: selectedDropIndex !== null ? draft.drops[selectedDropIndex]?.id ?? null : null,
       feed_bin_id: selectedBin?.feed_bin_id ?? null,
       bin_code: selectedBin?.bin_code ?? null,
       barn_code: selectedBin?.barn_code ?? null,
@@ -158,17 +169,52 @@ export function FeedTicketScreen({ item, loading, onBack, onSave }: Props) {
       feed_type: pendingDrop.feed_type,
       drop_weight_lbs: pendingDrop.drop_weight_lbs,
       note: pendingDrop.note,
-      drop_order: draft.drops.length + 1,
+      drop_order: selectedDropIndex !== null ? selectedDropIndex + 1 : draft.drops.length + 1,
     };
+
+    if (isExistingTicket) {
+      const nextDraft = {
+        ...draft,
+        drops:
+          selectedDropIndex !== null
+            ? draft.drops.map((drop, index) =>
+                index === selectedDropIndex ? nextDrop : drop,
+              )
+            : [...draft.drops, nextDrop],
+      };
+
+      void (async () => {
+        const saved = await tryPersistExistingTicket(
+          {
+            ...nextDraft,
+            drops: nextDraft.drops.map((drop, index) => ({ ...drop, drop_order: index + 1 })),
+          },
+          setSaving,
+          setMessage,
+          setMessageTone,
+          onSave,
+          selectedDropIndex !== null ? "Drop updated." : "Drop added.",
+        );
+        if (!saved) return;
+
+        setHasUnsavedChanges(false);
+        setShowDropEditor(false);
+        setSelectedDropIndex(null);
+        onBack();
+      })();
+      return;
+    }
 
     setDraft({
       ...draft,
       drops: [...draft.drops, nextDrop],
     });
     setHasUnsavedChanges(true);
-    setPendingDrop(buildPendingDrop());
+    setPendingDrop(buildPendingDrop(pendingDrop));
     setMessageTone("success");
-    setMessage("Drop added to this ticket.");
+    setMessage("Drop added. Continue entering the next drop, then use Save Ticket & Drops when the ticket is fully allocated.");
+    setDropMessageTone("success");
+    setDropMessage(`Drop #${draft.drops.length + 1} added. Continue with drop #${draft.drops.length + 2}.`);
   }
 
   function handleRemoveDrop(index: number) {
@@ -180,6 +226,12 @@ export function FeedTicketScreen({ item, loading, onBack, onSave }: Props) {
         .map((drop, currentIndex) => ({ ...drop, drop_order: currentIndex + 1 })),
     });
     setHasUnsavedChanges(true);
+  }
+
+  function handleClearPendingDrop() {
+    setPendingDrop(buildPendingDrop(pendingDrop));
+    setDropMessageTone("success");
+    setDropMessage("Current unsaved drop cleared.");
   }
 
   function handleBackPress() {
@@ -211,6 +263,10 @@ export function FeedTicketScreen({ item, loading, onBack, onSave }: Props) {
   }
 
   const pickerOptions = buildPickerOptions(draft.bins, pickerState);
+  const isExistingTicket = Boolean(draft.id);
+  const editingExistingDrop = isExistingTicket && showDropEditor;
+  const editingDropOrdinal =
+    selectedDropIndex !== null ? selectedDropIndex + 1 : draft.drops.length + 1;
 
   return (
     <KeyboardAvoidingView
@@ -221,23 +277,48 @@ export function FeedTicketScreen({ item, loading, onBack, onSave }: Props) {
         <Pressable onPress={handleBackPress} style={styles.backButton}>
           <Text style={styles.backButtonText}>Back</Text>
         </Pressable>
-        <Pressable
-          disabled={saving}
-          onPress={handlePrimaryAction}
-          style={[styles.primaryButton, saving && styles.buttonDisabled]}
-        >
-          {saving ? (
-            <ActivityIndicator color="#FFF8EF" />
-          ) : (
-            <Text style={styles.primaryButtonText}>
-              {ticketStarted ? "Save Ticket & Drops" : "Start Ticket"}
-            </Text>
-          )}
-        </Pressable>
+        {!ticketStarted ? (
+          <Pressable
+            disabled={saving}
+            onPress={handlePrimaryAction}
+            style={[styles.primaryButton, saving && styles.buttonDisabled]}
+          >
+            {saving ? (
+              <ActivityIndicator color="#FFF8EF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Start Ticket</Text>
+            )}
+          </Pressable>
+        ) : isExistingTicket ? (
+          <Pressable
+            disabled={saving || showDropEditor}
+            onPress={() => {
+              setSelectedDropIndex(null);
+              setPendingDrop(buildPendingDrop());
+              setShowDropEditor(true);
+              setDropMessage(null);
+            }}
+            style={[styles.primaryButton, (saving || showDropEditor) && styles.buttonDisabled]}
+          >
+            <Text style={styles.primaryButtonText}>+ Drop</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            disabled={saving}
+            onPress={handlePrimaryAction}
+            style={[styles.primaryButton, saving && styles.buttonDisabled]}
+          >
+            {saving ? (
+              <ActivityIndicator color="#FFF8EF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Save Ticket & Drops</Text>
+            )}
+          </Pressable>
+        )}
       </View>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.screenKicker}>Field Operations</Text>
-        <Text style={styles.screenTitle}>Create Ticket & Receive Feed</Text>
+        <Text style={styles.screenTitle}>{isExistingTicket ? "Review Ticket & Drops" : "Create Ticket & Receive Feed"}</Text>
 
         {message ? (
           <View style={[styles.messageBanner, messageTone === "success" ? styles.messageSuccess : styles.messageError]}>
@@ -351,19 +432,40 @@ export function FeedTicketScreen({ item, loading, onBack, onSave }: Props) {
                   <Text style={[styles.dropTableHeaderText, styles.dropColFlock]}>Flock</Text>
                   <Text style={[styles.dropTableHeaderText, styles.dropColType]}>Type</Text>
                   <Text style={[styles.dropTableHeaderText, styles.dropColAmt]}>Amount</Text>
-                  <View style={styles.dropTableHeaderSpacer} />
+                  {isExistingTicket ? <Text style={styles.dropTableHeaderEdit}>Edit</Text> : <View style={styles.dropTableHeaderSpacer} />}
                 </View>
                 {draft.drops.length ? (
                   draft.drops.map((drop, index) => (
-                    <View key={`${drop.id ?? "draft"}-${index}`} style={styles.dropTableRow}>
+                    <Pressable
+                      key={`${drop.id ?? "draft"}-${index}`}
+                      onPress={
+                        isExistingTicket
+                          ? () => {
+                              setSelectedDropIndex(index);
+                              setPendingDrop(buildPendingDropFromDrop(drop, draft.bins));
+                              setShowDropEditor(true);
+                              setDropMessage(null);
+                            }
+                          : undefined
+                      }
+                      style={[
+                        styles.dropTableRow,
+                        isExistingTicket && styles.dropTableRowInteractive,
+                        isExistingTicket && selectedDropIndex === index && showDropEditor && styles.dropTableRowSelected,
+                      ]}
+                    >
                       <Text style={[styles.dropTableValue, styles.dropColBin]}>{drop.bin_code || "--"}</Text>
                       <Text style={[styles.dropTableValue, styles.dropColFlock]}>{drop.placement_code || "--"}</Text>
                       <Text style={[styles.dropTableValue, styles.dropColType]}>{toFeedShortLabel(drop.feed_type)}</Text>
                       <Text style={[styles.dropTableValue, styles.dropColAmt]}>{formatWeight(drop.drop_weight_lbs)}</Text>
-                      <Pressable onPress={() => handleRemoveDrop(index)} style={styles.dropRemoveChip}>
-                        <Text style={styles.dropRemoveText}>X</Text>
-                      </Pressable>
-                    </View>
+                      {isExistingTicket ? (
+                        <Text style={styles.dropEditHint}>Edit</Text>
+                      ) : (
+                        <Pressable onPress={() => handleRemoveDrop(index)} style={styles.dropRemoveChip}>
+                          <Text style={styles.dropRemoveText}>X</Text>
+                        </Pressable>
+                      )}
+                    </Pressable>
                   ))
                 ) : (
                   <Text style={styles.emptyDropText}>No drops added yet.</Text>
@@ -371,98 +473,124 @@ export function FeedTicketScreen({ item, loading, onBack, onSave }: Props) {
               </View>
             </View>
 
-            <Pressable onPress={handleSaveDrop} style={styles.addDropPill}>
-              <Text style={styles.addDropPillText}>Save Drop</Text>
-            </Pressable>
-
-            <View style={styles.card}>
-              <View style={styles.binDropsHeader}>
-                <Text style={styles.binDropsTitle}>Bin Drops</Text>
-                <Text style={styles.binDropsCount}># {draft.drops.length + 1}</Text>
-              </View>
-              <View style={styles.innerPanel}>
-                <View style={styles.gridThree}>
-                  <StepSelectButton
-                    label="Farm"
-                    value={selectedFarm?.farm_name || "Select"}
-                    onPress={() => setPickerState({ type: "farm" })}
-                  />
-                  <StepSelectButton
-                    label="Barn"
-                    value={selectedBarn?.barn_code || "Select"}
-                    onPress={() => setPickerState({ type: "barn", farmId: pendingDrop.farmId })}
-                  />
-                  <StepSelectButton
-                    label="Bin"
-                    value={selectedBin?.bin_code || "Select"}
-                    valueTone={selectedBin ? "value" : "danger"}
-                    onPress={() =>
-                      setPickerState({
-                        type: "bin",
-                        farmId: pendingDrop.farmId,
-                        barnId: pendingDrop.barnId,
-                      })
-                    }
-                  />
-                </View>
-
-                <View style={styles.dropBodyRow}>
-                  <View style={styles.dropTypeColumn}>
-                    {FEED_TYPES.map((type) => (
-                      <FeedTypeToggle
-                        key={type}
-                        compact
-                        label={type}
-                        checked={normalizeFeedType(pendingDrop.feed_type) === type}
-                        onPress={() => {
-                          setPendingDrop((current) => ({ ...current, feed_type: type }));
-                          setHasUnsavedChanges(true);
-                        }}
-                      />
-                    ))}
-                  </View>
-
-                  <View style={styles.dropAmountColumn}>
-                    <TextInput
-                      keyboardType="decimal-pad"
-                      onChangeText={(value) =>
-                        {
-                          setPendingDrop((current) => ({
-                            ...current,
-                            drop_weight_lbs: toNullableNumber(value),
-                          }));
-                          setHasUnsavedChanges(true);
-                        }
-                      }
-                      placeholder="0"
-                      placeholderTextColor="#AEA18D"
-                      style={styles.amountInput}
-                      value={
-                        pendingDrop.drop_weight_lbs === null || pendingDrop.drop_weight_lbs === undefined
-                          ? ""
-                          : String(pendingDrop.drop_weight_lbs)
-                      }
-                    />
-                    <Text style={styles.amountLabel}>Drop Pounds</Text>
-                  </View>
-                </View>
-
-                <Text style={styles.pendingPlacement}>
-                  {selectedBin?.active_placement_code
-                    ? `Active flock ${selectedBin.active_placement_code}`
-                    : "Bin must resolve to an active flock before the drop can be saved."}
+            {isExistingTicket && !showDropEditor ? (
+              <View style={styles.dropIdleCard}>
+                <Text style={styles.dropIdleTitle}>Select a drop to edit.</Text>
+                <Text style={styles.dropIdleCopy}>
+                  Tap any row above to edit that drop, or use + Drop to add another allocation line.
                 </Text>
-
-                <LabeledField
-                  label="Drop Comment"
-                  value={pendingDrop.note}
-                  onChange={(value) => {
-                    setPendingDrop((current) => ({ ...current, note: value || null }));
-                    setHasUnsavedChanges(true);
-                  }}
-                />
               </View>
-            </View>
+            ) : (
+              <>
+                <View style={styles.dropActionRow}>
+                  <Pressable onPress={handleSaveDrop} style={styles.addDropPill}>
+                    <Text style={styles.addDropPillText}>{isExistingTicket ? "Save Drop" : "Add Drop"}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setShowDeleteModal(true)} style={styles.clearDropPill}>
+                    <Text style={styles.clearDropPillText}>Delete Drop</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.dropHelperText}>
+                  {isExistingTicket
+                    ? "Save or delete this selected drop. The ticket list will refresh after the change."
+                    : "Adds this drop to the working ticket above. The actual ticket is saved when you press Save Ticket & Drops."}
+                </Text>
+                {dropMessage ? (
+                  <View style={[styles.dropMessageBanner, dropMessageTone === "success" ? styles.dropMessageSuccess : styles.dropMessageError]}>
+                    <Text style={styles.dropMessageText}>{dropMessage}</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.card}>
+                  <View style={styles.binDropsHeader}>
+                    <Text style={styles.binDropsTitle}>Bin Drops</Text>
+                    <Text style={styles.binDropsCount}># {editingDropOrdinal}</Text>
+                  </View>
+                  <View style={styles.innerPanel}>
+                    <View style={styles.gridThree}>
+                      <StepSelectButton
+                        label="Farm"
+                        value={selectedFarm?.farm_name || "Select"}
+                        onPress={() => setPickerState({ type: "farm" })}
+                      />
+                      <StepSelectButton
+                        label="Barn"
+                        value={selectedBarn?.barn_code || "Select"}
+                        onPress={() => setPickerState({ type: "barn", farmId: pendingDrop.farmId })}
+                      />
+                      <StepSelectButton
+                        label="Bin"
+                        value={selectedBin?.bin_code || "Select"}
+                        valueTone={selectedBin ? "value" : "danger"}
+                        onPress={() =>
+                          setPickerState({
+                            type: "bin",
+                            farmId: pendingDrop.farmId,
+                            barnId: pendingDrop.barnId,
+                          })
+                        }
+                      />
+                    </View>
+
+                    <View style={styles.dropBodyRow}>
+                      <View style={styles.dropTypeColumn}>
+                        {FEED_TYPES.map((type) => (
+                          <FeedTypeToggle
+                            key={type}
+                            compact
+                            label={type}
+                            checked={normalizeFeedType(pendingDrop.feed_type) === type}
+                            onPress={() => {
+                              setPendingDrop((current) => ({ ...current, feed_type: type }));
+                              setHasUnsavedChanges(true);
+                            }}
+                          />
+                        ))}
+                      </View>
+
+                      <View style={styles.dropAmountColumn}>
+                        <TextInput
+                          keyboardType="decimal-pad"
+                          onChangeText={(value) =>
+                            {
+                              setPendingDrop((current) => ({
+                                ...current,
+                                drop_weight_lbs: toNullableNumber(value),
+                              }));
+                              setHasUnsavedChanges(true);
+                            }
+                          }
+                          placeholder="0"
+                          placeholderTextColor="#AEA18D"
+                          style={styles.amountInput}
+                          value={
+                            pendingDrop.drop_weight_lbs === null || pendingDrop.drop_weight_lbs === undefined
+                              ? ""
+                              : String(pendingDrop.drop_weight_lbs)
+                          }
+                        />
+                        <Text style={styles.amountLabel}>Drop Pounds</Text>
+                      </View>
+                    </View>
+
+                    <Text style={styles.pendingPlacement}>
+                      {selectedBin?.active_placement_code
+                        ? `Active flock ${selectedBin.active_placement_code}`
+                        : "Bin must resolve to an active flock before the drop can be saved."}
+                    </Text>
+
+                    <LabeledField
+                      label="Drop Comment"
+                      value={pendingDrop.note}
+                      onChange={(value) => {
+                        setPendingDrop((current) => ({ ...current, note: value || null }));
+                        setHasUnsavedChanges(true);
+                      }}
+                    />
+                  </View>
+                </View>
+              </>
+            )}
           </>
         )}
       </ScrollView>
@@ -518,9 +646,68 @@ export function FeedTicketScreen({ item, loading, onBack, onSave }: Props) {
         }}
         onSave={async () => {
           setShowUnsavedModal(false);
+          if (isExistingTicket && showDropEditor) {
+            const saved = await trySaveExistingDrop({
+              draft,
+              pendingDrop,
+              selectedBin,
+              selectedDropIndex,
+              setSaving,
+              setMessage,
+              setMessageTone,
+              onSave,
+            });
+            if (!saved) return;
+            setHasUnsavedChanges(false);
+            onBack();
+            return;
+          }
           const saved = await trySaveFeedTicket(draft, remainingWeight, pendingDrop, setSaving, setMessage, setMessageTone, onSave);
           if (!saved) return;
           setHasUnsavedChanges(false);
+          onBack();
+        }}
+      />
+
+      <ConfirmDeleteDropModal
+        visible={showDeleteModal}
+        onCancel={() => setShowDeleteModal(false)}
+        onConfirm={async () => {
+          setShowDeleteModal(false);
+
+          if (!isExistingTicket) {
+            handleClearPendingDrop();
+            return;
+          }
+
+          if (selectedDropIndex === null) {
+            setPendingDrop(buildPendingDrop());
+            setShowDropEditor(false);
+            setDropMessageTone("success");
+            setDropMessage("Pending drop removed.");
+            return;
+          }
+
+          const nextDraft = {
+            ...draft,
+            drops: draft.drops
+              .filter((_, currentIndex) => currentIndex !== selectedDropIndex)
+              .map((drop, currentIndex) => ({ ...drop, drop_order: currentIndex + 1 })),
+          };
+
+          const saved = await tryPersistExistingTicket(
+            nextDraft,
+            setSaving,
+            setMessage,
+            setMessageTone,
+            onSave,
+            "Drop deleted.",
+          );
+          if (!saved) return;
+
+          setHasUnsavedChanges(false);
+          setShowDropEditor(false);
+          setSelectedDropIndex(null);
           onBack();
         }}
       />
@@ -528,10 +715,10 @@ export function FeedTicketScreen({ item, loading, onBack, onSave }: Props) {
   );
 }
 
-function buildPendingDrop(): PendingDropState {
+function buildPendingDrop(previous?: PendingDropState | null): PendingDropState {
   return {
-    farmId: null,
-    barnId: null,
+    farmId: previous?.farmId ?? null,
+    barnId: previous?.barnId ?? null,
     feed_bin_id: null,
     drop_weight_lbs: null,
     feed_type: null,
@@ -603,10 +790,109 @@ async function trySaveFeedTicket(
   }
 }
 
+async function tryPersistExistingTicket(
+  draft: FeedTicketItem,
+  setSaving: Dispatch<SetStateAction<boolean>>,
+  setMessage: Dispatch<SetStateAction<string | null>>,
+  setMessageTone: Dispatch<SetStateAction<"error" | "success">>,
+  onSave: (item: FeedTicketItem) => Promise<void>,
+  successMessage: string,
+) {
+  try {
+    setSaving(true);
+    setMessage(null);
+    await onSave(draft);
+    setMessageTone("success");
+    setMessage(successMessage);
+    return true;
+  } catch (error) {
+    setMessageTone("error");
+    setMessage(error instanceof Error ? error.message : "Feed ticket save failed.");
+    return false;
+  } finally {
+    setSaving(false);
+  }
+}
+
+async function trySaveExistingDrop({
+  draft,
+  pendingDrop,
+  selectedBin,
+  selectedDropIndex,
+  setSaving,
+  setMessage,
+  setMessageTone,
+  onSave,
+}: {
+  draft: FeedTicketItem;
+  pendingDrop: PendingDropState;
+  selectedBin: FeedBinOption | null;
+  selectedDropIndex: number | null;
+  setSaving: Dispatch<SetStateAction<boolean>>;
+  setMessage: Dispatch<SetStateAction<string | null>>;
+  setMessageTone: Dispatch<SetStateAction<"error" | "success">>;
+  onSave: (item: FeedTicketItem) => Promise<void>;
+}) {
+  const validation = validatePendingDrop(pendingDrop, selectedBin);
+  if (validation) {
+    setMessageTone("error");
+    setMessage(validation);
+    return false;
+  }
+
+  const nextDrop: FeedDropEntry = {
+    id: selectedDropIndex !== null ? draft.drops[selectedDropIndex]?.id ?? null : null,
+    feed_bin_id: selectedBin?.feed_bin_id ?? null,
+    bin_code: selectedBin?.bin_code ?? null,
+    barn_code: selectedBin?.barn_code ?? null,
+    placement_id: selectedBin?.active_placement_id ?? null,
+    placement_code: selectedBin?.active_placement_code ?? null,
+    feed_type: pendingDrop.feed_type,
+    drop_weight_lbs: pendingDrop.drop_weight_lbs,
+    note: pendingDrop.note,
+    drop_order: selectedDropIndex !== null ? selectedDropIndex + 1 : draft.drops.length + 1,
+  };
+
+  const nextDraft = {
+    ...draft,
+    drops:
+      selectedDropIndex !== null
+        ? draft.drops.map((drop, index) => (index === selectedDropIndex ? nextDrop : drop))
+        : [...draft.drops, nextDrop],
+  };
+
+  return tryPersistExistingTicket(
+    {
+      ...nextDraft,
+      drops: nextDraft.drops.map((drop, index) => ({ ...drop, drop_order: index + 1 })),
+    },
+    setSaving,
+    setMessage,
+    setMessageTone,
+    onSave,
+    selectedDropIndex !== null ? "Drop updated." : "Drop added.",
+  );
+}
+
 function hasPendingDropContent(drop: PendingDropState) {
   return Boolean(
-    drop.farmId || drop.barnId || drop.feed_bin_id || drop.drop_weight_lbs || drop.feed_type || drop.note?.trim(),
+    drop.feed_bin_id || drop.drop_weight_lbs || drop.feed_type || drop.note?.trim(),
   );
+}
+
+function buildPendingDropFromDrop(drop: FeedDropEntry, bins: FeedBinOption[]): PendingDropState {
+  const matchingBin =
+    bins.find((bin) => bin.feed_bin_id === drop.feed_bin_id) ??
+    bins.find((bin) => bin.active_placement_id === drop.placement_id);
+
+  return {
+    farmId: matchingBin?.farm_id ?? null,
+    barnId: matchingBin?.barn_id ?? null,
+    feed_bin_id: drop.feed_bin_id ?? null,
+    drop_weight_lbs: drop.drop_weight_lbs ?? null,
+    feed_type: drop.feed_type ?? null,
+    note: drop.note ?? null,
+  };
 }
 
 function buildPickerOptions(bins: FeedBinOption[], pickerState: PickerState) {
@@ -836,6 +1122,39 @@ function LabeledField({
         value={value === null || value === undefined ? "" : String(value)}
       />
     </View>
+  );
+}
+
+type ConfirmDeleteDropModalProps = {
+  visible: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+};
+
+function ConfirmDeleteDropModal({
+  visible,
+  onCancel,
+  onConfirm,
+}: ConfirmDeleteDropModalProps) {
+  return (
+    <Modal animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
+      <View style={styles.modalScrimCenter}>
+        <View style={styles.unsavedCard}>
+          <Text style={styles.unsavedTitle}>Delete This Drop?</Text>
+          <Text style={styles.unsavedCopy}>
+            This will remove the current drop entry. Continue only if you are sure.
+          </Text>
+          <View style={styles.unsavedActions}>
+            <Pressable onPress={onConfirm} style={styles.unsavedSecondaryButton}>
+              <Text style={styles.unsavedSecondaryText}>Delete</Text>
+            </Pressable>
+            <Pressable onPress={onCancel} style={styles.unsavedGhostButton}>
+              <Text style={styles.unsavedGhostText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -1097,22 +1416,32 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 48,
     borderRadius: 15,
-    borderWidth: 1.5,
-    borderColor: "#D8BE99",
-    backgroundColor: "#FFFCF6",
+    borderWidth: 2,
+    borderColor: "#C79A67",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
     paddingVertical: 10,
     color: "#1E231C",
     fontSize: 16,
+    shadowColor: "#7B4B2A",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   dateButton: {
     minHeight: 48,
     borderRadius: 15,
-    borderWidth: 1.5,
-    borderColor: "#D8BE99",
-    backgroundColor: "#FFFCF6",
+    borderWidth: 2,
+    borderColor: "#C79A67",
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     paddingHorizontal: 12,
+    shadowColor: "#7B4B2A",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   dateButtonText: {
     color: "#1E231C",
@@ -1262,14 +1591,22 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   dropTableRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+      flexDirection: "row",
+      alignItems: "center",
+    },
+  dropTableRowInteractive: {
+      borderRadius: 12,
+      paddingVertical: 4,
+      paddingHorizontal: 4,
+    },
+  dropTableRowSelected: {
+      backgroundColor: "#F1E3CE",
+    },
   dropTableValue: {
-    color: "#2B241D",
-    fontSize: 16,
-    fontWeight: "700",
-  },
+      color: "#2B241D",
+      fontSize: 16,
+      fontWeight: "700",
+    },
   dropColBin: {
     width: 38,
   },
@@ -1277,28 +1614,64 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dropColType: {
-    width: 42,
-    textAlign: "center",
+    width: 40,
+    textAlign: "left",
   },
   dropColAmt: {
-    width: 64,
-    textAlign: "right",
-  },
+      width: 78,
+      textAlign: "right",
+    },
+  dropTableHeaderEdit: {
+      width: 36,
+      color: "#7D806B",
+      fontSize: 12,
+      fontWeight: "700",
+      textAlign: "right",
+    },
   dropRemoveChip: {
-    width: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+      width: 24,
+      alignItems: "center",
+      justifyContent: "center",
+    },
   dropRemoveText: {
-    color: "#A01828",
-    fontSize: 12,
-    fontWeight: "800",
-  },
+      color: "#A01828",
+      fontSize: 12,
+      fontWeight: "800",
+    },
+  dropEditHint: {
+      width: 36,
+      color: "#7B4B2A",
+      fontSize: 12,
+      fontWeight: "700",
+      textAlign: "right",
+    },
   emptyDropText: {
-    color: "#8A7D6B",
-    fontSize: 14,
-    fontWeight: "600",
-  },
+      color: "#8A7D6B",
+      fontSize: 14,
+      fontWeight: "600",
+    },
+  dropIdleCard: {
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: "#D8C9B2",
+      backgroundColor: "#FFF8EF",
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+      gap: 6,
+    },
+  dropIdleTitle: {
+      color: "#2B241D",
+      fontSize: 16,
+      fontWeight: "800",
+      textAlign: "center",
+    },
+  dropIdleCopy: {
+      color: "#786C5E",
+      fontSize: 13,
+      fontWeight: "600",
+      lineHeight: 18,
+      textAlign: "center",
+    },
   addDropPill: {
     alignSelf: "center",
     borderRadius: 999,
@@ -1306,10 +1679,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 10,
   },
+  dropActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
   addDropPillText: {
     color: "#FFF8EF",
     fontSize: 16,
     fontWeight: "800",
+  },
+  clearDropPill: {
+    alignSelf: "center",
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: "#C79D8C",
+    backgroundColor: "#FFF8EF",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  clearDropPillText: {
+    color: "#8A2E0D",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  dropHelperText: {
+    marginTop: -2,
+    marginBottom: 4,
+    color: "#786C5E",
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 16,
+    textAlign: "center",
+  },
+  dropMessageBanner: {
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 6,
+  },
+  dropMessageSuccess: {
+    backgroundColor: "#E5F3DF",
+    borderWidth: 1,
+    borderColor: "#9BC08B",
+  },
+  dropMessageError: {
+    backgroundColor: "#FCE4DC",
+    borderWidth: 1,
+    borderColor: "#E59C80",
+  },
+  dropMessageText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#5A4A3A",
+    textAlign: "center",
   },
   binDropsHeader: {
     flexDirection: "row",
@@ -1381,14 +1805,19 @@ const styles = StyleSheet.create({
     width: "100%",
     minHeight: 58,
     borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: "#CDB18C",
-    backgroundColor: "#FFFDF8",
+    borderWidth: 2,
+    borderColor: "#C79A67",
+    backgroundColor: "#FFFFFF",
     textAlign: "center",
     color: "#514DE1",
     fontSize: 28,
     fontWeight: "900",
     fontFamily: serifFont,
+    shadowColor: "#7B4B2A",
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   amountLabel: {
     color: "#6F7E67",

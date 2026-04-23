@@ -38,6 +38,25 @@ export default async function GoogleSheetsOutboxPage({ searchParams }: GoogleShe
             </div>
           </div>
 
+          <div className="sync-outbox-worker-options">
+            <div className="sync-outbox-worker-option">
+              <span>Worker Mode</span>
+              <strong>{bundle.workerSettings.batchWrites ? "Grouped batch writes" : "Single-row writes"}</strong>
+            </div>
+            <div className="sync-outbox-worker-option">
+              <span>Batch Limit</span>
+              <strong>{bundle.workerSettings.batchLimit} rows</strong>
+            </div>
+            <div className="sync-outbox-worker-option">
+              <span>Scheduled Run</span>
+              <strong>
+                {bundle.workerSettings.scheduleMinutes
+                  ? `Every ${bundle.workerSettings.scheduleMinutes} minute${bundle.workerSettings.scheduleMinutes === 1 ? "" : "s"}`
+                  : "Manual only"}
+              </strong>
+            </div>
+          </div>
+
           <OutboxConsole
             currentOperation={bundle.currentOperation}
             filters={bundle.filters}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { ActivePlacementDashboard } from "@/components/active-placement-dashboard";
 import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
+import { LiveDashboardPanel } from "@/components/live-dashboard-panel";
 import { getAdminData } from "@/lib/admin-data";
 
 export default async function OverviewPage() {
@@ -26,7 +26,7 @@ export default async function OverviewPage() {
         </div>
       </section>
 
-      <ActivePlacementDashboard
+      <LiveDashboardPanel
         farmGroups={data.farmGroups}
         farms={data.farms}
         placements={data.activePlacements}

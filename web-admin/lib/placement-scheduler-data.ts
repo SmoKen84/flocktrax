@@ -45,12 +45,22 @@ export type PlacementSchedulerSettings = {
   allowHistoricalEntry: boolean;
 };
 
+export type PlacementSchedulerBreed = {
+  id: string;
+  code: string;
+  breedName: string;
+  sex: string | null;
+  label: string;
+  isActive: boolean;
+};
+
 export type PlacementSchedulerBundle = {
   farms: PlacementSchedulerFarm[];
   barnsByFarmId: Record<string, PlacementSchedulerBarn[]>;
   windowsByBarnId: Record<string, PlacementSchedulerWindow[]>;
   recommendedStartByBarnId: Record<string, string>;
   settings: PlacementSchedulerSettings;
+  breeds: PlacementSchedulerBreed[];
 };
 
 type FarmRow = {
@@ -103,6 +113,20 @@ type PlatformSettingRow = {
   is_active: boolean | null;
 };
 
+type AppSettingRow = {
+  group: string | null;
+  name: string | null;
+  value: string | number | null;
+};
+
+type BreedRow = {
+  id: string;
+  code: string | null;
+  breed_name: string | null;
+  sex: string | null;
+  is_active: boolean | null;
+};
+
 function normalize(value: string | null | undefined) {
   return (value ?? "").trim();
 }
@@ -152,10 +176,11 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
         nextPlaceOffsetDays: 14,
         allowHistoricalEntry: false,
       },
+      breeds: [],
     };
   }
 
-  const [farmsResult, barnsResult, flocksResult, placementsResult, platformSettingsResult] = await Promise.all([
+  const [farmsResult, barnsResult, flocksResult, placementsResult, platformSettingsResult, appSettingsResult, breedsResult] = await Promise.all([
     supabase.from("farms_ui").select("id,farm_name,farm_group_name,farm_group_id").order("farm_name"),
     supabase.from("barns").select("id,farm_id,barn_code,sort_code,is_active"),
     supabase
@@ -167,6 +192,8 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
       .select("id,farm_id,barn_id,flock_id,date_removed,is_active,placement_key,lh1_date,lh2_date,lh3_date,active_start,active_end")
       .order("created_at", { ascending: false }),
     supabase.schema("platform").from("settings").select("name,value,is_active").limit(50),
+    supabase.from("app_settings").select("group,name,value"),
+    supabase.from("breeds").select("id,code,breed_name,sex,is_active").order("breed_name"),
   ]);
 
   const farmRows = (farmsResult.data ?? []) as FarmRow[];
@@ -177,36 +204,56 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
   const flockRows = (flocksResult.data ?? []) as FlockRow[];
   const placementRows = (placementsResult.data ?? []) as PlacementRow[];
   const platformSettingRows = (platformSettingsResult.data ?? []) as PlatformSettingRow[];
+  const appSettingRows = (appSettingsResult.data ?? []) as AppSettingRow[];
+  const breedRows = (breedsResult.data ?? []) as BreedRow[];
 
   let growOutDays = 63;
   let nextPlaceOffsetDays = 14;
   let allowHistoricalEntry = false;
+  let explicitGrowOutDays: number | null = null;
+  let explicitNextPlaceOffsetDays: number | null = null;
 
-  for (const row of platformSettingRows) {
-    if (row.is_active === false) {
-      continue;
-    }
-
-    const name = normalize(row.name).toLowerCase();
-    const rawValue = String(row.value ?? "").trim().toLowerCase();
+  const applySetting = (rowName: string | null | undefined, rowValue: string | number | null | undefined) => {
+    const name = normalize(rowName).toLowerCase();
+    const rawValue = String(rowValue ?? "").trim().toLowerCase();
 
     if (["growout_days", "grow_out_days", "growoutdays", "max_days"].includes(name)) {
-      const parsedValue = parsePositiveNumber(row.value);
+      const parsedValue = parsePositiveNumber(rowValue);
       if (parsedValue) {
         growOutDays = parsedValue;
+        explicitGrowOutDays = parsedValue;
       }
     }
 
     if (["next_place_date", "nextplacedate", "next_place_days"].includes(name)) {
-      const parsedValue = parsePositiveNumber(row.value);
+      const parsedValue = parsePositiveNumber(rowValue);
       if (parsedValue) {
         nextPlaceOffsetDays = parsedValue;
+        explicitNextPlaceOffsetDays = parsedValue;
       }
     }
 
     if (["allow_historical_entry", "historical_entry", "historical_mode", "history_backfill"].includes(name)) {
       allowHistoricalEntry = ["1", "true", "yes", "on"].includes(rawValue);
     }
+  };
+
+  for (const row of platformSettingRows) {
+    if (row.is_active === false) {
+      continue;
+    }
+    applySetting(row.name, row.value);
+  }
+
+  // Preserve compatibility with the long-lived general settings table.
+  // If the same setting exists in both places, app_settings wins because
+  // that is where operators have historically maintained these values.
+  for (const row of appSettingRows) {
+    applySetting(row.name, row.value);
+  }
+
+  if (explicitGrowOutDays === null && explicitNextPlaceOffsetDays !== null) {
+    growOutDays = explicitNextPlaceOffsetDays;
   }
 
   const flockById = new Map(flockRows.map((row) => [row.id, row]));
@@ -220,6 +267,9 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
     }
 
     const projectedEnd = normalize(row.date_removed) || normalize(flock?.max_date) || normalize(row.active_end) || addDays(startDate, growOutDays);
+    const isFuture = startDate > today;
+    const isActive = row.is_active !== false && !row.date_removed && startDate <= today;
+    const isComplete = !!row.date_removed || flock?.is_complete === true || (!isActive && projectedEnd < today);
     const window: PlacementSchedulerWindow = {
       id: row.id,
       barnId: row.barn_id,
@@ -230,9 +280,9 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
       endDate: projectedEnd,
       actualEndDate: normalize(row.date_removed) || null,
       farmId: row.farm_id || flock?.farm_id || "",
-      isFuture: startDate > today,
-      isActive: row.is_active !== false && !row.date_removed && startDate <= today,
-      isComplete: !!row.date_removed || flock?.is_complete === true,
+      isFuture,
+      isActive,
+      isComplete,
       headCount:
         typeof flock?.start_cnt_females === "number" || typeof flock?.start_cnt_males === "number"
           ? (flock?.start_cnt_females ?? 0) + (flock?.start_cnt_males ?? 0)
@@ -253,8 +303,8 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
 
   const recommendedStartByBarnId = Object.fromEntries(
     Object.entries(windowsByBarnId).map(([barnId, windows]) => {
-      const latestEnd = windows.reduce((latest, window) => maxDate(latest, window.endDate), today);
-      return [barnId, addDays(latestEnd, nextPlaceOffsetDays)];
+      const latestPredictedStart = windows.reduce((latest, window) => maxDate(latest, addDays(window.startDate, nextPlaceOffsetDays)), today);
+      return [barnId, latestPredictedStart];
     }),
   );
 
@@ -284,5 +334,19 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
       nextPlaceOffsetDays,
       allowHistoricalEntry,
     },
+    breeds: breedRows
+      .filter((row) => row.is_active !== false)
+      .map((row) => {
+        const breedName = normalize(row.breed_name) || "Breed";
+        const sex = normalize(row.sex).toLowerCase() || null;
+        return {
+          id: row.id,
+          code: normalize(row.code),
+          breedName,
+          sex,
+          label: sex ? `${breedName} (${sex[0].toUpperCase()}${sex.slice(1)})` : breedName,
+          isActive: row.is_active !== false,
+        };
+      }),
   };
 }

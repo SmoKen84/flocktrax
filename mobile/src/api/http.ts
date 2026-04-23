@@ -2,6 +2,7 @@ import { apiConfig } from "./config";
 import {
   AuthSession,
   DashboardSettings,
+  DashboardWeatherForecast,
   FeedTicketItem,
   FeedTicketListItem,
   FeedTicketListResponse,
@@ -82,6 +83,44 @@ export async function listPlacements(
     items: payload.items ?? [],
     filters: payload.filters ?? null,
     settings: payload.settings ?? null,
+  };
+}
+
+export async function getDashboardWeatherForecast(input: {
+  farmName: string;
+  latitude: number;
+  longitude: number;
+}): Promise<DashboardWeatherForecast> {
+  const params = new URLSearchParams({
+    latitude: String(input.latitude),
+    longitude: String(input.longitude),
+    current: "temperature_2m,weather_code",
+    daily: "temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max",
+    timezone: "auto",
+    forecast_days: "1",
+    temperature_unit: "fahrenheit",
+  });
+
+  const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Weather lookup failed with status ${response.status}.`);
+  }
+
+  const payload = safeJsonParse<Record<string, unknown>>(await response.text());
+  const current = isRecord(payload.current) ? payload.current : null;
+  const daily = isRecord(payload.daily) ? payload.daily : null;
+
+  return {
+    farmName: input.farmName,
+    latitude: input.latitude,
+    longitude: input.longitude,
+    currentTemperature: coerceNumber(current?.temperature_2m),
+    currentWeatherCode: coerceNumber(current?.weather_code),
+    dailyHigh: coerceNumber(readArrayValue(daily?.temperature_2m_max, 0)),
+    dailyLow: coerceNumber(readArrayValue(daily?.temperature_2m_min, 0)),
+    dailyWeatherCode: coerceNumber(readArrayValue(daily?.weather_code, 0)),
+    precipitationProbabilityMax: coerceNumber(readArrayValue(daily?.precipitation_probability_max, 0)),
+    timezone: typeof payload.timezone === "string" ? payload.timezone : null,
   };
 }
 
@@ -313,4 +352,20 @@ function safeJsonParse<T>(raw: string): T {
   } catch {
     throw new Error("The server returned a non-JSON response.");
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readArrayValue(value: unknown, index: number) {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  return value[index] ?? null;
+}
+
+function coerceNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }

@@ -27,12 +27,73 @@ export type GoogleSheetsColumnMapRow = {
   valueMode: string;
 };
 
-const GOOGLE_SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
+export type GoogleSheetsCellTarget = {
+  tabName: string;
+  headerRow: number;
+  dateHeaderLabel: string;
+  datasetLabel: string;
+  targetDate: string;
+};
+
+export type GoogleSheetsWorksheetLayout = {
+  tabName: string;
+  headerRow: number;
+  dateHeaderLabel: string;
+  dateColumnIndex: number;
+  fieldColumnIndexByLabel: Map<string, number>;
+  rowNumberByDate: Map<string, number>;
+};
+
+const GOOGLE_SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const GOOGLE_TOKEN_AUDIENCE = "https://oauth2.googleapis.com/token";
 const GOOGLE_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 const SHEETS_EPOCH_UTC = Date.UTC(1899, 11, 30);
 
 let cachedAccessToken: { token: string; expiresAt: number } | null = null;
+
+function normalizeSettingName(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function parseBooleanSetting(value: unknown) {
+  return ["1", "true", "yes", "on"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+export async function isGoogleSheetsReadBeforeEditEnabled(
+  supabase: SupabaseClientLike,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .schema("platform")
+    .from("settings")
+    .select("name,value,is_active")
+    .limit(100);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const rows = (data ?? []) as Array<{ name?: string | null; value?: unknown; is_active?: boolean | null }>;
+  for (const row of rows) {
+    if (row.is_active === false) {
+      continue;
+    }
+
+    const name = normalizeSettingName(row.name);
+    if (
+      [
+        "google_read_before_edit",
+        "google_sheet_read_before_edit",
+        "google_sheets_read_before_edit",
+        "sync_read_before_edit",
+        "read_before_edit",
+      ].includes(name)
+    ) {
+      return parseBooleanSetting(row.value);
+    }
+  }
+
+  return true;
+}
 
 export async function getGoogleSheetsSyncContext(
   supabase: SupabaseClientLike,
@@ -195,6 +256,213 @@ export async function getSheetRowByDate(
   });
 
   return mapped;
+}
+
+export async function resolveSheetCellA1(
+  spreadsheetId: string,
+  target: GoogleSheetsCellTarget,
+): Promise<string> {
+  const layout = await loadWorksheetLayout(
+    spreadsheetId,
+    target.tabName,
+    target.headerRow,
+    target.dateHeaderLabel,
+  );
+  return resolveSheetCellA1FromLayout(layout, target.targetDate, target.datasetLabel);
+}
+
+export async function loadWorksheetLayout(
+  spreadsheetId: string,
+  tabName: string,
+  headerRow: number,
+  dateHeaderLabel: string,
+): Promise<GoogleSheetsWorksheetLayout> {
+  const escapedTabName = escapeSheetTabName(tabName);
+  const headerRows = await fetchSheetValues(
+    spreadsheetId,
+    `'${escapedTabName}'!A1:AZ${headerRow}`,
+  );
+  if (headerRows.length < headerRow) {
+    throw new Error(`Sheet '${tabName}' does not have header row ${headerRow}.`);
+  }
+
+  const headers = headerRows[headerRow - 1] ?? [];
+  const normalizedHeaders = headers.map((value) => normalizeLabel(value));
+  const dateColumnIndex = normalizedHeaders.findIndex((value) => value === normalizeLabel(dateHeaderLabel));
+
+  if (dateColumnIndex < 0) {
+    throw new Error(`Could not find date header '${dateHeaderLabel}' in tab '${tabName}'.`);
+  }
+
+  const fieldColumnIndexByLabel = new Map<string, number>();
+  normalizedHeaders.forEach((value, index) => {
+    if (value) {
+      fieldColumnIndexByLabel.set(value, index);
+    }
+  });
+
+  const startRow = headerRow + 1;
+  const dateColumnLetter = colIndexToLetter(dateColumnIndex);
+  const dateRows = await fetchSheetValues(
+    spreadsheetId,
+    `'${escapedTabName}'!${dateColumnLetter}${startRow}:${dateColumnLetter}`,
+  );
+
+  const rowNumberByDate = new Map<string, number>();
+  for (let offset = 0; offset < dateRows.length; offset += 1) {
+    const row = dateRows[offset] ?? [];
+    const value = row[0] ?? "";
+    const parsed = normalizeSheetDate(value);
+    if (parsed) {
+      rowNumberByDate.set(parsed, startRow + offset);
+    }
+  }
+
+  return {
+    tabName,
+    headerRow,
+    dateHeaderLabel,
+    dateColumnIndex,
+    fieldColumnIndexByLabel,
+    rowNumberByDate,
+  };
+}
+
+export function resolveSheetCellA1FromLayout(
+  layout: GoogleSheetsWorksheetLayout,
+  targetDate: string,
+  datasetLabel: string,
+): string {
+  const fieldColumnIndex = layout.fieldColumnIndexByLabel.get(normalizeLabel(datasetLabel));
+  if (fieldColumnIndex === undefined) {
+    throw new Error(`Could not find dataset label '${datasetLabel}' in tab '${layout.tabName}'.`);
+  }
+
+  const wantedDate = parseTargetDate(targetDate);
+  const rowNumber = layout.rowNumberByDate.get(wantedDate);
+  if (!rowNumber) {
+    throw new Error(`Could not find date '${targetDate}' in tab '${layout.tabName}'.`);
+  }
+
+  const escapedTabName = escapeSheetTabName(layout.tabName);
+  return `'${escapedTabName}'!${colIndexToLetter(fieldColumnIndex)}${rowNumber}`;
+}
+
+export async function putSheetCell(
+  spreadsheetId: string,
+  target: GoogleSheetsCellTarget,
+  value: string,
+) {
+  const rangeA1 = await resolveSheetCellA1(spreadsheetId, target);
+  const accessToken = await getGoogleAccessToken();
+  const response = await fetch(
+    `${GOOGLE_API_BASE}/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(rangeA1)}?valueInputOption=USER_ENTERED`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ values: [[value]] }),
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Google Sheets write failed (${response.status}): ${text}`);
+  }
+
+  return await response.json();
+}
+
+export async function clearSheetCell(
+  spreadsheetId: string,
+  target: GoogleSheetsCellTarget,
+) {
+  const rangeA1 = await resolveSheetCellA1(spreadsheetId, target);
+  const accessToken = await getGoogleAccessToken();
+  const response = await fetch(
+    `${GOOGLE_API_BASE}/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(rangeA1)}:clear`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Google Sheets clear failed (${response.status}): ${text}`);
+  }
+
+  return await response.json();
+}
+
+export async function batchWriteSheetCells(
+  spreadsheetId: string,
+  updates: Array<{ rangeA1: string; value: string }>,
+) {
+  if (updates.length === 0) {
+    return { totalUpdated: 0 };
+  }
+
+  const accessToken = await getGoogleAccessToken();
+  const response = await fetch(
+    `${GOOGLE_API_BASE}/${encodeURIComponent(spreadsheetId)}/values:batchUpdate`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        valueInputOption: "USER_ENTERED",
+        data: updates.map((update) => ({
+          range: update.rangeA1,
+          values: [[update.value]],
+        })),
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Google Sheets batch write failed (${response.status}): ${text}`);
+  }
+
+  return await response.json();
+}
+
+export async function batchClearSheetCells(
+  spreadsheetId: string,
+  rangesA1: string[],
+) {
+  if (rangesA1.length === 0) {
+    return { clearedRanges: [] };
+  }
+
+  const accessToken = await getGoogleAccessToken();
+  const response = await fetch(
+    `${GOOGLE_API_BASE}/${encodeURIComponent(spreadsheetId)}/values:batchClear`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ranges: rangesA1 }),
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Google Sheets batch clear failed (${response.status}): ${text}`);
+  }
+
+  return await response.json();
 }
 
 function escapeSheetTabName(value: string) {

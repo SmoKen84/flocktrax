@@ -5,6 +5,7 @@ import { startTransition, useEffect, useRef, useState } from "react";
 
 import {
   processGoogleSheetsOutboxAction,
+  replayGoogleSheetsOutboxAction,
   retryGoogleSheetsOutboxAction,
   retryGoogleSheetsOutboxBulkAction,
   type OutboxActionResult,
@@ -33,6 +34,7 @@ export function OutboxConsole({ currentOperation, filters, initialBanner, items,
   const [processPending, setProcessPending] = useState(false);
   const [bulkRetryPending, setBulkRetryPending] = useState(false);
   const [rowRetryId, setRowRetryId] = useState<string | null>(null);
+  const [rowReplayId, setRowReplayId] = useState<string | null>(null);
   const refreshTimeoutsRef = useRef<number[]>([]);
 
   useEffect(() => {
@@ -99,6 +101,20 @@ export function OutboxConsole({ currentOperation, filters, initialBanner, items,
       message: result.message,
     });
     setRowRetryId(null);
+
+    startTransition(() => {
+      router.refresh();
+    });
+  }
+
+  async function runRowReplay(outboxId: string) {
+    setRowReplayId(outboxId);
+    const result = await replayGoogleSheetsOutboxAction(outboxId);
+    setBanner({
+      tone: result.ok ? "success" : "error",
+      message: result.message,
+    });
+    setRowReplayId(null);
 
     startTransition(() => {
       router.refresh();
@@ -174,7 +190,13 @@ export function OutboxConsole({ currentOperation, filters, initialBanner, items,
         ) : null}
       </div>
 
-      <OutboxTable items={items} onRetry={runRowRetry} retryingOutboxId={rowRetryId} />
+      <OutboxTable
+        items={items}
+        onReplay={runRowReplay}
+        onRetry={runRowRetry}
+        replayingOutboxId={rowReplayId}
+        retryingOutboxId={rowRetryId}
+      />
     </>
   );
 }

@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 const consoleLinks = [
   { label: "Live Dashboard", href: "/admin/overview" },
+  { label: "Feed Tickets", href: "/admin/feed-tickets" },
   { label: "Placements", href: "/admin/placements/new" },
   { label: "Rollups" },
   { label: "Sync Engine", href: "/admin/sync/googleapis-sheets" },
@@ -26,7 +27,6 @@ const configurationLinks = [
 const archiveLinks = [
   { label: "Flocks", href: "/admin/flocks" },
   { label: "Activity Log", href: "/admin/activity-log" },
-  { label: "Feed Tickets" },
 ];
 
 export default async function HomePage() {
@@ -155,33 +155,13 @@ export default async function HomePage() {
 
       <section className="splash-workspace">
         <section className="panel hero-panel splash-hero-panel">
-          <div className="splash-hero-utility">
-            <button aria-label="Console options" className="button-ghost splash-hero-menu" type="button">
-              ...
-            </button>
-          </div>
-          <div className="splash-hero-grid">
-            <div className="splash-hero-copy">
-              <div className="splash-hero-brand-lockup">
-                <FlockTraxWordmark compact product="Admin" tone="accent" />
-              </div>
-              <p className="hero-kicker splash-hero-tagline">{splash.descriptor}</p>
-              <h1 className="hero-title splash-hero-title">{splash.title}</h1>
-              <p className="hero-body splash-hero-body">{splash.body}</p>
-              <div className="hero-actions">
-                {isSignedIn ? (
-                  <Link className="button splash-open-button" href="/admin/overview">
-                    {splash.buttonLabel}
-                  </Link>
-                ) : (
-                  <span className="button splash-open-button" data-disabled="true">
-                    {splash.buttonLabel}
-                  </span>
-                )}
-              </div>
+          <div className="splash-hero-copy">
+            <div className="splash-hero-brand-lockup">
+              <FlockTraxWordmark compact product="Admin" tone="accent" />
             </div>
-
-            <div aria-hidden="true" className="splash-hero-ghost-panel" />
+            <p className="hero-kicker splash-hero-tagline">{splash.descriptor}</p>
+            <h1 className="hero-title splash-hero-title">{splash.title}</h1>
+            <p className="hero-body splash-hero-body">{splash.body}</p>
           </div>
         </section>
 

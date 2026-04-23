@@ -26,11 +26,53 @@ function addDays(dateString: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+async function getSchedulerGrowOutDaysDefault(admin: NonNullable<ReturnType<typeof createSupabaseAdminClient>>) {
+  const [platformSettingsResult, appSettingsResult] = await Promise.all([
+    admin.schema("platform").from("settings").select("name,value,is_active").limit(50),
+    admin.from("app_settings").select("name,value"),
+  ]);
+
+  let explicitGrowOutDays: number | null = null;
+  let explicitNextPlaceOffsetDays: number | null = null;
+
+  const applySetting = (nameValue: string | null | undefined, rawValue: string | number | null | undefined, isActive = true) => {
+    if (!isActive) {
+      return;
+    }
+
+    const normalizedName = String(nameValue ?? "").trim().toLowerCase();
+    const parsedValue = Number(rawValue);
+    if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+      return;
+    }
+
+    if (["growout_days", "grow_out_days", "growoutdays", "max_days"].includes(normalizedName)) {
+      explicitGrowOutDays = parsedValue;
+      return;
+    }
+
+    if (["next_place_date", "nextplacedate", "next_place_days"].includes(normalizedName)) {
+      explicitNextPlaceOffsetDays = parsedValue;
+    }
+  };
+
+  for (const row of (platformSettingsResult.data ?? []) as Array<{ name: string | null; value: string | number | null; is_active: boolean | null }>) {
+    applySetting(row.name, row.value, row.is_active !== false);
+  }
+
+  for (const row of (appSettingsResult.data ?? []) as Array<{ name: string | null; value: string | number | null }>) {
+    applySetting(row.name, row.value, true);
+  }
+
+  return explicitGrowOutDays ?? explicitNextPlaceOffsetDays ?? 63;
+}
+
 function buildLocation(
   options: {
     mode?: string | null;
     farm?: string | null;
     barn?: string | null;
+    placement?: string | null;
     cleared?: boolean;
     date?: string | null;
     month?: string | null;
@@ -43,6 +85,7 @@ function buildLocation(
   if (options.mode) url.searchParams.set("mode", options.mode);
   if (options.farm) url.searchParams.set("farm", options.farm);
   if (options.barn) url.searchParams.set("barn", options.barn);
+  if (options.placement) url.searchParams.set("placement", options.placement);
   if (options.cleared) url.searchParams.set("cleared", "1");
   if (options.date) url.searchParams.set("date", options.date);
   if (options.month) url.searchParams.set("month", options.month);
@@ -146,7 +189,7 @@ export async function schedulePlacementAction(formData: FormData) {
   const selectedDate = coerce(formData.get("selected_date"));
   const month = coerce(formData.get("month"));
   const requestedFlockNumber = coerceNullableNumber(formData.get("flock_number"));
-  const growOutDays = coerceNullableNumber(formData.get("grow_out_days")) ?? 63;
+  const submittedGrowOutDays = coerceNullableNumber(formData.get("grow_out_days"));
   const femaleCount = coerceNullableNumber(formData.get("start_cnt_females"));
   const maleCount = coerceNullableNumber(formData.get("start_cnt_males"));
 
@@ -158,13 +201,16 @@ export async function schedulePlacementAction(formData: FormData) {
     redirect(buildLocation({ farm: farmId, barn: barnId, date: selectedDate, month: month || selectedDate.slice(0, 7), error: "Enter the integrator flock number before scheduling this placement." }));
   }
 
-  const [barnResult, placementsResult] = await Promise.all([
+  const [barnResult, placementsResult, schedulerGrowOutDays] = await Promise.all([
     admin.from("barns").select("id,farm_id,barn_code").eq("id", barnId).maybeSingle(),
     admin
       .from("placements")
       .select("id,flock_id,date_removed,placement_key")
       .eq("barn_id", barnId),
+    submittedGrowOutDays ? Promise.resolve(submittedGrowOutDays) : getSchedulerGrowOutDaysDefault(admin),
   ]);
+
+  const growOutDays = submittedGrowOutDays ?? schedulerGrowOutDays;
 
   if (barnResult.error || !barnResult.data) {
     redirect(buildLocation({ farm: farmId, month: month || selectedDate.slice(0, 7), error: barnResult.error?.message ?? "Selected barn could not be loaded." }));
@@ -276,8 +322,8 @@ export async function schedulePlacementAction(formData: FormData) {
     buildLocation({
       farm: farmId,
       barn: barnId,
-      date: selectedDate,
       month: month || selectedDate.slice(0, 7),
+      cleared: true,
       notice: `Scheduled flock ${flockNumber} in barn ${barnResult.data.barn_code} starting ${selectedDate}.`,
     }),
   );
@@ -286,6 +332,14 @@ export async function schedulePlacementAction(formData: FormData) {
 function coerceNullableDate(value: FormDataEntryValue | null) {
   const normalized = String(value ?? "").trim();
   return normalized ? normalized : null;
+}
+
+function isUuidLike(value: string | null) {
+  if (!value) {
+    return true;
+  }
+
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 export async function updatePlacementAction(formData: FormData) {
@@ -353,6 +407,20 @@ export async function updatePlacementAction(formData: FormData) {
         date: selectedDate || datePlaced,
         month: month || datePlaced.slice(0, 7),
         error: "Removed date cannot be earlier than the placed date.",
+      }),
+    );
+  }
+
+  if (!isUuidLike(breedMales) || !isUuidLike(breedFemales)) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || datePlaced,
+        month: month || datePlaced.slice(0, 7),
+        error: "Breed fields currently expect a breed UUID, not a free-text value like Ross308.",
       }),
     );
   }
@@ -523,6 +591,207 @@ export async function updatePlacementAction(formData: FormData) {
       month: month || datePlaced.slice(0, 7),
       cleared: true,
       notice: `Updated placement details for flock ${flockNumber}.`,
+    }),
+  );
+}
+
+export async function deleteScheduledPlacementAction(formData: FormData) {
+  const { admin, actorId, actorName, actorRole } = await getAdminContext();
+  if (!canSchedulePlacements(actorRole)) {
+    redirect(buildLocation({ error: "Only authorized admin accounts can delete scheduled placements." }));
+  }
+
+  if (!actorId) {
+    redirect(buildLocation({ error: "A signed-in user is required to delete a scheduled placement." }));
+  }
+
+  const mode = coerce(formData.get("mode")) || "blocked";
+  const farmId = coerce(formData.get("farm_id"));
+  const barnId = coerce(formData.get("barn_id"));
+  const placementId = coerce(formData.get("placement_id"));
+  const flockId = coerce(formData.get("flock_id"));
+  const selectedDate = coerce(formData.get("selected_date"));
+  const month = coerce(formData.get("month"));
+
+  if (!farmId || !barnId || !placementId || !flockId) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId || null,
+        barn: barnId || null,
+        date: selectedDate || null,
+        month: month || null,
+        error: "Placement delete is missing its placement or flock reference.",
+      }),
+    );
+  }
+
+  const [placementResult, flockResult, siblingPlacementsResult, dailyCountResult, mortalityCountResult, weightCountResult, feedDropCountResult] =
+    await Promise.all([
+      admin
+        .from("placements")
+        .select("id,farm_id,barn_id,flock_id,is_active,date_removed,active_start,active_end,placement_key")
+        .eq("id", placementId)
+        .maybeSingle(),
+      admin.from("flocks").select("id,farm_id,flock_number,date_placed,max_date,is_active,is_in_barn").eq("id", flockId).maybeSingle(),
+      admin.from("placements").select("id", { head: true, count: "exact" }).eq("flock_id", flockId),
+      admin.from("log_daily").select("id", { head: true, count: "exact" }).eq("placement_id", placementId),
+      admin.from("log_mortality").select("id", { head: true, count: "exact" }).eq("placement_id", placementId),
+      admin.from("log_weight").select("id", { head: true, count: "exact" }).eq("placement_id", placementId),
+      admin.from("feed_drops").select("id", { head: true, count: "exact" }).eq("placement_id", placementId),
+    ]);
+
+  const placement = placementResult.data;
+  const flock = flockResult.data;
+
+  if (placementResult.error || !placement || flockResult.error || !flock) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        date: selectedDate || null,
+        month: month || null,
+        error: placementResult.error?.message ?? flockResult.error?.message ?? "Scheduled placement could not be loaded for delete.",
+      }),
+    );
+  }
+
+  if (placement.farm_id !== farmId || placement.barn_id !== barnId || placement.flock_id !== flockId || flock.farm_id !== farmId) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || flock.date_placed || null,
+        month: month || flock.date_placed?.slice(0, 7) || null,
+        error: "Delete request no longer matches the selected placement.",
+      }),
+    );
+  }
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const startDate = coerceNullableDate(placement.active_start as unknown as FormDataEntryValue | null) || flock.date_placed;
+
+  if (!startDate || startDate <= todayIso || placement.is_active || flock.is_active || flock.is_in_barn || placement.date_removed) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || startDate || null,
+        month: month || startDate?.slice(0, 7) || null,
+        error: "Only future scheduled placements that have not gone live can be deleted here.",
+      }),
+    );
+  }
+
+  const siblingPlacementCount = siblingPlacementsResult.count ?? 0;
+  if (siblingPlacementsResult.error || siblingPlacementCount !== 1) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || startDate,
+        month: month || startDate.slice(0, 7),
+        error:
+          siblingPlacementsResult.error?.message ??
+          "This flock is linked to more than one placement, so it cannot be deleted from the scheduler.",
+      }),
+    );
+  }
+
+  const childCounts = {
+    daily: dailyCountResult.count ?? 0,
+    mortality: mortalityCountResult.count ?? 0,
+    weight: weightCountResult.count ?? 0,
+    feedDrops: feedDropCountResult.count ?? 0,
+  };
+
+  if (dailyCountResult.error || mortalityCountResult.error || weightCountResult.error || feedDropCountResult.error) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || startDate,
+        month: month || startDate.slice(0, 7),
+        error:
+          dailyCountResult.error?.message ??
+          mortalityCountResult.error?.message ??
+          weightCountResult.error?.message ??
+          feedDropCountResult.error?.message ??
+          "Child record checks failed before delete.",
+      }),
+    );
+  }
+
+  const totalChildCount = Object.values(childCounts).reduce((sum, value) => sum + value, 0);
+  if (totalChildCount > 0) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || startDate,
+        month: month || startDate.slice(0, 7),
+        error: `This scheduled flock cannot be deleted because it already has child records (${childCounts.daily} daily, ${childCounts.mortality} mortality, ${childCounts.weight} weight, ${childCounts.feedDrops} feed drops).`,
+      }),
+    );
+  }
+
+  await Promise.all([
+    admin.from("activity_log").delete().eq("placement_id", placementId),
+    admin.from("activity_log").delete().eq("flock_id", flockId),
+    admin.schema("platform").from("sync_outbox").delete().eq("placement_id", placementId),
+  ]);
+
+  const placementDeleteResult = await admin.from("placements").delete().eq("id", placementId);
+  if (placementDeleteResult.error) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || startDate,
+        month: month || startDate.slice(0, 7),
+        error: placementDeleteResult.error.message,
+      }),
+    );
+  }
+
+  const flockDeleteResult = await admin.from("flocks").delete().eq("id", flockId);
+  if (flockDeleteResult.error) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        date: selectedDate || startDate,
+        month: month || startDate.slice(0, 7),
+        error: flockDeleteResult.error.message,
+      }),
+    );
+  }
+
+  revalidatePath("/admin/placements/new");
+  revalidatePath("/admin/flocks");
+  revalidatePath("/admin/overview");
+  redirect(
+    buildLocation({
+      mode,
+      farm: farmId,
+      barn: barnId,
+      month: month || startDate.slice(0, 7),
+      cleared: true,
+      notice: `Deleted scheduled flock ${flock.flock_number ?? placement.placement_key ?? "placement"} so you can reschedule it cleanly.`,
     }),
   );
 }

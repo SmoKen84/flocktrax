@@ -456,6 +456,14 @@ export async function FarmStructureView({
                 <span>Map URL</span>
                 <input defaultValue={editorBundle.farm.mapUrl} name="map_url" />
               </label>
+              <label className="field">
+                <span>Latitude</span>
+                <input defaultValue={editorBundle.farm.latitude} name="latitude" placeholder="34.123456" />
+              </label>
+              <label className="field">
+                <span>Longitude</span>
+                <input defaultValue={editorBundle.farm.longitude} name="longitude" placeholder="-84.123456" />
+              </label>
               <label className="settings-toggle">
                 <input defaultChecked={editorBundle.farm.isActive} name="is_active" type="checkbox" />
                 <span>Active farm</span>

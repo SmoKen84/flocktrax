@@ -3,6 +3,7 @@ import {
   getEnabledGoogleSheetsColumnMap,
   getGoogleSheetsSyncContext,
   getSheetRowByDate,
+  isGoogleSheetsReadBeforeEditEnabled,
 } from "../_shared/google-sheets-read.ts";
 
 function corsHeaders(req: Request) {
@@ -498,6 +499,11 @@ Deno.serve(async (req) => {
     const item = await buildPlacementDayItem(supabase, placementId, logDate);
     if (!item) {
       return json(req, { ok: false, error: "Placement not found" }, 404);
+    }
+
+    const readBeforeEditEnabled = await isGoogleSheetsReadBeforeEditEnabled(adminSupabase);
+    if (!readBeforeEditEnabled) {
+      return json(req, { ok: true, item });
     }
 
     const hydratedPayload = await hydratePlacementDayFromSheets(

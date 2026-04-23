@@ -17,17 +17,20 @@ import {
   PlacementFilterMeta,
   PlacementSummary,
 } from "../types";
+import { formatDateByPattern, formatShortDate } from "../utils/date-format";
 
 type Props = {
   filters: PlacementFilterMeta | null;
   loading: boolean;
   placements: PlacementSummary[];
   settings: DashboardSettings | null;
+  selectedFarmId: string | null;
   selectedFarmGroupId: string | null;
   onOpenFeedTicket: () => void;
   onRefresh: () => void;
   onOpenPlacement: (placement: PlacementSummary) => void;
   onLogout: () => void;
+  onSelectFarm: (farmId: string | null) => void;
   onSelectFarmGroup: (farmGroupId: string | null) => void;
 };
 
@@ -41,15 +44,16 @@ export function DashboardScreen({
   loading,
   placements,
   settings,
+  selectedFarmId,
   selectedFarmGroupId,
   onOpenFeedTicket,
   onRefresh,
   onOpenPlacement,
   onLogout,
+  onSelectFarm,
   onSelectFarmGroup,
 }: Props) {
   const [search, setSearch] = useState("");
-  const [selectedFarmId, setSelectedFarmId] = useState<string | null>(null);
   const [pickerState, setPickerState] = useState<PickerState>(null);
 
   const availableFarmGroups = filters?.available_farm_groups ?? [];
@@ -108,13 +112,13 @@ export function DashboardScreen({
   }
 
   function chooseFarmGroup(option: FarmGroupOption) {
-    setSelectedFarmId(null);
+    onSelectFarm(null);
     setPickerState(null);
     onSelectFarmGroup(option.farm_group_id);
   }
 
   function chooseFarm(option: FarmOption | null) {
-    setSelectedFarmId(option?.farm_id ?? null);
+    onSelectFarm(option?.farm_id ?? null);
     setPickerState(null);
   }
 
@@ -181,7 +185,9 @@ export function DashboardScreen({
                 </View>
 
                 <View style={styles.cardStatusStack}>
-                  <Text style={styles.cardDate}>{formatCompactDate(item.placed_date)}</Text>
+                  <Text style={styles.cardDate}>
+                    {formatShortDate(item.placed_date, settings?.short_date)}
+                  </Text>
                   <View style={[styles.statusBadge, badgeStyle(item)]}>
                     <Text style={[styles.statusText, badgeTextStyle(item)]}>
                       {badgeLabel(item)}
@@ -210,7 +216,7 @@ export function DashboardScreen({
               </View>
               <Text style={styles.cardBirdMeta}>
                 <Text style={styles.cardBirdMetaAccent}>
-                  {formatDowDate(item.est_first_catch, settings?.dow_date)}
+                  {formatDateByPattern(item.est_first_catch, settings?.dow_date, "not scheduled")}
                 </Text>
                 {" "}Estimated First Livehaul{" "}
                 <Text style={styles.cardBirdMetaAccent}>
@@ -412,46 +418,6 @@ function formatCount(value: number | null | undefined) {
   return new Intl.NumberFormat("en-US").format(value);
 }
 
-function formatCompactDate(value: string | null | undefined) {
-  if (!value) return "--";
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "2-digit",
-    year: "2-digit",
-  });
-}
-
-function formatDowDate(value: string | null | undefined, setting: string | null | undefined) {
-  if (!value) return "not scheduled";
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-
-  const normalized = (setting ?? "").trim().toLowerCase();
-  const weekday = date.toLocaleDateString("en-US", { weekday: "short" });
-  const monthShort = date.toLocaleDateString("en-US", { month: "short" });
-  const monthUpper = monthShort.toUpperCase();
-  const day = date.toLocaleDateString("en-US", { day: "2-digit" });
-  const yearShort = date.toLocaleDateString("en-US", { year: "2-digit" });
-
-  if (normalized.includes("upper") || normalized.includes("apr")) {
-    return `${weekday.toUpperCase()} ${day} ${monthUpper} ${yearShort}`;
-  }
-
-  if (normalized.includes("compact") || normalized.includes("ddmonyy")) {
-    return `${weekday} ${day}${monthShort}${yearShort}`;
-  }
-
-  if (normalized.includes("slash") || normalized.includes("mm/dd/yy")) {
-    const month = date.toLocaleDateString("en-US", { month: "2-digit" });
-    return `${weekday} ${month}/${day}/${yearShort}`;
-  }
-
-  return `${weekday} ${monthShort} ${day}${yearShort}`;
-}
-
 const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
@@ -518,14 +484,19 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E0D4C3",
-    backgroundColor: "#FFFDFC",
+    borderWidth: 1.5,
+    borderColor: "#C79A67",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
     paddingVertical: 9,
     minHeight: 40,
     fontSize: 13,
     color: "#4E5550",
+    shadowColor: "#7B4B2A",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   actionRow: {
     flexDirection: "row",

@@ -64,6 +64,22 @@ type FlockRow = {
   breed_females: string | null;
 };
 
+type BreedRow = {
+  id: string;
+  code: string | null;
+  breed_name: string | null;
+  sex: string | null;
+  is_active: boolean | null;
+};
+
+type BreedSpecRow = {
+  geneticname: string | null;
+  breedid: string | null;
+  age: number | null;
+  targetweight: number | null;
+  is_active: boolean | null;
+};
+
 type PlacementRow = {
   id: string;
   farm_id: string;
@@ -229,6 +245,8 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       dailyFlagsResult,
       mortalityLogsResult,
       weightLogsResult,
+      breedsResult,
+      breedSpecsResult,
     ] = await Promise.all([
       supabase
         .from("farm_groups")
@@ -265,6 +283,15 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         .from("log_weight")
         .select("placement_id,log_date,sex,cnt_weighed,avg_weight,is_active")
         .order("log_date", { ascending: false }),
+      supabase
+        .from("breeds")
+        .select("id,code,breed_name,sex,is_active")
+        .eq("is_active", true)
+        .order("breed_name"),
+      supabase
+        .from("stdbreedspec")
+        .select("geneticname,breedid,age,targetweight,is_active")
+        .eq("is_active", true),
     ]);
 
     if (
@@ -276,7 +303,9 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       placementLogsResult.error ||
       dailyFlagsResult.error ||
       mortalityLogsResult.error ||
-      weightLogsResult.error
+      weightLogsResult.error ||
+      breedsResult.error ||
+      breedSpecsResult.error
     ) {
       const firstError =
         farmGroupsResult.error ||
@@ -287,7 +316,9 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         placementLogsResult.error ||
         dailyFlagsResult.error ||
         mortalityLogsResult.error ||
-        weightLogsResult.error;
+        weightLogsResult.error ||
+        breedsResult.error ||
+        breedSpecsResult.error;
 
       throw new AdminDataError(
         `Admin data failed to load from Supabase: ${firstError?.message ?? "Unknown query error"}`,
@@ -306,6 +337,8 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     const dailyFlagRows = (dailyFlagsResult.data ?? []) as DailyFlagRow[];
     const mortalityRows = (mortalityLogsResult.data ?? []) as MortalityRow[];
     const weightRows = (weightLogsResult.data ?? []) as WeightRow[];
+    const breedRows = (breedsResult.data ?? []) as BreedRow[];
+    const breedSpecRows = (breedSpecsResult.data ?? []) as BreedSpecRow[];
 
     const activePlacementsRaw = placementRows.filter((row) => row.is_active === true);
     const activePlacementIds = new Set(activePlacementsRaw.map((row) => row.id));
@@ -396,6 +429,10 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         maleLast7Days: number;
       }
     >();
+    const mortalityByPlacementAndDate = new Map<
+      string,
+      Map<string, { male: number; female: number }>
+    >();
 
     const latestWeightByPlacement = new Map<string, WeightSummary>();
     const dailyFlagsByPlacement = new Map<
@@ -411,6 +448,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     >();
 
     const flockById = new Map(flockRows.map((row) => [row.id, row]));
+    const breedById = new Map(breedRows.map((row) => [row.id, row]));
     const farmById = new Map(farmRows.map((row) => [row.id, row]));
     const groupById = new Map(farmGroups.map((row) => [row.id, row]));
     const barnById = new Map(barnRows.map((row) => [row.id, row]));
@@ -436,6 +474,12 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const maleLoss = (row.dead_male ?? 0) + (row.cull_male ?? 0);
       bucket.femaleTotal += femaleLoss;
       bucket.maleTotal += maleLoss;
+      const dailyBucket = mortalityByPlacementAndDate.get(row.placement_id) ?? new Map<string, { male: number; female: number }>();
+      const existingDay = dailyBucket.get(row.log_date) ?? { male: 0, female: 0 };
+      existingDay.female += femaleLoss;
+      existingDay.male += maleLoss;
+      dailyBucket.set(row.log_date, existingDay);
+      mortalityByPlacementAndDate.set(row.placement_id, dailyBucket);
 
       const ageOnLogDate = placedDate ? daysBetween(row.log_date, placedDate) : null;
       const daysFromToday = daysSince(row.log_date);
@@ -627,6 +671,24 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         row && row.is_active === true
           ? latestWeightByPlacement.get(row.id) ?? emptyWeightSummary()
           : emptyWeightSummary();
+      const latestFemaleWeightPercentExpected = calculateBenchmarkPercent(
+        weightSummary.female.avgWeight,
+        resolveBreedTargetWeight(
+          flock?.breed_females ?? null,
+          ageDaysOnSampleDate(placedDate, weightSummary.female.logDate),
+          breedById,
+          breedSpecRows,
+        ),
+      );
+      const latestMaleWeightPercentExpected = calculateBenchmarkPercent(
+        weightSummary.male.avgWeight,
+        resolveBreedTargetWeight(
+          flock?.breed_males ?? null,
+          ageDaysOnSampleDate(placedDate, weightSummary.male.logDate),
+          breedById,
+          breedSpecRows,
+        ),
+      );
       const dailyFlags =
         row && row.is_active === true
           ? dailyFlagsByPlacement.get(row.id) ?? {
@@ -649,6 +711,19 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const startedMaleCount = flock?.start_cnt_males ?? 0;
       const currentFemaleCount = Math.max(0, startedFemaleCount - mortalityTotals.femaleTotal);
       const currentMaleCount = Math.max(0, startedMaleCount - mortalityTotals.maleTotal);
+      const mortalityBreakdownByDate = row ? mortalityByPlacementAndDate.get(row.id) ?? new Map<string, { male: number; female: number }>() : new Map<string, { male: number; female: number }>();
+      const mortalityFirst7DayBreakdown = buildMortalityWindowBreakdown({
+        mode: "first7",
+        placedDate,
+        today,
+        dayMap: mortalityBreakdownByDate,
+      });
+      const mortalityLast7DayBreakdown = buildMortalityWindowBreakdown({
+        mode: "last7",
+        placedDate,
+        today,
+        dayMap: mortalityBreakdownByDate,
+      });
       const flockIsInBarn = Boolean(
         row &&
           (flock?.is_in_barn === true ||
@@ -703,8 +778,12 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         mortalityMaleLast7Days: mortalityTotals.maleLast7Days,
         mortalityFemaleFirst7Days: mortalityTotals.femaleFirst7Days,
         mortalityMaleFirst7Days: mortalityTotals.maleFirst7Days,
+        mortalityFirst7DayBreakdown,
+        mortalityLast7DayBreakdown,
         latestFemaleWeight: weightSummary.female.avgWeight,
         latestMaleWeight: weightSummary.male.avgWeight,
+        latestFemaleWeightPercentExpected,
+        latestMaleWeightPercentExpected,
         latestFemaleWeightCount: weightSummary.female.count,
         latestMaleWeightCount: weightSummary.male.count,
         latestFemaleWeightDate: weightSummary.female.logDate,
@@ -1046,6 +1125,61 @@ function addDays(date: string | null, days: number) {
   return dt.toISOString().slice(0, 10);
 }
 
+function formatMortalityWindowLabel(date: string) {
+  const dt = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(dt.getTime())) {
+    return date;
+  }
+
+  return dt.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "numeric",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function buildMortalityWindowBreakdown({
+  mode,
+  placedDate,
+  today,
+  dayMap,
+}: {
+  mode: "first7" | "last7";
+  placedDate: string | null;
+  today: string;
+  dayMap: Map<string, { male: number; female: number }>;
+}) {
+  const dates: string[] = [];
+
+  if (mode === "first7" && placedDate) {
+    for (let index = 1; index <= 7; index += 1) {
+      const candidate = addDays(placedDate, index);
+      if (candidate && candidate !== placedDate) {
+        dates.push(candidate);
+      }
+    }
+  } else {
+    for (let offset = 0; offset <= 6; offset += 1) {
+      dates.push(addDays(today, -offset));
+    }
+  }
+
+  const items = dates.map((date) => {
+    const bucket = dayMap.get(date) ?? { male: 0, female: 0 };
+    return {
+      date,
+      label: formatMortalityWindowLabel(date),
+      male: bucket.male,
+      female: bucket.female,
+    };
+  });
+
+  items.sort((left, right) => left.date.localeCompare(right.date));
+
+  return items;
+}
+
 function daysSince(date: string | null) {
   if (!date) {
     return 0;
@@ -1076,6 +1210,91 @@ function daysRelativeToToday(date: string | null) {
   const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   const startUtc = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
   return Math.round((todayUtc - startUtc) / 86400000);
+}
+
+function ageDaysOnSampleDate(placedDate: string | null, sampleDate: string | null) {
+  if (!placedDate || !sampleDate) {
+    return null;
+  }
+
+  const placed = new Date(`${placedDate}T00:00:00Z`);
+  const sample = new Date(`${sampleDate}T00:00:00Z`);
+  if (Number.isNaN(placed.getTime()) || Number.isNaN(sample.getTime())) {
+    return null;
+  }
+
+  const placedUtc = Date.UTC(placed.getUTCFullYear(), placed.getUTCMonth(), placed.getUTCDate());
+  const sampleUtc = Date.UTC(sample.getUTCFullYear(), sample.getUTCMonth(), sample.getUTCDate());
+  return Math.round((sampleUtc - placedUtc) / 86400000);
+}
+
+function normalizeBreedText(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function normalizeBreedSex(value: string | null | undefined) {
+  const normalized = normalizeBreedText(value);
+  if (normalized.startsWith("m")) {
+    return "male";
+  }
+  if (normalized.startsWith("f")) {
+    return "female";
+  }
+  return normalized || null;
+}
+
+function resolveBreedTargetWeight(
+  breedId: string | null,
+  ageDays: number | null,
+  breedById: Map<string, BreedRow>,
+  breedSpecRows: BreedSpecRow[],
+) {
+  if (!breedId || ageDays === null) {
+    return null;
+  }
+
+  const breed = breedById.get(breedId);
+  if (!breed) {
+    return null;
+  }
+
+  const breedName = normalizeBreedText(breed.breed_name);
+  const sex = normalizeBreedSex(breed.sex);
+  if (!breedName) {
+    return null;
+  }
+
+  const exactMatch = breedSpecRows.find((row) => {
+    return (
+      row.age === ageDays &&
+      normalizeBreedText(row.geneticname) === breedName &&
+      (!sex || normalizeBreedSex(row.breedid) === sex)
+    );
+  });
+
+  if (typeof exactMatch?.targetweight === "number") {
+    return exactMatch.targetweight;
+  }
+
+  const fallbackMatch = breedSpecRows.find((row) => {
+    return row.age === ageDays && normalizeBreedText(row.geneticname) === breedName;
+  });
+
+  return typeof fallbackMatch?.targetweight === "number" ? fallbackMatch.targetweight : null;
+}
+
+function calculateBenchmarkPercent(actualWeight: number | null, expectedWeight: number | null) {
+  if (
+    actualWeight === null ||
+    expectedWeight === null ||
+    Number.isNaN(actualWeight) ||
+    Number.isNaN(expectedWeight) ||
+    expectedWeight <= 0
+  ) {
+    return null;
+  }
+
+  return (actualWeight / expectedWeight) * 100;
 }
 
 function comparePlacementRows(

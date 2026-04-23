@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 
 import {
   makePlacementCurrentAction,
@@ -44,8 +45,24 @@ function formatWeight(value: number | null) {
   return value.toFixed(2);
 }
 
+function formatExpectedWeightPercent(value: number | null) {
+  if (value === null || Number.isNaN(value)) {
+    return "--";
+  }
+
+  return `${value.toFixed(1)}%`;
+}
+
 function formatSampleCount(value: number | null) {
   return value ?? 0;
+}
+
+function formatPeriodLossPercent(losses: number, started: number) {
+  return formatPercent(safePercent(losses, started));
+}
+
+function formatLivabilityPercent(current: number, started: number) {
+  return formatPercent(safePercent(current, started));
 }
 
 function getOperationalAction(placement: ActivePlacementRecord) {
@@ -89,6 +106,72 @@ function getPassiveTileActionLabel(placement: ActivePlacementRecord) {
   return placement.ageDays < 0 ? "Placed Ok" : "Schedule Live Haul";
 }
 
+function MortalityPopup({
+  placement,
+  mode,
+  onClose,
+}: {
+  placement: ActivePlacementRecord;
+  mode: "first7" | "last7";
+  onClose: () => void;
+}) {
+  const startedTotal = placement.startedMaleCount + placement.startedFemaleCount;
+  const currentTotal = placement.currentMaleCount + placement.currentFemaleCount;
+  const breakdown =
+    mode === "first7" ? placement.mortalityFirst7DayBreakdown : placement.mortalityLast7DayBreakdown;
+  const periodLosses = breakdown.reduce((sum, day) => sum + day.male + day.female, 0);
+  const title = mode === "first7" ? "First 7-Day Mortality" : "Last 7-Day Mortality";
+
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
+    <div className="mortality-popup-shell" onClick={onClose}>
+      <div className="mortality-popup-panel" onClick={(event) => event.stopPropagation()}>
+        <div className="mortality-popup-header">
+          <div>
+            <p className="eyebrow">Mortality Window</p>
+            <h3>{title}</h3>
+            <p className="meta-copy">
+              {placement.farmName} · Barn {placement.barnCode} · {placement.placementCode}
+            </p>
+          </div>
+          <button className="button-secondary" onClick={onClose} type="button">
+            Close
+          </button>
+        </div>
+
+        <div className="mortality-popup-summary">
+          <div className="mortality-popup-stat">
+            <span>Current Livability</span>
+            <strong>{formatLivabilityPercent(currentTotal, startedTotal)}</strong>
+          </div>
+          <div className="mortality-popup-stat">
+            <span>Window Mortality</span>
+            <strong>{formatPeriodLossPercent(periodLosses, startedTotal)}</strong>
+          </div>
+        </div>
+
+        <div className="mortality-popup-grid">
+          {breakdown.map((day) => (
+            <div className="mortality-popup-day" key={`${mode}-${placement.id}-${day.date}`}>
+              <strong>{day.label}</strong>
+              <span>
+                Males / Females
+              </span>
+              <p>
+                {day.male} / {day.female}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function PlacementTile({
   placement,
   editingPlacementId,
@@ -110,6 +193,7 @@ function PlacementTile({
     status: "idle",
     message: "",
   });
+  const [mortalityPopupMode, setMortalityPopupMode] = useState<"first7" | "last7" | null>(null);
 
   const isEditingLhDates = editingPlacementId === placement.id;
   const anotherTileIsEditing = editingPlacementId !== null && editingPlacementId !== placement.id;
@@ -247,10 +331,12 @@ function PlacementTile({
         </div>
 
         <div className="tile-chip-row">
-          <span className="tile-chip">
-            First 7 days {formatPercent(safePercent(first7Total, startedTotal))}
-          </span>
-          <span className="tile-chip">Last 7 days {formatCount(last7Total)}</span>
+          <button className="tile-chip tile-chip-button" onClick={() => setMortalityPopupMode("first7")} type="button">
+            First 7 Days
+          </button>
+          <button className="tile-chip tile-chip-button" onClick={() => setMortalityPopupMode("last7")} type="button">
+            Last 7 Days
+          </button>
         </div>
       </section>
 
@@ -375,14 +461,20 @@ function PlacementTile({
             <dl className="tile-subpanel-list">
               <div className="tile-subpanel-item">
                 <dt>Male Avg</dt>
-                <dd className="tile-subpanel-value tile-subpanel-value--accent">
-                  {formatWeight(placement.latestMaleWeight)}
+                <dd className="tile-subpanel-value tile-subpanel-value--accent tile-subpanel-value-inline">
+                  <span>{formatWeight(placement.latestMaleWeight)}</span>
+                  <span className="tile-subpanel-inline-meta">
+                    {formatExpectedWeightPercent(placement.latestMaleWeightPercentExpected)}
+                  </span>
                 </dd>
               </div>
               <div className="tile-subpanel-item">
                 <dt>Female Avg</dt>
-                <dd className="tile-subpanel-value tile-subpanel-value--accent">
-                  {formatWeight(placement.latestFemaleWeight)}
+                <dd className="tile-subpanel-value tile-subpanel-value--accent tile-subpanel-value-inline">
+                  <span>{formatWeight(placement.latestFemaleWeight)}</span>
+                  <span className="tile-subpanel-inline-meta">
+                    {formatExpectedWeightPercent(placement.latestFemaleWeightPercentExpected)}
+                  </span>
                 </dd>
               </div>
               <div className="tile-subpanel-item">
@@ -410,6 +502,13 @@ function PlacementTile({
           <div className="progress-fill" style={{ width: `${placement.completionPercent}%` }} />
         </div>
       </div>
+      {mortalityPopupMode ? (
+        <MortalityPopup
+          mode={mortalityPopupMode}
+          onClose={() => setMortalityPopupMode(null)}
+          placement={placement}
+        />
+      ) : null}
     </article>
   );
 }
@@ -454,7 +553,10 @@ export function ActivePlacementDashboard({
   const alertCount = useMemo(
     () =>
       placements.filter(
-        (placement) => placement.dashboardStatusTone === "danger" || placement.dashboardStatusTone === "warn",
+        (placement) =>
+          placement.dashboardStatusTone === "danger" ||
+          (placement.dashboardStatusTone === "warn" &&
+            !(placement.dashboardStatusLabel === "Awaiting Arrival" && placement.ageDays < -3)),
       ).length,
     [placements],
   );

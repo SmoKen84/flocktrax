@@ -8,7 +8,9 @@ import type { GoogleSheetsOutboxRecord } from "@/lib/sync-data";
 
 type OutboxTableProps = {
   items: GoogleSheetsOutboxRecord[];
+  onReplay: (outboxId: string) => Promise<void>;
   onRetry: (outboxId: string) => Promise<void>;
+  replayingOutboxId: string | null;
   retryingOutboxId: string | null;
 };
 
@@ -17,7 +19,7 @@ type ActiveOutboxField = {
   value: string;
 };
 
-export function OutboxTable({ items, onRetry, retryingOutboxId }: OutboxTableProps) {
+export function OutboxTable({ items, onReplay, onRetry, replayingOutboxId, retryingOutboxId }: OutboxTableProps) {
   const [activeField, setActiveField] = useState<ActiveOutboxField | null>(null);
   const [mounted, setMounted] = useState(false);
   const normalizedItems = useMemo(() => items, [items]);
@@ -38,6 +40,7 @@ export function OutboxTable({ items, onRetry, retryingOutboxId }: OutboxTablePro
               <th>Placement</th>
               <th>Log Date</th>
               <th>Entity</th>
+              <th>Payload</th>
               <th>Requested</th>
               <th>Attempts</th>
               <th>Last Error</th>
@@ -75,6 +78,14 @@ export function OutboxTable({ items, onRetry, retryingOutboxId }: OutboxTablePro
                   </td>
                   <td>{renderFieldButton("Log Date", item.logDate ?? "n/a", setActiveField)}</td>
                   <td>{renderFieldButton("Entity", item.entityType, setActiveField)}</td>
+                  <td>
+                    {renderFieldButton(
+                      "Payload Snapshot",
+                      formatPayload(item.payload),
+                      setActiveField,
+                      <span className="sync-outbox-action-muted">View</span>,
+                    )}
+                  </td>
                   <td>{renderFieldButton("Requested", formatTimestamp(item.requestedAt), setActiveField)}</td>
                   <td>{renderFieldButton("Attempts", String(item.attempts), setActiveField)}</td>
                   <td>
@@ -86,24 +97,37 @@ export function OutboxTable({ items, onRetry, retryingOutboxId }: OutboxTablePro
                     )}
                   </td>
                   <td>
-                    {canRetry(item.status) ? (
-                      <button
-                        className="button-secondary"
-                        disabled={retryingOutboxId === item.id}
-                        onClick={() => void onRetry(item.id)}
-                        type="button"
-                      >
-                        {retryingOutboxId === item.id ? "Retrying..." : "Retry"}
-                      </button>
-                    ) : (
-                      <span className="sync-outbox-action-muted">No action</span>
-                    )}
+                    <div className="sync-outbox-action-stack">
+                      {canReplay(item.status) ? (
+                        <button
+                          className="button-secondary"
+                          disabled={replayingOutboxId === item.id}
+                          onClick={() => void onReplay(item.id)}
+                          type="button"
+                        >
+                          {replayingOutboxId === item.id ? "Replaying..." : "Replay"}
+                        </button>
+                      ) : null}
+                      {canRetry(item.status) ? (
+                        <button
+                          className="button-secondary"
+                          disabled={retryingOutboxId === item.id}
+                          onClick={() => void onRetry(item.id)}
+                          type="button"
+                        >
+                          {retryingOutboxId === item.id ? "Retrying..." : "Retry"}
+                        </button>
+                      ) : null}
+                      {!canReplay(item.status) && !canRetry(item.status) ? (
+                        <span className="sync-outbox-action-muted">No action</span>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td className="sync-outbox-empty" colSpan={10}>
+                <td className="sync-outbox-empty" colSpan={11}>
                   No outbox rows exist yet. Once the worker-facing logs start writing through enabled farm workbooks, this queue will fill here.
                 </td>
               </tr>
@@ -166,6 +190,10 @@ function canRetry(status: string) {
   return status === "failed" || status === "rejected";
 }
 
+function canReplay(status: string) {
+  return status === "sent" || status === "failed" || status === "rejected";
+}
+
 function statusTone(status: string) {
   switch (status) {
     case "sent":
@@ -200,5 +228,13 @@ function truncateText(value: string, maxLength: number) {
     return value;
   }
 
-  return `${value.slice(0, Math.max(maxLength - 1, 1)).trimEnd()}…`;
+  return `${value.slice(0, Math.max(maxLength - 1, 1)).trimEnd()}...`;
+}
+
+function formatPayload(payload: Record<string, unknown> | null) {
+  if (!payload || Object.keys(payload).length === 0) {
+    return "No payload snapshot stored.";
+  }
+
+  return JSON.stringify(payload, null, 2);
 }

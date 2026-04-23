@@ -164,14 +164,14 @@ function WeightSampleCard({ title, benchmark, sample, onChange }: WeightSampleCa
           label="Count"
           keyboardType="number-pad"
           value={sample.cnt_weighed}
-          onChange={(value) => onChange({ ...sample, cnt_weighed: toNullableNumber(value) })}
+          onChange={(value) => onChange({ ...sample, cnt_weighed: toNullableInteger(value) })}
         />
         <InlineField
           label="Average Wt"
           benchmarkLabel={formatBenchmarkValue(benchmark?.target_weight)}
           keyboardType="decimal-pad"
           value={sample.avg_weight}
-          onChange={(value) => onChange({ ...sample, avg_weight: toNullableNumber(value) })}
+          onChange={(value) => onChange({ ...sample, avg_weight: toNullableDecimal(value) })}
         />
       </View>
 
@@ -180,14 +180,14 @@ function WeightSampleCard({ title, benchmark, sample, onChange }: WeightSampleCa
           label="Std Dev"
           keyboardType="decimal-pad"
           value={sample.stddev_weight}
-          onChange={(value) => onChange({ ...sample, stddev_weight: toNullableNumber(value) })}
+          onChange={(value) => onChange({ ...sample, stddev_weight: toNullableDecimal(value) })}
         />
         <InlineField
           label="Procure"
           benchmarkLabel={formatBenchmarkValue(benchmark?.day_feed_per_bird)}
           keyboardType="decimal-pad"
           value={sample.procure}
-          onChange={(value) => onChange({ ...sample, procure: toNullableNumber(value) })}
+          onChange={(value) => onChange({ ...sample, procure: toNullableDecimal(value) })}
         />
       </View>
 
@@ -248,6 +248,12 @@ function InlineField({
   onChange,
   keyboardType = "default",
 }: InlineFieldProps) {
+  const [textValue, setTextValue] = useState(value === null || value === undefined ? "" : String(value));
+
+  useEffect(() => {
+    setTextValue(value === null || value === undefined ? "" : String(value));
+  }, [value]);
+
   return (
     <View style={styles.inlineField}>
       <View style={styles.inlineLabelRow}>
@@ -256,10 +262,14 @@ function InlineField({
       </View>
       <TextInput
         keyboardType={keyboardType}
-        onChangeText={onChange}
+        inputMode={keyboardType === "decimal-pad" ? "decimal" : keyboardType === "number-pad" ? "numeric" : "text"}
+        onChangeText={(nextValue) => {
+          setTextValue(nextValue);
+          onChange(nextValue);
+        }}
         placeholderTextColor="#9A988F"
         style={styles.inlineInput}
-        value={value === null || value === undefined ? "" : String(value)}
+        value={textValue}
       />
     </View>
   );
@@ -288,9 +298,24 @@ function LabeledField({ label, value, onChange, multiline = false }: LabeledFiel
   );
 }
 
-function toNullableNumber(value: string) {
+function toNullableInteger(value: string) {
   if (!value.trim()) return null;
-  const parsed = Number(value);
+  const digitsOnly = value.replace(/[^\d-]/g, "");
+  if (!digitsOnly.trim()) return null;
+  const parsed = Number(digitsOnly);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toNullableDecimal(value: string) {
+  if (!value.trim()) return null;
+  const normalized = value.replace(/,/g, ".").trim();
+  if (!/^-?\d*(\.\d*)?$/.test(normalized)) {
+    return null;
+  }
+  if (normalized === "-" || normalized === "." || normalized === "-.") {
+    return null;
+  }
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -492,13 +517,18 @@ const styles = StyleSheet.create({
   inlineInput: {
     minHeight: 46,
     borderRadius: 15,
-    borderWidth: 1.5,
-    borderColor: "#D7C29E",
-    backgroundColor: "#FCF7EF",
+    borderWidth: 2,
+    borderColor: "#C79A67",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
     color: "#1F2A1F",
     fontSize: 16,
     fontWeight: "700",
+    shadowColor: "#7B4B2A",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   labeledField: {
     gap: 6,
@@ -506,13 +536,18 @@ const styles = StyleSheet.create({
   largeInput: {
     minHeight: 48,
     borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: "#D7C29E",
-    backgroundColor: "#FCF7EF",
+    borderWidth: 2,
+    borderColor: "#C79A67",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 14,
     paddingVertical: 12,
     color: "#1F2A1F",
     fontSize: 16,
+    shadowColor: "#7B4B2A",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   largeInputMultiline: {
     minHeight: 96,
