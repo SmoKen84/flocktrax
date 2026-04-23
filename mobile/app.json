@@ -17,11 +17,12 @@
     ],
     "ios": {
       "bundleIdentifier": "com.flocktrax.mobile",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "supportsTablet": true
     },
     "android": {
       "package": "com.flocktrax.mobile",
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "../output/MC_Favicon2-transparent.png",
         "backgroundColor": "#F2E8D5"
