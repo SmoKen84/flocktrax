@@ -839,6 +839,23 @@ button {
   align-items: start;
 }
 
+.splash-sidebar-stack {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+}
+
+.splash-sidebar-version-tag {
+  margin: 0;
+  padding: 0 8px;
+  color: rgba(63, 44, 26, 0.92);
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+
 .splash-workspace {
   display: grid;
   gap: 18px;
@@ -852,9 +869,9 @@ button {
   background: linear-gradient(180deg, #253125 0%, #283427 100%);
   box-shadow: 0 24px 54px rgba(29, 24, 17, 0.18);
   color: #f8f0df;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .splash-sidebar-utility-row {
@@ -885,7 +902,7 @@ button {
 
 .splash-sidebar-brand {
   position: relative;
-  min-height: 192px;
+  min-height: 164px;
 }
 
 .splash-sidebar-logo {
@@ -899,9 +916,9 @@ button {
 
 .splash-sidebar-copy {
   margin-left: 110px;
-  padding-top: 22px;
+  padding-top: 16px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .splash-sidebar-copy .flocktrax-wordmark-descriptor {
@@ -920,7 +937,7 @@ button {
 
 .splash-sidebar-groups {
   display: grid;
-  gap: 26px;
+  gap: 16px;
   align-content: start;
 }
 
@@ -930,9 +947,10 @@ button {
   justify-content: center;
   width: calc(100% + 8px);
   margin-left: -4px;
-  padding: 6px 8px 10px;
-  color: rgba(248, 240, 223, 0.72);
-  font-size: 0.66rem;
+  padding: 4px 8px 8px;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 0.76rem;
+  font-weight: 700;
   line-height: 1.2;
   letter-spacing: 0.04em;
   white-space: nowrap;
@@ -955,8 +973,8 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  margin: 0 auto 2px;
-  padding: 6px 10px 4px;
+  margin: 0 auto;
+  padding: 4px 10px 2px;
   width: min(166px, 100%);
   text-align: center;
 }
@@ -1012,7 +1030,7 @@ button {
 .splash-sidebar-group {
   display: grid;
   gap: 3px;
-  padding: 13px 14px 14px;
+  padding: 9px 14px 10px;
   border-radius: 16px;
   background: rgba(255, 250, 242, 0.03);
 }
@@ -1022,7 +1040,7 @@ button {
 }
 
 .splash-sidebar-label {
-  margin: 0 0 4px;
+  margin: 0 0 1px;
   color: #f1d02b;
   font-size: 1rem;
   font-weight: 800;
@@ -1035,7 +1053,11 @@ button {
   color: rgba(249, 241, 227, 0.96);
   font-size: 0.92rem;
   font-weight: 700;
-  line-height: 1.4;
+  line-height: 1.28;
+}
+
+.splash-sidebar-item[data-muted="true"] {
+  color: rgba(249, 241, 227, 0.44);
 }
 
 .splash-sidebar-item-link {
@@ -1043,7 +1065,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 5px 10px;
+  padding: 2px 10px;
   margin: 0 -10px 0 -4px;
   border-radius: 10px;
   border: 1px solid transparent;
@@ -1060,7 +1082,7 @@ button {
 .splash-sidebar-group > .splash-sidebar-item + .splash-sidebar-item-link,
 .splash-sidebar-group > .splash-sidebar-item-link + .splash-sidebar-item,
 .splash-sidebar-group > .splash-sidebar-item-link + .splash-sidebar-item-link {
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .sidebar-notification-badge {
@@ -1098,11 +1120,15 @@ button {
 }
 
 .splash-sidebar-footer {
-  align-self: end;
+  margin-top: auto;
   text-align: center;
-  color: rgba(248, 240, 223, 0.72);
-  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 0.62rem;
   line-height: 1.35;
+  display: grid;
+  gap: 2px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(248, 240, 223, 0.08);
 }
 
 .splash-sidebar-footer p {
@@ -1126,7 +1152,7 @@ button {
   position: sticky;
   top: 24px;
   align-self: start;
-  min-height: calc(100vh - 48px);
+  min-height: auto;
 }
 
 .admin-sidebar .splash-sidebar-item-link[data-active="true"] {
@@ -5319,11 +5345,14 @@ tr:last-child td {
   box-shadow: inset 0 0 0 1px rgba(80, 101, 74, 0.28);
 }
 
+.access-target-panel {
+  position: relative;
+  padding-right: 88px;
+}
+
 .access-target-panel-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  align-items: flex-start;
+  display: grid;
+  gap: 10px;
 }
 
 .access-target-panel-foot {
@@ -5332,6 +5361,9 @@ tr:last-child td {
 }
 
 .access-target-status {
+  position: absolute;
+  top: 16px;
+  right: 18px;
   padding: 4px 8px;
   border-radius: 999px;
   background: rgba(247, 238, 221, 0.96);
@@ -5341,6 +5373,8 @@ tr:last-child td {
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  white-space: nowrap;
+  z-index: 1;
 }
 
 .access-target-login,
@@ -5407,6 +5441,63 @@ tr:last-child td {
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+.access-validation-panel {
+  gap: 16px;
+}
+
+.access-validation-topline {
+  display: grid;
+  gap: 6px;
+}
+
+.access-validation-topline p {
+  margin: 0;
+  color: rgba(62, 69, 62, 0.82);
+  font-size: 0.94rem;
+  line-height: 1.4;
+}
+
+.access-validation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.access-validation-block {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(67, 122, 83, 0.16);
+  background: rgba(241, 248, 242, 0.84);
+}
+
+.access-validation-block-muted {
+  border-color: rgba(131, 90, 42, 0.14);
+  background: rgba(250, 244, 232, 0.8);
+}
+
+.access-validation-block h3 {
+  margin: 0;
+  color: #315b3c;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.access-validation-block-muted h3 {
+  color: #7b4b2a;
+}
+
+.access-validation-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.38rem;
+  color: rgba(42, 56, 40, 0.9);
+  font-size: 0.9rem;
+  line-height: 1.35;
 }
 
 .access-section-head {
@@ -5683,6 +5774,10 @@ tr:last-child td {
   }
 
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .access-validation-grid {
     grid-template-columns: 1fr;
   }
 

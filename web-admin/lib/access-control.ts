@@ -9,6 +9,7 @@ import type {
   AccessRoleKey,
   AccessRoleTemplate,
   AccessUserRecord,
+  AccessValidationSummary,
   FarmGroupRecord,
   FarmRecord,
   UserAccessBundle,
@@ -272,6 +273,42 @@ export function summarizeMemberships(memberships: AccessMembership[]) {
   return memberships.map((membership) => membership.scopeLabel).join(" / ");
 }
 
+export function buildAccessValidationSummary(
+  user: AccessUserRecord,
+  roles: AccessRoleTemplate[] = fallbackRoleTemplates,
+): AccessValidationSummary {
+  const effectiveRoles = resolveAssignedRoles(user, roles);
+  const roleLabels = effectiveRoles.map((role) => role.label);
+  const scopeLabels = user.memberships.map((membership) => membership.scopeLabel);
+  const allActivityCatalog = buildActivityCatalog(roles);
+  const allowedActivities = new Set<string>();
+
+  for (const role of effectiveRoles) {
+    for (const capability of role.capabilities) {
+      const formatted = formatCapability(capability);
+      if (formatted) {
+        allowedActivities.add(formatted);
+      }
+    }
+
+    for (const permissionRow of role.permissionRows) {
+      for (const activity of expandPermissionActivities(permissionRow)) {
+        allowedActivities.add(activity);
+      }
+    }
+  }
+
+  const can = Array.from(allowedActivities).sort((left, right) => left.localeCompare(right));
+  const cannot = allActivityCatalog.filter((activity) => !allowedActivities.has(activity));
+
+  return {
+    roleLabels,
+    scopeLabels,
+    can,
+    cannot,
+  };
+}
+
 function membershipsOverlap(actorMemberships: AccessMembership[], targetMemberships: AccessMembership[]) {
   return actorMemberships.some((actorMembership) =>
     targetMemberships.some(
@@ -280,6 +317,75 @@ function membershipsOverlap(actorMemberships: AccessMembership[], targetMembersh
         actorMembership.scopeId === targetMembership.scopeId,
     ),
   );
+}
+
+function resolveAssignedRoles(user: AccessUserRecord, roles: AccessRoleTemplate[]) {
+  const assigned = user.assignedRoles.length > 0 ? user.assignedRoles : [user.role];
+  const seen = new Set<string>();
+  const resolved: AccessRoleTemplate[] = [];
+
+  for (const roleKey of assigned) {
+    const role = resolveRoleTemplate(roles, roleKey);
+    const normalized = normalizeKey(role.key);
+    if (seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    resolved.push(role);
+  }
+
+  return resolved.sort((left, right) => right.rank - left.rank || left.label.localeCompare(right.label));
+}
+
+function buildActivityCatalog(roles: AccessRoleTemplate[]) {
+  const values = new Set<string>();
+
+  for (const role of roles) {
+    for (const capability of role.capabilities) {
+      const formatted = formatCapability(capability);
+      if (formatted) {
+        values.add(formatted);
+      }
+    }
+
+    for (const permissionRow of role.permissionRows) {
+      for (const activity of expandPermissionActivities(permissionRow)) {
+        values.add(activity);
+      }
+    }
+  }
+
+  return Array.from(values).sort((left, right) => left.localeCompare(right));
+}
+
+function expandPermissionActivities(permissionRow: AccessActionPermission) {
+  const actionLabel = humanizePermissionAction(permissionRow.action);
+  const values: string[] = [];
+
+  if (permissionRow.menuAccess) values.push(`Open ${actionLabel}`);
+  if (permissionRow.create) values.push(`Create ${actionLabel}`);
+  if (permissionRow.read) values.push(`Read ${actionLabel}`);
+  if (permissionRow.update) values.push(`Update ${actionLabel}`);
+  if (permissionRow.delete) values.push(`Delete ${actionLabel}`);
+
+  return values;
+}
+
+function humanizePermissionAction(value: string) {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatCapability(value: string) {
+  const normalized = value.trim();
+  if (!normalized) {
+    return "";
+  }
+
+  return normalized
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 async function getLiveRoleTemplates(): Promise<AccessRoleTemplate[]> {

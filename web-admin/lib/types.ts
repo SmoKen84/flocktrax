@@ -203,6 +203,13 @@ export type AccessReview = {
   reason: string;
 };
 
+export type AccessValidationSummary = {
+  roleLabels: string[];
+  scopeLabels: string[];
+  can: string[];
+  cannot: string[];
+};
+
 export type UserAccessBundle = {
   actingUserId: string | null;
   roles: AccessRoleTemplate[];

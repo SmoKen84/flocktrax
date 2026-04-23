@@ -34,9 +34,29 @@ type AdminShellProps = {
   displayName: string;
   roleLabel: string;
   scopeLabel: string | null;
+  versionLine: string | null;
+  copyrightLine: string;
 };
 
-export function AdminShell({ children, displayName, roleLabel, scopeLabel }: AdminShellProps) {
+function renderSidebarCopyright(value: string) {
+  const match = value.match(/all rights reserved\./i);
+
+  if (!match || match.index === undefined) {
+    return <p>{value}</p>;
+  }
+
+  const firstLine = value.slice(0, match.index + match[0].length).trim();
+  const secondLine = value.slice(match.index + match[0].length).trim();
+
+  return (
+    <>
+      <p>{firstLine}</p>
+      {secondLine ? <p>{secondLine}</p> : null}
+    </>
+  );
+}
+
+export function AdminShell({ children, displayName, roleLabel, scopeLabel, versionLine, copyrightLine }: AdminShellProps) {
   const pathname = usePathname();
   const [syncBadgeCount, setSyncBadgeCount] = useState(0);
   const now = new Date();
@@ -93,8 +113,9 @@ export function AdminShell({ children, displayName, roleLabel, scopeLabel }: Adm
 
   const renderNavItem = (item: { href?: string; label: string }) => {
     if (!item.href) {
+      const muted = item.label === "Rollups" || item.label === "Reports";
       return (
-        <p className="splash-sidebar-item" key={item.label}>
+        <p className="splash-sidebar-item" data-muted={muted} key={item.label}>
           {item.label}
         </p>
       );
@@ -121,68 +142,73 @@ export function AdminShell({ children, displayName, roleLabel, scopeLabel }: Adm
 
   return (
     <main className="splash-shell admin-shell">
-      <aside className="splash-sidebar admin-sidebar">
-        <div className="splash-sidebar-utility-row">
-          <Link
-            aria-label="Open options and settings"
-            className="splash-sidebar-utility-button"
-            href="/admin/settings"
-            title="Options & Settings"
-          >
-            ...
-          </Link>
-        </div>
+      <div className="splash-sidebar-stack">
+        {versionLine ? <p className="splash-sidebar-version-tag">{versionLine}</p> : null}
 
-        <div className="splash-sidebar-brand">
-          <img alt="FlockTrax Victor mark" className="splash-sidebar-logo" src="/victor.svg" />
-          <div className="splash-sidebar-copy">
-            <FlockTraxWordmark compact descriptor="Admin and reporting console" product="Admin" tone="light" />
-            <p className="splash-sidebar-subcopy">Integrated Flock Management Platform</p>
-          </div>
-        </div>
-
-        <div className="splash-sidebar-identity-card" aria-label="Signed in user">
-          <p className="splash-sidebar-identity-name">{displayName}</p>
-          <p className="splash-sidebar-identity-role">{roleLabel}</p>
-          {scopeLabel ? <p className="splash-sidebar-identity-scope">{scopeLabel}</p> : null}
-        </div>
-
-        <div className="admin-sidebar-session-actions">
-          <Link className="admin-sidebar-session-link" href="/login">
-            Switch User
-          </Link>
-          <form action="/logout" method="post">
-            <button className="admin-sidebar-session-link admin-sidebar-session-link-quiet" type="submit">
-              Logout
-            </button>
-          </form>
-        </div>
-
-        <div className="splash-sidebar-datetime" suppressHydrationWarning>
-          <p>{`${sidebarDate} - ${sidebarTime}`}</p>
-        </div>
-
-        <div className="splash-sidebar-groups">
-          <div className="splash-sidebar-group">
-            <p className="splash-sidebar-label">Console</p>
-            {consoleLinks.map(renderNavItem)}
+        <aside className="splash-sidebar admin-sidebar">
+          <div className="splash-sidebar-utility-row">
+            <Link
+              aria-label="Open options and settings"
+              className="splash-sidebar-utility-button"
+              href="/admin/settings"
+              title="Options & Settings"
+            >
+              ...
+            </Link>
           </div>
 
-          <div className="splash-sidebar-group">
-            <p className="splash-sidebar-label">Configuration</p>
-            {configurationLinks.map(renderNavItem)}
+          <div className="splash-sidebar-brand">
+            <img alt="FlockTrax Victor mark" className="splash-sidebar-logo" src="/victor.svg" />
+            <div className="splash-sidebar-copy">
+              <FlockTraxWordmark compact descriptor="Admin and reporting console" product="Admin" tone="light" />
+              <p className="splash-sidebar-subcopy">Integrated Flock Management Platform</p>
+            </div>
           </div>
 
-          <div className="splash-sidebar-group">
-            <p className="splash-sidebar-label">Archives</p>
-            {archiveLinks.map(renderNavItem)}
+          <div className="splash-sidebar-identity-card" aria-label="Signed in user">
+            <p className="splash-sidebar-identity-name">{displayName}</p>
+            <p className="splash-sidebar-identity-role">{roleLabel}</p>
+            {scopeLabel ? <p className="splash-sidebar-identity-scope">{scopeLabel}</p> : null}
           </div>
-        </div>
 
-        <div className="splash-sidebar-footer">
-          <p>FlockTrax Admin Console</p>
-        </div>
-      </aside>
+          <div className="admin-sidebar-session-actions">
+            <Link className="admin-sidebar-session-link" href="/login">
+              Switch User
+            </Link>
+            <form action="/logout" method="post">
+              <button className="admin-sidebar-session-link admin-sidebar-session-link-quiet" type="submit">
+                Logout
+              </button>
+            </form>
+          </div>
+
+          <div className="splash-sidebar-datetime" suppressHydrationWarning>
+            <p>{`${sidebarDate} - ${sidebarTime}`}</p>
+          </div>
+
+          <div className="splash-sidebar-groups">
+            <div className="splash-sidebar-group">
+              <p className="splash-sidebar-label">Console</p>
+              {consoleLinks.map(renderNavItem)}
+            </div>
+
+            <div className="splash-sidebar-group">
+              <p className="splash-sidebar-label">Configuration</p>
+              {configurationLinks.map(renderNavItem)}
+            </div>
+
+            <div className="splash-sidebar-group">
+              <p className="splash-sidebar-label">Archives</p>
+              {archiveLinks.map(renderNavItem)}
+            </div>
+          </div>
+
+          <div className="splash-sidebar-footer">
+            {renderSidebarCopyright(copyrightLine)}
+            {versionLine ? <p>{versionLine}</p> : null}
+          </div>
+        </aside>
+      </div>
 
       <div className="content-shell">{children}</div>
     </main>

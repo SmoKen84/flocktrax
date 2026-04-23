@@ -10,7 +10,13 @@ import {
   removeUserRoleAction,
 } from "@/app/admin/user-access/actions";
 import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
-import { getUserAccessBundle, resolveRoleTemplate, reviewUserAccess, summarizeMemberships } from "@/lib/access-control";
+import {
+  buildAccessValidationSummary,
+  getUserAccessBundle,
+  resolveRoleTemplate,
+  reviewUserAccess,
+  summarizeMemberships,
+} from "@/lib/access-control";
 
 type UserAccessPageProps = {
   searchParams?: Promise<{
@@ -74,6 +80,7 @@ export default async function UserAccessPage({ searchParams }: UserAccessPagePro
 
   const actingRole = resolveRoleTemplate(bundle.roles, actingUser.role);
   const selectedTargetReview = selectedTarget ? reviewUserAccess(actingUser, selectedTarget, bundle.roles) : null;
+  const validationSummary = selectedTarget ? buildAccessValidationSummary(selectedTarget, bundle.roles) : null;
   const selectedTargetRoles = selectedTarget?.assignedRoles ?? [];
   const selectedRole = resolveSelectedRole(bundle.roles, selectedTargetRoles, actingRole.key);
   const selectedRoleKey = selectedRole.key;
@@ -626,6 +633,44 @@ export default async function UserAccessPage({ searchParams }: UserAccessPagePro
                       </p>
                     )}
                   </div>
+
+                  {validationSummary ? (
+                    <div className="access-membership-panel access-validation-panel" data-selection-state="targeted">
+                      <div className="access-section-head">
+                        <span>Security Validation</span>
+                        <span>{selectedTarget.displayName}</span>
+                      </div>
+
+                      <div className="access-validation-topline">
+                        <p><strong>User:</strong> {selectedTarget.displayName} has {validationSummary.roleLabels.join(", ") || "no roles assigned"}.</p>
+                        <p><strong>User Scope:</strong> {validationSummary.scopeLabels.join(" / ") || "No memberships assigned"}.</p>
+                      </div>
+
+                      <div className="access-validation-grid">
+                        <section className="access-validation-block">
+                          <h3>User Can</h3>
+                          <ul className="access-validation-list">
+                            {validationSummary.can.length > 0 ? (
+                              validationSummary.can.map((item) => <li key={`can-${item}`}>{item}</li>)
+                            ) : (
+                              <li>No granted activities detected.</li>
+                            )}
+                          </ul>
+                        </section>
+
+                        <section className="access-validation-block access-validation-block-muted">
+                          <h3>User Cannot</h3>
+                          <ul className="access-validation-list">
+                            {validationSummary.cannot.length > 0 ? (
+                              validationSummary.cannot.map((item) => <li key={`cannot-${item}`}>{item}</li>)
+                            ) : (
+                              <li>No blocked activities remain in the current catalog.</li>
+                            )}
+                          </ul>
+                        </section>
+                      </div>
+                    </div>
+                  ) : null}
                 </>
               )}
             </>

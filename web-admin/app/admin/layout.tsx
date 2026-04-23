@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin-shell";
+import { getPlatformSplashContent } from "@/lib/platform-content";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type AdminLayoutProps = {
@@ -10,6 +11,7 @@ type AdminLayoutProps = {
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
   const supabase = await createSupabaseServerClient();
+  const splash = await getPlatformSplashContent();
   const {
     data: { user },
   } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
@@ -35,7 +37,13 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
     null;
 
   return (
-    <AdminShell displayName={displayName} roleLabel={roleLabel} scopeLabel={scopeLabel}>
+    <AdminShell
+      copyrightLine={splash.copyrightLine}
+      displayName={displayName}
+      roleLabel={roleLabel}
+      scopeLabel={scopeLabel}
+      versionLine={splash.versionLine}
+    >
       {children}
     </AdminShell>
   );

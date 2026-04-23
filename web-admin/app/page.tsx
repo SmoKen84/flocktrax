@@ -29,6 +29,24 @@ const archiveLinks = [
   { label: "Activity Log", href: "/admin/activity-log" },
 ];
 
+function renderSidebarCopyright(value: string) {
+  const match = value.match(/all rights reserved\./i);
+
+  if (!match || match.index === undefined) {
+    return <p>{value}</p>;
+  }
+
+  const firstLine = value.slice(0, match.index + match[0].length).trim();
+  const secondLine = value.slice(match.index + match[0].length).trim();
+
+  return (
+    <>
+      <p>{firstLine}</p>
+      {secondLine ? <p>{secondLine}</p> : null}
+    </>
+  );
+}
+
 export default async function HomePage() {
   const splash = await getPlatformSplashContent();
   const supabase = await createSupabaseServerClient();
@@ -84,7 +102,10 @@ export default async function HomePage() {
 
   return (
     <main className="splash-shell">
-      <aside className="splash-sidebar">
+      <div className="splash-sidebar-stack">
+        {splash.versionLine ? <p className="splash-sidebar-version-tag">{splash.versionLine}</p> : null}
+
+        <aside className="splash-sidebar">
         <div className="splash-sidebar-utility-row">
           {isSignedIn ? (
             <Link
@@ -145,13 +166,14 @@ export default async function HomePage() {
             <p className="splash-sidebar-label">Archives</p>
             {archiveLinks.map(renderSplashNavItem)}
           </div>
-        </div>
+          </div>
 
-        <div className="splash-sidebar-footer">
-          <p>{splash.copyrightLine}</p>
-          {splash.versionLine ? <p>{splash.versionLine}</p> : null}
-        </div>
-      </aside>
+          <div className="splash-sidebar-footer">
+            {renderSidebarCopyright(splash.copyrightLine)}
+            {splash.versionLine ? <p>{splash.versionLine}</p> : null}
+          </div>
+        </aside>
+      </div>
 
       <section className="splash-workspace">
         <section className="panel hero-panel splash-hero-panel">
