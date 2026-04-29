@@ -14,6 +14,7 @@ import {
 import { PlacementSummary, WeightBenchmark, WeightEntryItem, WeightSampleEntry } from "../types";
 
 type Props = {
+  canSave: boolean;
   item: WeightEntryItem | null;
   loading: boolean;
   logDate: string;
@@ -25,6 +26,7 @@ type Props = {
 const serifFont = Platform.select({ ios: "Georgia", android: "serif", default: undefined });
 
 export function WeightEntryScreen({
+  canSave,
   item,
   loading,
   logDate,
@@ -43,6 +45,10 @@ export function WeightEntryScreen({
 
   async function save() {
     if (!draft) return;
+    if (!canSave) {
+      setMessage("Your permissions do not allow saving weight entries.");
+      return;
+    }
 
     try {
       setSaving(true);

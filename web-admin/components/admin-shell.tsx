@@ -32,6 +32,7 @@ const archiveLinks = [
 type AdminShellProps = {
   children: ReactNode;
   displayName: string;
+  roleKey: string;
   roleLabel: string;
   scopeLabel: string | null;
   versionLine: string | null;
@@ -56,9 +57,17 @@ function renderSidebarCopyright(value: string) {
   );
 }
 
-export function AdminShell({ children, displayName, roleLabel, scopeLabel, versionLine, copyrightLine }: AdminShellProps) {
+function normalizeRoleKey(value: string) {
+  return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+export function AdminShell({ children, displayName, roleKey, roleLabel, scopeLabel, versionLine, copyrightLine }: AdminShellProps) {
   const pathname = usePathname();
   const [syncBadgeCount, setSyncBadgeCount] = useState(0);
+  const canOpenSettings = (() => {
+    const normalized = normalizeRoleKey(roleKey);
+    return normalized === "admin" || normalized === "super_admin" || normalized === "superadmin";
+  })();
   const now = new Date();
   const sidebarDate = new Intl.DateTimeFormat("en-US", {
     weekday: "short",
@@ -109,7 +118,7 @@ export function AdminShell({ children, displayName, roleLabel, scopeLabel, versi
       window.clearInterval(intervalId);
       window.removeEventListener("focus", handleFocus);
     };
-  }, []);
+  }, [pathname]);
 
   const renderNavItem = (item: { href?: string; label: string }) => {
     if (!item.href) {
@@ -129,6 +138,7 @@ export function AdminShell({ children, displayName, roleLabel, scopeLabel, versi
         data-active={active}
         href={item.href}
         key={item.href}
+        prefetch={item.label === "Sync Engine" ? false : undefined}
       >
         <span>{item.label}</span>
         {item.label === "Sync Engine" && syncBadgeCount > 0 ? (
@@ -147,14 +157,16 @@ export function AdminShell({ children, displayName, roleLabel, scopeLabel, versi
 
         <aside className="splash-sidebar admin-sidebar">
           <div className="splash-sidebar-utility-row">
-            <Link
-              aria-label="Open options and settings"
-              className="splash-sidebar-utility-button"
-              href="/admin/settings"
-              title="Options & Settings"
-            >
-              ...
-            </Link>
+            {canOpenSettings ? (
+              <Link
+                aria-label="Open options and settings"
+                className="splash-sidebar-utility-button"
+                href="/admin/settings"
+                title="Options & Settings"
+              >
+                ...
+              </Link>
+            ) : null}
           </div>
 
           <div className="splash-sidebar-brand">

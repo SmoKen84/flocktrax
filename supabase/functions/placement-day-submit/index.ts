@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAuthenticatedUserId, getMobileAccessContext } from "../_shared/mobile-access.ts";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -392,6 +393,14 @@ Deno.serve(async (req) => {
 
   const dailyPayload = pickPresent(payload, dailyFields);
   const mortalityPayload = pickPresent(payload, mortalityFields);
+  const gradeFields = [
+    "grade_litter",
+    "grade_footpad",
+    "grade_feathers",
+    "grade_lame",
+    "grade_pecking",
+  ];
+  const mortalityCoreFields = mortalityFields.filter((field) => !gradeFields.includes(field));
 
   assignIfDefined(mortalityPayload, "dead_female", normalizeNullableInteger(mortalityPayload.dead_female));
   assignIfDefined(mortalityPayload, "dead_male", normalizeNullableInteger(mortalityPayload.dead_male));
@@ -416,6 +425,9 @@ Deno.serve(async (req) => {
 
   const shouldSaveDaily = hasAnyOwnKeys(pickPresent(payload, dailyFields)) || payload.daily_is_active !== undefined;
   const shouldSaveMortality = hasAnyOwnKeys(pickPresent(payload, mortalityFields)) || payload.mortality_is_active !== undefined;
+  const includesGradeUpdates = hasAnyOwnKeys(pickPresent(payload, gradeFields));
+  const includesMortalityCoreUpdates =
+    hasAnyOwnKeys(pickPresent(payload, mortalityCoreFields)) || payload.mortality_is_active !== undefined;
 
   if (!shouldSaveDaily && !shouldSaveMortality) {
     return json(req, { ok: false, error: "No daily or mortality fields were provided" }, 400);
@@ -423,6 +435,35 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = getClient(accessToken);
+    const userId = await getAuthenticatedUserId(supabase);
+    const { data: placementRows, error: placementLookupError } = await supabase
+      .from("placements")
+      .select("id,farm_id")
+      .eq("id", placementId)
+      .limit(1);
+
+    if (placementLookupError) {
+      return json(req, { ok: false, error: placementLookupError.message }, 400);
+    }
+
+    const placementRow = placementRows?.[0];
+    if (!placementRow) {
+      return json(req, { ok: false, error: "Placement not found" }, 404);
+    }
+
+    const access = await getMobileAccessContext(supabase, userId, placementRow.farm_id);
+
+    if (shouldSaveDaily && !access.permissions.daily_logs) {
+      return json(req, { ok: false, error: "You are not authorized to save daily log entries." }, 403);
+    }
+
+    if (includesMortalityCoreUpdates && !access.permissions.log_mortality) {
+      return json(req, { ok: false, error: "You are not authorized to save mortality entries." }, 403);
+    }
+
+    if (includesGradeUpdates && !access.permissions.grade_birds) {
+      return json(req, { ok: false, error: "You are not authorized to save grading entries." }, 403);
+    }
 
     let dailyResult: Record<string, unknown> | null = null;
     let mortalityResult: Record<string, unknown> | null = null;

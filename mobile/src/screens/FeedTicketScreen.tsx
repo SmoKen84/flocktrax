@@ -15,6 +15,7 @@ import {
 import { FeedBinOption, FeedDropEntry, FeedTicketItem } from "../types";
 
 type Props = {
+  canSave: boolean;
   item: FeedTicketItem | null;
   loading: boolean;
   onBack: () => void;
@@ -47,7 +48,7 @@ const serifFont = Platform.select({ ios: "Georgia", android: "serif", default: u
 const FEED_TYPES = ["Starter", "Grower", "Other"] as const;
 const TICKET_FEED_TYPES = ["Starter", "Grower", "Split"] as const;
 
-export function FeedTicketScreen({ item, loading, onBack, onSave }: Props) {
+export function FeedTicketScreen({ canSave, item, loading, onBack, onSave }: Props) {
   const [draft, setDraft] = useState<FeedTicketItem | null>(item);
   const [ticketStarted, setTicketStarted] = useState(false);
   const [pendingDrop, setPendingDrop] = useState<PendingDropState>(buildPendingDrop());
@@ -110,6 +111,11 @@ export function FeedTicketScreen({ item, loading, onBack, onSave }: Props) {
 
   async function handlePrimaryAction() {
     if (!draft) return;
+    if (!canSave) {
+      setMessageTone("error");
+      setMessage("Your permissions do not allow saving feed tickets.");
+      return;
+    }
 
     if (!ticketStarted) {
       const validation = validateTicketHeader(draft);
@@ -1012,7 +1018,14 @@ function formatDisplayDate(value: string | null | undefined) {
 }
 
 function toIsoDateOnly(value: string | null | undefined) {
-  if (!value) return new Date().toISOString().slice(0, 10);
+  if (!value) {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  }
   if (value.includes("T")) return value.slice(0, 10);
   return value;
 }

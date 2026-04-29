@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAuthenticatedUserId, getMobileAccessContext } from "../_shared/mobile-access.ts";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -133,6 +134,7 @@ Deno.serve(async (req) => {
     if (authError || !authData.user) {
       return json(req, { ok: false, error: authError?.message ?? "Unauthorized" }, 401);
     }
+    const userId = await getAuthenticatedUserId(userClient);
 
     const ticketId = typeof payload.id === "string" ? payload.id : null;
     const ticketWeight = toNumber(payload.ticket_weight_lbs);
@@ -215,6 +217,20 @@ Deno.serve(async (req) => {
           .in("id", binIds);
     if (binsResult.error) throw new Error(binsResult.error.message);
     const binById = new Map((binsResult.data ?? []).map((row) => [row.id, row]));
+    const targetFarmIds = Array.from(
+      new Set(
+        (binsResult.data ?? [])
+          .map((row) => row.farm_id)
+          .filter((value): value is string => typeof value === "string" && value.length > 0),
+      ),
+    );
+
+    for (const farmId of targetFarmIds) {
+      const access = await getMobileAccessContext(userClient, userId, farmId);
+      if (!access.permissions.feed_tickets) {
+        return json(req, { ok: false, error: "You are not authorized to save feed tickets." }, 403);
+      }
+    }
 
     const insertDropsPayload = drops.map((drop, index) => {
       const bin = binById.get(drop.feed_bin_id ?? "");

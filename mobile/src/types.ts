@@ -18,7 +18,20 @@ export type UserProfile = {
   user_id: string;
   email: string | null;
   role: string | null;
+  can_write_daily_logs?: boolean;
+  can_write_log_mortality?: boolean;
+  can_write_weight_samples?: boolean;
+  can_write_feed_tickets?: boolean;
+  can_write_grade_birds?: boolean;
   expires_at: string | null;
+};
+
+export type RecentMortalityHistoryDay = {
+  log_date: string;
+  dead_male: number;
+  dead_female: number;
+  cull_male: number;
+  cull_female: number;
 };
 
 export type FarmGroupOption = {

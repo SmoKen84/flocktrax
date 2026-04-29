@@ -116,11 +116,39 @@ function MortalityPopup({
   onClose: () => void;
 }) {
   const startedTotal = placement.startedMaleCount + placement.startedFemaleCount;
-  const currentTotal = placement.currentMaleCount + placement.currentFemaleCount;
   const breakdown =
     mode === "first7" ? placement.mortalityFirst7DayBreakdown : placement.mortalityLast7DayBreakdown;
   const periodLosses = breakdown.reduce((sum, day) => sum + day.male + day.female, 0);
-  const title = mode === "first7" ? "First 7-Day Mortality" : "Last 7-Day Mortality";
+  const maleMortalityTotal =
+    mode === "first7" ? placement.mortalityMaleFirst7Days : placement.mortalityMaleLast7Days;
+  const femaleMortalityTotal =
+    mode === "first7" ? placement.mortalityFemaleFirst7Days : placement.mortalityFemaleLast7Days;
+  const title = mode === "first7" ? "First 7-Days Mortality" : "Last 7-Days Mortality";
+  const day1Losses = breakdown[0] ?? { male: 0, female: 0 };
+  const livabilityMaleCount =
+    mode === "first7"
+      ? Math.max(0, placement.startedMaleCount - maleMortalityTotal)
+      : placement.currentMaleCount;
+  const livabilityFemaleCount =
+    mode === "first7"
+      ? Math.max(0, placement.startedFemaleCount - femaleMortalityTotal)
+      : placement.currentFemaleCount;
+  const livabilityTotal = livabilityMaleCount + livabilityFemaleCount;
+  const livabilityLabel = mode === "first7" ? "Livability after 7-days" : "Current Livability";
+  const maleLivePercent = safePercent(livabilityMaleCount, placement.startedMaleCount);
+  const femaleLivePercent = safePercent(livabilityFemaleCount, placement.startedFemaleCount);
+  const maleMortPercent = Math.max(0, 100 - maleLivePercent);
+  const femaleMortPercent = Math.max(0, 100 - femaleLivePercent);
+  const maleDoaTotal = mode === "first7" ? day1Losses.male : 0;
+  const femaleDoaTotal = mode === "first7" ? day1Losses.female : 0;
+  const maleDeadTotal = mode === "first7" ? Math.max(0, maleMortalityTotal - maleDoaTotal) : maleMortalityTotal;
+  const femaleDeadTotal =
+    mode === "first7" ? Math.max(0, femaleMortalityTotal - femaleDoaTotal) : femaleMortalityTotal;
+  const doaTotal = maleDoaTotal + femaleDoaTotal;
+  const deadTotal = maleDeadTotal + femaleDeadTotal;
+  const mortalityCountTotal = mode === "first7" ? doaTotal + deadTotal : periodLosses;
+  const totalMortPercent = safePercent(mortalityCountTotal, startedTotal);
+  const totalLivePercent = Math.max(0, 100 - totalMortPercent);
 
   if (typeof document === "undefined") {
     return null;
@@ -130,26 +158,89 @@ function MortalityPopup({
     <div className="mortality-popup-shell" onClick={onClose}>
       <div className="mortality-popup-panel" onClick={(event) => event.stopPropagation()}>
         <div className="mortality-popup-header">
-          <div>
-            <p className="eyebrow">Mortality Window</p>
-            <h3>{title}</h3>
-            <p className="meta-copy">
-              {placement.farmName} · Barn {placement.barnCode} · {placement.placementCode}
+          <div className="mortality-popup-title-block">
+            <p className="mortality-popup-placement-line">
+              {placement.farmName} &middot; Barn {placement.barnCode} &middot; {placement.placementCode}
             </p>
+            <h3>{title}</h3>
           </div>
-          <button className="button-secondary" onClick={onClose} type="button">
-            Close
-          </button>
+          <div className="mortality-popup-sidecar">
+            <button className="button-secondary" onClick={onClose} type="button">
+              Close
+            </button>
+          </div>
         </div>
 
         <div className="mortality-popup-summary">
-          <div className="mortality-popup-stat">
-            <span>Current Livability</span>
-            <strong>{formatLivabilityPercent(currentTotal, startedTotal)}</strong>
+          <div className="mortality-popup-stat mortality-popup-stat-compact">
+            <span>{livabilityLabel}</span>
+            <div className="mortality-popup-stat-lines">
+              <strong>
+                <span>Roos:</span>
+                <span>{formatCount(livabilityMaleCount)}</span>
+                <span>{formatPercent(maleLivePercent)}</span>
+              </strong>
+              <strong>
+                <span>Hens:</span>
+                <span>{formatCount(livabilityFemaleCount)}</span>
+                <span>{formatPercent(femaleLivePercent)}</span>
+              </strong>
+              <strong className="mortality-popup-stat-total-row">
+                <span>Totals</span>
+                <span>{formatCount(livabilityTotal)}</span>
+                <span>{formatPercent(totalLivePercent)}</span>
+              </strong>
+            </div>
           </div>
-          <div className="mortality-popup-stat">
-            <span>Window Mortality</span>
-            <strong>{formatPeriodLossPercent(periodLosses, startedTotal)}</strong>
+          <div className="mortality-popup-stat mortality-popup-stat-compact">
+            <span>Mortality</span>
+            {mode === "first7" ? (
+              <div className="mortality-popup-metric-table">
+                <div className="mortality-popup-metric-head" />
+                <div className="mortality-popup-metric-head">DOAs</div>
+                <div className="mortality-popup-metric-head">Dead</div>
+                <div className="mortality-popup-metric-head">Mort %</div>
+
+                <div className="mortality-popup-metric-label">Roos:</div>
+                <div>{formatCount(maleDoaTotal)}</div>
+                <div>{formatCount(maleDeadTotal)}</div>
+                <div>{formatPercent(maleMortPercent)}</div>
+
+                <div className="mortality-popup-metric-label">Hens:</div>
+                <div>{formatCount(femaleDoaTotal)}</div>
+                <div>{formatCount(femaleDeadTotal)}</div>
+                <div>{formatPercent(femaleMortPercent)}</div>
+
+                <div className="mortality-popup-metric-label mortality-popup-metric-total">Totals</div>
+                <div className="mortality-popup-metric-total">{formatCount(doaTotal)}</div>
+                <div className="mortality-popup-metric-total">{formatCount(deadTotal)}</div>
+                <div className="mortality-popup-metric-total">{formatPercent(totalMortPercent)}</div>
+              </div>
+            ) : (
+              <div className="mortality-popup-stat-lines">
+                <strong>
+                  <span>Roos:</span>
+                  <span>{formatCount(maleMortalityTotal)}</span>
+                  <span>{formatPercent(safePercent(maleMortalityTotal, placement.startedMaleCount))}</span>
+                </strong>
+                <strong>
+                  <span>Hens:</span>
+                  <span>{formatCount(femaleMortalityTotal)}</span>
+                  <span>{formatPercent(safePercent(femaleMortalityTotal, placement.startedFemaleCount))}</span>
+                </strong>
+              </div>
+            )}
+            {mode !== "first7" ? (
+              <p className="mortality-popup-stat-footer">
+                Window total {formatPeriodLossPercent(periodLosses, startedTotal)} &middot; Overall{" "}
+                {formatPercent(
+                  safePercent(
+                    placement.mortalityMaleTotal + placement.mortalityFemaleTotal,
+                    startedTotal,
+                  ),
+                )}
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -158,7 +249,7 @@ function MortalityPopup({
             <div className="mortality-popup-day" key={`${mode}-${placement.id}-${day.date}`}>
               <strong>{day.label}</strong>
               <span>
-                Males / Females
+                Roo / Hen
               </span>
               <p>
                 {day.male} / {day.female}

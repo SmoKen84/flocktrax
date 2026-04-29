@@ -1,10 +1,4 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import {
-  getEnabledGoogleSheetsColumnMap,
-  getGoogleSheetsSyncContext,
-  getSheetRowByDate,
-  isGoogleSheetsReadBeforeEditEnabled,
-} from "../_shared/google-sheets-read.ts";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -52,22 +46,6 @@ function getClient(accessToken: string) {
         Authorization: `Bearer ${accessToken}`,
       },
     },
-    auth: {
-      persistSession: false,
-      detectSessionInUrl: false,
-    },
-  });
-}
-
-function getAdminClient() {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars");
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       persistSession: false,
       detectSessionInUrl: false,
@@ -185,158 +163,6 @@ async function buildPlacementDayItem(
     placement_is_removed: placementMeta.placement_is_removed,
     is_existing_log: Boolean(dailyRow || mortalityRow),
   };
-}
-
-const COUNT_FIELDS = new Set(["dead_female", "dead_male", "cull_female", "cull_male"]);
-const NUMERIC_FIELDS = new Set([
-  "age_days",
-  "am_temp",
-  "set_temp",
-  "rel_humidity",
-  "outside_temp_current",
-  "outside_temp_low",
-  "outside_temp_high",
-  "water_meter_reading",
-  "grade_litter",
-  "grade_footpad",
-  "grade_feathers",
-  "grade_lame",
-  "grade_pecking",
-]);
-
-async function hydratePlacementDayFromSheets(
-  supabase: ReturnType<typeof createClient>,
-  item: Record<string, unknown>,
-  debug = false,
-) {
-  const syncContext = await getGoogleSheetsSyncContext(supabase, String(item.placement_id));
-  if (!syncContext) {
-    return debug
-      ? {
-          item,
-          debug: {
-            hasSyncContext: false,
-            mapCount: 0,
-            foundRow: false,
-          },
-        }
-      : item;
-  }
-
-  const mapRows = await getEnabledGoogleSheetsColumnMap(supabase, syncContext.endpointId, [
-    "public.log_daily",
-    "public.log_mortality",
-  ]);
-  if (mapRows.length === 0) {
-    return debug
-      ? {
-          item,
-          debug: {
-            hasSyncContext: true,
-            syncContext,
-            mapCount: 0,
-            foundRow: false,
-          },
-        }
-      : item;
-  }
-
-  const rowValues = await getSheetRowByDate(
-    syncContext.spreadsheetId,
-    syncContext.placementKey,
-    syncContext.headerRow,
-    syncContext.dateHeaderLabel,
-    String(item.log_date),
-  );
-  if (!rowValues) {
-    return debug
-      ? {
-          item,
-          debug: {
-            hasSyncContext: true,
-            syncContext,
-            mapCount: mapRows.length,
-            foundRow: false,
-          },
-        }
-      : item;
-  }
-
-  const nextItem = { ...item };
-  const appliedFields: string[] = [];
-  nextItem.is_existing_log = true;
-  for (const row of mapRows) {
-    const normalizedLabel = row.sheetLabel.trim().toUpperCase().replace(/\s+/g, " ");
-    if (!(normalizedLabel in rowValues)) {
-      continue;
-    }
-
-    nextItem[row.sourceField] = coerceSheetValue(
-      rowValues[normalizedLabel],
-      row.sourceField,
-      row.valueMode,
-      nextItem[row.sourceField],
-    );
-    appliedFields.push(`${row.sourceField}:${normalizedLabel}`);
-  }
-
-  return debug
-    ? {
-        item: nextItem,
-        debug: {
-          hasSyncContext: true,
-          syncContext,
-          mapCount: mapRows.length,
-          foundRow: true,
-          appliedFields,
-          sampleRowValues: {
-            RO_DATE: rowValues["RO_DATE"] ?? null,
-            TEMP: rowValues["TEMP"] ?? null,
-            H20_METER: rowValues["H20_METER"] ?? null,
-            COMMENTS: rowValues["COMMENTS"] ?? null,
-            MINVENTINFO: rowValues["MINVENTINFO"] ?? null,
-            ROODEAD: rowValues["ROODEAD"] ?? null,
-            HENDEAD: rowValues["HENDEAD"] ?? null,
-            ROOCULL: rowValues["ROOCULL"] ?? null,
-            HENCULL: rowValues["HENCULL"] ?? null,
-            DEADNOTE: rowValues["DEADNOTE"] ?? null,
-            CULLNOTE: rowValues["CULLNOTE"] ?? null,
-            PECKINGYN: rowValues["PECKINGYN"] ?? null,
-            OUTDOORYN: rowValues["OUTDOORYN"] ?? null,
-            AMMONIA: rowValues["AMMONIA"] ?? null,
-          },
-        },
-      }
-    : nextItem;
-}
-
-function coerceSheetValue(
-  rawValue: string | null,
-  fieldName: string,
-  valueMode: string,
-  currentValue: unknown,
-) {
-  const raw = String(rawValue ?? "").trim();
-
-  if (valueMode === "boolean_flag") {
-    if (!raw) return false;
-    const normalized = raw.toLowerCase();
-    return !["0", "false", "n", "no", "off"].includes(normalized);
-  }
-
-  if (COUNT_FIELDS.has(fieldName)) {
-    if (!raw) return 0;
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : currentValue ?? 0;
-  }
-
-  if (NUMERIC_FIELDS.has(fieldName) || typeof currentValue === "number") {
-    if (!raw) return null;
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : currentValue ?? null;
-  }
-
-  return raw || null;
 }
 
 async function getDailyAgeTasks(
@@ -486,47 +312,19 @@ Deno.serve(async (req) => {
   const body = req.method === "POST" ? await readBody(req) : {};
   const placementId = (req.method === "GET" ? url.searchParams.get("placement_id") : body.placement_id) as string | undefined;
   const logDate = (req.method === "GET" ? url.searchParams.get("log_date") : body.log_date) as string | undefined;
-  const debugSync = url.searchParams.get("debug_sync") === "true";
-
   if (!isUuid(placementId) || !isDate(logDate)) {
     return json(req, { ok: false, error: "Invalid or missing placement_id or log_date" }, 400);
   }
 
   try {
     const supabase = getClient(accessToken);
-    const adminSupabase = getAdminClient();
 
     const item = await buildPlacementDayItem(supabase, placementId, logDate);
     if (!item) {
       return json(req, { ok: false, error: "Placement not found" }, 404);
     }
 
-    const readBeforeEditEnabled = await isGoogleSheetsReadBeforeEditEnabled(adminSupabase);
-    if (!readBeforeEditEnabled) {
-      return json(req, { ok: true, item });
-    }
-
-    const hydratedPayload = await hydratePlacementDayFromSheets(
-      adminSupabase,
-      item as Record<string, unknown>,
-      debugSync,
-    );
-
-    if (debugSync) {
-      const debugWrapper =
-        typeof hydratedPayload === "object" && hydratedPayload !== null && "item" in hydratedPayload
-          ? hydratedPayload as { item: unknown; debug?: unknown }
-          : { item: hydratedPayload, debug: null };
-
-      return json(req, {
-        ok: true,
-        debug_sync: true,
-        item: debugWrapper.item,
-        debug: debugWrapper.debug,
-      });
-    }
-
-    return json(req, { ok: true, item: hydratedPayload });
+    return json(req, { ok: true, item });
   } catch (error) {
     return json(req, { ok: false, error: String(error instanceof Error ? error.message : error) }, 500);
   }

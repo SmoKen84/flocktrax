@@ -19,6 +19,7 @@ export function SyncEngineNav({ current }: SyncEngineNavProps) {
           className={`sync-engine-nav-link ${item.key === current ? "button is-active" : "button-secondary"}`}
           href={item.href}
           key={item.key}
+          prefetch={false}
         >
           {item.label}
         </Link>

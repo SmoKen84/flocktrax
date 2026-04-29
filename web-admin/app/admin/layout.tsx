@@ -30,6 +30,11 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
     user.user_metadata?.role ??
     user.user_metadata?.title ??
     "Authorized User";
+  const roleKey =
+    user.app_metadata?.role ??
+    user.user_metadata?.role ??
+    user.user_metadata?.title ??
+    "Authorized User";
   const scopeLabel =
     user.user_metadata?.farm_group ??
     user.user_metadata?.company ??
@@ -40,6 +45,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
     <AdminShell
       copyrightLine={splash.copyrightLine}
       displayName={displayName}
+      roleKey={roleKey}
       roleLabel={roleLabel}
       scopeLabel={scopeLabel}
       versionLine={splash.versionLine}

@@ -3238,12 +3238,33 @@ tr:last-child td {
   margin-bottom: 1rem;
 }
 
+.mortality-popup-title-block {
+  display: grid;
+  gap: 0.35rem;
+}
+
 .mortality-popup-header h3 {
   margin: 0;
+  color: rgba(82, 59, 38, 0.9);
+  font-size: 1.15rem;
 }
 
 .mortality-popup-header .meta-copy {
-  margin-top: 0.35rem;
+  display: none;
+}
+
+.mortality-popup-placement-line {
+  margin: 0;
+  color: #2f4fa8;
+  font-size: 1.7rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.mortality-popup-sidecar {
+  display: grid;
+  justify-items: end;
+  gap: 0.75rem;
 }
 
 .mortality-popup-summary {
@@ -3274,6 +3295,72 @@ tr:last-child td {
   color: #2d241b;
   font-size: 1.5rem;
   line-height: 1;
+}
+
+.mortality-popup-stat-compact {
+  gap: 0.45rem;
+  min-width: 280px;
+}
+
+.mortality-popup-stat-lines {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.mortality-popup-stat-lines strong {
+  display: grid;
+  grid-template-columns: auto minmax(4ch, auto) minmax(5ch, auto);
+  justify-content: end;
+  align-items: baseline;
+  gap: 0.9rem;
+  color: #2d241b;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.mortality-popup-stat-lines strong span:first-child {
+  color: rgba(82, 59, 38, 0.9);
+}
+
+.mortality-popup-stat-total-row {
+  padding-top: 0.25rem;
+  border-top: 1px solid rgba(184, 92, 56, 0.16);
+}
+
+.mortality-popup-stat-footer {
+  margin: 0;
+  color: rgba(82, 59, 38, 0.82);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.mortality-popup-metric-table {
+  display: grid;
+  grid-template-columns: auto minmax(4ch, auto) minmax(4ch, auto) minmax(5ch, auto);
+  gap: 0.35rem 0.9rem;
+  justify-content: end;
+  align-items: baseline;
+  color: #2d241b;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.mortality-popup-metric-head {
+  color: rgba(82, 59, 38, 0.82);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mortality-popup-metric-label {
+  color: rgba(82, 59, 38, 0.9);
+  font-weight: 700;
+}
+
+.mortality-popup-metric-total {
+  font-weight: 800;
 }
 
 .mortality-popup-grid {

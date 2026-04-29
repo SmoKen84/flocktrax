@@ -3,6 +3,8 @@ import { OutboxConsole } from "@/app/admin/sync/googleapis-sheets/outbox/outbox-
 import { PageHeader } from "@/components/page-header";
 import { getGoogleSheetsOutboxBundle } from "@/lib/sync-data";
 
+export const dynamic = "force-dynamic";
+
 type GoogleSheetsOutboxPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };

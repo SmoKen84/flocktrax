@@ -18,7 +18,10 @@
     "ios": {
       "bundleIdentifier": "com.flocktrax.mobile",
       "buildNumber": "4",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.flocktrax.mobile",
@@ -31,6 +34,11 @@
     },
     "web": {
       "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4f065674-a17f-48d4-b1f6-66b21dba8a2f"
+      }
     }
   }
 }

@@ -17,6 +17,9 @@ import { DashboardSettings, PlacementDayItem, PlacementSummary } from "../types"
 import { formatDateByPattern, formatShortDate } from "../utils/date-format";
 
 type Props = {
+  canSaveDailyLogs: boolean;
+  canSaveGradeBirds: boolean;
+  canSaveMortality: boolean;
   item: PlacementDayItem | null;
   loading: boolean;
   logDate: string;
@@ -39,6 +42,9 @@ const serifFont = Platform.select({ ios: "Georgia", android: "serif", default: u
 const defaultFutureFields: FutureFields = {};
 
 export function PlacementDayScreen({
+  canSaveDailyLogs,
+  canSaveGradeBirds,
+  canSaveMortality,
   item,
   loading,
   logDate,
@@ -78,6 +84,16 @@ export function PlacementDayScreen({
   async function save() {
     if (!draft) return;
 
+    const permissionError = getPlacementSavePermissionError(activeTab, {
+      canSaveDailyLogs,
+      canSaveGradeBirds,
+      canSaveMortality,
+    });
+    if (permissionError) {
+      setLocalMessage(permissionError);
+      return;
+    }
+
     const validationError = validateDraft(draft, logDate);
     if (validationError) {
       setLocalMessage(validationError);
@@ -108,6 +124,16 @@ export function PlacementDayScreen({
 
   async function saveAndReport() {
     if (!draft) return false;
+
+    const permissionError = getPlacementSavePermissionError(activeTab, {
+      canSaveDailyLogs,
+      canSaveGradeBirds,
+      canSaveMortality,
+    });
+    if (permissionError) {
+      setLocalMessage(permissionError);
+      return false;
+    }
 
     const validationError = validateDraft(draft, logDate);
     if (validationError) {
@@ -170,6 +196,12 @@ export function PlacementDayScreen({
       onOpenWeightEntry();
     }
   }
+
+  const leavePermissionError = getPlacementSavePermissionError(activeTab, {
+    canSaveDailyLogs,
+    canSaveGradeBirds,
+    canSaveMortality,
+  });
 
   if (loading && !draft) {
     return (
@@ -364,12 +396,36 @@ export function PlacementDayScreen({
 
       <UnsavedChangesModal
         visible={leaveTarget !== null}
+        canSave={leavePermissionError === null}
         onCancel={() => setLeaveTarget(null)}
         onDisregard={handleLeaveDisregard}
         onSave={handleLeaveSave}
       />
     </KeyboardAvoidingView>
   );
+}
+
+function getPlacementSavePermissionError(
+  activeTab: PlacementTab,
+  permissions: {
+    canSaveDailyLogs: boolean;
+    canSaveGradeBirds: boolean;
+    canSaveMortality: boolean;
+  },
+) {
+  if (activeTab === "daily" && !permissions.canSaveDailyLogs) {
+    return "Your permissions do not allow saving daily log entries.";
+  }
+
+  if (activeTab === "mortality" && !permissions.canSaveMortality) {
+    return "Your permissions do not allow saving mortality entries.";
+  }
+
+  if (activeTab === "grade" && !permissions.canSaveGradeBirds) {
+    return "Your permissions do not allow saving grading entries.";
+  }
+
+  return null;
 }
 
 type DailyTabProps = {
@@ -859,6 +915,7 @@ function CalendarModal({
 
 type UnsavedChangesModalProps = {
   visible: boolean;
+  canSave: boolean;
   onCancel: () => void;
   onDisregard: () => void;
   onSave: () => void;
@@ -866,28 +923,40 @@ type UnsavedChangesModalProps = {
 
 function UnsavedChangesModal({
   visible,
+  canSave,
   onCancel,
   onDisregard,
   onSave,
 }: UnsavedChangesModalProps) {
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
+    <Modal
+      animationType="fade"
+      transparent
+      visible={visible}
+      onRequestClose={canSave ? onCancel : onDisregard}
+    >
       <View style={styles.modalScrim}>
         <View style={styles.unsavedCard}>
           <Text style={styles.unsavedTitle}>Unsaved Entries</Text>
           <Text style={styles.unsavedCopy}>
-            There are unsaved entries on this screen. Save them, disregard them, or cancel and stay here.
+            {canSave
+              ? "There are unsaved entries on this screen. Save them, disregard them, or cancel and stay here."
+              : "There are unsaved entries on this screen, but this account cannot save them. Disregard them to leave this screen."}
           </Text>
           <View style={styles.unsavedActions}>
-            <Pressable onPress={onSave} style={styles.unsavedPrimaryButton}>
-              <Text style={styles.unsavedPrimaryText}>Save</Text>
-            </Pressable>
+            {canSave ? (
+              <Pressable onPress={onSave} style={styles.unsavedPrimaryButton}>
+                <Text style={styles.unsavedPrimaryText}>Save</Text>
+              </Pressable>
+            ) : null}
             <Pressable onPress={onDisregard} style={styles.unsavedSecondaryButton}>
               <Text style={styles.unsavedSecondaryText}>Disregard</Text>
             </Pressable>
-            <Pressable onPress={onCancel} style={styles.unsavedGhostButton}>
-              <Text style={styles.unsavedGhostText}>Cancel</Text>
-            </Pressable>
+            {canSave ? (
+              <Pressable onPress={onCancel} style={styles.unsavedGhostButton}>
+                <Text style={styles.unsavedGhostText}>Cancel</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
       </View>

@@ -44,6 +44,7 @@ import {
   PlacementFilterMeta,
   PlacementDayItem,
   PlacementSummary,
+  RecentMortalityHistoryDay,
   UserProfile,
   WeightEntryItem,
 } from "./src/types";
@@ -101,6 +102,17 @@ export default function App() {
     if (route.name === "feed-ticket") return "Feed Ticket";
     return `${route.placement.farm_name} - ${route.placement.barn_code}`;
   }, [route]);
+
+  const mobileAccess = useMemo(
+    () => ({
+      canSaveDailyLogs: profile?.can_write_daily_logs === true,
+      canSaveMortality: profile?.can_write_log_mortality === true,
+      canSaveWeightSamples: profile?.can_write_weight_samples === true,
+      canSaveFeedTickets: profile?.can_write_feed_tickets === true,
+      canSaveGradeBirds: profile?.can_write_grade_birds === true,
+    }),
+    [profile],
+  );
 
   async function bootstrap() {
     try {
@@ -369,6 +381,33 @@ export default function App() {
     }
   }
 
+  async function loadRecentMortalityHistory(
+    placement: PlacementSummary,
+  ): Promise<RecentMortalityHistoryDay[]> {
+    if (!session?.accessToken) {
+      throw new Error("You must be signed in to view mortality history.");
+    }
+
+    const dates = Array.from({ length: 8 }, (_, index) =>
+      addDaysToIsoDate(todayIso(), index - 7),
+    );
+
+    const rows = await Promise.all(
+      dates.map(async (logDate) => {
+        const item = await getPlacementDay(session.accessToken, placement.placement_id, logDate);
+        return {
+          log_date: logDate,
+          dead_male: item.dead_male ?? 0,
+          dead_female: item.dead_female ?? 0,
+          cull_male: item.cull_male ?? 0,
+          cull_female: item.cull_female ?? 0,
+        } satisfies RecentMortalityHistoryDay;
+      }),
+    );
+
+    return rows;
+  }
+
   async function hydratePlacementDayWeather(
     placement: PlacementSummary,
     logDate: string,
@@ -510,8 +549,14 @@ export default function App() {
 
         {route.name === "dashboard" ? (
           <DashboardScreen
+            canViewRecentMortality={
+              mobileAccess.canSaveMortality ||
+              mobileAccess.canSaveDailyLogs ||
+              mobileAccess.canSaveGradeBirds
+            }
             filters={placementFilters}
             loading={placementsLoading}
+            onOpenRecentMortalityHistory={loadRecentMortalityHistory}
             placements={placements}
             selectedFarmId={selectedFarmId}
             settings={dashboardSettings}
@@ -550,6 +595,9 @@ export default function App() {
 
         {route.name === "placement-day" ? (
           <PlacementDayScreen
+            canSaveDailyLogs={mobileAccess.canSaveDailyLogs}
+            canSaveGradeBirds={mobileAccess.canSaveGradeBirds}
+            canSaveMortality={mobileAccess.canSaveMortality}
             item={placementDay}
             loading={placementDayLoading}
             logDate={activeLogDate}
@@ -570,6 +618,7 @@ export default function App() {
 
         {route.name === "feed-ticket" ? (
           <FeedTicketScreen
+            canSave={mobileAccess.canSaveFeedTickets}
             item={feedTicket}
             loading={feedTicketLoading}
             onBack={() => setRoute({ name: "feed-ticket-list" })}
@@ -579,6 +628,7 @@ export default function App() {
 
         {route.name === "weight-entry" ? (
           <WeightEntryScreen
+            canSave={mobileAccess.canSaveWeightSamples}
             item={weightEntry}
             loading={weightEntryLoading}
             logDate={activeLogDate}
@@ -678,7 +728,22 @@ function applyFeedTicketFilters(
 }
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function addDaysToIsoDate(value: string, days: number) {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  const nextYear = date.getUTCFullYear();
+  const nextMonth = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const nextDay = String(date.getUTCDate()).padStart(2, "0");
+  return `${nextYear}-${nextMonth}-${nextDay}`;
 }
 
 function isTodayIso(value: string) {

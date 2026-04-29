@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { startTransition, useEffect, useRef, useState } from "react";
 
 import {
@@ -28,6 +28,7 @@ type OutboxConsoleProps = {
 };
 
 export function OutboxConsole({ currentOperation, filters, initialBanner, items, stats }: OutboxConsoleProps) {
+  const pathname = usePathname();
   const router = useRouter();
   const [batchSize, setBatchSize] = useState("10");
   const [banner, setBanner] = useState(initialBanner);
@@ -48,6 +49,12 @@ export function OutboxConsole({ currentOperation, filters, initialBanner, items,
       }
     };
   }, []);
+
+  useEffect(() => {
+    startTransition(() => {
+      router.refresh();
+    });
+  }, [pathname, router]);
 
   function queueSettlingRefresh() {
     for (const timeoutId of refreshTimeoutsRef.current) {

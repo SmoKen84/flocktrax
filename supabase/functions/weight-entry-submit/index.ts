@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAuthenticatedUserId, getMobileAccessContext } from "../_shared/mobile-access.ts";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -133,6 +134,7 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = getClient(accessToken);
+    const userId = await getAuthenticatedUserId(supabase);
 
     const { data: placementRows, error: placementError } = await supabase
       .from("placements")
@@ -144,6 +146,11 @@ Deno.serve(async (req) => {
     const placement = placementRows?.[0];
     if (!placement) {
       return json(req, { ok: false, error: "Placement not found" }, 404);
+    }
+
+    const access = await getMobileAccessContext(supabase, userId, placement.farm_id);
+    if (!access.permissions.weight_samples) {
+      return json(req, { ok: false, error: "You are not authorized to save weight entries." }, 403);
     }
 
     const { data: flockRows, error: flockError } = await supabase

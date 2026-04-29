@@ -16,12 +16,15 @@ import {
   FarmOption,
   PlacementFilterMeta,
   PlacementSummary,
+  RecentMortalityHistoryDay,
 } from "../types";
 import { formatDateByPattern, formatShortDate } from "../utils/date-format";
 
 type Props = {
+  canViewRecentMortality: boolean;
   filters: PlacementFilterMeta | null;
   loading: boolean;
+  onOpenRecentMortalityHistory: (placement: PlacementSummary) => Promise<RecentMortalityHistoryDay[]>;
   placements: PlacementSummary[];
   settings: DashboardSettings | null;
   selectedFarmId: string | null;
@@ -40,8 +43,10 @@ type PickerState =
   | null;
 
 export function DashboardScreen({
+  canViewRecentMortality,
   filters,
   loading,
+  onOpenRecentMortalityHistory,
   placements,
   settings,
   selectedFarmId,
@@ -55,6 +60,11 @@ export function DashboardScreen({
 }: Props) {
   const [search, setSearch] = useState("");
   const [pickerState, setPickerState] = useState<PickerState>(null);
+  const [mortalityPlacement, setMortalityPlacement] = useState<PlacementSummary | null>(null);
+  const [mortalityHistory, setMortalityHistory] = useState<RecentMortalityHistoryDay[]>([]);
+  const [mortalityVisible, setMortalityVisible] = useState(false);
+  const [mortalityLoading, setMortalityLoading] = useState(false);
+  const [mortalityError, setMortalityError] = useState<string | null>(null);
 
   const availableFarmGroups = filters?.available_farm_groups ?? [];
   const selectedFarmGroupName =
@@ -120,6 +130,23 @@ export function DashboardScreen({
   function chooseFarm(option: FarmOption | null) {
     onSelectFarm(option?.farm_id ?? null);
     setPickerState(null);
+  }
+
+  async function openRecentMortalityHistory(placement: PlacementSummary) {
+    setMortalityPlacement(placement);
+    setMortalityVisible(true);
+    setMortalityLoading(true);
+    setMortalityError(null);
+    setMortalityHistory([]);
+
+    try {
+      const history = await onOpenRecentMortalityHistory(placement);
+      setMortalityHistory(history);
+    } catch (error) {
+      setMortalityError(error instanceof Error ? error.message : "Unable to load mortality history.");
+    } finally {
+      setMortalityLoading(false);
+    }
   }
 
   return (
@@ -226,6 +253,14 @@ export function DashboardScreen({
               <Text style={styles.cardHint}>
                 Tap to open and collect data for this barn
               </Text>
+              {canViewRecentMortality ? (
+                <Pressable
+                  onPress={() => void openRecentMortalityHistory(item)}
+                  style={styles.historyButton}
+                >
+                  <Text style={styles.historyButtonText}>Recent Mortality</Text>
+                </Pressable>
+              ) : null}
             </Pressable>
           )}
           ListEmptyComponent={
@@ -256,6 +291,16 @@ export function DashboardScreen({
         onChooseFarm={chooseFarm}
         onChooseFarmGroup={chooseFarmGroup}
         onClose={() => setPickerState(null)}
+      />
+
+      <RecentMortalityHistoryModal
+        error={mortalityError}
+        history={mortalityHistory}
+        loading={mortalityLoading}
+        placement={mortalityPlacement}
+        settings={settings}
+        visible={mortalityVisible}
+        onClose={() => setMortalityVisible(false)}
       />
     </View>
   );
@@ -386,6 +431,83 @@ function SelectionModal({
   );
 }
 
+type RecentMortalityHistoryModalProps = {
+  error: string | null;
+  history: RecentMortalityHistoryDay[];
+  loading: boolean;
+  placement: PlacementSummary | null;
+  settings: DashboardSettings | null;
+  visible: boolean;
+  onClose: () => void;
+};
+
+function RecentMortalityHistoryModal({
+  error,
+  history,
+  loading,
+  placement,
+  settings,
+  visible,
+  onClose,
+}: RecentMortalityHistoryModalProps) {
+  return (
+    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
+      <View style={styles.modalScrim}>
+        <View style={styles.historyModalCard}>
+          <Text style={styles.historyModalEyebrow}>Mortality</Text>
+          <Text style={styles.historyModalTitle}>Recent Mortality History</Text>
+          {placement ? (
+            <Text style={styles.historyModalSubtitle}>
+              {placement.barn_code} · {placement.placement_code}
+            </Text>
+          ) : null}
+
+          {loading ? (
+            <View style={styles.loading}>
+              <ActivityIndicator size="large" color="#8B572A" />
+              <Text style={styles.loadingText}>Loading recent history...</Text>
+            </View>
+          ) : error ? (
+            <Text style={styles.historyErrorText}>{error}</Text>
+          ) : (
+            <View style={styles.historyRows}>
+              <View style={styles.historyHeaderBlock}>
+                <View style={styles.historyHeaderTopRow}>
+                  <View style={styles.historyDateHeaderCell} />
+                  <Text style={styles.historyGroupHeader}>Rooster</Text>
+                  <Text style={styles.historyGroupHeader}>Hens</Text>
+                </View>
+                <View style={styles.historyHeaderBottomRow}>
+                  <Text style={styles.historyColumnHeaderDate}>Day</Text>
+                  <Text style={styles.historyColumnHeader}>Dead</Text>
+                  <Text style={styles.historyColumnHeader}>Cull</Text>
+                  <Text style={styles.historyColumnHeader}>Dead</Text>
+                  <Text style={styles.historyColumnHeader}>Cull</Text>
+                </View>
+              </View>
+              {history.map((day) => (
+                <View key={day.log_date} style={styles.historyRow}>
+                  <Text numberOfLines={1} style={styles.historyDate}>
+                    {formatMortalityHistoryDate(day.log_date, settings?.short_date)}
+                  </Text>
+                  <Text style={styles.historyMetricValue}>{day.dead_male}</Text>
+                  <Text style={styles.historyMetricValue}>{day.cull_male}</Text>
+                  <Text style={styles.historyMetricValue}>{day.dead_female}</Text>
+                  <Text style={styles.historyMetricValue}>{day.cull_female}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          <Pressable onPress={onClose} style={styles.modalCloseButton}>
+            <Text style={styles.modalCloseText}>Close</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function badgeLabel(item: PlacementSummary) {
   if (item.dashboard_status_label) return item.dashboard_status_label;
   if (!item.is_active) return "Inactive";
@@ -416,6 +538,24 @@ function badgeTextStyle(item: PlacementSummary) {
 function formatCount(value: number | null | undefined) {
   if (typeof value !== "number") return "0";
   return new Intl.NumberFormat("en-US").format(value);
+}
+
+function formatMortalityHistoryDate(value: string, pattern: string | null | undefined) {
+  const shortDate = formatShortDate(value, pattern, value);
+  const weekday = formatDateByPattern(value, "ddd", value).slice(0, 3).toLowerCase();
+  const marker =
+    weekday === "mon"
+      ? "M"
+      : weekday === "tue"
+        ? "T"
+        : weekday === "wed"
+          ? "W"
+          : weekday === "thu"
+            ? "R"
+            : weekday === "fri"
+              ? "F"
+              : "S";
+  return `${marker} ${shortDate}`;
 }
 
 const styles = StyleSheet.create({
@@ -658,6 +798,21 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     marginTop: 4,
   },
+  historyButton: {
+    marginTop: 8,
+    minHeight: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D2B892",
+    backgroundColor: "#FFFDFC",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  historyButtonText: {
+    color: "#73491F",
+    fontSize: 14,
+    fontWeight: "800",
+  },
   loading: {
     flex: 1,
     alignItems: "center",
@@ -701,6 +856,109 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF8EF",
     padding: 18,
     gap: 10,
+  },
+  historyModalCard: {
+    width: "100%",
+    maxWidth: 380,
+    maxHeight: "85%",
+    borderRadius: 20,
+    backgroundColor: "#FFF8EF",
+    padding: 18,
+    gap: 10,
+  },
+  historyModalEyebrow: {
+    color: "#7B4B2A",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.1,
+    textTransform: "uppercase",
+  },
+  historyModalTitle: {
+    color: "#1F2A1F",
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  historyModalSubtitle: {
+    color: "#6A5643",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  historyRows: {
+    gap: 8,
+  },
+  historyHeaderBlock: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#DCC9AF",
+    backgroundColor: "#F7ECDD",
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 8,
+    gap: 4,
+  },
+  historyHeaderTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  historyDateHeaderCell: {
+    flex: 1.6,
+  },
+  historyGroupHeader: {
+    flex: 2,
+    textAlign: "center",
+    color: "#7B4B2A",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  historyHeaderBottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  historyColumnHeaderDate: {
+    flex: 1.6,
+    color: "#4A4D47",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  historyColumnHeader: {
+    flex: 1,
+    textAlign: "center",
+    color: "#4A4D47",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  historyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#DCC9AF",
+    backgroundColor: "#FFFDFC",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  historyDate: {
+    flex: 1.6,
+    color: "#1F2A1F",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  historyMetricValue: {
+    flex: 1,
+    textAlign: "center",
+    color: "#4A4D47",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  historyErrorText: {
+    color: "#8A2E0D",
+    fontSize: 14,
+    fontWeight: "600",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E59C80",
+    backgroundColor: "#FCE4DC",
+    padding: 12,
   },
   modalTitle: {
     color: "#1F2A1F",

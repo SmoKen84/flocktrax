@@ -1,52 +1,72 @@
-console.info('auth_me started');
-Deno.serve(async (req)=>{
-  const auth = req.headers.get('authorization') || req.headers.get('Authorization');
-  if (!auth || !auth.toLowerCase().startsWith('bearer ')) {
-    return new Response(JSON.stringify({
-      error: 'missing_bearer_token'
-    }), {
-      status: 401,
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-  }
-  const accessToken = auth.split(' ')[1];
-  // Introspect the token via /auth/v1/user
-  const url = `${Deno.env.get('SUPABASE_URL')}/auth/v1/user`;
-  const res = await fetch(url, {
-    method: 'GET',
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+import { getAuthenticatedUserId, getMobileAccessContext } from "../_shared/mobile-access.ts";
+
+console.info("auth_me started");
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
     headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'apikey': Deno.env.get('SUPABASE_ANON_KEY') || '',
-      'Accept': 'application/json'
-    }
+      "Content-Type": "application/json",
+    },
   });
-  if (!res.ok) {
-    const text = await res.text();
-    return new Response(JSON.stringify({
-      error: 'user_lookup_failed',
-      detail: text
-    }), {
-      status: res.status,
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+}
+
+function getClient(accessToken: string) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY env vars");
   }
-  const payload = await res.json();
-  // payload has shape: { id, email, role, app_metadata, user_metadata, ... }
-  const out = {
-    user_id: payload.id || null,
-    email: payload.email || null,
-    role: payload.role || null,
-    // If expires_at is embedded in JWT, Adalo may not need it; keep optional
-    expires_at: null
-  };
-  return new Response(JSON.stringify(out), {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/json'
-    }
+
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    auth: {
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
   });
+}
+
+Deno.serve(async (req) => {
+  const auth = req.headers.get("authorization") || req.headers.get("Authorization");
+  if (!auth || !auth.toLowerCase().startsWith("bearer ")) {
+    return json({ error: "missing_bearer_token" }, 401);
+  }
+
+  try {
+    const accessToken = auth.split(" ")[1];
+    const supabase = getClient(accessToken);
+    const userId = await getAuthenticatedUserId(supabase);
+    const access = await getMobileAccessContext(supabase, userId);
+    const {
+      data: authData,
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError) {
+      return json({ error: "user_lookup_failed", detail: authError.message }, 401);
+    }
+
+    const payload = authData.user;
+    return json({
+      user_id: payload?.id ?? null,
+      email: payload?.email ?? null,
+      role: access.role,
+      can_write_daily_logs: access.permissions.daily_logs,
+      can_write_log_mortality: access.permissions.log_mortality,
+      can_write_weight_samples: access.permissions.weight_samples,
+      can_write_feed_tickets: access.permissions.feed_tickets,
+      can_write_grade_birds: access.permissions.grade_birds,
+      expires_at: null,
+    });
+  } catch (error) {
+    return json({ error: String(error instanceof Error ? error.message : error) }, 500);
+  }
 });
