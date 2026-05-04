@@ -355,7 +355,7 @@ export function FeedTicketConsole({ bundle }: FeedTicketConsoleProps) {
                                 title="Edit"
                                 type="button"
                               >
-                                ✎
+                                <PencilIcon />
                               </button>
                             </div>
                           </td>
@@ -436,7 +436,7 @@ export function FeedTicketConsole({ bundle }: FeedTicketConsoleProps) {
                                 title="Edit"
                                 type="button"
                               >
-                                ✎
+                                <PencilIcon />
                               </button>
                             </div>
                           </td>
@@ -773,3 +773,27 @@ function toFeedShortLabel(value: string | null | undefined) {
   if (normalized === "grower") return "G";
   return normalized ? normalized.slice(0, 1).toUpperCase() : "--";
 }
+
+function PencilIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path
+        d="M4 20l4.2-.9L18.3 9a1.5 1.5 0 0 0 0-2.1l-1.2-1.2a1.5 1.5 0 0 0-2.1 0L4.9 15.8 4 20Z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.9"
+      />
+      <path
+        d="M13.7 6.9l3.4 3.4"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.9"
+      />
+    </svg>
+  );
+}
+

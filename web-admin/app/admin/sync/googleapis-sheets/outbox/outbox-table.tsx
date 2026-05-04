@@ -117,7 +117,7 @@ export function OutboxTable({
                           title={replayingOutboxId === item.id ? "Replaying..." : "Replay"}
                           type="button"
                         >
-                          ↻
+                          <ReplayIcon />
                         </button>
                       ) : null}
                       {canRetry(item.status) ? (
@@ -129,7 +129,7 @@ export function OutboxTable({
                           title={retryingOutboxId === item.id ? "Retrying..." : "Retry"}
                           type="button"
                         >
-                          ↻
+                          <ReplayIcon />
                         </button>
                       ) : null}
                       {canDelete(item.status) ? (
@@ -141,7 +141,7 @@ export function OutboxTable({
                           title={deletingOutboxId === item.id ? "Deleting..." : "Delete"}
                           type="button"
                         >
-                          ×
+                          <CloseIcon />
                         </button>
                       ) : null}
                       {!canReplay(item.status) && !canRetry(item.status) && !canDelete(item.status) ? (
@@ -268,3 +268,42 @@ function formatPayload(payload: Record<string, unknown> | null) {
 
   return JSON.stringify(payload, null, 2);
 }
+
+function ReplayIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path
+        d="M20 11a8 8 0 1 0-2.3 5.6"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.9"
+      />
+      <path
+        d="M20 4v6h-6"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.9"
+      />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path
+        d="M7 7l10 10M17 7 7 17"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2.1"
+      />
+    </svg>
+  );
+}
+
