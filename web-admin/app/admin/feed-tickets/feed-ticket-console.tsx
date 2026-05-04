@@ -4,6 +4,9 @@ import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import type { FeedTicketAdminBundle, FeedTicketAdminRow } from "@/lib/feed-ticket-data";
+import { FeedTicketEditor } from "./feed-ticket-editor";
+
+const ROWS_PER_PAGE = 12;
 
 type FeedTicketConsoleProps = {
   bundle: FeedTicketAdminBundle;
@@ -19,6 +22,7 @@ type SelectorState =
 
 type TicketAggregateRow = {
   id: string;
+  ticketId: string;
   deliveryDate: string | null;
   ticketNumber: string | null;
   source: string | null;
@@ -51,9 +55,17 @@ export function FeedTicketConsole({ bundle }: FeedTicketConsoleProps) {
   const [selectorState, setSelectorState] = useState<SelectorState>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [readerState, setReaderState] = useState<{ title: string; value: string } | null>(null);
+  const [editorTicketId, setEditorTicketId] = useState<string | null>(null);
+  const [pageIndex, setPageIndex] = useState(0);
 
   const ticketRows = useMemo(() => groupTicketRows(bundle.rows), [bundle.rows]);
   const displayedRows = listMode === "drop" ? bundle.rows : ticketRows;
+  const totalPages = Math.max(1, Math.ceil(displayedRows.length / ROWS_PER_PAGE));
+  const safePageIndex = Math.min(pageIndex, totalPages - 1);
+  const visibleRows = useMemo(
+    () => displayedRows.slice(safePageIndex * ROWS_PER_PAGE, safePageIndex * ROWS_PER_PAGE + ROWS_PER_PAGE),
+    [displayedRows, safePageIndex],
+  );
   const selectedRows = useMemo(
     () => displayedRows.filter((row) => selectedIds.includes(row.id)),
     [displayedRows, selectedIds],
@@ -67,6 +79,7 @@ export function FeedTicketConsole({ bundle }: FeedTicketConsoleProps) {
   );
 
   function applyFilters() {
+    setPageIndex(0);
     const params = new URLSearchParams();
     params.set("listMode", listMode);
     if (ticketNumber.trim()) params.set("ticketNumber", ticketNumber.trim());
@@ -92,6 +105,7 @@ export function FeedTicketConsole({ bundle }: FeedTicketConsoleProps) {
     setIncludeStarter(false);
     setIncludeGrower(false);
     setSelectedIds([]);
+    setPageIndex(0);
     const params = new URLSearchParams();
     params.set("listMode", listMode);
     router.push(`${pathname}?${params.toString()}`);
@@ -102,301 +116,372 @@ export function FeedTicketConsole({ bundle }: FeedTicketConsoleProps) {
   }
 
   function setAllSelected(checked: boolean) {
-    setSelectedIds(checked ? displayedRows.map((row) => row.id) : []);
+    setSelectedIds((current) => {
+      const pageIds = visibleRows.map((row) => row.id);
+      if (!checked) {
+        return current.filter((id) => !pageIds.includes(id));
+      }
+
+      return Array.from(new Set([...current, ...pageIds]));
+    });
   }
 
   return (
     <section className="panel table-card feed-ticket-flat-shell">
-      <div className="feed-ticket-flat-top">
-        <div className="feed-ticket-flat-left">
-          <div className="feed-ticket-flat-heading">
-            <p className="feed-ticket-flat-title">Filter Feed Tickets & Deliveries:</p>
-          </div>
+      {editorTicketId ? (
+        <FeedTicketEditor
+          onClose={() => setEditorTicketId(null)}
+          onSaved={() => {
+            setEditorTicketId(null);
+            router.refresh();
+          }}
+          ticketId={editorTicketId === "__new__" ? null : editorTicketId}
+        />
+      ) : (
+        <>
+          <div className="feed-ticket-flat-top">
+            <div className="feed-ticket-flat-left">
+              <div className="feed-ticket-flat-heading">
+                <p className="feed-ticket-flat-title">Filter Feed Tickets & Deliveries:</p>
+              </div>
 
-          <div className="feed-ticket-flat-listby">
-            <span>List By:</span>
-            <button
-              className="feed-ticket-flat-listby-option"
-              data-active={listMode === "ticket"}
-              onClick={() => {
-                setListMode("ticket");
-                setSelectedIds([]);
-              }}
-              type="button"
-            >
-              <span className="feed-ticket-flat-listby-box">{listMode === "ticket" ? "X" : ""}</span>
-              Ticket
-            </button>
-            <button
-              className="feed-ticket-flat-listby-option"
-              data-active={listMode === "drop"}
-              onClick={() => {
-                setListMode("drop");
-                setSelectedIds([]);
-              }}
-              type="button"
-            >
-              <span className="feed-ticket-flat-listby-box">{listMode === "drop" ? "X" : ""}</span>
-              Drop
-            </button>
-          </div>
+              <div className="feed-ticket-flat-listby">
+                <span>List By:</span>
+                <button
+                  className="feed-ticket-flat-listby-option"
+                  data-active={listMode === "ticket"}
+                  onClick={() => {
+                    setListMode("ticket");
+                    setSelectedIds([]);
+                    setPageIndex(0);
+                  }}
+                  type="button"
+                >
+                  <span className="feed-ticket-flat-listby-box">{listMode === "ticket" ? "X" : ""}</span>
+                  Ticket
+                </button>
+                <button
+                  className="feed-ticket-flat-listby-option"
+                  data-active={listMode === "drop"}
+                  onClick={() => {
+                    setListMode("drop");
+                    setSelectedIds([]);
+                    setPageIndex(0);
+                  }}
+                  type="button"
+                >
+                  <span className="feed-ticket-flat-listby-box">{listMode === "drop" ? "X" : ""}</span>
+                  Drop
+                </button>
+              </div>
 
-          <div className="feed-ticket-flat-actions">
-            <button className="button" onClick={applyFilters} type="button">
-              Apply
-            </button>
-            <button className="button-secondary" onClick={clearFilters} type="button">
-              Clear
-            </button>
-          </div>
-        </div>
-
-        <div className="feed-ticket-flat-summary">
-          <p className="feed-ticket-flat-summary-kicker">{summaryLabel}</p>
-          <div className="feed-ticket-flat-summary-box">
-            <div className="feed-ticket-flat-summary-line">
-              <span>Feed Order Tickets:</span>
-              <strong>{summary.ticketCount}</strong>
+              <div className="feed-ticket-flat-actions">
+                <button className="button" onClick={() => setEditorTicketId("__new__")} type="button">
+                  New Ticket
+                </button>
+                <button className="button" onClick={applyFilters} type="button">
+                  Apply
+                </button>
+                <button className="button-secondary" onClick={clearFilters} type="button">
+                  Clear
+                </button>
+              </div>
             </div>
-            <div className="feed-ticket-flat-summary-line">
-              <span>Num Drops:</span>
-              <strong>{summary.dropCount}</strong>
+
+            <div className="feed-ticket-flat-summary">
+              <p className="feed-ticket-flat-summary-kicker">{summaryLabel}</p>
+              <div className="feed-ticket-flat-summary-box">
+                <div className="feed-ticket-flat-summary-line">
+                  <span>Feed Order Tickets:</span>
+                  <strong>{summary.ticketCount}</strong>
+                </div>
+                <div className="feed-ticket-flat-summary-line">
+                  <span>Num Drops:</span>
+                  <strong>{summary.dropCount}</strong>
+                </div>
+                <div className="feed-ticket-flat-summary-divider" />
+                <div className="feed-ticket-flat-summary-line">
+                  <span>Feed Type Starter:</span>
+                  <strong>{formatWeightCompact(summary.starterDropWeightLbs)}</strong>
+                </div>
+                <div className="feed-ticket-flat-summary-line">
+                  <span>Grower:</span>
+                  <strong>{formatWeightCompact(summary.growerDropWeightLbs)}</strong>
+                </div>
+                <div className="feed-ticket-flat-summary-divider" />
+                <div className="feed-ticket-flat-summary-line">
+                  <span>Weight:</span>
+                  <strong>{formatWeightCompact(summary.selectedDropWeightLbs)}</strong>
+                </div>
+              </div>
             </div>
-            <div className="feed-ticket-flat-summary-divider" />
-            <div className="feed-ticket-flat-summary-line">
-              <span>Feed Type Starter:</span>
-              <strong>{formatWeightCompact(summary.starterDropWeightLbs)}</strong>
-            </div>
-            <div className="feed-ticket-flat-summary-line">
-              <span>Grower:</span>
-              <strong>{formatWeightCompact(summary.growerDropWeightLbs)}</strong>
-            </div>
-            <div className="feed-ticket-flat-summary-divider" />
-            <div className="feed-ticket-flat-summary-line">
-              <span>Weight:</span>
-              <strong>{formatWeightCompact(summary.selectedDropWeightLbs)}</strong>
+
+            <div className="feed-ticket-flat-options">
+              <p className="feed-ticket-flat-options-kicker">Filter Selections:</p>
+
+              <label className="feed-ticket-flat-field feed-ticket-flat-ticket">
+                <span>Ticket:</span>
+                <input onChange={(event) => setTicketNumber(event.target.value)} placeholder="Feed Ticket #" type="text" value={ticketNumber} />
+              </label>
+
+              <div className="feed-ticket-flat-field-grid">
+                <SelectorField
+                  label="Farm:"
+                  onOpen={() =>
+                    setSelectorState({
+                      field: "farm",
+                      title: "Select Farm",
+                      options: bundle.filterOptions.farms,
+                    })
+                  }
+                  value={farm}
+                />
+                <SelectorField
+                  label="Barn:"
+                  onOpen={() =>
+                    setSelectorState({
+                      field: "barn",
+                      title: "Select Barn",
+                      options: bundle.filterOptions.barns,
+                    })
+                  }
+                  value={barn}
+                />
+                <SelectorField
+                  label="Bin:"
+                  onOpen={() =>
+                    setSelectorState({
+                      field: "bin",
+                      title: "Select Bin",
+                      options: bundle.filterOptions.bins,
+                    })
+                  }
+                  value={bin}
+                />
+              </div>
+
+              <div className="feed-ticket-flat-field-grid feed-ticket-flat-field-grid-dates">
+                <label className="feed-ticket-flat-field">
+                  <span>From:</span>
+                  <input onChange={(event) => setDateFrom(event.target.value)} type="date" value={dateFrom} />
+                </label>
+                <label className="feed-ticket-flat-field">
+                  <span>To:</span>
+                  <input onChange={(event) => setDateTo(event.target.value)} type="date" value={dateTo} />
+                </label>
+              </div>
+
+              <SelectorField
+                label="Flock Code:"
+                onOpen={() =>
+                  setSelectorState({
+                    field: "flock",
+                    title: "Select Flock",
+                    options: bundle.filterOptions.flocks,
+                  })
+                }
+                value={flockCode}
+              />
+
+              <div className="feed-ticket-flat-checks">
+                <label className="feed-ticket-flat-check">
+                  <input checked={includeStarter} onChange={(event) => setIncludeStarter(event.target.checked)} type="checkbox" />
+                  <span>Starter</span>
+                </label>
+                <label className="feed-ticket-flat-check">
+                  <input checked={includeGrower} onChange={(event) => setIncludeGrower(event.target.checked)} type="checkbox" />
+                  <span>Grower</span>
+                </label>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="feed-ticket-flat-options">
-          <p className="feed-ticket-flat-options-kicker">Filter Selections:</p>
+          <p className="feed-ticket-flat-summary-text">{buildSummaryText({ farm, barn, bin, flockCode, ticketNumber }, displayedRows.length)}</p>
 
-          <label className="feed-ticket-flat-field feed-ticket-flat-ticket">
-            <span>Ticket:</span>
-            <input onChange={(event) => setTicketNumber(event.target.value)} placeholder="Feed Ticket #" type="text" value={ticketNumber} />
-          </label>
-
-          <div className="feed-ticket-flat-field-grid">
-            <SelectorField
-              label="Farm:"
-              onOpen={() =>
-                setSelectorState({
-                  field: "farm",
-                  title: "Select Farm",
-                  options: bundle.filterOptions.farms,
-                })
-              }
-              value={farm}
-            />
-            <SelectorField
-              label="Barn:"
-              onOpen={() =>
-                setSelectorState({
-                  field: "barn",
-                  title: "Select Barn",
-                  options: bundle.filterOptions.barns,
-                })
-              }
-              value={barn}
-            />
-            <SelectorField
-              label="Bin:"
-              onOpen={() =>
-                setSelectorState({
-                  field: "bin",
-                  title: "Select Bin",
-                  options: bundle.filterOptions.bins,
-                })
-              }
-              value={bin}
-            />
-          </div>
-
-          <div className="feed-ticket-flat-field-grid feed-ticket-flat-field-grid-dates">
-            <label className="feed-ticket-flat-field">
-              <span>From:</span>
-              <input onChange={(event) => setDateFrom(event.target.value)} type="date" value={dateFrom} />
-            </label>
-            <label className="feed-ticket-flat-field">
-              <span>To:</span>
-              <input onChange={(event) => setDateTo(event.target.value)} type="date" value={dateTo} />
-            </label>
-          </div>
-
-          <SelectorField
-            label="Flock Code:"
-            onOpen={() =>
-              setSelectorState({
-                field: "flock",
-                title: "Select Flock",
-                options: bundle.filterOptions.flocks,
-              })
-            }
-            value={flockCode}
-          />
-
-          <div className="feed-ticket-flat-checks">
-            <label className="feed-ticket-flat-check">
-              <input checked={includeStarter} onChange={(event) => setIncludeStarter(event.target.checked)} type="checkbox" />
-              <span>Starter</span>
-            </label>
-            <label className="feed-ticket-flat-check">
-              <input checked={includeGrower} onChange={(event) => setIncludeGrower(event.target.checked)} type="checkbox" />
-              <span>Grower</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <p className="feed-ticket-flat-summary-text">{buildSummaryText({ farm, barn, bin, flockCode, ticketNumber }, displayedRows.length)}</p>
-
-      <div className="feed-ticket-flat-table-shell">
-        <div className="feed-ticket-flat-table-wrap">
-          {listMode === "drop" ? (
-            <table className="feed-ticket-flat-table feed-ticket-flat-table-drop" key="feed-ticket-drop-table">
-              <thead>
-                <tr>
-                  <th className="feed-ticket-flat-checkcol">
-                    <input
-                      checked={displayedRows.length > 0 && selectedIds.length === displayedRows.length}
-                      onChange={(event) => setAllSelected(event.target.checked)}
-                      type="checkbox"
-                    />
-                  </th>
-                  <th>Date</th>
-                  <th>Farm(s)</th>
-                  <th>Barn(s)</th>
-                  <th>Bin(s)</th>
-                  <th>Flock(s)</th>
-                  <th>Type</th>
-                  <th>Drop Weight</th>
-                  <th>Ticket</th>
-                  <th>Source</th>
-                  <th>Gross Weight</th>
-                  <th>Comment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bundle.rows.length > 0 ? (
-                  bundle.rows.map((row) => (
-                    <tr key={row.id}>
-                      <td className="feed-ticket-flat-checkcol">
-                        <input checked={selectedIds.includes(row.id)} onChange={() => toggleSelected(row.id)} type="checkbox" />
-                      </td>
-                      <td>{formatDate(row.deliveryDate)}</td>
-                      <td>{row.farmName || "--"}</td>
-                      <td>{row.barnCode || "--"}</td>
-                      <td>{row.binCode || "--"}</td>
-                      <td>{row.placementCode || "--"}</td>
-                      <td>{toFeedShortLabel(row.feedType)}</td>
-                      <td>{formatWeightCompact(row.dropWeightLbs)}</td>
-                      <td>
-                        <div className="feed-ticket-flat-subnote-cell">
-                          <strong>{row.ticketNumber || "--"}</strong>
-                          <span>ticket ref</span>
-                        </div>
-                      </td>
-                      <td>{row.source || "--"}</td>
-                      <td>{formatWeightCompact(row.grossWeightLbs)}</td>
-                      <td>
-                        {renderCommentCell(row.comment, (title, value) => setReaderState({ title, value }))}
-                      </td>
+          <div className="feed-ticket-flat-table-shell">
+            <div className="feed-ticket-flat-table-wrap">
+              {listMode === "drop" ? (
+                <table className="feed-ticket-flat-table feed-ticket-flat-table-drop" key="feed-ticket-drop-table">
+                  <thead>
+                    <tr>
+                      <th className="feed-ticket-flat-checkcol">
+                        <input
+                          checked={visibleRows.length > 0 && visibleRows.every((row) => selectedIds.includes(row.id))}
+                          onChange={(event) => setAllSelected(event.target.checked)}
+                          type="checkbox"
+                        />
+                      </th>
+                      <th>Date</th>
+                      <th>Farm(s)</th>
+                      <th>Barn(s)</th>
+                      <th>Bin(s)</th>
+                      <th>Flock(s)</th>
+                      <th>Type</th>
+                      <th>Drop Weight</th>
+                      <th>Ticket</th>
+                      <th>Source</th>
+                      <th>Gross Weight</th>
+                      <th>Action</th>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="feed-ticket-flat-empty" colSpan={12}>
-                      No feed ticket deliveries matched the current filters.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          ) : (
-            <table className="feed-ticket-flat-table feed-ticket-flat-table-ticket" key="feed-ticket-ticket-table">
-              <thead>
-                <tr>
-                  <th className="feed-ticket-flat-checkcol">
-                    <input
-                      checked={displayedRows.length > 0 && selectedIds.length === displayedRows.length}
-                      onChange={(event) => setAllSelected(event.target.checked)}
-                      type="checkbox"
-                    />
-                  </th>
-                  <th>Date</th>
-                  <th>Ticket</th>
-                  <th>Source</th>
-                  <th>Gross Weight</th>
-                  <th>Farm</th>
-                  <th>Barn</th>
-                  <th>Bin</th>
-                  <th>Flock</th>
-                  <th>Type</th>
-                  <th>Drop Weight</th>
-                  <th>Comment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ticketRows.length > 0 ? (
-                  ticketRows.map((row) => (
-                    <tr key={row.id}>
-                      <td className="feed-ticket-flat-checkcol">
-                        <input checked={selectedIds.includes(row.id)} onChange={() => toggleSelected(row.id)} type="checkbox" />
-                      </td>
-                      <td>{formatDate(row.deliveryDate)}</td>
-                      <td>{row.ticketNumber || "--"}</td>
-                      <td>{row.source || "--"}</td>
-                      <td>{formatWeightCompact(row.grossWeightLbs)}</td>
-                      <td>
-                        {renderAggregateCell("Included Farms", row.farmName, (title, value) =>
-                          setReaderState({ title, value }),
-                        )}
-                      </td>
-                      <td>
-                        {renderAggregateCell("Included Barns", row.barnCode, (title, value) =>
-                          setReaderState({ title, value }),
-                        )}
-                      </td>
-                      <td>
-                        {renderAggregateCell("Included Bins", row.binCode, (title, value) =>
-                          setReaderState({ title, value }),
-                        )}
-                      </td>
-                      <td>
-                        {renderAggregateCell("Included Flocks", row.placementCode, (title, value) =>
-                          setReaderState({ title, value }),
-                        )}
-                      </td>
-                      <td>{row.feedType || "--"}</td>
-                      <td>{formatWeightCompact(row.dropWeightLbs)}</td>
-                      <td>
-                        {renderCommentCell(row.comment, (title, value) => setReaderState({ title, value }))}
-                      </td>
+                  </thead>
+                  <tbody>
+                    {visibleRows.length > 0 ? (
+                      visibleRows.map((row) => (
+                        <tr key={row.id}>
+                          <td className="feed-ticket-flat-checkcol">
+                            <input checked={selectedIds.includes(row.id)} onChange={() => toggleSelected(row.id)} type="checkbox" />
+                          </td>
+                          <td>{formatDate(row.deliveryDate)}</td>
+                          <td>{row.farmName || "--"}</td>
+                          <td>{row.barnCode || "--"}</td>
+                          <td>{row.binCode || "--"}</td>
+                          <td>{row.placementCode || "--"}</td>
+                          <td>{toFeedShortLabel(row.feedType)}</td>
+                          <td>{formatWeightCompact(row.dropWeightLbs)}</td>
+                          <td>
+                            <div className="feed-ticket-flat-subnote-cell">
+                              <strong>{row.ticketNumber || "--"}</strong>
+                              <span>ticket ref</span>
+                            </div>
+                          </td>
+                          <td>{row.source || "--"}</td>
+                          <td>{formatWeightCompact(row.grossWeightLbs)}</td>
+                          <td className="list-action-cell">
+                            <div className="list-action-stack">
+                              <button
+                                aria-label="Edit feed ticket"
+                                className="list-action-button list-action-button-edit"
+                                onClick={() => setEditorTicketId(row.ticketId)}
+                                title="Edit"
+                                type="button"
+                              >
+                                ✎
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td className="feed-ticket-flat-empty" colSpan={12}>
+                          No feed ticket deliveries matched the current filters.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="feed-ticket-flat-table feed-ticket-flat-table-ticket" key="feed-ticket-ticket-table">
+                  <thead>
+                    <tr>
+                      <th className="feed-ticket-flat-checkcol">
+                        <input
+                          checked={visibleRows.length > 0 && visibleRows.every((row) => selectedIds.includes(row.id))}
+                          onChange={(event) => setAllSelected(event.target.checked)}
+                          type="checkbox"
+                        />
+                      </th>
+                      <th>Date</th>
+                      <th>Ticket</th>
+                      <th>Source</th>
+                      <th>Gross Weight</th>
+                      <th>Farm</th>
+                      <th>Barn</th>
+                      <th>Bin</th>
+                      <th>Flock</th>
+                      <th>Type</th>
+                      <th>Drop Weight</th>
+                      <th>Action</th>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="feed-ticket-flat-empty" colSpan={12}>
-                      No feed ticket deliveries matched the current filters.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
+                  </thead>
+                  <tbody>
+                    {visibleRows.length > 0 ? (
+                      visibleRows.map((row) => (
+                        <tr key={row.id}>
+                          <td className="feed-ticket-flat-checkcol">
+                            <input checked={selectedIds.includes(row.id)} onChange={() => toggleSelected(row.id)} type="checkbox" />
+                          </td>
+                          <td>{formatDate(row.deliveryDate)}</td>
+                          <td>{row.ticketNumber || "--"}</td>
+                          <td>{row.source || "--"}</td>
+                          <td>{formatWeightCompact(row.grossWeightLbs)}</td>
+                          <td>
+                            {renderAggregateCell("Included Farms", row.farmName, (title, value) =>
+                              setReaderState({ title, value }),
+                            )}
+                          </td>
+                          <td>
+                            {renderAggregateCell("Included Barns", row.barnCode, (title, value) =>
+                              setReaderState({ title, value }),
+                            )}
+                          </td>
+                          <td>
+                            {renderAggregateCell("Included Bins", row.binCode, (title, value) =>
+                              setReaderState({ title, value }),
+                            )}
+                          </td>
+                          <td>
+                            {renderAggregateCell("Included Flocks", row.placementCode, (title, value) =>
+                              setReaderState({ title, value }),
+                            )}
+                          </td>
+                          <td>{row.feedType || "--"}</td>
+                          <td>{formatWeightCompact(row.dropWeightLbs)}</td>
+                          <td className="list-action-cell">
+                            <div className="list-action-stack">
+                              <button
+                                aria-label="Edit feed ticket"
+                                className="list-action-button list-action-button-edit"
+                                onClick={() => setEditorTicketId(row.ticketId)}
+                                title="Edit"
+                                type="button"
+                              >
+                                ✎
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td className="feed-ticket-flat-empty" colSpan={12}>
+                          No feed ticket deliveries matched the current filters.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
+          {displayedRows.length > ROWS_PER_PAGE ? (
+            <div className="feed-ticket-flat-pagination">
+              <p className="feed-ticket-flat-pagination-copy">
+                Page {safePageIndex + 1} of {totalPages}
+              </p>
+              <div className="feed-ticket-flat-pagination-actions">
+                <button
+                  className="button-secondary"
+                  disabled={safePageIndex === 0}
+                  onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
+                  type="button"
+                >
+                  Previous
+                </button>
+                <button
+                  className="button-secondary"
+                  disabled={safePageIndex >= totalPages - 1}
+                  onClick={() => setPageIndex((current) => Math.min(totalPages - 1, current + 1))}
+                  type="button"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </>
+      )}
 
       {selectorState ? (
         <div className="feed-ticket-selector-scrim" onClick={() => setSelectorState(null)}>
@@ -450,6 +535,7 @@ export function FeedTicketConsole({ bundle }: FeedTicketConsoleProps) {
           </div>
         </div>
       ) : null}
+
     </section>
   );
 }
@@ -498,6 +584,7 @@ function groupTicketRows(rows: FeedTicketAdminRow[]): TicketAggregateRow[] {
     if (!current) {
       grouped.set(key, {
         id: key,
+        ticketId: row.ticketId,
         deliveryDate: row.deliveryDate,
         ticketNumber: row.ticketNumber,
         source: row.source,
@@ -517,6 +604,7 @@ function groupTicketRows(rows: FeedTicketAdminRow[]): TicketAggregateRow[] {
     }
 
     current.dropWeightLbs += row.dropWeightLbs ?? 0;
+    current.ticketId = row.ticketId;
     current.starterDropWeightLbs += row.feedType?.toLowerCase() === "starter" ? row.dropWeightLbs ?? 0 : 0;
     current.growerDropWeightLbs += row.feedType?.toLowerCase() === "grower" ? row.dropWeightLbs ?? 0 : 0;
     current.dropCount += 1;
@@ -561,11 +649,13 @@ function renderAggregateCell(
 
   return (
     <button
-      className="feed-ticket-flat-reader-button"
+      aria-label={`View ${title}`}
+      className="list-action-button list-action-button-more"
       onClick={() => onOpen(title, values.join("\n"))}
+      title={title}
       type="button"
     >
-      Multi...
+      ...
     </button>
   );
 }
@@ -586,11 +676,13 @@ function renderCommentCell(
   const preview = value.length > 18 ? `${value.slice(0, 18).trimEnd()}...` : value;
   return (
     <button
-      className="feed-ticket-flat-reader-button"
+      aria-label="View comment"
+      className="list-action-button list-action-button-more"
       onClick={() => onOpen("Comment", value)}
+      title="View comment"
       type="button"
     >
-      {preview}
+      ...
     </button>
   );
 }

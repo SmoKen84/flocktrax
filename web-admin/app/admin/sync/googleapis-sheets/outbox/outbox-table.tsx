@@ -7,7 +7,9 @@ import { createPortal } from "react-dom";
 import type { GoogleSheetsOutboxRecord } from "@/lib/sync-data";
 
 type OutboxTableProps = {
+  deletingOutboxId: string | null;
   items: GoogleSheetsOutboxRecord[];
+  onDelete: (outboxId: string) => Promise<void>;
   onReplay: (outboxId: string) => Promise<void>;
   onRetry: (outboxId: string) => Promise<void>;
   replayingOutboxId: string | null;
@@ -19,7 +21,15 @@ type ActiveOutboxField = {
   value: string;
 };
 
-export function OutboxTable({ items, onReplay, onRetry, replayingOutboxId, retryingOutboxId }: OutboxTableProps) {
+export function OutboxTable({
+  deletingOutboxId,
+  items,
+  onDelete,
+  onReplay,
+  onRetry,
+  replayingOutboxId,
+  retryingOutboxId,
+}: OutboxTableProps) {
   const [activeField, setActiveField] = useState<ActiveOutboxField | null>(null);
   const [mounted, setMounted] = useState(false);
   const normalizedItems = useMemo(() => items, [items]);
@@ -97,28 +107,44 @@ export function OutboxTable({ items, onReplay, onRetry, replayingOutboxId, retry
                     )}
                   </td>
                   <td>
-                    <div className="sync-outbox-action-stack">
+                    <div className="list-action-stack">
                       {canReplay(item.status) ? (
                         <button
-                          className="button-secondary"
+                          aria-label={replayingOutboxId === item.id ? "Replaying outbox row" : "Replay outbox row"}
+                          className="list-action-button list-action-button-replay"
                           disabled={replayingOutboxId === item.id}
                           onClick={() => void onReplay(item.id)}
+                          title={replayingOutboxId === item.id ? "Replaying..." : "Replay"}
                           type="button"
                         >
-                          {replayingOutboxId === item.id ? "Replaying..." : "Replay"}
+                          ↻
                         </button>
                       ) : null}
                       {canRetry(item.status) ? (
                         <button
-                          className="button-secondary"
+                          aria-label={retryingOutboxId === item.id ? "Retrying outbox row" : "Retry outbox row"}
+                          className="list-action-button list-action-button-replay"
                           disabled={retryingOutboxId === item.id}
                           onClick={() => void onRetry(item.id)}
+                          title={retryingOutboxId === item.id ? "Retrying..." : "Retry"}
                           type="button"
                         >
-                          {retryingOutboxId === item.id ? "Retrying..." : "Retry"}
+                          ↻
                         </button>
                       ) : null}
-                      {!canReplay(item.status) && !canRetry(item.status) ? (
+                      {canDelete(item.status) ? (
+                        <button
+                          aria-label={deletingOutboxId === item.id ? "Deleting outbox row" : "Delete outbox row"}
+                          className="list-action-button list-action-button-delete"
+                          disabled={deletingOutboxId === item.id}
+                          onClick={() => void onDelete(item.id)}
+                          title={deletingOutboxId === item.id ? "Deleting..." : "Delete"}
+                          type="button"
+                        >
+                          ×
+                        </button>
+                      ) : null}
+                      {!canReplay(item.status) && !canRetry(item.status) && !canDelete(item.status) ? (
                         <span className="sync-outbox-action-muted">No action</span>
                       ) : null}
                     </div>
@@ -192,6 +218,10 @@ function canRetry(status: string) {
 
 function canReplay(status: string) {
   return status === "sent" || status === "failed" || status === "rejected";
+}
+
+function canDelete(status: string) {
+  return status === "pending" || status === "failed" || status === "rejected";
 }
 
 function statusTone(status: string) {

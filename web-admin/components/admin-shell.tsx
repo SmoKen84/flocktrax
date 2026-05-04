@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
+import { SessionRecoveryLayer } from "@/components/session-recovery-layer";
 
 const consoleLinks = [
   { label: "Live Dashboard", href: "/admin/overview" },
@@ -135,12 +136,15 @@ export function AdminShell({ children, displayName, roleKey, roleLabel, scopeLab
     return (
       <Link
         className="splash-sidebar-item splash-sidebar-item-link"
+        data-has-badge={item.label === "Sync Engine" && syncBadgeCount > 0 ? "true" : undefined}
         data-active={active}
         href={item.href}
         key={item.href}
         prefetch={item.label === "Sync Engine" ? false : undefined}
       >
-        <span>{item.label}</span>
+        <span className={item.label === "Sync Engine" && syncBadgeCount > 0 ? "sidebar-link-label sidebar-link-label-sync" : "sidebar-link-label"}>
+          {item.label}
+        </span>
         {item.label === "Sync Engine" && syncBadgeCount > 0 ? (
           <span className="sidebar-notification-badge" aria-label={`${syncBadgeCount} sync items need attention`}>
             {syncBadgeCount}
@@ -152,6 +156,7 @@ export function AdminShell({ children, displayName, roleKey, roleLabel, scopeLab
 
   return (
     <main className="splash-shell admin-shell">
+      <SessionRecoveryLayer />
       <div className="splash-sidebar-stack">
         {versionLine ? <p className="splash-sidebar-version-tag">{versionLine}</p> : null}
 

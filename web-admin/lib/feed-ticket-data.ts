@@ -18,8 +18,10 @@ export type FeedTicketAdminFilters = {
 
 export type FeedTicketAdminRow = {
   id: string;
+  ticketId: string;
   deliveryDate: string | null;
   ticketNumber: string | null;
+  ticketType: string | null;
   source: string | null;
   grossWeightLbs: number | null;
   farmName: string | null;
@@ -72,6 +74,7 @@ type FeedTicketRow = {
   feedmill: string | null;
   feed_weight: number | null;
   feed_name: string | null;
+  ticket_type: string | null;
   source_type: string | null;
 };
 
@@ -118,7 +121,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
 
   let ticketsQuery = admin
     .from("feed_tickets")
-    .select("id,ticket_num,delivery_date,created_at,feedmill,feed_weight,feed_name,source_type")
+    .select("id,ticket_num,delivery_date,created_at,feedmill,feed_weight,feed_name,ticket_type,source_type")
     .order("delivery_date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(400);
@@ -232,8 +235,10 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
 
       return {
         id: drop.id,
+        ticketId: ticket.id,
         deliveryDate: ticket.delivery_date ?? null,
         ticketNumber: ticket.ticket_num ?? null,
+        ticketType: ticket.ticket_type ?? null,
         source,
         grossWeightLbs: typeof ticket.feed_weight === "number" ? ticket.feed_weight : null,
         farmName,
