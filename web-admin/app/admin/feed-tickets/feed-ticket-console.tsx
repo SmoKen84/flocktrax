@@ -271,17 +271,37 @@ export function FeedTicketConsole({ bundle }: FeedTicketConsoleProps) {
                 </label>
               </div>
 
-              <SelectorField
-                label="Flock Code:"
-                onOpen={() =>
-                  setSelectorState({
-                    field: "flock",
-                    title: "Select Flock",
-                    options: bundle.filterOptions.flocks,
-                  })
-                }
-                value={flockCode}
-              />
+              <div className="feed-ticket-flat-flock-row">
+                <SelectorField
+                  className="feed-ticket-flat-flock-field"
+                  label="Flock Code:"
+                  onOpen={() =>
+                    setSelectorState({
+                      field: "flock",
+                      title: "Select Flock",
+                      options: bundle.filterOptions.flocks,
+                    })
+                  }
+                  value={flockCode}
+                />
+                <button
+                  className="button-secondary feed-ticket-flat-report-button"
+                  disabled={!flockCode.trim()}
+                  onClick={() => {
+                    if (!flockCode.trim()) return;
+                    const params = new URLSearchParams();
+                    params.set("flockCode", flockCode.trim());
+                    if (dateFrom.trim()) params.set("dateFrom", dateFrom.trim());
+                    if (dateTo.trim()) params.set("dateTo", dateTo.trim());
+                    if (includeStarter) params.set("includeStarter", "true");
+                    if (includeGrower) params.set("includeGrower", "true");
+                    window.open(`/admin/feed-tickets/report?${params.toString()}`, "_blank", "noopener,noreferrer");
+                  }}
+                  type="button"
+                >
+                  Print Flock Report
+                </button>
+              </div>
 
               <div className="feed-ticket-flat-checks">
                 <label className="feed-ticket-flat-check">
@@ -541,16 +561,18 @@ export function FeedTicketConsole({ bundle }: FeedTicketConsoleProps) {
 }
 
 function SelectorField({
+  className,
   label,
   value,
   onOpen,
 }: {
+  className?: string;
   label: string;
   value: string;
   onOpen: () => void;
 }) {
   return (
-    <div className="feed-ticket-flat-field">
+    <div className={className ? `feed-ticket-flat-field ${className}` : "feed-ticket-flat-field"}>
       <span>{label}</span>
       <button className="feed-ticket-flat-selector" onClick={onOpen} type="button">
         {value || label.replace(":", "")}

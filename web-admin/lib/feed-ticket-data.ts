@@ -66,6 +66,25 @@ export type FeedTicketAdminBundle = {
   };
 };
 
+export type FeedTicketFlockReportBundle = {
+  filters: {
+    flockCode: string;
+    dateFrom: string;
+    dateTo: string;
+    includeStarter: boolean;
+    includeGrower: boolean;
+  };
+  rows: FeedTicketAdminRow[];
+  generatedAt: string;
+  totals: {
+    netDropWeightLbs: number;
+    starterNetLbs: number;
+    growerNetLbs: number;
+    byTicketType: Array<{ key: string; pounds: number }>;
+    bySource: Array<{ key: string; pounds: number }>;
+  };
+};
+
 type FeedTicketRow = {
   id: string;
   ticket_num: string | null;
@@ -315,6 +334,50 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
   };
 }
 
+export async function getFeedTicketFlockReportBundle(filters: FeedTicketAdminFilters = {}): Promise<FeedTicketFlockReportBundle> {
+  const bundle = await getFeedTicketAdminBundle({
+    ...filters,
+    listMode: "drop",
+  });
+
+  const rows = bundle.rows
+    .filter((row) => normalize(row.placementCode).toLowerCase() === normalize(filters.flockCode).toLowerCase())
+    .sort((a, b) => {
+      const aDate = a.deliveryDate ?? "";
+      const bDate = b.deliveryDate ?? "";
+      if (aDate !== bDate) {
+        return aDate.localeCompare(bDate);
+      }
+
+      return (a.ticketNumber ?? "").localeCompare(b.ticketNumber ?? "", undefined, { numeric: true });
+    });
+
+  return {
+    filters: {
+      flockCode: normalize(filters.flockCode),
+      dateFrom: normalize(filters.dateFrom),
+      dateTo: normalize(filters.dateTo),
+      includeStarter: filters.includeStarter === true,
+      includeGrower: filters.includeGrower === true,
+    },
+    rows,
+    generatedAt: new Date().toISOString(),
+    totals: {
+      netDropWeightLbs: rows.reduce((sum, row) => sum + (row.dropWeightLbs ?? 0), 0),
+      starterNetLbs: rows.reduce(
+        (sum, row) => sum + (row.feedType?.toLowerCase() === "starter" ? row.dropWeightLbs ?? 0 : 0),
+        0,
+      ),
+      growerNetLbs: rows.reduce(
+        (sum, row) => sum + (row.feedType?.toLowerCase() === "grower" ? row.dropWeightLbs ?? 0 : 0),
+        0,
+      ),
+      byTicketType: buildGroupedTotals(rows, (row) => normalize(row.ticketType) || "Unknown"),
+      bySource: buildGroupedTotals(rows, (row) => normalize(row.source) || "Unknown"),
+    },
+  };
+}
+
 function normalize(value: string | null | undefined) {
   return (value ?? "").trim();
 }
@@ -383,4 +446,16 @@ function emptyFeedTicketBundle(
       flocks: [],
     },
   };
+}
+
+function buildGroupedTotals(rows: FeedTicketAdminRow[], keyFor: (row: FeedTicketAdminRow) => string) {
+  const grouped = new Map<string, number>();
+  for (const row of rows) {
+    const key = keyFor(row);
+    grouped.set(key, (grouped.get(key) ?? 0) + (row.dropWeightLbs ?? 0));
+  }
+
+  return Array.from(grouped.entries())
+    .map(([key, pounds]) => ({ key, pounds }))
+    .sort((left, right) => left.key.localeCompare(right.key, undefined, { numeric: true }));
 }
