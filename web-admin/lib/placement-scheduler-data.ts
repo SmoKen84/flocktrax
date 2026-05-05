@@ -127,8 +127,44 @@ type BreedRow = {
   is_active: boolean | null;
 };
 
+type BreedSpecRow = {
+  geneticname: string | null;
+  breedid: string | null;
+  is_active: boolean | null;
+};
+
 function normalize(value: string | null | undefined) {
   return (value ?? "").trim();
+}
+
+function normalizeBreedText(value: string | null | undefined) {
+  return normalize(value).replace(/\s+/g, "").toLowerCase();
+}
+
+function normalizeBreedSex(value: string | null | undefined) {
+  const normalized = normalize(value).toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  if (normalized.startsWith("m")) {
+    return "male";
+  }
+  if (normalized.startsWith("f")) {
+    return "female";
+  }
+  if (normalized.startsWith("u")) {
+    return "unsexed";
+  }
+  return normalized;
+}
+
+function slugBreedCode(breedName: string, sex: string | null) {
+  const breedSlug = normalize(breedName)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const sexSlug = sex ? sex.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "unsexed";
+  return `${breedSlug}-${sexSlug}`;
 }
 
 function parsePositiveNumber(value: string | number | null | undefined) {
@@ -180,7 +216,7 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
     };
   }
 
-  const [farmsResult, barnsResult, flocksResult, placementsResult, platformSettingsResult, appSettingsResult, breedsResult] = await Promise.all([
+  const [farmsResult, barnsResult, flocksResult, placementsResult, platformSettingsResult, appSettingsResult, breedsResult, breedSpecsResult] = await Promise.all([
     supabase.from("farms_ui").select("id,farm_name,farm_group_name,farm_group_id").order("farm_name"),
     supabase.from("barns").select("id,farm_id,barn_code,sort_code,is_active"),
     supabase
@@ -194,6 +230,7 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
     supabase.schema("platform").from("settings").select("name,value,is_active").limit(50),
     supabase.from("app_settings").select("group,name,value"),
     supabase.from("breeds").select("id,code,breed_name,sex,is_active").order("breed_name"),
+    supabase.from("stdbreedspec").select("geneticname,breedid,is_active").eq("is_active", true),
   ]);
 
   const farmRows = (farmsResult.data ?? []) as FarmRow[];
@@ -206,6 +243,7 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
   const platformSettingRows = (platformSettingsResult.data ?? []) as PlatformSettingRow[];
   const appSettingRows = (appSettingsResult.data ?? []) as AppSettingRow[];
   const breedRows = (breedsResult.data ?? []) as BreedRow[];
+  const breedSpecRows = (breedSpecsResult.data ?? []) as BreedSpecRow[];
 
   let growOutDays = 63;
   let nextPlaceOffsetDays = 14;
@@ -254,6 +292,62 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
 
   if (explicitGrowOutDays === null && explicitNextPlaceOffsetDays !== null) {
     growOutDays = explicitNextPlaceOffsetDays;
+  }
+
+  const existingBreedKeys = new Set(
+    breedRows
+      .filter((row) => row.is_active !== false)
+      .map((row) => `${normalizeBreedText(row.breed_name)}::${normalizeBreedSex(row.sex) ?? "unsexed"}`),
+  );
+
+  const missingBreedRows = Array.from(
+    new Map(
+      breedSpecRows
+        .map((row) => {
+          const breedName = normalize(row.geneticname);
+          const sex = normalizeBreedSex(row.breedid) ?? "unsexed";
+          if (!breedName) {
+            return null;
+          }
+          const key = `${normalizeBreedText(breedName)}::${sex}`;
+          if (existingBreedKeys.has(key)) {
+            return null;
+          }
+          return [
+            key,
+            {
+              breed_name: breedName,
+              sex,
+              code: slugBreedCode(breedName, sex),
+              is_active: true,
+            },
+          ] as const;
+        })
+        .filter(Boolean) as Array<
+        readonly [
+          string,
+          {
+            breed_name: string;
+            sex: string;
+            code: string;
+            is_active: true;
+          },
+        ]
+      >,
+    ).values(),
+  );
+
+  let effectiveBreedRows = breedRows;
+  if (missingBreedRows.length > 0) {
+    const insertedBreedsResult = await supabase
+      .from("breeds")
+      .insert(missingBreedRows)
+      .select("id,code,breed_name,sex,is_active")
+      .order("breed_name");
+
+    if (!insertedBreedsResult.error && insertedBreedsResult.data) {
+      effectiveBreedRows = [...breedRows, ...(insertedBreedsResult.data as BreedRow[])];
+    }
   }
 
   const flockById = new Map(flockRows.map((row) => [row.id, row]));
@@ -334,11 +428,11 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
       nextPlaceOffsetDays,
       allowHistoricalEntry,
     },
-    breeds: breedRows
+    breeds: effectiveBreedRows
       .filter((row) => row.is_active !== false)
       .map((row) => {
         const breedName = normalize(row.breed_name) || "Breed";
-        const sex = normalize(row.sex).toLowerCase() || null;
+        const sex = normalizeBreedSex(row.sex);
         return {
           id: row.id,
           code: normalize(row.code),
