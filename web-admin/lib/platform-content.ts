@@ -26,6 +26,17 @@ type PlatformLicensePolicyRow = {
   scrn_location: string | null;
 };
 
+type PlatformReportOptionRow = {
+  id: number;
+  name: string | null;
+  rpt_group: string | null;
+  rpt_location: string | null;
+  rpt_title: string | null;
+  rpt_subtitle: string | null;
+  rpt_button_txt: string | null;
+  rpt_function: string | null;
+};
+
 export type PlatformSplashContent = {
   eyebrow: string;
   title: string;
@@ -97,21 +108,87 @@ function buildVersionLine(control: PlatformControlRow | null) {
     return null;
   }
 
-  const versionParts: string[] = [];
+  const parts: string[] = [];
 
   if (control.version !== null) {
-    versionParts.push(`Version ${control.version}`);
+    parts.push(`Version ${control.version}`);
   }
 
   if (control.build !== null) {
-    versionParts.push(`Build ${control.build}`);
+    parts.push(`Build ${control.build}`);
   }
 
   if (control.released) {
-    versionParts.push(`Released ${control.released}`);
+    parts.push(control.released);
   }
 
-  return versionParts.length ? versionParts.join(" · ") : null;
+  return parts.length ? parts.join(" · ") : null;
+}
+
+export async function getPlatformPolicyByName(name: string) {
+  noStore();
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase || normalize(name).length === 0) {
+    return null;
+  }
+
+  const { data } = await supabase
+    .schema("platform")
+    .from("license_policy")
+    .select("id, name, display_txt, note, scrn_location")
+    .eq("name", name)
+    .maybeSingle();
+
+  const row = (data as PlatformLicensePolicyRow | null) ?? null;
+  if (!row || normalize(row.display_txt).length === 0) {
+    return null;
+  }
+
+  return {
+    name: normalize(row.name) || "Policy",
+    body: normalize(row.display_txt),
+    note: normalize(row.note) || null,
+  };
+}
+
+export async function getPlatformReportOption(input: { location: string; name?: string | null }) {
+  noStore();
+
+  const supabase = createSupabaseAdminClient();
+  const location = normalize(input.location);
+  const name = normalize(input.name);
+
+  if (!supabase || location.length === 0) {
+    return null;
+  }
+
+  let query = supabase
+    .schema("platform")
+    .from("reportoptions")
+    .select("id, name, rpt_group, rpt_location, rpt_title, rpt_subtitle, rpt_button_txt, rpt_function")
+    .eq("rpt_location", location);
+
+  if (name.length > 0) {
+    query = query.eq("name", name);
+  }
+
+  const { data } = await query.order("id", { ascending: true }).limit(1).maybeSingle();
+  const row = (data as PlatformReportOptionRow | null) ?? null;
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    name: normalize(row.name) || "Report",
+    group: normalize(row.rpt_group) || null,
+    location: normalize(row.rpt_location) || null,
+    title: normalize(row.rpt_title) || null,
+    subtitle: normalize(row.rpt_subtitle) || null,
+    buttonText: normalize(row.rpt_button_txt) || null,
+    functionName: normalize(row.rpt_function) || null,
+  };
 }
 
 export async function getPlatformSplashContent(): Promise<PlatformSplashContent> {

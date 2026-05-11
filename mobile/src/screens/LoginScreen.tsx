@@ -17,6 +17,8 @@ type Props = {
   onForgotPassword: (email: string) => Promise<void>;
   onResumeSession?: () => Promise<void>;
   hasActiveSession?: boolean;
+  initialEmail?: string;
+  mode?: "screen" | "reauth";
 };
 
 export function LoginScreen({
@@ -24,8 +26,10 @@ export function LoginScreen({
   onForgotPassword,
   onResumeSession,
   hasActiveSession = false,
+  initialEmail = "",
+  mode = "screen",
 }: Props) {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -34,6 +38,8 @@ export function LoginScreen({
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
   const [showNewUserInfo, setShowNewUserInfo] = useState(false);
+
+  const isReauthMode = mode === "reauth";
 
   async function submit() {
     if (cooldownUntil && cooldownUntil > Date.now()) {
@@ -102,32 +108,40 @@ export function LoginScreen({
   return (
     <KeyboardAvoidingView
       behavior={Platform.select({ ios: "padding", default: undefined })}
-      style={styles.wrapper}
+      style={[styles.wrapper, isReauthMode && styles.wrapperReauth]}
       keyboardVerticalOffset={Platform.OS === "ios" ? 18 : 0}
     >
       <ScrollView
         bounces={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, isReauthMode && styles.scrollContentReauth]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.hero}>
-          <Text style={styles.kicker}>Field Operations</Text>
-          <Text style={styles.wordmarkLine}>
-            <Text style={styles.wordmarkBrand}>FlockTrax</Text>
-            <Text style={styles.wordmarkProduct}>-Mobile</Text>
-            <Text style={styles.wordmarkTm}>TM</Text>
-          </Text>
-          <View style={styles.rule} />
-          <Text style={styles.copyright}>
-            Copyright (c) 2026 All Rights Reserved. Smotherman Farms, Ltd. (West, Tx)
-          </Text>
-        </View>
+        {!isReauthMode ? (
+          <View style={styles.hero}>
+            <Text style={styles.kicker}>Field Operations</Text>
+            <Text style={styles.wordmarkLine}>
+              <Text style={styles.wordmarkBrand}>FlockTrax</Text>
+              <Text style={styles.wordmarkProduct}>-Mobile</Text>
+              <Text style={styles.wordmarkTm}>TM</Text>
+            </Text>
+            <View style={styles.rule} />
+            <Text style={styles.copyright}>
+              Copyright (c) 2026 All Rights Reserved. Smotherman Farms, Ltd. (West, Tx)
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.reauthHeader}>
+            <Text style={styles.reauthEyebrow}>Session Interrupted</Text>
+            <Text style={styles.reauthTitle}>Sign In To Continue</Text>
+          </View>
+        )}
 
-        <View style={styles.card}>
+        <View style={[styles.card, isReauthMode && styles.cardReauth]}>
           <Text style={styles.headline}>Barn Data Collection</Text>
-          <Text style={styles.copy}>
-            Sign in with your FlockTrax system account to access flock placement
-            records and record detailed management information.
+          <Text style={[styles.copy, isReauthMode && styles.copyReauth]}>
+            {isReauthMode
+              ? "Your session expired while you were working. Sign in again to continue right where you left off."
+              : "Sign in with your FlockTrax system account to access flock placement records and record detailed management information."}
           </Text>
 
           <View style={styles.form}>
@@ -212,9 +226,11 @@ export function LoginScreen({
               <Pressable disabled={submitting} onPress={forgotPassword}>
                 <Text style={styles.linkText}>Forgot Password?</Text>
               </Pressable>
-              <Pressable disabled={submitting} onPress={() => setShowNewUserInfo(true)}>
-                <Text style={styles.linkText}>New User?</Text>
-              </Pressable>
+              {!isReauthMode ? (
+                <Pressable disabled={submitting} onPress={() => setShowNewUserInfo(true)}>
+                  <Text style={styles.linkText}>New User?</Text>
+                </Pressable>
+              ) : null}
             </View>
 
             {cooldownUntil && cooldownUntil > Date.now() ? (
@@ -225,11 +241,13 @@ export function LoginScreen({
           </View>
         </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerStatus}>Signed out of FlockTrax-Mobile.</Text>
-          <Text style={styles.footerMeta}>Release 0.1.0 | Build FLM-2026.04.04-a</Text>
-          <Text style={styles.footerMeta}>Release date: April 4, 2026</Text>
-        </View>
+        {!isReauthMode ? (
+          <View style={styles.footer}>
+            <Text style={styles.footerStatus}>Signed out of FlockTrax-Mobile.</Text>
+            <Text style={styles.footerMeta}>Release 0.1.0 | Build FLM-2026.04.04-a</Text>
+            <Text style={styles.footerMeta}>Release date: April 4, 2026</Text>
+          </View>
+        ) : null}
 
         <ModalCard
           visible={showNewUserInfo}
@@ -277,14 +295,38 @@ const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
   },
+  wrapperReauth: {
+    flex: 0,
+  },
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
     gap: 22,
   },
+  scrollContentReauth: {
+    flexGrow: 0,
+    justifyContent: "flex-start",
+    gap: 14,
+  },
   hero: {
     gap: 6,
     paddingHorizontal: 4,
+  },
+  reauthHeader: {
+    gap: 6,
+    paddingHorizontal: 6,
+  },
+  reauthEyebrow: {
+    color: "#8B5D32",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 1.1,
+    textTransform: "uppercase",
+  },
+  reauthTitle: {
+    color: "#211912",
+    fontSize: 24,
+    fontWeight: "800",
   },
   kicker: {
     color: "#8B5D32",
@@ -329,6 +371,9 @@ const styles = StyleSheet.create({
     borderColor: "#DCC9AF",
     gap: 20,
   },
+  cardReauth: {
+    gap: 16,
+  },
   headline: {
     color: "#211912",
     fontSize: 26,
@@ -341,6 +386,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     maxWidth: 280,
     fontWeight: "600",
+  },
+  copyReauth: {
+    maxWidth: undefined,
   },
   form: {
     gap: 14,

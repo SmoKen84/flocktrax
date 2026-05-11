@@ -1,9 +1,10 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { startTransition, useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 
 import {
+  deleteGoogleSheetsOutboxAction,
   processGoogleSheetsOutboxAction,
   replayGoogleSheetsOutboxAction,
   retryGoogleSheetsOutboxAction,
@@ -34,41 +35,19 @@ export function OutboxConsole({ currentOperation, filters, initialBanner, items,
   const [banner, setBanner] = useState(initialBanner);
   const [processPending, setProcessPending] = useState(false);
   const [bulkRetryPending, setBulkRetryPending] = useState(false);
+  const [rowDeleteId, setRowDeleteId] = useState<string | null>(null);
   const [rowRetryId, setRowRetryId] = useState<string | null>(null);
   const [rowReplayId, setRowReplayId] = useState<string | null>(null);
-  const refreshTimeoutsRef = useRef<number[]>([]);
 
   useEffect(() => {
     setBanner(initialBanner);
   }, [initialBanner]);
 
   useEffect(() => {
-    return () => {
-      for (const timeoutId of refreshTimeoutsRef.current) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     startTransition(() => {
       router.refresh();
     });
   }, [pathname, router]);
-
-  function queueSettlingRefresh() {
-    for (const timeoutId of refreshTimeoutsRef.current) {
-      window.clearTimeout(timeoutId);
-    }
-
-    refreshTimeoutsRef.current = [800, 2200, 4500].map((delay) =>
-      window.setTimeout(() => {
-        startTransition(() => {
-          router.refresh();
-        });
-      }, delay),
-    );
-  }
 
   async function runProcessOutbox() {
     setProcessPending(true);
@@ -83,7 +62,6 @@ export function OutboxConsole({ currentOperation, filters, initialBanner, items,
     startTransition(() => {
       router.refresh();
     });
-    queueSettlingRefresh();
   }
 
   async function runBulkRetry() {
@@ -122,6 +100,27 @@ export function OutboxConsole({ currentOperation, filters, initialBanner, items,
       message: result.message,
     });
     setRowReplayId(null);
+
+    startTransition(() => {
+      router.refresh();
+    });
+  }
+
+  async function runRowDelete(outboxId: string) {
+    const approved = window.confirm(
+      "Delete this outbox row from the queue? Use this only when the row should never have been sent to Google Sheets.",
+    );
+    if (!approved) {
+      return;
+    }
+
+    setRowDeleteId(outboxId);
+    const result = await deleteGoogleSheetsOutboxAction(outboxId);
+    setBanner({
+      tone: result.ok ? "success" : "error",
+      message: result.message,
+    });
+    setRowDeleteId(null);
 
     startTransition(() => {
       router.refresh();
@@ -198,7 +197,9 @@ export function OutboxConsole({ currentOperation, filters, initialBanner, items,
       </div>
 
       <OutboxTable
+        deletingOutboxId={rowDeleteId}
         items={items}
+        onDelete={runRowDelete}
         onReplay={runRowReplay}
         onRetry={runRowRetry}
         replayingOutboxId={rowReplayId}

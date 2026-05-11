@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/page-header";
 import { getFeedTicketFlockReportBundle, type FeedTicketAdminFilters } from "@/lib/feed-ticket-data";
+import { getPlatformReportOption } from "@/lib/platform-content";
 
 import { FeedTicketReportActions } from "../feed-ticket-report-actions";
 
@@ -17,14 +18,21 @@ export default async function FeedTicketReportPage({ searchParams }: FeedTicketR
     includeGrower: toBoolean(params.includeGrower),
   };
   const report = await getFeedTicketFlockReportBundle(filters);
+  const reportOption = await getPlatformReportOption({
+    location: "admin_feed_tickets",
+    name: "FlockFeedAudit",
+  });
   const flockCode = report.filters.flockCode || "No flock selected";
+  const reportTitle = reportOption?.title || "Feed Drops by Flock";
+  const reportBody =
+    reportOption?.subtitle || `Print-ready feed drop history for flock ${flockCode}.`;
 
   return (
     <>
       <PageHeader
         eyebrow="Report"
-        title={`Feed Drops by Flock`}
-        body={`Print-ready feed drop history for flock ${flockCode}.`}
+        title={reportTitle}
+        body={reportBody}
         actions={<FeedTicketReportActions />}
       />
 

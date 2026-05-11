@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getUserAccessBundle, resolveRoleTemplate, reviewUserAccess } from "@/lib/access-control";
+import { sendInviteEmail } from "@/lib/email/invite-email";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 
 type AdminClient = NonNullable<ReturnType<typeof createSupabaseAdminClient>>;
@@ -37,6 +38,11 @@ function canManageUsers(role: ReturnType<typeof resolveRoleTemplate>) {
       (permissionRow.create || permissionRow.update || permissionRow.menuAccess)
     );
   });
+}
+
+function isSuperAdminRole(role: ReturnType<typeof resolveRoleTemplate>) {
+  const normalizedRole = normalizeKey(role.key);
+  return normalizedRole === "super_admin" || normalizedRole === "superadmin" || normalizedRole.includes("super");
 }
 
 function coerce(value: FormDataEntryValue | null) {
@@ -88,6 +94,16 @@ function bounce(formData: FormData, options: Parameters<typeof buildReturnLocati
 
 function unreachable(message: string): never {
   throw new Error(message);
+}
+
+function buildAuthCallbackActionUrl(
+  appOrigin: string,
+  tokenHash: string,
+  type: "invite" | "recovery",
+  next = "/reset-password",
+) {
+  const base = appOrigin.replace(/\/+$/, "");
+  return `${base}/auth/callback?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(type)}&next=${encodeURIComponent(next)}`;
 }
 
 async function getAppOrigin() {
@@ -208,6 +224,19 @@ async function findAuthUserByEmail(admin: AdminClient, email: string) {
     usersResult.data.find((candidate) => String(candidate.email ?? "").trim().toLowerCase() === normalizedEmail) ?? null;
 
   return { user, error: null };
+}
+
+async function bestEffortDeleteUserArtifacts(admin: AdminClient, userId: string) {
+  const operations = [
+    admin.from("user_roles").delete().eq("user_id", userId),
+    admin.from("farm_memberships").delete().eq("user_id", userId),
+    admin.from("farm_group_memberships").delete().eq("user_id", userId),
+    admin.from("profiles").delete().eq("id", userId),
+    admin.from("app_users").delete().eq("user_id", userId),
+    admin.from("core_users").delete().eq("id", userId),
+  ];
+
+  await Promise.allSettled(operations);
 }
 
 async function upsertUserRole(
@@ -502,22 +531,56 @@ export async function inviteUserAccessAction(formData: FormData) {
 
   let userId = existingUserResult.user?.id ?? null;
   let inviteNotice = `Invitation sent to ${email}.`;
+  const appOrigin = await getAppOrigin();
+  const displayName = fullName || email.split("@")[0];
 
   if (!userId) {
-    const appOrigin = await getAppOrigin();
-    const inviteResult = await admin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${appOrigin}/auth/callback?next=/reset-password`,
-      data: {
-        full_name: fullName || email.split("@")[0],
-        name: fullName || email.split("@")[0],
-        display_name: fullName || email.split("@")[0],
-        role: roleKey,
+    const inviteResult = await admin.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: {
+        redirectTo: `${appOrigin}/auth/callback?next=/reset-password`,
+        data: {
+          full_name: displayName,
+          name: displayName,
+          display_name: displayName,
+          role: roleKey,
+        },
       },
     });
 
     if (inviteResult.error) {
       bounce(formData, { error: inviteResult.error.message, mode: "invite" });
       unreachable("Invite failed");
+    }
+
+    const inviteTokenHash = inviteResult.data.properties?.hashed_token?.trim() ?? "";
+    if (!inviteTokenHash) {
+      bounce(formData, {
+        error: `Supabase generated the auth invite for ${email}, but did not return a token hash.`,
+        mode: "invite",
+      });
+      unreachable("Invite token hash missing");
+    }
+
+    try {
+      await sendInviteEmail({
+        to: email,
+        actionUrl: buildAuthCallbackActionUrl(appOrigin, inviteTokenHash, "invite"),
+        appOrigin,
+        fullName: displayName,
+        roleLabel: roleKey,
+        mode: "invite",
+      });
+    } catch (error) {
+      bounce(formData, {
+        error:
+          error instanceof Error
+            ? error.message
+            : `Invite link created for ${email}, but the email could not be sent.`,
+        mode: "invite",
+      });
+      unreachable("Invite email send failed");
     }
 
     userId = inviteResult.data.user?.id ?? null;
@@ -540,7 +603,49 @@ export async function inviteUserAccessAction(formData: FormData) {
       unreachable("Invite was not persisted");
     }
   } else {
-    inviteNotice = `${email} already exists in Supabase Auth. Access assignments were updated instead of sending a new invite.`;
+    const recoveryResult = await admin.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: {
+        redirectTo: `${appOrigin}/auth/callback?next=/reset-password`,
+      },
+    });
+
+    if (recoveryResult.error) {
+      bounce(formData, { error: recoveryResult.error.message, mode: "invite" });
+      unreachable("Recovery link generation failed");
+    }
+
+    const recoveryTokenHash = recoveryResult.data.properties?.hashed_token?.trim() ?? "";
+    if (!recoveryTokenHash) {
+      bounce(formData, {
+        error: `Supabase did not return a password setup token for ${email}.`,
+        mode: "invite",
+      });
+      unreachable("Recovery token hash missing");
+    }
+
+    try {
+      await sendInviteEmail({
+        to: email,
+        actionUrl: buildAuthCallbackActionUrl(appOrigin, recoveryTokenHash, "recovery"),
+        appOrigin,
+        fullName: displayName,
+        roleLabel: roleKey,
+        mode: "recovery",
+      });
+    } catch (error) {
+      bounce(formData, {
+        error:
+          error instanceof Error
+            ? error.message
+            : `Access was updated for ${email}, but the password setup email could not be sent.`,
+        mode: "invite",
+      });
+      unreachable("Recovery email send failed");
+    }
+
+    inviteNotice = `${email} already existed in Supabase Auth. A fresh password setup link was sent and access assignments were updated.`;
   }
 
   const roleRow = await resolveRoleRow(admin, roleKey);
@@ -592,5 +697,37 @@ export async function inviteUserAccessAction(formData: FormData) {
     notice: inviteNotice,
     selected: userId,
     mode: null,
+  });
+}
+
+export async function deleteUserAccessAction(formData: FormData) {
+  const { admin, bundle, actor, target } = await getTargetWriteContext(formData);
+  const actorRole = resolveRoleTemplate(bundle.roles, actor.role);
+  const confirmation = coerce(formData.get("confirmation"));
+
+  if (!isSuperAdminRole(actorRole)) {
+    bounce(formData, { error: "Only super admins can permanently delete users.", selected: target.id });
+    unreachable("Delete user not allowed");
+  }
+
+  if (confirmation.toUpperCase() !== "DELETE") {
+    bounce(formData, {
+      error: "Type DELETE to confirm permanent removal of this user.",
+      selected: target.id,
+    });
+    unreachable("Delete confirmation missing");
+  }
+
+  await bestEffortDeleteUserArtifacts(admin, target.id);
+
+  const deleteResult = await admin.auth.admin.deleteUser(target.id);
+  if (deleteResult.error) {
+    bounce(formData, { error: deleteResult.error.message, selected: target.id });
+  }
+
+  revalidatePath("/admin/user-access");
+  bounce(formData, {
+    notice: `${target.displayName} was permanently deleted.`,
+    selected: null,
   });
 }

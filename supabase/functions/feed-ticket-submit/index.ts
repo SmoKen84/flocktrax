@@ -1,6 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getAuthenticatedUserId, getMobileAccessContext } from "../_shared/mobile-access.ts";
 
+type FeedTicketType = "Reg" | "xTran" | "iTran" | "f2f";
+type PlacementStateRow = {
+  id: string;
+  placement_key: string | null;
+  flock_id: string | null;
+  is_active: boolean | null;
+  date_removed: string | null;
+};
+type FlockStateRow = {
+  id: string;
+  is_complete: boolean | null;
+  is_in_barn: boolean | null;
+};
+
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
   const reqHeaders = req.headers.get("Access-Control-Request-Headers") ?? "authorization, content-type, x-adalo-test";
@@ -91,6 +105,150 @@ function toNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+function toTrimmedString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function parseTicketType(value: unknown): FeedTicketType {
+  return value === "xTran" || value === "iTran" || value === "f2f" ? value : "Reg";
+}
+
+function isAdminLikeRole(value: string | null | undefined) {
+  const normalized = String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return normalized === "admin" || normalized === "super_admin" || normalized === "superadmin";
+}
+
+function isApproximatelyZero(value: number, tolerance = 0.01) {
+  return Math.abs(value) <= tolerance;
+}
+
+async function ensureUniqueTicketNumber(
+  service: ReturnType<typeof getServiceClient>,
+  ticketNum: string | null,
+  currentTicketId: string | null,
+) {
+  const normalizedTicketNum = typeof ticketNum === "string" ? ticketNum.trim() : "";
+  if (!normalizedTicketNum) {
+    return;
+  }
+
+  let query = service
+    .from("feed_tickets")
+    .select("id,ticket_num")
+    .ilike("ticket_num", normalizedTicketNum)
+    .limit(5);
+
+  if (isUuid(currentTicketId)) {
+    query = query.neq("id", currentTicketId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const duplicate = (data ?? []).find((row) =>
+    typeof row.ticket_num === "string" &&
+    row.ticket_num.trim().toLowerCase() === normalizedTicketNum.toLowerCase()
+  );
+
+  if (duplicate) {
+    throw new Error(`Ticket number ${normalizedTicketNum} already exists.`);
+  }
+}
+
+function isDuplicateTicketNumberError(error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("duplicate key") ||
+    normalized.includes("already exists") ||
+    normalized.includes("feed_ticket_ticket_num_unique") ||
+    normalized.includes("ticket_num")
+  );
+}
+
+function validateTicketMath(
+  ticketType: FeedTicketType,
+  ticketWeight: number,
+  dropSum: number,
+  drops: Array<{ drop_weight_lbs: number | null }>,
+) {
+  const weights = drops.map((drop) => drop.drop_weight_lbs ?? 0);
+  const hasPositiveDrop = weights.some((value) => value > 0);
+  const hasNegativeDrop = weights.some((value) => value < 0);
+
+  if (ticketType === "Reg") {
+    if (ticketWeight <= 0) return "Reg tickets must have a positive total weight.";
+    if (dropSum <= 0) return "Reg tickets must allocate a positive total across drops.";
+    if (weights.some((value) => value <= 0)) return "Reg ticket drops must all be positive.";
+    if (Math.abs(ticketWeight - dropSum) > 0.01) {
+      return "Reg tickets must fully allocate the total weight across drops.";
+    }
+    return null;
+  }
+
+  if (ticketType === "xTran") {
+    if (ticketWeight >= 0) return "xTran tickets must have a negative total weight.";
+    if (dropSum >= 0) return "xTran drops must total a negative value.";
+    if (weights.some((value) => value >= 0)) return "xTran drops must all be negative.";
+    if (Math.abs(ticketWeight - dropSum) > 0.01) {
+      return "xTran total weight must equal the summed drop value.";
+    }
+    return null;
+  }
+
+  if (!isApproximatelyZero(ticketWeight)) {
+    return `${ticketType} tickets must have a zero total weight.`;
+  }
+  if (!isApproximatelyZero(dropSum)) {
+    return `${ticketType} drops must net to zero.`;
+  }
+  if (!hasPositiveDrop || !hasNegativeDrop) {
+    return `${ticketType} tickets must contain both positive and negative drops.`;
+  }
+
+  return null;
+}
+
+function validatePlacementState(
+  ticketType: FeedTicketType,
+  placements: Array<{
+    placementCode: string;
+    isActive: boolean;
+    isInBarn: boolean;
+    isComplete: boolean;
+  }>,
+  allowHistoricalOverride: boolean,
+) {
+  if (allowHistoricalOverride) {
+    return null;
+  }
+
+  for (const placement of placements) {
+    if (placement.isComplete) {
+      return `${ticketType} tickets cannot target completed flocks while historical entry is disabled (${placement.placementCode}).`;
+    }
+
+    if (ticketType === "Reg" && !(placement.isInBarn || placement.isActive)) {
+      return `Reg tickets require target flocks to be active or in-barn (${placement.placementCode}).`;
+    }
+
+    if (ticketType === "iTran" && !placement.isActive) {
+      return `iTran tickets require all referenced flocks to be active (${placement.placementCode}).`;
+    }
+
+  }
+
+  return null;
+}
+
 function normalizeDrops(rawDrops: unknown) {
   if (!Array.isArray(rawDrops)) {
     return [];
@@ -110,7 +268,91 @@ function normalizeDrops(rawDrops: unknown) {
         drop_order: typeof row.drop_order === "number" ? row.drop_order : index + 1,
       };
     })
-    .filter((drop) => drop.feed_bin_id && drop.placement_id && drop.drop_weight_lbs && drop.drop_weight_lbs > 0);
+    .filter((drop) => drop.feed_bin_id && drop.placement_id && drop.drop_weight_lbs !== null && !isApproximatelyZero(drop.drop_weight_lbs));
+}
+
+function hasUnresolvedPlacements(
+  placements: PlacementStateRow[],
+  placementIds: string[],
+) {
+  return placements.length !== placementIds.length;
+}
+
+function hasUnresolvedBins(
+  bins: Array<{ id: string | null }>,
+  binIds: string[],
+) {
+  return bins.length !== binIds.length;
+}
+
+async function reserveVoucherNumber(service: ReturnType<typeof getServiceClient>) {
+  const { data, error } = await service.rpc("reserve_internal_voucher_number");
+  if (!error) {
+    const voucherNumber = typeof data === "string" ? data.trim() : "";
+    if (!voucherNumber) {
+      throw new Error("Internal voucher counter did not return a ticket number.");
+    }
+
+    return voucherNumber;
+  }
+
+  const { data: settingRows, error: settingsError } = await service
+    .from("app_settings")
+    .select("id,group,name,value,updated_at")
+    .in("name", ["voucher_prefix", "internal_voucher_number", "internal_voucher_num"])
+    .limit(20);
+  if (settingsError) {
+    throw new Error(error.message);
+  }
+
+  const rows = (settingRows ?? []) as Array<{
+    id: string;
+    group: string | null;
+    name: string | null;
+    value: string | null;
+    updated_at?: string | null;
+  }>;
+  const pickSetting = (name: string) =>
+    rows
+      .filter((row) => row.name === name)
+      .sort((left, right) => {
+        const leftRank = left.group === "feed_tickets" ? 0 : left.group === null ? 1 : 2;
+        const rightRank = right.group === "feed_tickets" ? 0 : right.group === null ? 1 : 2;
+        if (leftRank !== rightRank) return leftRank - rightRank;
+        return String(right.updated_at ?? "").localeCompare(String(left.updated_at ?? ""));
+      })[0] ?? null;
+
+  const prefix = pickSetting("voucher_prefix")?.value?.trim() ?? "";
+  const counterRow = pickSetting("internal_voucher_number") ?? pickSetting("internal_voucher_num");
+  const nextNumber = Math.max(Number.parseInt(counterRow?.value?.trim() ?? "1", 10) || 1, 1);
+
+  if (counterRow?.id) {
+    const { error: updateError } = await service
+      .from("app_settings")
+      .update({
+        value: String(nextNumber + 1),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", counterRow.id);
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+  } else {
+    const { error: insertError } = await service
+      .from("app_settings")
+      .insert({
+        group: "feed_tickets",
+        name: "internal_voucher_number",
+        value: "2",
+        desc: "Next internal voucher number used for xTran, iTran, and f2f feed tickets.",
+        updated_at: new Date().toISOString(),
+      });
+    if (insertError) {
+      throw new Error(insertError.message);
+    }
+  }
+
+  return `${prefix}${nextNumber}`.trim();
 }
 
 Deno.serve(async (req) => {
@@ -138,10 +380,11 @@ Deno.serve(async (req) => {
 
     const ticketId = typeof payload.id === "string" ? payload.id : null;
     const ticketWeight = toNumber(payload.ticket_weight_lbs);
+    const ticketType = parseTicketType(payload.ticket_type);
     const drops = normalizeDrops(payload.drops);
 
-    if (!ticketWeight || ticketWeight <= 0) {
-      return json(req, { ok: false, error: "Ticket weight must be greater than zero." }, 400);
+    if (ticketWeight === null) {
+      return json(req, { ok: false, error: "Ticket weight is required." }, 400);
     }
 
     if (drops.length === 0) {
@@ -149,64 +392,75 @@ Deno.serve(async (req) => {
     }
 
     const totalDropped = drops.reduce((sum, drop) => sum + (drop.drop_weight_lbs ?? 0), 0);
-    const remainingWeight = ticketWeight - totalDropped;
-    if (Math.abs(remainingWeight) > 0.01) {
-      return json(req, { ok: false, error: "Feed ticket must be fully allocated before it can be saved." }, 400);
+    const mathError = validateTicketMath(ticketType, ticketWeight, totalDropped, drops);
+    if (mathError) {
+      return json(req, { ok: false, error: mathError }, 400);
     }
 
     const service = getServiceClient();
-    const deliveryIso = typeof payload.delivered_at === "string" ? payload.delivered_at : new Date().toISOString();
-    const deliveryDate = deliveryIso.slice(0, 10);
-    const ticketNum = typeof payload.ticket_number === "string" ? payload.ticket_number : null;
-    const baseTicketPayload = {
-      ticket_num: ticketNum,
-      delivery_date: deliveryDate,
-      feed_weight: ticketWeight,
-      feedmill: typeof payload.vendor_name === "string" ? payload.vendor_name : null,
-      feed_name: typeof payload.feed_name === "string" ? payload.feed_name : null,
-      source_type: typeof payload.source_type === "string" && payload.source_type.trim()
-        ? payload.source_type.trim()
-        : "mill",
-      comment: typeof payload.note === "string" ? payload.note : null,
-    };
-
-    let savedTicketId = ticketId;
-
-    if (isUuid(ticketId)) {
-      const { error: updateError } = await service
-        .from("feed_tickets")
-        .update(baseTicketPayload)
-        .eq("id", ticketId);
-      if (updateError) throw new Error(updateError.message);
-
-      const { error: deleteDropsError } = await service
-        .from("feed_drops")
-        .delete()
-        .eq("feed_ticket_id", ticketId);
-      if (deleteDropsError) throw new Error(deleteDropsError.message);
-    } else {
-      const { data: insertRows, error: insertError } = await service
-        .from("feed_tickets")
-        .insert(baseTicketPayload)
-        .select("id")
-        .limit(1);
-      if (insertError) throw new Error(insertError.message);
-      savedTicketId = insertRows?.[0]?.id ?? null;
+    let allowHistoricalEntry = false;
+    const { data: platformSettingRows, error: platformSettingsError } = await service
+      .schema("platform")
+      .from("settings")
+      .select("name,value")
+      .limit(25);
+    if (!platformSettingsError) {
+      for (const row of platformSettingRows ?? []) {
+        const name = String(row?.name ?? "").trim().toLowerCase();
+        const rawValue = String(row?.value ?? "").trim().toLowerCase();
+        if (["allow_historical_entry", "historical_entry", "historical_mode", "history_backfill"].includes(name)) {
+          allowHistoricalEntry = ["1", "true", "yes", "on"].includes(rawValue);
+        }
+      }
     }
 
-    if (!savedTicketId) {
-      throw new Error("Unable to resolve saved feed ticket id.");
-    }
+    const accessContext = await getMobileAccessContext(userClient, userId);
+    const allowHistoricalOverride = allowHistoricalEntry && isAdminLikeRole(accessContext.role);
 
     const placementIds = Array.from(new Set(drops.map((drop) => drop.placement_id).filter(isUuid)));
     const placementResult = placementIds.length === 0
       ? { data: [], error: null }
       : await service
           .from("placements")
-          .select("id,placement_key")
+          .select("id,placement_key,flock_id,is_active,date_removed")
           .in("id", placementIds);
     if (placementResult.error) throw new Error(placementResult.error.message);
     const placementCodeById = new Map((placementResult.data ?? []).map((row) => [row.id, row.placement_key]));
+    const placementRows = (placementResult.data ?? []) as PlacementStateRow[];
+    if (hasUnresolvedPlacements(placementRows, placementIds)) {
+      return json(req, { ok: false, error: "One or more feed drops reference a placement that could not be resolved." }, 400);
+    }
+    const flockIds = Array.from(
+      new Set(
+        placementRows.map((row) => row.flock_id).filter((value): value is string => typeof value === "string" && value.length > 0),
+      ),
+    );
+    const flockResult = flockIds.length === 0
+      ? { data: [], error: null }
+      : await service
+          .from("flocks")
+          .select("id,is_complete,is_in_barn")
+          .in("id", flockIds);
+    if (flockResult.error) throw new Error(flockResult.error.message);
+    const flockById = new Map(
+      ((flockResult.data ?? []) as FlockStateRow[]).map((row) => [row.id, row]),
+    );
+    const placementStateError = validatePlacementState(
+      ticketType,
+      placementRows.map((row) => {
+        const flock = row.flock_id ? flockById.get(row.flock_id) : null;
+        return {
+          placementCode: row.placement_key ?? row.id,
+          isActive: row.is_active === true,
+          isInBarn: flock?.is_in_barn === true,
+          isComplete: flock?.is_complete === true,
+        };
+      }),
+      allowHistoricalOverride,
+    );
+    if (placementStateError) {
+      return json(req, { ok: false, error: placementStateError }, 400);
+    }
 
     const binIds = Array.from(new Set(drops.map((drop) => drop.feed_bin_id).filter(isUuid)));
     const binsResult = binIds.length === 0
@@ -216,6 +470,9 @@ Deno.serve(async (req) => {
           .select("id,farm_id,barn_id,bin_num")
           .in("id", binIds);
     if (binsResult.error) throw new Error(binsResult.error.message);
+    if (hasUnresolvedBins(binsResult.data ?? [], binIds)) {
+      return json(req, { ok: false, error: "One or more feed drops reference a bin that could not be resolved." }, 400);
+    }
     const binById = new Map((binsResult.data ?? []).map((row) => [row.id, row]));
     const targetFarmIds = Array.from(
       new Set(
@@ -230,6 +487,100 @@ Deno.serve(async (req) => {
       if (!access.permissions.feed_tickets) {
         return json(req, { ok: false, error: "You are not authorized to save feed tickets." }, 403);
       }
+    }
+
+    const deliveryIso = typeof payload.delivered_at === "string" ? payload.delivered_at : new Date().toISOString();
+    const deliveryDate = deliveryIso.slice(0, 10);
+    const submittedTicketNumber = toTrimmedString(payload.ticket_number);
+    let ticketNum =
+      ticketType === "Reg"
+        ? submittedTicketNumber || null
+        : submittedTicketNumber || null;
+    if (!ticketNum && !ticketId) {
+      return json(req, { ok: false, error: "Ticket number is required." }, 400);
+    }
+    const baseTicketPayload = {
+      delivery_date: deliveryDate,
+      feed_weight: ticketWeight,
+      ticket_type: ticketType,
+      feedmill: typeof payload.vendor_name === "string" ? payload.vendor_name : null,
+      feed_name: typeof payload.feed_name === "string" ? payload.feed_name : null,
+      source_type: typeof payload.source_type === "string" && payload.source_type.trim()
+        ? payload.source_type.trim()
+        : "mill",
+      comment: typeof payload.note === "string" ? payload.note : null,
+    };
+    let savedTicketId = ticketId;
+
+    if (isUuid(ticketId)) {
+      await ensureUniqueTicketNumber(service, ticketNum, ticketId);
+      const ticketPayload = ticketNum ? { ...baseTicketPayload, ticket_num: ticketNum } : baseTicketPayload;
+      const { error: updateError } = await service
+        .from("feed_tickets")
+        .update(ticketPayload)
+        .eq("id", ticketId);
+      if (updateError) throw new Error(updateError.message);
+
+      const { error: deleteDropsError } = await service
+        .from("feed_drops")
+        .delete()
+        .eq("feed_ticket_id", ticketId);
+      if (deleteDropsError) throw new Error(deleteDropsError.message);
+    } else {
+      const shouldAutoReserveInternalVoucher =
+        ticketType !== "Reg" && !submittedTicketNumber;
+
+      if (shouldAutoReserveInternalVoucher) {
+        let lastInsertError: Error | null = null;
+
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          try {
+            ticketNum = await reserveVoucherNumber(service);
+            await ensureUniqueTicketNumber(service, ticketNum, ticketId);
+
+            const ticketPayload = ticketNum
+              ? { ...baseTicketPayload, ticket_num: ticketNum }
+              : baseTicketPayload;
+
+            const { data: insertRows, error: insertError } = await service
+              .from("feed_tickets")
+              .insert(ticketPayload)
+              .select("id")
+              .limit(1);
+
+            if (insertError) {
+              throw new Error(insertError.message);
+            }
+
+            savedTicketId = insertRows?.[0]?.id ?? null;
+            lastInsertError = null;
+            break;
+          } catch (error) {
+            lastInsertError = error instanceof Error ? error : new Error(String(error));
+            if (!isDuplicateTicketNumberError(lastInsertError)) {
+              throw lastInsertError;
+            }
+          }
+        }
+
+        if (lastInsertError) {
+          throw lastInsertError;
+        }
+      } else {
+        await ensureUniqueTicketNumber(service, ticketNum, ticketId);
+        const ticketPayload = ticketNum ? { ...baseTicketPayload, ticket_num: ticketNum } : baseTicketPayload;
+        const { data: insertRows, error: insertError } = await service
+          .from("feed_tickets")
+          .insert(ticketPayload)
+          .select("id")
+          .limit(1);
+        if (insertError) throw new Error(insertError.message);
+        savedTicketId = insertRows?.[0]?.id ?? null;
+      }
+    }
+
+    if (!savedTicketId) {
+      throw new Error("Unable to resolve saved feed ticket id.");
     }
 
     const insertDropsPayload = drops.map((drop, index) => {
@@ -266,7 +617,7 @@ Deno.serve(async (req) => {
         .order("drop_order", { ascending: true }),
       service
         .from("feed_tickets")
-        .select("id,ticket_num,feedmill,delivery_date,comment,feed_weight,feed_name,source_type")
+        .select("id,ticket_num,feedmill,delivery_date,comment,feed_weight,feed_name,source_type,ticket_type")
         .eq("id", savedTicketId)
         .limit(1),
     ]);
@@ -316,6 +667,7 @@ Deno.serve(async (req) => {
         ticket_number: ticket?.ticket_num ?? null,
         delivered_at: ticket?.delivery_date ? `${ticket.delivery_date}T00:00:00.000Z` : deliveryIso,
         ticket_weight_lbs: typeof ticket?.feed_weight === "number" ? ticket.feed_weight : ticketWeight,
+        ticket_type: parseTicketType(ticket?.ticket_type),
         feed_name: ticket?.feed_name ?? null,
         vendor_name: ticket?.feedmill ?? null,
         source_type: ticket?.source_type ?? "mill",

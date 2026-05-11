@@ -142,7 +142,7 @@ export async function markBarnEmptyAction(
     return { status: "error", message: "Supabase is not configured." };
   }
 
-  const { error } = await supabase.rpc("mark_barn_empty", {
+  const { data, error } = await supabase.rpc("mark_barn_empty", {
     p_barn_id: barnId,
     p_removed_date: removedDate?.trim() ? removedDate : undefined,
   });
@@ -153,5 +153,13 @@ export async function markBarnEmptyAction(
 
   revalidatePath("/admin/overview");
 
-  return { status: "success", message: "Barn marked empty." };
+  const promotedPlacement = Array.isArray(data) ? data[0] : null;
+  const hasNextPlacement = Boolean(promotedPlacement?.placement_id);
+
+  return {
+    status: "success",
+    message: hasNextPlacement
+      ? "Current flock checked out. Next flock is now in get-ready status."
+      : "Current flock checked out. Barn is now empty.",
+  };
 }

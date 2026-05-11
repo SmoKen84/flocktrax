@@ -537,6 +537,99 @@ export async function replayGoogleSheetsOutboxAction(outboxId: string): Promise<
   return result;
 }
 
+export async function deleteGoogleSheetsOutboxAction(outboxId: string): Promise<OutboxActionResult> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) {
+    return {
+      ok: false,
+      message: "Results: sync database is unavailable for the delete request.",
+    };
+  }
+
+  const normalizedOutboxId = String(outboxId ?? "").trim();
+  if (!normalizedOutboxId) {
+    return {
+      ok: false,
+      message: "Results: the delete request did not include an outbox id.",
+    };
+  }
+
+  const { data: outboxRow, error: loadError } = await admin
+    .schema("platform")
+    .from("sync_outbox")
+    .select("id,status,endpoint_id,adapter_id,placement_key,entity_type,log_date,operation")
+    .eq("id", normalizedOutboxId)
+    .maybeSingle();
+
+  if (loadError || !outboxRow) {
+    return {
+      ok: false,
+      message: `Results: that outbox row could not be loaded for deletion.${loadError?.message ? ` Error: ${loadError.message}` : ""}`,
+    };
+  }
+
+  if (outboxRow.status === "in_progress") {
+    return {
+      ok: false,
+      message: "Results: in-progress outbox rows cannot be deleted while the worker is actively processing them.",
+    };
+  }
+
+  if (outboxRow.status === "sent") {
+    return {
+      ok: false,
+      message: "Results: sent outbox rows cannot be deleted from this console. Use replay/retry controls for queue management and keep sent history intact.",
+    };
+  }
+
+  const { error: auditError } = await admin.schema("platform").from("sync_audit").insert({
+    outbox_id: outboxRow.id,
+    endpoint_id: outboxRow.endpoint_id,
+    adapter_id: outboxRow.adapter_id,
+    request_summary: {
+      action: "delete_googleapis_outbox",
+      status: outboxRow.status,
+      placement_key: outboxRow.placement_key,
+      entity_type: outboxRow.entity_type,
+      log_date: outboxRow.log_date,
+      operation: outboxRow.operation,
+    },
+    response_summary: {
+      status: "deleted",
+      deleted_at: new Date().toISOString(),
+    },
+    status_code: 200,
+    status: "logged",
+  });
+
+  if (auditError) {
+    return {
+      ok: false,
+      message: `Results: that outbox row could not be audited before deletion. Error: ${auditError.message}`,
+    };
+  }
+
+  const { error: deleteError } = await admin
+    .schema("platform")
+    .from("sync_outbox")
+    .delete()
+    .eq("id", normalizedOutboxId)
+    .in("status", ["pending", "failed", "rejected"]);
+
+  if (deleteError) {
+    return {
+      ok: false,
+      message: `Results: that outbox row could not be deleted. Error: ${deleteError.message}`,
+    };
+  }
+
+  revalidatePath("/admin/sync/googleapis-sheets/outbox");
+  return {
+    ok: true,
+    message: "Results: 1 outbox row was deleted from the queue.",
+  };
+}
+
 export async function retryGoogleSheetsOutboxBulkAction(input: {
   status?: string | null;
   farmId?: string | null;

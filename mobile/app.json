@@ -3,7 +3,7 @@
     "name": "FlockTrax",
     "slug": "flocktrax-mobile",
     "scheme": "flocktrax",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "../output/MC_Favicon2-transparent.png",
@@ -26,6 +26,11 @@
     "android": {
       "package": "com.flocktrax.mobile",
       "versionCode": 4,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "../output/MC_Favicon2-transparent.png",
         "backgroundColor": "#F2E8D5"

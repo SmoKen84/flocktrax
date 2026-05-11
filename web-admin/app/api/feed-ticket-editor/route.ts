@@ -149,11 +149,35 @@ async function getTicketNumberDefaults() {
   const counterRow =
     pickPreferredAppSetting(rows, "internal_voucher_number") ??
     pickPreferredAppSetting(rows, "internal_voucher_num");
+  const prefix = prefixRow?.value?.trim() || null;
   const parsedCounter = Number.parseInt(String(counterRow?.value ?? "").trim(), 10);
+  let nextVoucherNumber = Number.isFinite(parsedCounter) && parsedCounter > 0 ? parsedCounter : 1;
+
+  if (prefix) {
+    const { data: ticketRows, error: ticketError } = await admin
+      .from("feed_tickets")
+      .select("ticket_num,ticket_type")
+      .in("ticket_type", ["xTran", "iTran", "f2f"])
+      .ilike("ticket_num", `${prefix}%`)
+      .limit(5000);
+
+    if (!ticketError) {
+      const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const pattern = new RegExp(`^${escapedPrefix}(\\d+)$`, "i");
+      const maxExisting = Math.max(
+        0,
+        ...(ticketRows ?? []).map((row) => {
+          const match = pattern.exec(String(row.ticket_num ?? "").trim());
+          return match ? Number.parseInt(match[1], 10) || 0 : 0;
+        }),
+      );
+      nextVoucherNumber = Math.max(nextVoucherNumber, maxExisting + 1);
+    }
+  }
 
   return {
-    voucherPrefix: prefixRow?.value?.trim() || null,
-    nextVoucherNumber: String(Number.isFinite(parsedCounter) && parsedCounter > 0 ? parsedCounter : 1),
+    voucherPrefix: prefix,
+    nextVoucherNumber: String(nextVoucherNumber),
   };
 }
 

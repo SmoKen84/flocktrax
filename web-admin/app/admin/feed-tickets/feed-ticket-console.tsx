@@ -10,6 +10,15 @@ const ROWS_PER_PAGE = 12;
 
 type FeedTicketConsoleProps = {
   bundle: FeedTicketAdminBundle;
+  reportOption?: {
+    name: string;
+    title: string | null;
+    subtitle: string | null;
+    buttonText: string | null;
+    functionName: string | null;
+    group: string | null;
+    location: string | null;
+  } | null;
 };
 
 type SelectorState =
@@ -39,7 +48,7 @@ type TicketAggregateRow = {
   comment: string | null;
 };
 
-export function FeedTicketConsole({ bundle }: FeedTicketConsoleProps) {
+export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsoleProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [listMode, setListMode] = useState<"ticket" | "drop">(bundle.filters.listMode);
@@ -77,6 +86,10 @@ export function FeedTicketConsole({ bundle }: FeedTicketConsoleProps) {
     () => computeSummary(summaryRows, listMode),
     [summaryRows, listMode],
   );
+  const reportButtonText = reportOption?.buttonText || reportOption?.title || "Print Flock Report";
+  const reportButtonHoverText = reportOption?.title
+    ? `${reportOption.title}${reportOption.subtitle ? ` — ${reportOption.subtitle}` : ""}`
+    : reportButtonText;
 
   function applyFilters() {
     setPageIndex(0);
@@ -286,6 +299,7 @@ export function FeedTicketConsole({ bundle }: FeedTicketConsoleProps) {
                 />
                 <button
                   className="button-secondary feed-ticket-flat-report-button"
+                  aria-label={reportButtonText}
                   disabled={!flockCode.trim()}
                   onClick={() => {
                     if (!flockCode.trim()) return;
@@ -297,9 +311,10 @@ export function FeedTicketConsole({ bundle }: FeedTicketConsoleProps) {
                     if (includeGrower) params.set("includeGrower", "true");
                     window.open(`/admin/feed-tickets/report?${params.toString()}`, "_blank", "noopener,noreferrer");
                   }}
+                  title={reportButtonHoverText}
                   type="button"
                 >
-                  Print Flock Report
+                  <ReportIcon />
                 </button>
               </div>
 
@@ -819,3 +834,33 @@ function PencilIcon() {
   );
 }
 
+function ReportIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path
+        d="M8 3.75h5.9L18 7.85V18a2.25 2.25 0 0 1-2.25 2.25h-7.5A2.25 2.25 0 0 1 6 18V6A2.25 2.25 0 0 1 8.25 3.75Z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M13.75 3.9v3.35h3.35"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M9.25 11h5.5M9.25 14.25h5.5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}

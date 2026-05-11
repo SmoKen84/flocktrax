@@ -61,6 +61,36 @@ export type DashboardSettings = {
   allow_historical_entry: boolean;
 };
 
+export type IssueEntityType = "barn" | "placement";
+
+export type IssueStatus = "open" | "resolved";
+
+export type IssueType =
+  | "maintenance"
+  | "feedlines"
+  | "nipple_lines"
+  | "equipment"
+  | "water"
+  | "ventilation"
+  | "bird_health"
+  | "performance"
+  | "mortality_review";
+
+export type IssueItem = {
+  id: string;
+  entity_type: IssueEntityType;
+  entity_id: string;
+  issue_type: IssueType;
+  title: string;
+  description: string | null;
+  status: IssueStatus;
+  opened_at: string;
+  resolved_at: string | null;
+  resolution_note: string | null;
+  related_placement_id: string | null;
+  reported_log_date: string | null;
+};
+
 export type DailyAgeTask = {
   id: string;
   task_label: string;
@@ -92,6 +122,8 @@ export type PlacementSummary = {
   needs_feedlines: boolean;
   needs_nipple_lines: boolean;
   has_bird_health_alert: boolean;
+  open_barn_issue_count: number;
+  open_placement_issue_count: number;
   dashboard_status_label: string | null;
   dashboard_status_tone: "warn" | "good" | "danger" | "neutral" | null;
   head_count: number | null;
@@ -126,6 +158,7 @@ export type PlacementSummaryResponse = {
 
 export type PlacementDayItem = {
   placement_id: string;
+  barn_id: string;
   placement_code: string;
   farm_name: string;
   barn_code: string;
@@ -163,6 +196,8 @@ export type PlacementDayItem = {
   grade_lame: number | null;
   grade_pecking: number | null;
   daily_tasks: DailyAgeTask[];
+  barn_issues: IssueItem[];
+  placement_issues: IssueItem[];
   daily_is_active: boolean;
   mortality_is_active: boolean;
   placement_is_active: boolean;
@@ -231,11 +266,14 @@ export type FeedDropEntry = {
   drop_order: number;
 };
 
+export type FeedTicketType = "Reg" | "xTran" | "iTran" | "f2f";
+
 export type FeedTicketItem = {
   id?: string | null;
   ticket_number: string | null;
   delivered_at: string;
   ticket_weight_lbs: number | null;
+  ticket_type: FeedTicketType;
   feed_name: string | null;
   vendor_name: string | null;
   source_type: string | null;
@@ -249,6 +287,7 @@ export type FeedTicketListItem = {
   ticket_number: string | null;
   delivery_date: string | null;
   vendor_name: string | null;
+  ticket_type: FeedTicketType;
   source_type: string | null;
   ticket_weight_lbs: number | null;
   allocated_weight_lbs: number;
@@ -304,5 +343,19 @@ export type SaveFeedTicketResponse = {
   ticket_saved?: boolean;
   drop_count?: number;
   item?: FeedTicketItem;
+  error?: string;
+};
+
+export type PlacementIssueBundle = {
+  barn_id: string;
+  barn_issues: IssueItem[];
+  placement_issues: IssueItem[];
+  open_barn_issue_count: number;
+  open_placement_issue_count: number;
+};
+
+export type PlacementIssueBundleResponse = {
+  ok: boolean;
+  bundle?: PlacementIssueBundle;
   error?: string;
 };

@@ -89,7 +89,7 @@ begin
       ('public.log_daily', 'nipple_lines_flag', '', 'Nipple Lines', 'boolean_flag', 110, 'Decide whether worksheet wants X, Y/N, or TRUE/FALSE.'),
       ('public.log_daily', 'bird_health_alert', '', 'Health Alert', 'boolean_flag', 120, 'Verify actual worksheet label.'),
       ('public.log_daily', 'min_vent', '', 'Min Vent', 'direct', 130, 'Verify actual worksheet label.'),
-      ('public.log_daily', 'is_oda_open', '', 'ODA Open', 'boolean_flag', 140, 'Verify actual worksheet label.'),
+      ('public.log_daily', 'is_oda_open', '', 'ODA Open', 'direct', 140, 'Checkbox cell: write TRUE/FALSE, not X/blank.'),
       ('public.log_daily', 'oda_exception', '', 'ODA Exception', 'note', 150, 'May remain diary-only if workbook has no column.'),
       ('public.log_daily', 'naoh', '', 'NaOH', 'direct', 160, 'Verify actual worksheet capitalization.'),
       ('public.log_daily', 'comment', '', 'Comments', 'note', 170, null),

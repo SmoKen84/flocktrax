@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -13,7 +14,15 @@ import {
   View,
 } from "react-native";
 
-import { DashboardSettings, PlacementDayItem, PlacementSummary } from "../types";
+import { isAuthError } from "../api/http";
+import {
+  DashboardSettings,
+  IssueEntityType,
+  IssueItem,
+  IssueType,
+  PlacementDayItem,
+  PlacementSummary,
+} from "../types";
 import { formatDateByPattern, formatShortDate } from "../utils/date-format";
 
 type Props = {
@@ -23,7 +32,27 @@ type Props = {
   item: PlacementDayItem | null;
   loading: boolean;
   logDate: string;
+  onCreateIssue: (input: {
+    entityType: IssueEntityType;
+    entityId: string;
+    issueType: IssueType;
+    description?: string | null;
+    placementId?: string | null;
+    reportedLogDate?: string | null;
+  }) => Promise<{
+    barn_id: string;
+    barn_issues: IssueItem[];
+    placement_issues: IssueItem[];
+  }>;
   placement: PlacementSummary;
+  onResolveIssue: (input: {
+    issueId: string;
+    resolutionNote?: string | null;
+  }) => Promise<{
+    barn_id: string;
+    barn_issues: IssueItem[];
+    placement_issues: IssueItem[];
+  }>;
   settings: DashboardSettings | null;
   onBack: () => void;
   onChangeDate: (nextDate: string) => void;
@@ -37,6 +66,21 @@ type PlacementTab = "daily" | "mortality" | "grade";
 type FutureFields = {
 };
 
+const BARN_ISSUE_OPTIONS: { type: IssueType; label: string }[] = [
+  { type: "maintenance", label: "Maintenance" },
+  { type: "feedlines", label: "Feedlines" },
+  { type: "nipple_lines", label: "Nipple Lines" },
+  { type: "equipment", label: "Equipment" },
+  { type: "water", label: "Water" },
+  { type: "ventilation", label: "Ventilation" },
+];
+
+const PLACEMENT_ISSUE_OPTIONS: { type: IssueType; label: string }[] = [
+  { type: "bird_health", label: "Bird Health" },
+  { type: "performance", label: "Performance" },
+  { type: "mortality_review", label: "Mortality Review" },
+];
+
 const serifFont = Platform.select({ ios: "Georgia", android: "serif", default: undefined });
 
 const defaultFutureFields: FutureFields = {};
@@ -48,7 +92,9 @@ export function PlacementDayScreen({
   item,
   loading,
   logDate,
+  onCreateIssue,
   placement,
+  onResolveIssue,
   settings,
   onBack,
   onChangeDate,
@@ -66,12 +112,20 @@ export function PlacementDayScreen({
   const [calendarCursor, setCalendarCursor] = useState(() => getMonthStart(logDate));
   const [taskChecks, setTaskChecks] = useState<boolean[]>([false, false, false, false]);
   const [leaveTarget, setLeaveTarget] = useState<"back" | "weights" | null>(null);
+  const [issueComposerTarget, setIssueComposerTarget] = useState<IssueEntityType | null>(null);
+  const [issueTypeDraft, setIssueTypeDraft] = useState<IssueType>("maintenance");
+  const [issueDescriptionDraft, setIssueDescriptionDraft] = useState("");
+  const [issueSubmitting, setIssueSubmitting] = useState(false);
+  const [resolveIssueTarget, setResolveIssueTarget] = useState<IssueItem | null>(null);
+  const [resolutionNoteDraft, setResolutionNoteDraft] = useState("");
 
   useEffect(() => {
     setDraft(item);
     setLocalMessage(null);
     setHasUnsavedChanges(false);
     setTaskChecks([false, false, false, false]);
+    setIssueComposerTarget(null);
+    setResolveIssueTarget(null);
   }, [item]);
 
   useEffect(() => {
@@ -116,6 +170,9 @@ export function PlacementDayScreen({
       }
       setHasUnsavedChanges(false);
     } catch (error) {
+      if (isAuthError(error)) {
+        return;
+      }
       setLocalMessage(error instanceof Error ? error.message : "Save failed.");
     } finally {
       setSaving(false);
@@ -149,6 +206,9 @@ export function PlacementDayScreen({
       setHasUnsavedChanges(false);
       return true;
     } catch (error) {
+      if (isAuthError(error)) {
+        return false;
+      }
       setLocalMessage(error instanceof Error ? error.message : "Save failed.");
       return false;
     } finally {
@@ -202,6 +262,84 @@ export function PlacementDayScreen({
     canSaveGradeBirds,
     canSaveMortality,
   });
+
+  const barnIssueOptions = BARN_ISSUE_OPTIONS;
+  const placementIssueOptions = PLACEMENT_ISSUE_OPTIONS;
+  const activeIssueOptions = issueComposerTarget === "placement" ? placementIssueOptions : barnIssueOptions;
+
+  function mergeIssueBundle(nextBundle: {
+    barn_id: string;
+    barn_issues: IssueItem[];
+    placement_issues: IssueItem[];
+  }) {
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            barn_id: nextBundle.barn_id,
+            barn_issues: nextBundle.barn_issues,
+            placement_issues: nextBundle.placement_issues,
+          }
+        : current,
+    );
+  }
+
+  function openIssueComposer(entityType: IssueEntityType) {
+    const options = entityType === "placement" ? placementIssueOptions : barnIssueOptions;
+    setIssueComposerTarget(entityType);
+    setIssueTypeDraft(options[0]?.type ?? "maintenance");
+    setIssueDescriptionDraft("");
+  }
+
+  async function submitIssue() {
+    if (!draft || !issueComposerTarget) return;
+
+    try {
+      setIssueSubmitting(true);
+      const bundle = await onCreateIssue({
+        entityType: issueComposerTarget,
+        entityId: issueComposerTarget === "barn" ? draft.barn_id : draft.placement_id,
+        issueType: issueTypeDraft,
+        description: issueDescriptionDraft || null,
+        placementId: draft.placement_id,
+        reportedLogDate: draft.log_date,
+      });
+      mergeIssueBundle(bundle);
+      setIssueComposerTarget(null);
+      setIssueDescriptionDraft("");
+      setLocalMessage("Issue opened.");
+    } catch (error) {
+      if (isAuthError(error)) {
+        return;
+      }
+      setLocalMessage(error instanceof Error ? error.message : "Issue could not be opened.");
+    } finally {
+      setIssueSubmitting(false);
+    }
+  }
+
+  async function submitIssueResolution() {
+    if (!resolveIssueTarget) return;
+
+    try {
+      setIssueSubmitting(true);
+      const bundle = await onResolveIssue({
+        issueId: resolveIssueTarget.id,
+        resolutionNote: resolutionNoteDraft || null,
+      });
+      mergeIssueBundle(bundle);
+      setResolveIssueTarget(null);
+      setResolutionNoteDraft("");
+      setLocalMessage("Issue resolved.");
+    } catch (error) {
+      if (isAuthError(error)) {
+        return;
+      }
+      setLocalMessage(error instanceof Error ? error.message : "Issue could not be resolved.");
+    } finally {
+      setIssueSubmitting(false);
+    }
+  }
 
   if (loading && !draft) {
     return (
@@ -375,6 +513,17 @@ export function PlacementDayScreen({
           />
         ) : null}
 
+        <IssuesPanel
+          barnIssues={draft.barn_issues}
+          placementIssues={draft.placement_issues}
+          onAddBarnIssue={() => openIssueComposer("barn")}
+          onAddPlacementIssue={() => openIssueComposer("placement")}
+          onResolveIssue={(issue) => {
+            setResolveIssueTarget(issue);
+            setResolutionNoteDraft("");
+          }}
+        />
+
         {localMessage ? <Text style={styles.message}>{localMessage}</Text> : null}
         {hasUnsavedChanges ? (
           <Text style={styles.pendingText}>Unsaved changes pending.</Text>
@@ -400,6 +549,34 @@ export function PlacementDayScreen({
         onCancel={() => setLeaveTarget(null)}
         onDisregard={handleLeaveDisregard}
         onSave={handleLeaveSave}
+      />
+
+      <IssueComposerModal
+        description={issueDescriptionDraft}
+        entityType={issueComposerTarget}
+        issueOptions={activeIssueOptions}
+        issueType={issueTypeDraft}
+        submitting={issueSubmitting}
+        onCancel={() => {
+          if (issueSubmitting) return;
+          setIssueComposerTarget(null);
+        }}
+        onChangeDescription={setIssueDescriptionDraft}
+        onChangeIssueType={setIssueTypeDraft}
+        onSubmit={() => void submitIssue()}
+      />
+
+      <IssueResolveModal
+        issue={resolveIssueTarget}
+        resolutionNote={resolutionNoteDraft}
+        submitting={issueSubmitting}
+        onCancel={() => {
+          if (issueSubmitting) return;
+          setResolveIssueTarget(null);
+          setResolutionNoteDraft("");
+        }}
+        onChangeResolutionNote={setResolutionNoteDraft}
+        onSubmit={() => void submitIssueResolution()}
       />
     </KeyboardAvoidingView>
   );
@@ -437,9 +614,9 @@ type DailyTabProps = {
 
 function DailyTab({
   draft,
-  futureFields,
+  futureFields: _futureFields,
   onChangeDraft,
-  onChangeFuture,
+  onChangeFuture: _onChangeFuture,
 }: DailyTabProps) {
   return (
     <View style={styles.panel}>
@@ -534,40 +711,8 @@ function DailyTab({
         value={draft.comment}
         onChange={(value) => onChangeDraft({ comment: value || null })}
       />
-
-      <View style={styles.toggleGrid}>
-        <ChecklistRow
-          checked={draft.maintenance_flag}
-          label="Maintenance"
-          onToggle={() =>
-            onChangeDraft({ maintenance_flag: !draft.maintenance_flag })
-          }
-        />
-        <ChecklistRow
-          checked={draft.feedlines_flag}
-          label="Feedlines"
-          onToggle={() =>
-            onChangeDraft({ feedlines_flag: !draft.feedlines_flag })
-          }
-        />
-        <ChecklistRow
-          checked={draft.nipple_lines_flag}
-          label="Nipple Lines"
-          onToggle={() =>
-            onChangeDraft({ nipple_lines_flag: !draft.nipple_lines_flag })
-          }
-        />
-        <ChecklistRow
-          checked={draft.bird_health_alert}
-          label="Bird Health Alert!"
-          onToggle={() =>
-            onChangeDraft({ bird_health_alert: !draft.bird_health_alert })
-          }
-        />
-      </View>
-
       <Text style={styles.footnoteText}>
-        Describe repairs or bird health concerns in the comments section.
+        Daily comments stay historical. Live barn and placement problems are tracked below in Open Issues.
       </Text>
     </View>
   );
@@ -651,6 +796,256 @@ function MortalityTab({
         </View>
       </View>
     </View>
+  );
+}
+
+type IssuesPanelProps = {
+  barnIssues: IssueItem[];
+  placementIssues: IssueItem[];
+  onAddBarnIssue: () => void;
+  onAddPlacementIssue: () => void;
+  onResolveIssue: (issue: IssueItem) => void;
+};
+
+function IssuesPanel({
+  barnIssues,
+  placementIssues,
+  onAddBarnIssue,
+  onAddPlacementIssue,
+  onResolveIssue,
+}: IssuesPanelProps) {
+  return (
+    <View style={styles.panel}>
+      <View style={styles.panelHeaderRow}>
+        <Text style={styles.panelTitleSerif}>Open Issues</Text>
+        <Text style={styles.panelAccent}>
+          {barnIssues.length + placementIssues.length} total
+        </Text>
+      </View>
+
+      <IssueGroup
+        title="Barn Issues"
+        issues={barnIssues}
+        onAdd={onAddBarnIssue}
+        onResolveIssue={onResolveIssue}
+      />
+      <IssueGroup
+        title="Placement Issues"
+        issues={placementIssues}
+        onAdd={onAddPlacementIssue}
+        onResolveIssue={onResolveIssue}
+      />
+    </View>
+  );
+}
+
+type IssueGroupProps = {
+  title: string;
+  issues: IssueItem[];
+  onAdd: () => void;
+  onResolveIssue: (issue: IssueItem) => void;
+};
+
+function IssueGroup({ title, issues, onAdd, onResolveIssue }: IssueGroupProps) {
+  return (
+    <View style={styles.issueGroup}>
+      <View style={styles.issueGroupHeader}>
+        <View>
+          <Text style={styles.issueGroupTitle}>{title}</Text>
+          <Text style={styles.issueGroupCount}>
+            {issues.length === 0 ? "No open issues" : `${issues.length} open`}
+          </Text>
+        </View>
+        <Pressable onPress={onAdd} style={styles.issueAddButton}>
+          <Text style={styles.issueAddButtonText}>Add</Text>
+        </Pressable>
+      </View>
+
+      {issues.length === 0 ? (
+        <Text style={styles.issueEmptyText}>Nothing open right now.</Text>
+      ) : (
+        issues.map((issue) => (
+          <View key={issue.id} style={styles.issueCard}>
+            <View style={styles.issueCardHeader}>
+              <View style={styles.issueCardCopy}>
+                <Text style={styles.issueCardTitle}>{issue.title}</Text>
+                <Text style={styles.issueCardMeta}>
+                  Opened {formatIssueDate(issue.opened_at)}
+                  {issue.reported_log_date ? ` · Log ${issue.reported_log_date}` : ""}
+                </Text>
+              </View>
+              <Pressable onPress={() => onResolveIssue(issue)} style={styles.issueResolveButton}>
+                <Text style={styles.issueResolveButtonText}>Resolve</Text>
+              </Pressable>
+            </View>
+            {issue.description ? (
+              <Text style={styles.issueCardDescription}>{issue.description}</Text>
+            ) : null}
+          </View>
+        ))
+      )}
+    </View>
+  );
+}
+
+type IssueComposerModalProps = {
+  description: string;
+  entityType: IssueEntityType | null;
+  issueOptions: { type: IssueType; label: string }[];
+  issueType: IssueType;
+  submitting: boolean;
+  onCancel: () => void;
+  onChangeDescription: (value: string) => void;
+  onChangeIssueType: (value: IssueType) => void;
+  onSubmit: () => void;
+};
+
+function IssueComposerModal({
+  description,
+  entityType,
+  issueOptions,
+  issueType,
+  submitting,
+  onCancel,
+  onChangeDescription,
+  onChangeIssueType,
+  onSubmit,
+}: IssueComposerModalProps) {
+  return (
+    <Modal animationType="fade" transparent visible={entityType !== null} onRequestClose={onCancel}>
+      <KeyboardAvoidingView
+        behavior={Platform.select({ ios: "padding", default: undefined })}
+        style={styles.modalScrim}
+      >
+        <ScrollView
+          contentContainerStyle={styles.issueModalScrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Pressable onPress={() => Keyboard.dismiss()} style={styles.issueModalDismissZone}>
+            <View style={styles.issueModalCard}>
+              <Text style={styles.historyModalEyebrow}>Operational Issue</Text>
+              <Text style={styles.issueModalTitle}>
+                {entityType === "barn" ? "Open Barn Issue" : "Open Placement Issue"}
+              </Text>
+              <Text style={styles.issueModalCopy}>
+                Create a live issue that stays open until someone resolves it.
+              </Text>
+
+              <View style={styles.issueOptionWrap}>
+                {issueOptions.map((option) => (
+                  <Pressable
+                    key={option.type}
+                    onPress={() => onChangeIssueType(option.type)}
+                    style={[
+                      styles.issueOptionChip,
+                      issueType === option.type && styles.issueOptionChipActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.issueOptionChipText,
+                        issueType === option.type && styles.issueOptionChipTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <TextInput
+                multiline
+                onChangeText={onChangeDescription}
+                placeholder="Describe what is wrong, where it is, or what needs attention."
+                placeholderTextColor="#A39A89"
+                style={styles.issueNoteInput}
+                value={description}
+              />
+
+              <Pressable onPress={() => Keyboard.dismiss()} style={styles.issueKeyboardDismissButton}>
+                <Text style={styles.issueKeyboardDismissText}>Hide Keyboard</Text>
+              </Pressable>
+
+              <View style={styles.issueModalActions}>
+                <Pressable disabled={submitting} onPress={onCancel} style={styles.arrivalModalSecondaryButton}>
+                  <Text style={styles.arrivalModalSecondaryText}>Cancel</Text>
+                </Pressable>
+                <Pressable disabled={submitting} onPress={onSubmit} style={styles.arrivalModalPrimaryButton}>
+                  {submitting ? <ActivityIndicator color="#FFF8EF" /> : (
+                    <Text style={styles.arrivalModalPrimaryText}>Open Issue</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+type IssueResolveModalProps = {
+  issue: IssueItem | null;
+  resolutionNote: string;
+  submitting: boolean;
+  onCancel: () => void;
+  onChangeResolutionNote: (value: string) => void;
+  onSubmit: () => void;
+};
+
+function IssueResolveModal({
+  issue,
+  resolutionNote,
+  submitting,
+  onCancel,
+  onChangeResolutionNote,
+  onSubmit,
+}: IssueResolveModalProps) {
+  return (
+    <Modal animationType="fade" transparent visible={issue !== null} onRequestClose={onCancel}>
+      <KeyboardAvoidingView
+        behavior={Platform.select({ ios: "padding", default: undefined })}
+        style={styles.modalScrim}
+      >
+        <ScrollView
+          contentContainerStyle={styles.issueModalScrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Pressable onPress={() => Keyboard.dismiss()} style={styles.issueModalDismissZone}>
+            <View style={styles.issueModalCard}>
+              <Text style={styles.historyModalEyebrow}>Resolve Issue</Text>
+              <Text style={styles.issueModalTitle}>{issue?.title ?? "Resolve Issue"}</Text>
+              {issue?.description ? (
+                <Text style={styles.issueModalCopy}>{issue.description}</Text>
+              ) : (
+                <Text style={styles.issueModalCopy}>Mark this issue resolved and leave an optional note.</Text>
+              )}
+              <TextInput
+                multiline
+                onChangeText={onChangeResolutionNote}
+                placeholder="Optional note about what was fixed."
+                placeholderTextColor="#A39A89"
+                style={styles.issueNoteInput}
+                value={resolutionNote}
+              />
+              <Pressable onPress={() => Keyboard.dismiss()} style={styles.issueKeyboardDismissButton}>
+                <Text style={styles.issueKeyboardDismissText}>Hide Keyboard</Text>
+              </Pressable>
+              <View style={styles.issueModalActions}>
+                <Pressable disabled={submitting} onPress={onCancel} style={styles.arrivalModalSecondaryButton}>
+                  <Text style={styles.arrivalModalSecondaryText}>Cancel</Text>
+                </Pressable>
+                <Pressable disabled={submitting} onPress={onSubmit} style={styles.arrivalModalPrimaryButton}>
+                  {submitting ? <ActivityIndicator color="#FFF8EF" /> : (
+                    <Text style={styles.arrivalModalPrimaryText}>Resolve</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -764,15 +1159,34 @@ function InlineField({
   onChange,
   keyboardType = "default",
 }: InlineFieldProps) {
+  const [textValue, setTextValue] = useState(value === null || value === undefined ? "" : String(value));
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (isFocused) {
+      return;
+    }
+    setTextValue(value === null || value === undefined ? "" : String(value));
+  }, [isFocused, value]);
+
   return (
     <View style={styles.inlineField}>
       <Text style={styles.inlineLabel}>{label}</Text>
       <TextInput
         keyboardType={keyboardType}
-        onChangeText={onChange}
+        inputMode={keyboardType === "decimal-pad" ? "decimal" : keyboardType === "number-pad" ? "numeric" : "text"}
+        onBlur={() => {
+          setIsFocused(false);
+          setTextValue(value === null || value === undefined ? "" : String(value));
+        }}
+        onChangeText={(nextValue) => {
+          setTextValue(nextValue);
+          onChange(nextValue);
+        }}
+        onFocus={() => setIsFocused(true)}
         placeholderTextColor="#9A988F"
         style={styles.inlineInput}
-        value={value === null || value === undefined ? "" : String(value)}
+        value={textValue}
       />
     </View>
   );
@@ -842,6 +1256,9 @@ function CalendarModal({
   onSelectDate,
 }: CalendarModalProps) {
   const days = buildCalendarDays(cursor);
+  const today = todayIsoDate();
+  const todayMonthStart = getMonthStart(today);
+  const canMoveForward = cursor < todayMonthStart;
   const currentMonthLabel = cursor.toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
@@ -860,8 +1277,9 @@ function CalendarModal({
             </Pressable>
             <Text style={styles.calendarMonthLabel}>{currentMonthLabel}</Text>
             <Pressable
+              disabled={!canMoveForward}
               onPress={() => onChangeCursor(addMonths(cursor, 1))}
-              style={styles.calendarArrowButton}
+              style={[styles.calendarArrowButton, !canMoveForward && styles.calendarArrowButtonDisabled]}
             >
               <Text style={styles.calendarArrowText}>›</Text>
             </Pressable>
@@ -879,14 +1297,17 @@ function CalendarModal({
             {days.map((day) => {
               const isoDate = toIsoDate(day.date);
               const isCurrent = isoDate === currentDate;
+              const isFuture = isoDate > today;
 
               return (
                 <Pressable
                   key={isoDate}
+                  disabled={isFuture}
                   onPress={() => onSelectDate(isoDate)}
                   style={[
                     styles.calendarDayButton,
                     !day.inMonth && styles.calendarDayButtonMuted,
+                    isFuture && styles.calendarDayButtonDisabled,
                     isCurrent && styles.calendarDayButtonSelected,
                   ]}
                 >
@@ -894,6 +1315,7 @@ function CalendarModal({
                     style={[
                       styles.calendarDayText,
                       !day.inMonth && styles.calendarDayTextMuted,
+                      isFuture && styles.calendarDayTextDisabled,
                       isCurrent && styles.calendarDayTextSelected,
                     ]}
                   >
@@ -1046,6 +1468,14 @@ function validateDraft(draft: PlacementDayItem, logDate: string) {
     return "Log date must use MM/DD/YY.";
   }
 
+  if (logDate > todayIsoDate()) {
+    return "Log date cannot be in the future.";
+  }
+
+  if (draft.placed_date && logDate < draft.placed_date) {
+    return "Log date cannot be before the flock was placed.";
+  }
+
   const counts = [draft.dead_female, draft.dead_male, draft.cull_female, draft.cull_male];
   if (counts.some((value) => value < 0)) {
     return "Mortality and cull counts cannot be negative.";
@@ -1060,6 +1490,19 @@ function formatPlacedSummaryDate(value: string | null | undefined) {
   const dow = formatDateByPattern(value, "ddd", value);
   const shortDate = formatShortDate(value, "mm/dd/yy", value);
   return `${dow}\n${shortDate}`;
+}
+
+function formatIssueDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "numeric",
+    day: "numeric",
+    year: "2-digit",
+  });
 }
 
 function buildDailyTaskSlots(tasks: PlacementDayItem["daily_tasks"] | undefined) {
@@ -1554,6 +1997,84 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     marginTop: -4,
   },
+  issueGroup: {
+    gap: 10,
+  },
+  issueGroupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  issueGroupTitle: {
+    color: "#4E3422",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  issueGroupCount: {
+    color: "#8A7760",
+    fontSize: 12,
+  },
+  issueAddButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D2B892",
+    backgroundColor: "#FFF8EF",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  issueAddButtonText: {
+    color: "#73491F",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  issueEmptyText: {
+    color: "#8A7760",
+    fontSize: 13,
+    fontStyle: "italic",
+  },
+  issueCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E1D5C2",
+    backgroundColor: "#FFF9F1",
+    padding: 14,
+    gap: 8,
+  },
+  issueCardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  issueCardCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  issueCardTitle: {
+    color: "#4E3422",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  issueCardMeta: {
+    color: "#8A7760",
+    fontSize: 12,
+  },
+  issueCardDescription: {
+    color: "#5A5348",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  issueResolveButton: {
+    borderRadius: 12,
+    backgroundColor: "#8B572A",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  issueResolveButtonText: {
+    color: "#FFF8EF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
   mortalityHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1727,6 +2248,128 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
   },
+  issueModalCard: {
+    width: "92%",
+    maxWidth: 420,
+    borderRadius: 22,
+    backgroundColor: "#FFF8EF",
+    padding: 20,
+    gap: 14,
+  },
+  issueModalScrollContent: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 24,
+  },
+  issueModalDismissZone: {
+    width: "92%",
+    maxWidth: 420,
+    alignItems: "center",
+  },
+  issueModalTitle: {
+    color: "#4E3422",
+    fontSize: 22,
+    fontWeight: "800",
+  },
+  historyModalEyebrow: {
+    color: "#9A6A36",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  issueModalCopy: {
+    color: "#6F6658",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  issueOptionWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  issueOptionChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#D9C7AA",
+    backgroundColor: "#FFF8EF",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  issueOptionChipActive: {
+    borderColor: "#8B572A",
+    backgroundColor: "#F6E7D3",
+  },
+  issueOptionChipText: {
+    color: "#7A664E",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  issueOptionChipTextActive: {
+    color: "#6E421E",
+  },
+  issueNoteInput: {
+    minHeight: 96,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#DCC9AF",
+    backgroundColor: "#FFFDF8",
+    color: "#453C32",
+    fontSize: 15,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    textAlignVertical: "top",
+  },
+  issueKeyboardDismissButton: {
+    alignSelf: "flex-start",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#D9C7AA",
+    backgroundColor: "#FFFDF8",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  issueKeyboardDismissText: {
+    color: "#7A664E",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  issueModalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+  },
+  arrivalModalPrimaryButton: {
+    minWidth: 112,
+    minHeight: 44,
+    borderRadius: 14,
+    backgroundColor: "#8B572A",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  arrivalModalPrimaryText: {
+    color: "#FFF8EF",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  arrivalModalSecondaryButton: {
+    minWidth: 92,
+    minHeight: 44,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#D2B892",
+    backgroundColor: "#FFF8EF",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  arrivalModalSecondaryText: {
+    color: "#73491F",
+    fontSize: 15,
+    fontWeight: "800",
+  },
   calendarCard: {
     width: "100%",
     maxWidth: 380,
@@ -1748,11 +2391,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  calendarArrowButtonDisabled: {
+    opacity: 0.45,
+  },
   calendarArrowText: {
     color: "#7A4A21",
     fontSize: 26,
     fontWeight: "700",
     lineHeight: 28,
+  },
+  calendarArrowTextDisabled: {
+    color: "#9F988D",
   },
   calendarMonthLabel: {
     color: "#1F2A1F",
@@ -1785,6 +2434,9 @@ const styles = StyleSheet.create({
   calendarDayButtonMuted: {
     opacity: 0.35,
   },
+  calendarDayButtonDisabled: {
+    backgroundColor: "#F4EEE6",
+  },
   calendarDayButtonSelected: {
     backgroundColor: "#8B572A",
   },
@@ -1795,6 +2447,9 @@ const styles = StyleSheet.create({
   },
   calendarDayTextMuted: {
     color: "#877D70",
+  },
+  calendarDayTextDisabled: {
+    color: "#B8B0A2",
   },
   calendarDayTextSelected: {
     color: "#FFF8EF",

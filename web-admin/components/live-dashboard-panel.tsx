@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 
 import { ActivePlacementDashboard } from "@/components/active-placement-dashboard";
 import type { ActivePlacementRecord, FarmGroupRecord, FarmRecord } from "@/lib/types";
@@ -22,6 +22,18 @@ export function LiveDashboardPanel({
   const [farms, setFarms] = useState(initialFarms);
   const [placements, setPlacements] = useState(initialPlacements);
   const [refreshPending, setRefreshPending] = useState(false);
+
+  useEffect(() => {
+    setFarmGroups(initialFarmGroups);
+  }, [initialFarmGroups]);
+
+  useEffect(() => {
+    setFarms(initialFarms);
+  }, [initialFarms]);
+
+  useEffect(() => {
+    setPlacements(initialPlacements);
+  }, [initialPlacements]);
 
   async function refreshDashboard() {
     setRefreshPending(true);

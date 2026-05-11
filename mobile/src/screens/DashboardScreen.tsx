@@ -24,6 +24,7 @@ type Props = {
   canViewRecentMortality: boolean;
   filters: PlacementFilterMeta | null;
   loading: boolean;
+  onMarkChicksArrived: (placement: PlacementSummary) => Promise<PlacementSummary>;
   onOpenRecentMortalityHistory: (placement: PlacementSummary) => Promise<RecentMortalityHistoryDay[]>;
   placements: PlacementSummary[];
   settings: DashboardSettings | null;
@@ -42,10 +43,13 @@ type PickerState =
   | { type: "farm"; title: string; options: FarmOption[] }
   | null;
 
+const ARRIVAL_READY_AGE_DAYS = -3;
+
 export function DashboardScreen({
   canViewRecentMortality,
   filters,
   loading,
+  onMarkChicksArrived,
   onOpenRecentMortalityHistory,
   placements,
   settings,
@@ -65,6 +69,9 @@ export function DashboardScreen({
   const [mortalityVisible, setMortalityVisible] = useState(false);
   const [mortalityLoading, setMortalityLoading] = useState(false);
   const [mortalityError, setMortalityError] = useState<string | null>(null);
+  const [arrivalPromptPlacement, setArrivalPromptPlacement] = useState<PlacementSummary | null>(null);
+  const [arrivalSubmitting, setArrivalSubmitting] = useState(false);
+  const [arrivalError, setArrivalError] = useState<string | null>(null);
 
   const availableFarmGroups = filters?.available_farm_groups ?? [];
   const selectedFarmGroupName =
@@ -149,6 +156,34 @@ export function DashboardScreen({
     }
   }
 
+  function handlePlacementPress(placement: PlacementSummary) {
+    if (shouldPromptForArrival(placement)) {
+      setArrivalPromptPlacement(placement);
+      setArrivalError(null);
+      return;
+    }
+
+    onOpenPlacement(placement);
+  }
+
+  async function confirmArrivalTransition() {
+    if (!arrivalPromptPlacement) {
+      return;
+    }
+
+    try {
+      setArrivalSubmitting(true);
+      setArrivalError(null);
+      const updatedPlacement = await onMarkChicksArrived(arrivalPromptPlacement);
+      setArrivalPromptPlacement(null);
+      onOpenPlacement(updatedPlacement);
+    } catch (error) {
+      setArrivalError(error instanceof Error ? error.message : "Chicks could not be marked as arrived.");
+    } finally {
+      setArrivalSubmitting(false);
+    }
+  }
+
   return (
     <View style={styles.wrapper}>
       <View style={styles.filterRow}>
@@ -180,7 +215,7 @@ export function DashboardScreen({
 
       <View style={styles.actionRow}>
         <Pressable onPress={onLogout} style={styles.actionButton}>
-          <Text style={styles.actionButtonText}>Back</Text>
+          <Text style={styles.actionButtonText}>Lock</Text>
         </Pressable>
         <Pressable onPress={onRefresh} style={styles.actionButton}>
           <Text style={styles.actionButtonText}>Refresh</Text>
@@ -201,7 +236,7 @@ export function DashboardScreen({
           data={filteredPlacements}
           keyExtractor={(item) => item.placement_id}
           renderItem={({ item }) => (
-            <Pressable onPress={() => onOpenPlacement(item)} style={styles.card}>
+            <Pressable onPress={() => handlePlacementPress(item)} style={[styles.card, cardStyle(item)]}>
               <View style={styles.cardHeader}>
                 <View style={styles.cardHeaderCopy}>
                   <Text style={styles.cardBarn}>{item.barn_code}</Text>
@@ -250,8 +285,12 @@ export function DashboardScreen({
                   ({item.first_livehaul_days ?? "--"} days)
                 </Text>
               </Text>
-              <Text style={styles.cardHint}>
-                Tap to open and collect data for this barn
+              <Text style={[styles.cardHint, cardHintStyle(item)]}>
+                {isPendingPlacement(item)
+                  ? "Pending placement. Mobile barn data will open once the flock is near arrival."
+                  : shouldPromptForArrival(item)
+                  ? "Tap to confirm chicks have arrived before collecting mobile data"
+                  : "Tap to open and collect data for this barn"}
               </Text>
               {canViewRecentMortality ? (
                 <Pressable
@@ -301,6 +340,19 @@ export function DashboardScreen({
         settings={settings}
         visible={mortalityVisible}
         onClose={() => setMortalityVisible(false)}
+      />
+
+      <ArrivalConfirmationModal
+        error={arrivalError}
+        placement={arrivalPromptPlacement}
+        submitting={arrivalSubmitting}
+        visible={arrivalPromptPlacement !== null}
+        onCancel={() => {
+          if (arrivalSubmitting) return;
+          setArrivalPromptPlacement(null);
+          setArrivalError(null);
+        }}
+        onConfirm={() => void confirmArrivalTransition()}
       />
     </View>
   );
@@ -509,13 +561,21 @@ function RecentMortalityHistoryModal({
 }
 
 function badgeLabel(item: PlacementSummary) {
+  if (isPendingPlacement(item)) return "Pending";
+  if (isAwaitingArrivalPlacement(item)) return "Waiting for Chicks";
   if (item.dashboard_status_label) return item.dashboard_status_label;
   if (!item.is_active) return "Inactive";
   if (item.is_complete) return "Complete";
-  return "Needs R&M";
+  const openIssueCount = (item.open_barn_issue_count ?? 0) + (item.open_placement_issue_count ?? 0);
+  if (openIssueCount > 0) {
+    return `${openIssueCount} Open Issue${openIssueCount === 1 ? "" : "s"}`;
+  }
+  return "Pending";
 }
 
 function badgeStyle(item: PlacementSummary) {
+  if (isPendingPlacement(item)) return styles.badgeInactive;
+  if (isAwaitingArrivalPlacement(item)) return styles.badgeInfo;
   if (item.dashboard_status_tone === "danger") return styles.badgeDanger;
   if (item.dashboard_status_tone === "good") return styles.badgeComplete;
   if (item.dashboard_status_tone === "neutral") return styles.badgeInactive;
@@ -526,6 +586,8 @@ function badgeStyle(item: PlacementSummary) {
 }
 
 function badgeTextStyle(item: PlacementSummary) {
+  if (isPendingPlacement(item)) return styles.badgeInactiveText;
+  if (isAwaitingArrivalPlacement(item)) return styles.badgeInfoText;
   if (item.dashboard_status_tone === "danger") return styles.badgeDangerText;
   if (item.dashboard_status_tone === "good") return styles.badgeCompleteText;
   if (item.dashboard_status_tone === "neutral") return styles.badgeInactiveText;
@@ -533,6 +595,33 @@ function badgeTextStyle(item: PlacementSummary) {
   if (!item.is_active) return styles.badgeInactiveText;
   if (item.is_complete) return styles.badgeCompleteText;
   return styles.badgeAttentionText;
+}
+
+function shouldPromptForArrival(item: PlacementSummary) {
+  return isAwaitingArrivalPlacement(item);
+}
+
+function isPendingPlacement(item: PlacementSummary) {
+  return item.is_active && !item.is_in_barn && !item.is_complete && (item.age_days ?? 0) < ARRIVAL_READY_AGE_DAYS;
+}
+
+function isAwaitingArrivalPlacement(item: PlacementSummary) {
+  return item.is_active && !item.is_in_barn && !item.is_complete && !isPendingPlacement(item);
+}
+
+function cardStyle(item: PlacementSummary) {
+  if (item.is_complete) return styles.cardComplete;
+  if (isPendingPlacement(item)) return styles.cardPending;
+  if (shouldPromptForArrival(item)) return styles.cardAwaitingArrival;
+  if (item.is_in_barn) return styles.cardInBarn;
+  return styles.cardNeutral;
+}
+
+function cardHintStyle(item: PlacementSummary) {
+  if (isPendingPlacement(item)) return styles.cardHintPending;
+  if (shouldPromptForArrival(item)) return styles.cardHintAwaiting;
+  if (item.is_in_barn) return styles.cardHintInBarn;
+  return null;
 }
 
 function formatCount(value: number | null | undefined) {
@@ -556,6 +645,130 @@ function formatMortalityHistoryDate(value: string, pattern: string | null | unde
               ? "F"
               : "S";
   return `${marker} ${shortDate}`;
+}
+
+type ArrivalConfirmationModalProps = {
+  error: string | null;
+  placement: PlacementSummary | null;
+  submitting: boolean;
+  visible: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+};
+
+function ArrivalConfirmationModal({
+  error,
+  placement,
+  submitting,
+  visible,
+  onCancel,
+  onConfirm,
+}: ArrivalConfirmationModalProps) {
+  return (
+    <Modal animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
+      <View style={styles.modalScrim}>
+        <View style={styles.arrivalModalCard}>
+          <Text style={styles.historyModalEyebrow}>Awaiting Arrival</Text>
+          <Text style={styles.arrivalModalTitle}>Chicks Have Not Arrived Yet</Text>
+          {placement ? (
+            <Text style={styles.arrivalModalSubtitle}>
+              {placement.barn_code} · {placement.placement_code}
+            </Text>
+          ) : null}
+          <Text style={styles.arrivalModalCopy}>
+            This placement is still in the waiting-for-chicks state. Mobile daily, mortality,
+            grade, and weight data should not be collected until chicks are in the barn.
+          </Text>
+          <Text style={styles.arrivalModalQuestion}>
+            Change this placement state to “Chicks Have Arrived” now?
+          </Text>
+          {error ? <Text style={styles.historyErrorText}>{error}</Text> : null}
+          <View style={styles.arrivalModalActions}>
+            <Pressable disabled={submitting} onPress={onCancel} style={styles.arrivalModalSecondaryButton}>
+              <Text style={styles.arrivalModalSecondaryText}>Cancel</Text>
+            </Pressable>
+            <Pressable disabled={submitting} onPress={onConfirm} style={styles.arrivalModalPrimaryButton}>
+              {submitting ? (
+                <ActivityIndicator color="#FFF8EF" />
+              ) : (
+                <Text style={styles.arrivalModalPrimaryText}>Chicks Arrived</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+export type DeleteAccountModalProps = {
+  confirmation: string;
+  error: string | null;
+  submitting: boolean;
+  visible: boolean;
+  onChangeConfirmation: (value: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+};
+
+export function DeleteAccountModal({
+  confirmation,
+  error,
+  submitting,
+  visible,
+  onChangeConfirmation,
+  onCancel,
+  onConfirm,
+}: DeleteAccountModalProps) {
+  const canConfirm = confirmation.trim().toUpperCase() === "DELETE";
+
+  return (
+    <Modal animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
+      <View style={styles.modalScrim}>
+        <View style={styles.arrivalModalCard}>
+          <Text style={styles.historyModalEyebrow}>Account</Text>
+          <Text style={styles.arrivalModalTitle}>Delete This Account</Text>
+          <Text style={styles.arrivalModalCopy}>
+            This permanently deletes your FlockTrax account and removes your access to
+            mobile flock records. This action cannot be undone.
+          </Text>
+          <Text style={styles.arrivalModalQuestion}>
+            Type DELETE below to confirm account deletion.
+          </Text>
+          <TextInput
+            autoCapitalize="characters"
+            autoCorrect={false}
+            editable={!submitting}
+            onChangeText={onChangeConfirmation}
+            placeholder="Type DELETE"
+            placeholderTextColor="#9A988F"
+            style={styles.deleteAccountInput}
+            value={confirmation}
+          />
+          {error ? <Text style={styles.historyErrorText}>{error}</Text> : null}
+          <View style={styles.arrivalModalActions}>
+            <Pressable disabled={submitting} onPress={onCancel} style={styles.arrivalModalSecondaryButton}>
+              <Text style={styles.arrivalModalSecondaryText}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              disabled={!canConfirm || submitting}
+              onPress={onConfirm}
+              style={[
+                styles.deleteAccountConfirmButton,
+                (!canConfirm || submitting) && styles.deleteAccountConfirmButtonDisabled,
+              ]}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#FFF8EF" />
+              ) : (
+                <Text style={styles.deleteAccountConfirmText}>Delete Account</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -642,7 +855,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 10,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   actionButton: {
     flex: 1,
@@ -672,6 +885,26 @@ const styles = StyleSheet.create({
     borderColor: "#DCC9AF",
     padding: 18,
     gap: 8,
+  },
+  cardInBarn: {
+    backgroundColor: "#FFF8EF",
+    borderColor: "#DCC9AF",
+  },
+  cardAwaitingArrival: {
+    backgroundColor: "#EEF4FB",
+    borderColor: "#93AFD0",
+  },
+  cardPending: {
+    backgroundColor: "#EAF1FB",
+    borderColor: "#B3C5E4",
+  },
+  cardComplete: {
+    backgroundColor: "#F3EEE7",
+    borderColor: "#D5C8BA",
+  },
+  cardNeutral: {
+    backgroundColor: "#FFF8EF",
+    borderColor: "#DCC9AF",
   },
   cardHeader: {
     flexDirection: "row",
@@ -721,6 +954,9 @@ const styles = StyleSheet.create({
   badgeDanger: {
     backgroundColor: "#E53D36",
   },
+  badgeInfo: {
+    backgroundColor: "#B9D2F0",
+  },
   badgeInactive: {
     backgroundColor: "#E5D9D4",
   },
@@ -736,6 +972,9 @@ const styles = StyleSheet.create({
   },
   badgeDangerText: {
     color: "#FFF8EF",
+  },
+  badgeInfoText: {
+    color: "#23476F",
   },
   badgeInactiveText: {
     color: "#77534A",
@@ -797,6 +1036,15 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     fontStyle: "italic",
     marginTop: 4,
+  },
+  cardHintAwaiting: {
+    color: "#3F5F8C",
+  },
+  cardHintPending: {
+    color: "#4D6D98",
+  },
+  cardHintInBarn: {
+    color: "#9E6330",
   },
   historyButton: {
     marginTop: 8,
@@ -866,6 +1114,14 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 10,
   },
+  arrivalModalCard: {
+    width: "100%",
+    maxWidth: 380,
+    borderRadius: 20,
+    backgroundColor: "#FFF8EF",
+    padding: 18,
+    gap: 12,
+  },
   historyModalEyebrow: {
     color: "#7B4B2A",
     fontSize: 11,
@@ -882,6 +1138,86 @@ const styles = StyleSheet.create({
     color: "#6A5643",
     fontSize: 13,
     fontWeight: "700",
+  },
+  arrivalModalTitle: {
+    color: "#1F2A1F",
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  arrivalModalSubtitle: {
+    color: "#6A5643",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  arrivalModalCopy: {
+    color: "#4E5550",
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+  arrivalModalQuestion: {
+    color: "#73491F",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  arrivalModalActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  arrivalModalPrimaryButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 14,
+    backgroundColor: "#8B572A",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  arrivalModalPrimaryText: {
+    color: "#FFF8EF",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  deleteAccountInput: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#DCC9AF",
+    backgroundColor: "#FFFDFC",
+    color: "#4E5550",
+    fontSize: 15,
+    fontWeight: "700",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  deleteAccountConfirmButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 14,
+    backgroundColor: "#A01828",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteAccountConfirmButtonDisabled: {
+    backgroundColor: "#D8BE99",
+  },
+  deleteAccountConfirmText: {
+    color: "#FFF8EF",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  arrivalModalSecondaryButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#D2B892",
+    backgroundColor: "#F6EEDF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  arrivalModalSecondaryText: {
+    color: "#73491F",
+    fontSize: 15,
+    fontWeight: "800",
   },
   historyRows: {
     gap: 8,

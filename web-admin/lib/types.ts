@@ -99,6 +99,8 @@ export type ActivePlacementRecord = {
   submissionStatus: "submitted" | "pending" | "attention";
   dashboardStatusLabel: string;
   dashboardStatusTone: "good" | "warn" | "danger" | "neutral";
+  openBarnIssueCount: number;
+  openPlacementIssueCount: number;
   startedFemaleCount: number;
   startedMaleCount: number;
   mortalityFemaleTotal: number;
@@ -132,6 +134,11 @@ export type ActivePlacementRecord = {
   lh1Date: string | null;
   lh3Date: string | null;
   tileState: "live" | "awaiting" | "scheduled" | "empty";
+  nextPlacement: {
+    placementCode: string;
+    flockCode: string;
+    placedDate: string;
+  } | null;
   placementIsActive: boolean;
   flockIsInBarn: boolean;
   barnIsEmpty: boolean;

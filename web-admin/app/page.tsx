@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 const consoleLinks = [
   { label: "Live Dashboard", href: "/admin/overview" },
+  { label: "Action Items", href: "/admin/issues" },
   { label: "Feed Tickets", href: "/admin/feed-tickets" },
   { label: "Placements", href: "/admin/placements/new" },
   { label: "Rollups" },
@@ -169,8 +170,16 @@ export default async function HomePage() {
           </div>
 
           <div className="splash-sidebar-footer">
+            <div className="splash-sidebar-footer-links">
+              <Link className="splash-sidebar-footer-link" href="/privacy">
+                Privacy Policy
+              </Link>
+              <Link className="splash-sidebar-footer-link" href="/delete-account">
+                Delete Account Policy
+              </Link>
+            </div>
             {renderSidebarCopyright(splash.copyrightLine)}
-            {splash.versionLine ? <p>{splash.versionLine}</p> : null}
+            {splash.versionLine ? <p className="splash-sidebar-footer-version">{splash.versionLine}</p> : null}
           </div>
         </aside>
       </div>

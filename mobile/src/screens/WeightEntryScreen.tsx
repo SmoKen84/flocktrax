@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 
+import { isAuthError } from "../api/http";
 import { PlacementSummary, WeightBenchmark, WeightEntryItem, WeightSampleEntry } from "../types";
 
 type Props = {
@@ -50,12 +51,21 @@ export function WeightEntryScreen({
       return;
     }
 
+    const validationError = validateWeightEntry(draft);
+    if (validationError) {
+      setMessage(validationError);
+      return;
+    }
+
     try {
       setSaving(true);
       setMessage(null);
       await onSave(draft);
       setMessage("Weight summary saved.");
     } catch (error) {
+      if (isAuthError(error)) {
+        return;
+      }
       setMessage(error instanceof Error ? error.message : "Weight save failed.");
     } finally {
       setSaving(false);
@@ -255,10 +265,14 @@ function InlineField({
   keyboardType = "default",
 }: InlineFieldProps) {
   const [textValue, setTextValue] = useState(value === null || value === undefined ? "" : String(value));
+  const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
+    if (isFocused) {
+      return;
+    }
     setTextValue(value === null || value === undefined ? "" : String(value));
-  }, [value]);
+  }, [isFocused, value]);
 
   return (
     <View style={styles.inlineField}>
@@ -269,10 +283,15 @@ function InlineField({
       <TextInput
         keyboardType={keyboardType}
         inputMode={keyboardType === "decimal-pad" ? "decimal" : keyboardType === "number-pad" ? "numeric" : "text"}
+        onBlur={() => {
+          setIsFocused(false);
+          setTextValue(value === null || value === undefined ? "" : String(value));
+        }}
         onChangeText={(nextValue) => {
           setTextValue(nextValue);
           onChange(nextValue);
         }}
+        onFocus={() => setIsFocused(true)}
         placeholderTextColor="#9A988F"
         style={styles.inlineInput}
         value={textValue}
@@ -341,6 +360,30 @@ function formatBenchmarkValue(value: number | null | undefined) {
   }
 
   return `Std ${value}`;
+}
+
+function validateWeightEntry(item: WeightEntryItem) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(item.log_date)) {
+    return "Log date must use YYYY-MM-DD.";
+  }
+
+  if (item.log_date > todayIsoDate()) {
+    return "Weight date cannot be in the future.";
+  }
+
+  if (item.placed_date && item.log_date < item.placed_date) {
+    return "Weight date cannot be before the flock was placed.";
+  }
+
+  return null;
+}
+
+function todayIsoDate() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 const styles = StyleSheet.create({

@@ -102,6 +102,7 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved }: Props) {
     nextVoucherNumber: null,
   });
   const [allowHistoricalEntry, setAllowHistoricalEntry] = useState(false);
+  const [recoverableDraft, setRecoverableDraft] = useState<EditorItem | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,14 +125,21 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved }: Props) {
         }
         const normalized = normalizeItem(payload.item);
         const restoredDraft = readDraft(ticketId);
-        setItem(restoredDraft ?? normalized);
+        if (restoredDraft && ticketId) {
+          setItem(restoredDraft);
+          setMessageTone("success");
+          setMessage("Recovered unsaved feed ticket work from this browser.");
+        } else {
+          setItem(normalized);
+          setRecoverableDraft(restoredDraft && !ticketId ? restoredDraft : null);
+          if (restoredDraft && !ticketId) {
+            setMessageTone("success");
+            setMessage("Unsaved new-ticket work was found in this browser. Recover it or start fresh.");
+          }
+        }
         setPlacementOptions(payload.placementOptions ?? []);
         setTicketNumberDefaults(payload.ticketNumberDefaults ?? { voucherPrefix: null, nextVoucherNumber: null });
         setAllowHistoricalEntry(payload.settings?.allowHistoricalEntry === true);
-        if (restoredDraft) {
-          setMessageTone("success");
-          setMessage("Recovered unsaved feed ticket work from this browser.");
-        }
       } catch (error) {
         if (!cancelled) {
           setMessageTone("error");
@@ -282,6 +290,24 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved }: Props) {
     }
   }
 
+  function handleRecoverDraft() {
+    if (!recoverableDraft) {
+      return;
+    }
+
+    setItem(normalizeItem(recoverableDraft));
+    setRecoverableDraft(null);
+    setMessageTone("success");
+    setMessage("Recovered unsaved feed ticket work from this browser.");
+  }
+
+  function handleDiscardRecoveredDraft() {
+    clearDraft(null);
+    setRecoverableDraft(null);
+    setMessageTone("success");
+    setMessage("Discarded browser draft. Starting a fresh new ticket.");
+  }
+
   async function handleDelete() {
     const deleteId = item?.id ?? ticketId;
     if (!deleteId) return;
@@ -370,6 +396,20 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved }: Props) {
 
           {message ? (
             <div className={`feed-ticket-editor-banner ${messageTone === "success" ? "is-success" : "is-error"}`}>{message}</div>
+          ) : null}
+
+          {!isExistingTicket && recoverableDraft ? (
+            <div className="feed-ticket-editor-banner is-success feed-ticket-editor-recovery-actions">
+              <span>Unsaved new-ticket work is available in this browser.</span>
+              <div className="feed-ticket-editor-recovery-buttons">
+                <button className="button" onClick={handleRecoverDraft} type="button">
+                  Recover Draft
+                </button>
+                <button className="button-secondary" onClick={handleDiscardRecoveredDraft} type="button">
+                  Start Fresh
+                </button>
+              </div>
+            </div>
           ) : null}
 
           <div className="feed-ticket-editor-grid">

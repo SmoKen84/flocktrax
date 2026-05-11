@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getServiceClient, loadOpenIssueBundle } from "../_shared/issues.ts";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -93,6 +94,7 @@ function rowOrNull<T>(rows: T[] | null | undefined) {
 
 async function buildPlacementDayItem(
   supabase: ReturnType<typeof createClient>,
+  service: ReturnType<typeof createClient>,
   placementId: string,
   logDate: string,
 ) {
@@ -114,9 +116,11 @@ async function buildPlacementDayItem(
   const placementAgeDays = typeof placementMeta.placed_date === "string"
     ? daysBetween(logDate, placementMeta.placed_date)
     : null;
+  const issueBundle = await loadOpenIssueBundle(service, placementId, placementMeta.barn_id);
 
   return {
     placement_id: placementMeta.placement_id,
+    barn_id: placementMeta.barn_id,
     placement_code: placementMeta.placement_code,
     farm_name: placementMeta.farm_name,
     barn_code: placementMeta.barn_code,
@@ -153,6 +157,8 @@ async function buildPlacementDayItem(
     grade_feathers: typeof mortalityRow?.grade_feathers === "number" ? mortalityRow.grade_feathers : null,
     grade_lame: typeof mortalityRow?.grade_lame === "number" ? mortalityRow.grade_lame : null,
     grade_pecking: typeof mortalityRow?.grade_pecking === "number" ? mortalityRow.grade_pecking : null,
+    barn_issues: issueBundle.barn_issues,
+    placement_issues: issueBundle.placement_issues,
     daily_tasks: await getDailyAgeTasks(
       supabase,
       typeof dailyRow?.age_days === "number" ? dailyRow.age_days : placementAgeDays,
@@ -228,6 +234,7 @@ async function getPlacementMeta(
 
   return {
     placement_id: placement.id,
+    barn_id: placement.barn_id,
     placement_code: placement.placement_key,
     farm_name: farm?.farm_name ?? "",
     barn_code: barn?.barn_code ?? "",
@@ -248,6 +255,7 @@ Deno.serve(async (req) => {
       ok: true,
       item: {
         placement_id: "00000000-0000-0000-0000-000000000000",
+        barn_id: "00000000-0000-0000-0000-000000000001",
         placement_code: "123-Barn-A",
         farm_name: "Sample Farm",
         barn_code: "Barn-A",
@@ -284,6 +292,8 @@ Deno.serve(async (req) => {
         grade_feathers: null,
         grade_lame: null,
         grade_pecking: null,
+        barn_issues: [],
+        placement_issues: [],
         daily_tasks: [
           { id: "task-1", task_label: "Fill Feeder Trays (AM & PM)", display_order: 1 },
           { id: "task-2", task_label: "Adjust Nipple Line Height", display_order: 2 },
@@ -318,8 +328,9 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = getClient(accessToken);
+    const service = getServiceClient();
 
-    const item = await buildPlacementDayItem(supabase, placementId, logDate);
+    const item = await buildPlacementDayItem(supabase, service, placementId, logDate);
     if (!item) {
       return json(req, { ok: false, error: "Placement not found" }, 404);
     }

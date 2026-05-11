@@ -14,7 +14,7 @@ begin
   where p.barn_id = p_barn_id
     and p.is_active = true
     and p.date_removed is null
-  order by coalesce(p.active_start, p.date_placed) asc nulls last, p.created_at asc
+  order by p.active_start asc nulls last, p.created_at asc
   limit 1;
 
   if v_flock_id is null then
@@ -188,7 +188,7 @@ begin
   where p.barn_id = p_barn_id
     and p.is_active = true
     and p.date_removed is null
-  order by coalesce(p.active_start, p.date_placed) asc nulls last, p.created_at asc
+  order by p.active_start asc nulls last, p.created_at asc
   limit 1;
 
   if v_current.id is null then
@@ -215,7 +215,7 @@ begin
   where p.barn_id = p_barn_id
     and p.id <> v_current.id
     and p.date_removed is null
-  order by coalesce(p.active_start, p.date_placed) asc nulls last, p.created_at asc
+  order by p.active_start asc nulls last, p.created_at asc
   limit 1;
 
   if v_next.id is not null then

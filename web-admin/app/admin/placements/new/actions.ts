@@ -205,7 +205,7 @@ export async function schedulePlacementAction(formData: FormData) {
     admin.from("barns").select("id,farm_id,barn_code").eq("id", barnId).maybeSingle(),
     admin
       .from("placements")
-      .select("id,flock_id,date_removed,placement_key")
+      .select("id,flock_id,date_removed,placement_key,active_start,active_end")
       .eq("barn_id", barnId),
     submittedGrowOutDays ? Promise.resolve(submittedGrowOutDays) : getSchedulerGrowOutDaysDefault(admin),
   ]);
@@ -231,14 +231,22 @@ export async function schedulePlacementAction(formData: FormData) {
 
   const flockById = new Map(((flocksResult.data ?? []) as Array<{ id: string; date_placed: string | null; max_date: string | null; flock_number: number | null }>).map((row) => [row.id, row]));
 
+  const projectedEndDate = addDays(selectedDate, growOutDays);
+
   const overlap = (placementsResult.data ?? []).find((row) => {
     const flock = flockById.get(row.flock_id);
-    const start = coerce(flock?.date_placed as unknown as FormDataEntryValue | null);
-    if (!start) {
+    const siblingStart =
+      coerce(row.active_start as unknown as FormDataEntryValue | null) ||
+      coerce(flock?.date_placed as unknown as FormDataEntryValue | null);
+    if (!siblingStart) {
       return false;
     }
-    const end = coerce(row.date_removed as unknown as FormDataEntryValue | null) || coerce(flock?.max_date as unknown as FormDataEntryValue | null) || addDays(start, growOutDays);
-    return selectedDate >= start && selectedDate <= end;
+    const siblingEnd =
+      coerce(row.date_removed as unknown as FormDataEntryValue | null) ||
+      coerce(row.active_end as unknown as FormDataEntryValue | null) ||
+      coerce(flock?.max_date as unknown as FormDataEntryValue | null) ||
+      addDays(siblingStart, growOutDays);
+    return selectedDate <= siblingEnd && projectedEndDate >= siblingStart;
   });
 
   if (overlap) {
@@ -257,8 +265,6 @@ export async function schedulePlacementAction(formData: FormData) {
     redirect(buildLocation({ farm: farmId, barn: barnId, date: selectedDate, month: month || selectedDate.slice(0, 7), error: `Flock number ${flockNumber} is already in use on this farm.` }));
   }
 
-  const projectedEndDate = addDays(selectedDate, growOutDays);
-
   const flockInsertResult = await admin
     .from("flocks")
     .insert({
@@ -274,11 +280,30 @@ export async function schedulePlacementAction(formData: FormData) {
       is_in_barn: false,
       is_settled: false,
     })
-    .select("id")
+    .select("id,date_placed,max_date")
     .single();
 
   if (flockInsertResult.error || !flockInsertResult.data?.id) {
     redirect(buildLocation({ farm: farmId, barn: barnId, date: selectedDate, month: month || selectedDate.slice(0, 7), error: flockInsertResult.error?.message ?? "Flock could not be created." }));
+  }
+
+  const flockDatesNeedCorrection =
+    flockInsertResult.data.date_placed !== selectedDate || flockInsertResult.data.max_date !== projectedEndDate;
+
+  if (flockDatesNeedCorrection) {
+    const flockCorrectionResult = await admin
+      .from("flocks")
+      .update({
+        date_placed: selectedDate,
+        max_date: projectedEndDate,
+        updated_by: actorId,
+      })
+      .eq("id", flockInsertResult.data.id);
+
+    if (flockCorrectionResult.error) {
+      await admin.from("flocks").delete().eq("id", flockInsertResult.data.id);
+      redirect(buildLocation({ farm: farmId, barn: barnId, date: selectedDate, month: month || selectedDate.slice(0, 7), error: flockCorrectionResult.error.message }));
+    }
   }
 
   const placementInsertResult = await admin
@@ -286,6 +311,8 @@ export async function schedulePlacementAction(formData: FormData) {
     .insert({
       barn_id: barnId,
       flock_id: flockInsertResult.data.id,
+      active_start: selectedDate,
+      active_end: projectedEndDate,
       created_by: actorId,
       is_active: false,
     })

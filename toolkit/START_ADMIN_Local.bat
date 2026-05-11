@@ -43,6 +43,9 @@ echo     at "LOCALHOST:3000" from any local browser
 echo     on this computer
 echo
 if defined GOOGLE_APPLICATION_CREDENTIALS echo  Google credentials loaded from: %GOOGLE_APPLICATION_CREDENTIALS%
+
+
+cd C:\dev\FlockTrax\web-admin
 npm run dev
 if errorlevel 1 (
   echo ERROR: Loading LOCALHOST Server

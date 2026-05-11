@@ -81,6 +81,28 @@ function isDate(value: string | null | undefined) {
   return dt.getUTCFullYear() === year && dt.getUTCMonth() === month - 1 && dt.getUTCDate() === day;
 }
 
+function getTodayIsoDate(timeZone: string | null) {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timeZone ?? "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const parts = formatter.formatToParts(new Date());
+    const year = parts.find((part) => part.type === "year")?.value;
+    const month = parts.find((part) => part.type === "month")?.value;
+    const day = parts.find((part) => part.type === "day")?.value;
+    if (year && month && day) {
+      return `${year}-${month}-${day}`;
+    }
+  } catch {
+    // Fall back to UTC below if the device timezone is invalid.
+  }
+
+  return new Date().toISOString().slice(0, 10);
+}
+
 function sanitizeWeightPayload(sample: Record<string, unknown> | null | undefined) {
   if (!sample || typeof sample !== "object") {
     return {};
@@ -127,9 +149,15 @@ Deno.serve(async (req) => {
   const payload = await readBody(req);
   const placementId = typeof payload.placement_id === "string" ? payload.placement_id : null;
   const logDate = typeof payload.log_date === "string" ? payload.log_date : null;
+  const deviceTimeZone = req.headers.get("x-device-timezone");
 
   if (!isUuid(placementId) || !isDate(logDate)) {
     return json(req, { ok: false, error: "Invalid or missing placement_id or log_date" }, 400);
+  }
+
+  const todayIsoDate = getTodayIsoDate(deviceTimeZone);
+  if (logDate > todayIsoDate) {
+    return json(req, { ok: false, error: "Weight date cannot be in the future." }, 400);
   }
 
   try {
@@ -161,6 +189,9 @@ Deno.serve(async (req) => {
 
     if (flockError) throw new Error(flockError.message);
     const flock = flockRows?.[0];
+    if (typeof flock?.date_placed === "string" && logDate < flock.date_placed) {
+      return json(req, { ok: false, error: "Weight date cannot be before the flock was placed." }, 400);
+    }
     const ageDays = typeof flock?.date_placed === "string"
       ? Math.round((new Date(`${logDate}T00:00:00Z`).getTime() - new Date(`${flock.date_placed}T00:00:00Z`).getTime()) / 86400000)
       : null;

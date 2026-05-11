@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getServiceClient, loadOpenIssueCounts } from "../_shared/issues.ts";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -87,22 +88,20 @@ function formatDateInTimeZone(date: Date, timeZone: string) {
 
 function deriveDashboardStatus(flags: {
   isActive: boolean;
-  maintenance: boolean;
-  feedlines: boolean;
-  nippleLines: boolean;
-  birdHealthAlert: boolean;
+  openBarnIssueCount: number;
+  openPlacementIssueCount: number;
   completedTodayLabel: string | null;
 }) {
   if (!flags.isActive) {
     return { label: "Inactive", tone: "neutral" as const };
   }
 
-  if (flags.birdHealthAlert) {
-    return { label: "Health Alert", tone: "danger" as const };
-  }
-
-  if (flags.maintenance || flags.feedlines || flags.nippleLines) {
-    return { label: "Needs R&M", tone: "warn" as const };
+  const totalOpenIssues = flags.openBarnIssueCount + flags.openPlacementIssueCount;
+  if (totalOpenIssues > 0) {
+    return {
+      label: `${totalOpenIssues} Open Issue${totalOpenIssues === 1 ? "" : "s"}`,
+      tone: flags.openPlacementIssueCount > 0 ? ("danger" as const) : ("warn" as const),
+    };
   }
 
   if (flags.completedTodayLabel) {
@@ -173,7 +172,9 @@ Deno.serve(async (req) => {
           needs_feedlines: false,
           needs_nipple_lines: false,
           has_bird_health_alert: true,
-          dashboard_status_label: "Health Alert",
+          open_barn_issue_count: 0,
+          open_placement_issue_count: 1,
+          dashboard_status_label: "1 Open Issue",
           dashboard_status_tone: "danger",
           head_count: 25000,
           is_active: true,
@@ -230,6 +231,7 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = getClient(accessToken);
+    const service = getServiceClient();
     const { data: isAdminData, error: isAdminError } = await supabase.rpc("is_admin");
     if (isAdminError) {
       return json(req, { ok: false, error: isAdminError.message }, 400);
@@ -515,17 +517,7 @@ Deno.serve(async (req) => {
         cull_male: number;
       }
     >();
-    const dailyFlagsByPlacementId = new Map<
-      string,
-      {
-        maintenance: boolean;
-        feedlines: boolean;
-        nippleLines: boolean;
-        birdHealthAlert: boolean;
-        latestLogDate: string | null;
-        completedTodayLabel: string | null;
-      }
-    >();
+    const completedTodayLabelByPlacementId = new Map<string, string | null>();
 
     if (farmIds.length > 0) {
       const { data: farms, error: farmsError } = await supabase
@@ -592,33 +584,15 @@ Deno.serve(async (req) => {
       for (const row of dailyRows ?? []) {
         if (typeof row.placement_id !== "string") continue;
 
-        const current = dailyFlagsByPlacementId.get(row.placement_id) ?? {
-          maintenance: false,
-          feedlines: false,
-          nippleLines: false,
-          birdHealthAlert: false,
-          latestLogDate: null,
-          completedTodayLabel: null,
-        };
-
-        current.maintenance = current.maintenance || row.maintenance_flag === true;
-        current.feedlines = current.feedlines || row.feedlines_flag === true;
-        current.nippleLines = current.nippleLines || row.nipple_lines_flag === true;
-        current.birdHealthAlert = current.birdHealthAlert || row.bird_health_alert === true;
         const rowLogDate = typeof row.log_date === "string" ? row.log_date : null;
-        if (!current.latestLogDate || (rowLogDate && rowLogDate > current.latestLogDate)) {
-          current.latestLogDate = rowLogDate;
-        }
         const completionLabel = formatCompletionBadgeLabel(
           typeof row.updated_at === "string" ? row.updated_at : (typeof row.created_at === "string" ? row.created_at : null),
           today,
           deviceTimeZone,
         );
-        if (completionLabel && rowLogDate === today) {
-          current.completedTodayLabel = completionLabel;
+        if (completionLabel && rowLogDate === today && !completedTodayLabelByPlacementId.has(row.placement_id)) {
+          completedTodayLabelByPlacementId.set(row.placement_id, completionLabel);
         }
-
-        dailyFlagsByPlacementId.set(row.placement_id, current);
       }
 
       const { data: mortalityRows, error: mortalityError } = await supabase
@@ -650,6 +624,9 @@ Deno.serve(async (req) => {
       }
     }
 
+    const { barnCounts: barnIssueCountByBarnId, placementCounts: placementIssueCountByPlacementId } =
+      await loadOpenIssueCounts(service, { placementIds, barnIds });
+
     const items = placements.map((row) => {
       const farm = typeof row.farm_id === "string" ? farmById.get(row.farm_id) : undefined;
       const barn = typeof row.barn_id === "string" ? barnById.get(row.barn_id) : undefined;
@@ -665,30 +642,20 @@ Deno.serve(async (req) => {
       const currentFemaleCount = Math.max(0, femaleCount - mortalityFemaleCount);
       const currentMaleCount = Math.max(0, maleCount - mortalityMaleCount);
       const firstLivehaulDays = placedDate ? firstLivehaulDaysSetting : null;
-      const flags = typeof row.id === "string"
-        ? (dailyFlagsByPlacementId.get(row.id) ?? {
-            maintenance: false,
-            feedlines: false,
-            nippleLines: false,
-            birdHealthAlert: false,
-            latestLogDate: null,
-            completedTodayLabel: null,
-          })
-        : {
-            maintenance: false,
-            feedlines: false,
-            nippleLines: false,
-            birdHealthAlert: false,
-            latestLogDate: null,
-            completedTodayLabel: null,
-          };
+      const openPlacementIssueCount = typeof row.id === "string"
+        ? (placementIssueCountByPlacementId.get(row.id) ?? 0)
+        : 0;
+      const openBarnIssueCount = typeof row.barn_id === "string"
+        ? (barnIssueCountByBarnId.get(row.barn_id) ?? 0)
+        : 0;
+      const completedTodayLabel = typeof row.id === "string"
+        ? (completedTodayLabelByPlacementId.get(row.id) ?? null)
+        : null;
       const dashboardStatus = deriveDashboardStatus({
         isActive: row.is_active === true,
-        maintenance: flags.maintenance,
-        feedlines: flags.feedlines,
-        nippleLines: flags.nippleLines,
-        birdHealthAlert: flags.birdHealthAlert,
-        completedTodayLabel: flags.completedTodayLabel,
+        openBarnIssueCount,
+        openPlacementIssueCount,
+        completedTodayLabel,
       });
 
       return {
@@ -712,10 +679,12 @@ Deno.serve(async (req) => {
         current_female_count: currentFemaleCount,
         current_male_count: currentMaleCount,
         current_total_count: currentFemaleCount + currentMaleCount,
-        needs_maintenance: flags.maintenance,
-        needs_feedlines: flags.feedlines,
-        needs_nipple_lines: flags.nippleLines,
-        has_bird_health_alert: flags.birdHealthAlert,
+        needs_maintenance: openBarnIssueCount > 0,
+        needs_feedlines: false,
+        needs_nipple_lines: false,
+        has_bird_health_alert: openPlacementIssueCount > 0,
+        open_barn_issue_count: openBarnIssueCount,
+        open_placement_issue_count: openPlacementIssueCount,
         dashboard_status_label: dashboardStatus.label,
         dashboard_status_tone: dashboardStatus.tone,
         head_count: femaleCount + maleCount,

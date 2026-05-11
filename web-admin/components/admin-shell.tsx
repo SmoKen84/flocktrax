@@ -9,6 +9,7 @@ import { SessionRecoveryLayer } from "@/components/session-recovery-layer";
 
 const consoleLinks = [
   { label: "Live Dashboard", href: "/admin/overview" },
+  { label: "Action Items", href: "/admin/issues" },
   { label: "Feed Tickets", href: "/admin/feed-tickets" },
   { label: "Placements", href: "/admin/placements/new" },
   { label: "Rollups" },
@@ -221,8 +222,16 @@ export function AdminShell({ children, displayName, roleKey, roleLabel, scopeLab
           </div>
 
           <div className="splash-sidebar-footer">
+            <div className="splash-sidebar-footer-links">
+              <Link className="splash-sidebar-footer-link" href="/privacy">
+                Privacy Policy
+              </Link>
+              <Link className="splash-sidebar-footer-link" href="/delete-account">
+                Delete Account Policy
+              </Link>
+            </div>
             {renderSidebarCopyright(copyrightLine)}
-            {versionLine ? <p>{versionLine}</p> : null}
+            {versionLine ? <p className="splash-sidebar-footer-version">{versionLine}</p> : null}
           </div>
         </aside>
       </div>

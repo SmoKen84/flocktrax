@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
@@ -69,7 +70,7 @@ function getOperationalAction(placement: ActivePlacementRecord) {
   if (placement.tileState === "scheduled" && !placement.placementIsActive) {
     return {
       kind: "current" as const,
-      label: "Make Current",
+      label: "Prep Next Flock",
     };
   }
 
@@ -83,11 +84,22 @@ function getOperationalAction(placement: ActivePlacementRecord) {
   if (placement.placementIsActive && placement.flockIsInBarn && placement.canMarkBarnEmpty) {
     return {
       kind: "empty" as const,
-      label: "Barn Empty",
+      label: "Checkout Flock",
     };
   }
 
   return null;
+}
+
+function shouldPrioritizeOperationalAction(
+  placement: ActivePlacementRecord,
+  operationalAction: ReturnType<typeof getOperationalAction>,
+) {
+  if (!operationalAction) {
+    return false;
+  }
+
+  return operationalAction.kind === "empty";
 }
 
 function needsLhDates(placement: ActivePlacementRecord) {
@@ -104,6 +116,124 @@ function getPassiveTileActionLabel(placement: ActivePlacementRecord) {
   }
 
   return placement.ageDays < 0 ? "Placed Ok" : "Schedule Live Haul";
+}
+
+function formatIssueSummary(placement: ActivePlacementRecord) {
+  const parts: string[] = [];
+
+  if (placement.openBarnIssueCount > 0) {
+    parts.push(
+      `${placement.openBarnIssueCount} Barn Issue${placement.openBarnIssueCount === 1 ? "" : "s"}`,
+    );
+  }
+
+  if (placement.openPlacementIssueCount > 0) {
+    parts.push(
+      `${placement.openPlacementIssueCount} Placement Issue${placement.openPlacementIssueCount === 1 ? "" : "s"}`,
+    );
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : "No open issues";
+}
+
+function buildActionItemsHref(placement: ActivePlacementRecord) {
+  const params = new URLSearchParams();
+  params.set("farmId", placement.farmId);
+  params.set("barnId", placement.barnId);
+  params.set("placementId", placement.placementId);
+  params.append("status", "open");
+  return `/admin/issues?${params.toString()}`;
+}
+
+function CheckoutFlockPopup({
+  placement,
+  removedDate,
+  pending,
+  feedback,
+  onChangeRemovedDate,
+  onClose,
+  onConfirm,
+}: {
+  placement: ActivePlacementRecord;
+  removedDate: string;
+  pending: boolean;
+  feedback: LhDateActionResult;
+  onChangeRemovedDate: (value: string) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
+    <div className="checkout-popup-shell" onClick={onClose}>
+      <div className="checkout-popup-panel" onClick={(event) => event.stopPropagation()}>
+        <div className="checkout-popup-header">
+          <div className="checkout-popup-title-block">
+            <p className="checkout-popup-placement-line">
+              {placement.farmName} &middot; Barn {placement.barnCode}
+            </p>
+            <h3>Checkout Current Flock</h3>
+            <p className="checkout-popup-copy">
+              Close out the shipped flock, stamp the removal date, and move the next scheduled flock into a
+              get-ready state so incoming feed and other items can land on that new placement.
+            </p>
+          </div>
+          <button className="button-secondary" disabled={pending} onClick={onClose} type="button">
+            Close
+          </button>
+        </div>
+
+        <div className="checkout-popup-grid">
+          <div className="checkout-popup-card">
+            <span>Current flock</span>
+            <strong>{placement.placementCode}</strong>
+            <p>Flock {placement.flockCode}</p>
+          </div>
+          <div className="checkout-popup-card">
+            <span>Next state</span>
+            <strong>{placement.nextPlacement?.placementCode ?? "No Next Placement"}</strong>
+            <p>
+              {placement.nextPlacement
+                ? `Flock ${placement.nextPlacement.flockCode}${placement.nextPlacement.placedDate ? ` · Scheduled ${placement.nextPlacement.placedDate}` : ""}`
+                : "This barn will be left empty until another flock is scheduled."}
+            </p>
+          </div>
+        </div>
+
+        <label className="checkout-popup-field">
+          <span>Flock removed date</span>
+          <input
+            disabled={pending}
+            onChange={(event) => onChangeRemovedDate(event.target.value)}
+            type="date"
+            value={removedDate}
+          />
+        </label>
+
+        {feedback.status !== "idle" ? (
+          <p
+            className={
+              feedback.status === "error" ? "checkout-popup-feedback is-error" : "checkout-popup-feedback is-success"
+            }
+          >
+            {feedback.message}
+          </p>
+        ) : null}
+
+        <div className="checkout-popup-actions">
+          <button className="tile-action-button tile-action-button--secondary" disabled={pending} onClick={onClose} type="button">
+            Cancel
+          </button>
+          <button className="tile-action-button" disabled={pending || !removedDate} onClick={onConfirm} type="button">
+            {pending ? "Checking Out..." : "Checkout"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 function MortalityPopup({
@@ -285,6 +415,8 @@ function PlacementTile({
     message: "",
   });
   const [mortalityPopupMode, setMortalityPopupMode] = useState<"first7" | "last7" | null>(null);
+  const [showCheckoutPopup, setShowCheckoutPopup] = useState(false);
+  const [checkoutRemovedDate, setCheckoutRemovedDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   const isEditingLhDates = editingPlacementId === placement.id;
   const anotherTileIsEditing = editingPlacementId !== null && editingPlacementId !== placement.id;
@@ -307,6 +439,9 @@ function PlacementTile({
   const operationalAction = getOperationalAction(placement);
   const lhDatesNeeded = needsLhDates(placement);
   const canEditLhDates = placement.placementIsActive && placement.ageDays >= 42;
+  const prioritizeOperationalAction = shouldPrioritizeOperationalAction(placement, operationalAction);
+  const hasOpenItems = placement.openBarnIssueCount > 0 || placement.openPlacementIssueCount > 0;
+  const actionItemsHref = buildActionItemsHref(placement);
 
   function beginEdit() {
     if (!canEditLhDates || anotherTileIsEditing) {
@@ -324,6 +459,14 @@ function PlacementTile({
     setLh1DateValue(savedLh1Date);
     setLh3DateValue(savedLh3Date);
     onEndEdit();
+  }
+
+  function closeCheckoutPopup() {
+    if (isPending) {
+      return;
+    }
+
+    setShowCheckoutPopup(false);
   }
 
   function saveDates() {
@@ -345,7 +488,7 @@ function PlacementTile({
     });
   }
 
-  function runOperationalAction() {
+  function runOperationalAction(overrideRemovedDate?: string) {
     if (!operationalAction) {
       return;
     }
@@ -356,14 +499,26 @@ function PlacementTile({
           ? await makePlacementCurrentAction(placement.id)
           : operationalAction.kind === "arrival"
             ? await markChicksArrivedAction(placement.id)
-            : await markBarnEmptyAction(placement.barnId);
+            : await markBarnEmptyAction(placement.barnId, overrideRemovedDate);
 
       setActionState(result);
 
       if (result.status === "success") {
+        setShowCheckoutPopup(false);
         router.refresh();
       }
     });
+  }
+
+  function handleOperationalActionClick() {
+    if (operationalAction?.kind === "empty") {
+      setActionState({ status: "idle", message: "" });
+      setCheckoutRemovedDate(new Date().toISOString().slice(0, 10));
+      setShowCheckoutPopup(true);
+      return;
+    }
+
+    runOperationalAction();
   }
 
   return (
@@ -374,9 +529,15 @@ function PlacementTile({
           <h3 className="placement-tile-farm">{placement.farmName}</h3>
           <p className="placement-kicker">{placement.farmGroupName}</p>
         </div>
-        <span className="status-pill" data-tone={placement.dashboardStatusTone}>
-          {placement.dashboardStatusLabel}
-        </span>
+        {hasOpenItems ? (
+          <Link className="status-pill" data-tone={placement.dashboardStatusTone} href={actionItemsHref}>
+            {placement.dashboardStatusLabel}
+          </Link>
+        ) : (
+          <span className="status-pill" data-tone={placement.dashboardStatusTone}>
+            {placement.dashboardStatusLabel}
+          </span>
+        )}
       </div>
 
       <div className="placement-summary-grid">
@@ -392,6 +553,21 @@ function PlacementTile({
           <p className="stat-label">Age</p>
           <p className="tile-value">{placement.ageDays} days</p>
         </div>
+      </div>
+
+      {hasOpenItems ? (
+        <Link className="tile-issue-summary tile-issue-summary-link" data-tone={placement.dashboardStatusTone} href={actionItemsHref}>
+          {formatIssueSummary(placement)}
+        </Link>
+      ) : (
+        <div className="tile-issue-summary" data-tone={placement.dashboardStatusTone}>
+          {formatIssueSummary(placement)}
+        </div>
+      )}
+      <div className="tile-issue-actions">
+        <Link className="tile-inline-link" href={actionItemsHref}>
+          Open Items
+        </Link>
       </div>
 
       <section className="tile-mortality-card">
@@ -441,6 +617,15 @@ function PlacementTile({
           >
             {isPending ? "Saving..." : "Save Dates"}
           </button>
+        ) : prioritizeOperationalAction && operationalAction ? (
+          <button
+            className="tile-action-button"
+            disabled={isPending || anotherTileIsEditing}
+            onClick={handleOperationalActionClick}
+            type="button"
+          >
+            {isPending ? "Saving..." : operationalAction.label}
+          </button>
         ) : lhDatesNeeded ? (
           <button
             className="tile-action-button"
@@ -454,7 +639,7 @@ function PlacementTile({
           <button
             className="tile-action-button"
             disabled={isPending || anotherTileIsEditing}
-            onClick={runOperationalAction}
+            onClick={handleOperationalActionClick}
             type="button"
           >
             {isPending ? "Saving..." : operationalAction.label}
@@ -480,11 +665,20 @@ function PlacementTile({
           >
             Cancel
           </button>
+        ) : prioritizeOperationalAction && canEditLhDates ? (
+          <button
+            className="tile-action-button tile-action-button--secondary"
+            disabled={isPending || anotherTileIsEditing}
+            onClick={beginEdit}
+            type="button"
+          >
+            LH Dates
+          </button>
         ) : lhDatesNeeded && operationalAction ? (
           <button
             className="tile-action-button tile-action-button--secondary"
             disabled={isPending || anotherTileIsEditing}
-            onClick={runOperationalAction}
+            onClick={handleOperationalActionClick}
             type="button"
           >
             {operationalAction.label}
@@ -600,6 +794,17 @@ function PlacementTile({
           placement={placement}
         />
       ) : null}
+      {showCheckoutPopup ? (
+        <CheckoutFlockPopup
+          feedback={actionState}
+          onChangeRemovedDate={setCheckoutRemovedDate}
+          onClose={closeCheckoutPopup}
+          onConfirm={() => runOperationalAction(checkoutRemovedDate)}
+          pending={isPending}
+          placement={placement}
+          removedDate={checkoutRemovedDate}
+        />
+      ) : null}
     </article>
   );
 }
@@ -671,7 +876,7 @@ export function ActivePlacementDashboard({
           </div>
         </div>
         <div className="live-dashboard-summary">
-          <span className="live-dashboard-summary-label">Barns with Alerts</span>
+          <span className="live-dashboard-summary-label">Placements with Open Items</span>
           <strong>{alertCount > 0 ? alertCount : "none"}</strong>
         </div>
       </div>

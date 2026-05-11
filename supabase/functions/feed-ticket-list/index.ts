@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
 
     let ticketsQuery = service
       .from("feed_tickets")
-      .select("id,ticket_num,delivery_date,created_at,feedmill,feed_weight,feed_name,source_type")
+      .select("id,ticket_num,delivery_date,created_at,feedmill,feed_weight,feed_name,source_type,ticket_type")
       .order("delivery_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(100);
@@ -188,6 +188,10 @@ Deno.serve(async (req) => {
         ticket_number: ticket.ticket_num ?? null,
         delivery_date: ticket.delivery_date ?? null,
         vendor_name: ticket.feedmill ?? null,
+        ticket_type:
+          ticket.ticket_type === "xTran" || ticket.ticket_type === "iTran" || ticket.ticket_type === "f2f"
+            ? ticket.ticket_type
+            : "Reg",
         source_type: ticket.source_type ?? ticket.feed_name ?? null,
         ticket_weight_lbs: typeof ticket.feed_weight === "number" ? ticket.feed_weight : null,
         allocated_weight_lbs: allocatedWeight,

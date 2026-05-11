@@ -1,0 +1,37 @@
+flowchart TD
+  A["Browser requests https://admin.flocktrax.com"] --> B["DNS lookup for admin.flocktrax.com"]
+  B --> C["Authoritative DNS returns Vercel target"]
+  C --> D["Browser opens HTTPS connection to Vercel edge"]
+  D --> E["Vercel matches hostname to web-admin project"]
+  E --> F["Next.js app route executes on Vercel"]
+  F --> G["Splash / login / admin page HTML returned"]
+  F --> H["Server-side auth/session check"]
+  H --> I["Supabase Auth validates cookies/tokens"]
+  I --> F
+  F --> J["Browser renders page"]
+
+  K["User submits login form"] --> L["Request goes to Next.js on Vercel"]
+  L --> M["Next.js uses Supabase auth helpers"]
+  M --> N["Supabase Auth validates credentials"]
+  N --> O["Session/cookies established"]
+  O --> P["Redirect into admin area"]
+
+  Q["User opens /admin/user-access"] --> R["Next.js route runs on Vercel"]
+  R --> S["Server checks authenticated user via Supabase"]
+  S --> T["Next.js loads user/role/membership data from Supabase"]
+  T --> U["Rendered admin page returned to browser"]
+
+  V["User clicks Send Invite"] --> W["Next.js server action runs on Vercel"]
+  W --> X["Server action calls Supabase admin API"]
+  X --> Y["Supabase creates/updates auth user and sends email"]
+  W --> Z["redirectTo URL is generated from app origin"]
+  Z --> Y
+
+  AA["User clicks invite/reset email link"] --> AB["Browser goes to auth callback URL"]
+  AB --> AC["Vercel handles /auth/callback route"]
+  AC --> AD["Callback exchanges tokens with Supabase"]
+  AD --> AE["Session finalized and redirected into app"]
+
+  AF["Weight screen or placement-day mobile flow"] --> AG["Mobile calls Supabase edge function"]
+  AG --> AH["Edge function reads/writes native Supabase tables"]
+  AH --> AI["Optional downstream sync/integration occurs separately"]

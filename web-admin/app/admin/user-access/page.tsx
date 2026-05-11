@@ -4,6 +4,7 @@ import {
   addFarmGroupMembershipAction,
   addFarmMembershipAction,
   assignUserRoleAction,
+  deleteUserAccessAction,
   inviteUserAccessAction,
   removeFarmGroupMembershipAction,
   removeFarmMembershipAction,
@@ -135,7 +136,9 @@ export default async function UserAccessPage({ searchParams }: UserAccessPagePro
     label: role.label,
   }));
   const canInviteUsers = actorCanManageUsers(actingRole) && inviteRoleOptions.length > 0;
+  const actorIsSuperAdmin = isSuperAdminRole(actingRole);
   const hasActiveFilters = Boolean(groupFilter || farmFilter || statusFilter);
+  const canDeleteSelectedUser = Boolean(selectedTarget && actorIsSuperAdmin && !isSelfSelected);
 
   const buildUserAccessHref = (targetUserId?: string, overrideMode?: string | null) => {
     const query = new URLSearchParams();
@@ -428,6 +431,24 @@ export default async function UserAccessPage({ searchParams }: UserAccessPagePro
                     <p className="access-target-note">
                       {selectedTarget?.note ?? "Live grant details appear here when a user is selected."}
                     </p>
+                    {canDeleteSelectedUser && selectedTarget ? (
+                      <form action={deleteUserAccessAction} className="access-delete-user-form">
+                        <input name="return_to" type="hidden" value={buildUserAccessHref(selectedTarget.id, null)} />
+                        <input name="target_user_id" type="hidden" value={selectedTarget.id} />
+                        <label className="field field-wide">
+                          <span>Delete User</span>
+                          <input
+                            autoComplete="off"
+                            name="confirmation"
+                            placeholder='Type DELETE to permanently remove this user'
+                            type="text"
+                          />
+                        </label>
+                        <button className="button-ghost access-delete-user-button" type="submit">
+                          Permanently Delete User
+                        </button>
+                      </form>
+                    ) : null}
                   </div>
                 </div>
 
@@ -834,6 +855,11 @@ function actorCanManageUsers(role: ReturnType<typeof resolveRoleTemplate>) {
       (permissionRow.create || permissionRow.update || permissionRow.menuAccess)
     );
   });
+}
+
+function isSuperAdminRole(role: ReturnType<typeof resolveRoleTemplate>) {
+  const normalizedRole = normalizeKey(role.key);
+  return normalizedRole === "super_admin" || normalizedRole === "superadmin" || normalizedRole.includes("super");
 }
 
 function getAssignableRoleOptions(

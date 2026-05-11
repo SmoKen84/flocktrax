@@ -11,6 +11,10 @@ import {
 } from "react-native";
 
 import {
+  AuthError,
+  createIssue,
+  isAuthError,
+  deleteCurrentAccount,
   getFeedTicket,
   getDashboardWeatherForecast,
   listFeedTickets,
@@ -19,12 +23,14 @@ import {
   getWeightEntry,
   listPlacements,
   login,
+  markChicksArrived,
   requestPasswordReset,
+  resolveIssue,
   submitFeedTicket,
   submitPlacementDay,
   submitWeightEntry,
 } from "./src/api/http";
-import { DashboardScreen } from "./src/screens/DashboardScreen";
+import { DashboardScreen, DeleteAccountModal } from "./src/screens/DashboardScreen";
 import { FeedTicketListScreen } from "./src/screens/FeedTicketListScreen";
 import { FeedTicketScreen } from "./src/screens/FeedTicketScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
@@ -41,6 +47,8 @@ import {
   DashboardWeatherForecast,
   FeedTicketItem,
   FeedTicketListItem,
+  IssueItem,
+  IssueType,
   PlacementFilterMeta,
   PlacementDayItem,
   PlacementSummary,
@@ -63,6 +71,8 @@ type WeatherCacheEntry = {
 };
 
 const WEATHER_CACHE_TTL_MS = 15 * 60 * 1000;
+
+type LoginFailureStage = "auth" | "profile" | "dashboard";
 
 export default function App() {
   const [booting, setBooting] = useState(true);
@@ -89,6 +99,12 @@ export default function App() {
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherForecast, setWeatherForecast] = useState<DashboardWeatherForecast | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
+  const [reauthVisible, setReauthVisible] = useState(false);
+  const [reauthMessage, setReauthMessage] = useState<string | null>(null);
+  const [deleteAccountVisible, setDeleteAccountVisible] = useState(false);
+  const [deleteAccountConfirmation, setDeleteAccountConfirmation] = useState("");
+  const [deleteAccountSubmitting, setDeleteAccountSubmitting] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
   const weatherCacheRef = useRef<Record<string, WeatherCacheEntry>>({});
 
   useEffect(() => {
@@ -137,9 +153,34 @@ export default function App() {
   }
 
   async function handleLogin(email: string, password: string, rememberMe: boolean) {
+    await authenticateUser(email, password, rememberMe, { preserveRoute: false });
+  }
+
+  async function handleReauthenticate(email: string, password: string, rememberMe: boolean) {
+    await authenticateUser(email, password, rememberMe, { preserveRoute: true });
+  }
+
+  async function authenticateUser(
+    email: string,
+    password: string,
+    rememberMe: boolean,
+    options: { preserveRoute: boolean },
+  ) {
     setErrorMessage(null);
-    const nextSession = await login(email, password);
-    const me = await getProfile(nextSession.accessToken);
+
+    let nextSession: AuthSession;
+    try {
+      nextSession = await login(email, password);
+    } catch (error) {
+      throw new Error(formatLoginStageError("auth", error));
+    }
+
+    let me: UserProfile;
+    try {
+      me = await getProfile(nextSession.accessToken);
+    } catch (error) {
+      throw new Error(formatLoginStageError("profile", error));
+    }
 
     setSession(nextSession);
     setProfile(me);
@@ -148,14 +189,43 @@ export default function App() {
     } else {
       await clearStoredSession();
     }
-    setRoute({ name: "dashboard" });
-    await refreshPlacements(nextSession.accessToken, null, true);
+    setReauthVisible(false);
+    setReauthMessage(null);
+    if (!options.preserveRoute) {
+      setRoute({ name: "dashboard" });
+    }
+
+    try {
+      await refreshPlacements(nextSession.accessToken, selectedFarmGroupId, !options.preserveRoute, {
+        throwOnError: true,
+      });
+    } catch (error) {
+      throw new Error(formatLoginStageError("dashboard", error));
+    }
+  }
+
+  async function presentReauthModal(error: unknown) {
+    await clearStoredSession();
+    setReauthVisible(true);
+    setReauthMessage(errorToMessage(error));
+    setErrorMessage(null);
+  }
+
+  async function handleAppError(error: unknown) {
+    if (isAuthError(error)) {
+      await presentReauthModal(error);
+      return true;
+    }
+
+    setErrorMessage(errorToMessage(error));
+    return false;
   }
 
   async function refreshPlacements(
     accessToken = session?.accessToken,
     farmGroupId = selectedFarmGroupId,
     resetSelection = false,
+    options: { throwOnError?: boolean } = {},
   ) {
     if (!accessToken) return;
     setPlacementsLoading(true);
@@ -175,11 +245,42 @@ export default function App() {
         const stillAvailable = (payload.filters?.available_farms ?? []).some((farm) => farm.farm_id === currentFarmId);
         return stillAvailable ? currentFarmId : null;
       });
+      return payload;
     } catch (error) {
-      setErrorMessage(errorToMessage(error));
+      const handled = await handleAppError(error);
+      if (options.throwOnError) {
+        if (handled && error instanceof AuthError) {
+          throw error;
+        }
+        throw error instanceof Error ? error : new Error(errorToMessage(error));
+      }
     } finally {
       setPlacementsLoading(false);
     }
+  }
+
+  async function handleMarkChicksArrived(placement: PlacementSummary) {
+    if (!session?.accessToken) {
+      throw new Error("You must be signed in to change placement state.");
+    }
+
+    await markChicksArrived(session.accessToken, placement.placement_id);
+    const refreshed = await refreshPlacements(
+      session.accessToken,
+      selectedFarmGroupId,
+      false,
+      { throwOnError: true },
+    );
+
+    const updatedPlacement =
+      refreshed?.items.find((item) => item.placement_id === placement.placement_id) ??
+      {
+        ...placement,
+        is_in_barn: true,
+        is_active: true,
+      };
+
+    return updatedPlacement;
   }
 
   async function openPlacement(
@@ -206,7 +307,7 @@ export default function App() {
       setPlacementDay(hydratedItem);
       setRoute({ name: "placement-day", placement });
     } catch (error) {
-      setErrorMessage(errorToMessage(error));
+      await handleAppError(error);
     } finally {
       setPlacementDayLoading(false);
     }
@@ -224,10 +325,57 @@ export default function App() {
       await refreshPlacements();
       return saved;
     } catch (error) {
-      setErrorMessage(errorToMessage(error));
+      await handleAppError(error);
       throw error;
     } finally {
       setPlacementDayLoading(false);
+    }
+  }
+
+  async function syncPlacementIssueBundle(bundle: {
+    barn_id: string;
+    barn_issues: IssueItem[];
+    placement_issues: IssueItem[];
+  }) {
+    await refreshPlacements();
+    return bundle;
+  }
+
+  async function handleCreateIssue(input: {
+    entityType: "barn" | "placement";
+    entityId: string;
+    issueType: IssueType;
+    description?: string | null;
+    placementId?: string | null;
+    reportedLogDate?: string | null;
+  }) {
+    if (!session?.accessToken) {
+      throw new Error("You must be signed in to create an issue.");
+    }
+
+    try {
+      const bundle = await createIssue(session.accessToken, input);
+      return await syncPlacementIssueBundle(bundle);
+    } catch (error) {
+      await handleAppError(error);
+      throw error;
+    }
+  }
+
+  async function handleResolveIssue(input: {
+    issueId: string;
+    resolutionNote?: string | null;
+  }) {
+    if (!session?.accessToken) {
+      throw new Error("You must be signed in to resolve an issue.");
+    }
+
+    try {
+      const bundle = await resolveIssue(session.accessToken, input);
+      return await syncPlacementIssueBundle(bundle);
+    } catch (error) {
+      await handleAppError(error);
+      throw error;
     }
   }
 
@@ -251,7 +399,7 @@ export default function App() {
       setWeightEntry(item);
       setRoute({ name: "weight-entry", placement });
     } catch (error) {
-      setErrorMessage(errorToMessage(error));
+      await handleAppError(error);
     } finally {
       setWeightEntryLoading(false);
     }
@@ -267,7 +415,7 @@ export default function App() {
       const saved = await submitWeightEntry(session.accessToken, item);
       setWeightEntry(saved);
     } catch (error) {
-      setErrorMessage(errorToMessage(error));
+      await handleAppError(error);
       throw error;
     } finally {
       setWeightEntryLoading(false);
@@ -290,7 +438,7 @@ export default function App() {
       setFeedTicketList(applyFeedTicketFilters(payload.items, options));
       setRoute({ name: "feed-ticket-list" });
     } catch (error) {
-      setErrorMessage(errorToMessage(error));
+      await handleAppError(error);
     } finally {
       setFeedTicketListLoading(false);
     }
@@ -308,7 +456,7 @@ export default function App() {
       setFeedTicket(item);
       setRoute({ name: "feed-ticket" });
     } catch (error) {
-      setErrorMessage(errorToMessage(error));
+      await handleAppError(error);
     } finally {
       setFeedTicketLoading(false);
     }
@@ -326,17 +474,57 @@ export default function App() {
       const payload = await listFeedTickets(session.accessToken);
       setFeedTicketList(payload.items);
     } catch (error) {
-      setErrorMessage(errorToMessage(error));
+      await handleAppError(error);
       throw error;
     } finally {
       setFeedTicketLoading(false);
     }
   }
 
-  async function handleLogout() {
+  function handleLockSession() {
+    setErrorMessage(null);
+    setReauthVisible(true);
+    setReauthMessage("Session locked. Sign in again to continue where you left off.");
+  }
+
+  async function handleDeleteAccount(confirmation: string) {
+    if (!session?.accessToken) {
+      throw new Error("You must be signed in to delete this account.");
+    }
+
+    await deleteCurrentAccount(session.accessToken, confirmation);
+    await clearStoredSession();
+    setSession(null);
+    setProfile(null);
+    setPlacements([]);
+    setPlacementFilters(null);
+    setDashboardSettings(null);
+    setSelectedFarmGroupId(null);
+    setSelectedFarmId(null);
     setPlacementDay(null);
+    setWeightEntry(null);
+    setFeedTicket(null);
+    setFeedTicketList([]);
     setRoute({ name: "login" });
     setErrorMessage(null);
+    setReauthVisible(false);
+    setReauthMessage(null);
+  }
+
+  async function confirmDeleteAccount() {
+    try {
+      setDeleteAccountSubmitting(true);
+      setDeleteAccountError(null);
+      await handleDeleteAccount(deleteAccountConfirmation);
+      setDeleteAccountVisible(false);
+      setDeleteAccountConfirmation("");
+    } catch (error) {
+      setDeleteAccountError(
+        error instanceof Error ? error.message : "Account deletion could not be completed.",
+      );
+    } finally {
+      setDeleteAccountSubmitting(false);
+    }
   }
 
   async function handleResumeSession() {
@@ -517,15 +705,29 @@ export default function App() {
               <Text style={styles.eyebrow}>Field Operations</Text>
               <Text style={styles.title}>{headerTitle}</Text>
               {route.name === "dashboard" && profile ? (
-                <Text numberOfLines={1} style={styles.headerUserLine}>
-                  {formatDashboardUser(profile)}
-                </Text>
+                <>
+                  <Text numberOfLines={1} style={styles.headerUserLine}>
+                    {formatDashboardUser(profile)}
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      setDeleteAccountError(null);
+                      setDeleteAccountConfirmation("");
+                      setDeleteAccountVisible(true);
+                    }}
+                    style={styles.headerDeleteAccountButton}
+                  >
+                    <Text style={styles.headerDeleteAccountButtonText}>Delete Account</Text>
+                  </Pressable>
+                </>
               ) : null}
             </View>
             {route.name === "dashboard" ? (
-              <Pressable onPress={() => void openDashboardWeather()} style={styles.weatherHeaderButton}>
-                <Text style={styles.weatherHeaderButtonIcon}>☁</Text>
-              </Pressable>
+              <View style={styles.headerActions}>
+                <Pressable onPress={() => void openDashboardWeather()} style={styles.weatherHeaderButton}>
+                  <Text style={styles.weatherHeaderButtonIcon}>☁</Text>
+                </Pressable>
+              </View>
             ) : null}
           </View>
         ) : null}
@@ -564,7 +766,8 @@ export default function App() {
             onOpenFeedTicket={() => {
               void openFeedTicketList();
             }}
-            onLogout={handleLogout}
+            onLogout={handleLockSession}
+            onMarkChicksArrived={handleMarkChicksArrived}
             onOpenPlacement={openPlacement}
             onRefresh={() => refreshPlacements()}
             onSelectFarm={setSelectedFarmId}
@@ -601,6 +804,7 @@ export default function App() {
             item={placementDay}
             loading={placementDayLoading}
             logDate={activeLogDate}
+            onCreateIssue={handleCreateIssue}
             placement={route.placement}
             settings={dashboardSettings}
             onBack={() => setRoute({ name: "dashboard" })}
@@ -612,6 +816,7 @@ export default function App() {
             onOpenWeightEntry={() => {
               void openWeightEntry(route.placement, activeLogDate);
             }}
+            onResolveIssue={handleResolveIssue}
             onSave={savePlacementDay}
           />
         ) : null}
@@ -637,6 +842,29 @@ export default function App() {
             onSave={saveWeightEntry}
           />
         ) : null}
+
+        <Modal
+          animationType="fade"
+          transparent
+          visible={reauthVisible}
+          onRequestClose={() => undefined}
+        >
+          <View style={styles.reauthScrim}>
+            <View style={styles.reauthCard}>
+              <LoginScreen
+                initialEmail={session?.email ?? profile?.email ?? ""}
+                mode="reauth"
+                onForgotPassword={async (email) => {
+                  await requestPasswordReset(email);
+                }}
+                onLogin={handleReauthenticate}
+              />
+              {reauthMessage ? (
+                <Text style={styles.reauthMessage}>{reauthMessage}</Text>
+              ) : null}
+            </View>
+          </View>
+        </Modal>
 
         <Modal
           animationType="fade"
@@ -693,6 +921,21 @@ export default function App() {
             </View>
           </View>
         </Modal>
+
+        <DeleteAccountModal
+          confirmation={deleteAccountConfirmation}
+          error={deleteAccountError}
+          submitting={deleteAccountSubmitting}
+          visible={deleteAccountVisible}
+          onChangeConfirmation={setDeleteAccountConfirmation}
+          onCancel={() => {
+            if (deleteAccountSubmitting) return;
+            setDeleteAccountVisible(false);
+            setDeleteAccountConfirmation("");
+            setDeleteAccountError(null);
+          }}
+          onConfirm={() => void confirmDeleteAccount()}
+        />
       </View>
     </SafeAreaView>
   );
@@ -753,6 +996,21 @@ function isTodayIso(value: string) {
 function errorToMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   return "Something went wrong";
+}
+
+function formatLoginStageError(stage: LoginFailureStage, error: unknown) {
+  const detail = errorToMessage(error);
+
+  switch (stage) {
+    case "auth":
+      return `Sign-in failed at credentials check: ${detail}`;
+    case "profile":
+      return `Sign-in succeeded, but user profile loading failed: ${detail}`;
+    case "dashboard":
+      return `Sign-in succeeded, but dashboard loading failed: ${detail}`;
+    default:
+      return detail;
+  }
 }
 
 function formatDashboardUser(profile: UserProfile | null) {
@@ -847,6 +1105,11 @@ const styles = StyleSheet.create({
   headerCopy: {
     flex: 1,
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   eyebrow: {
     color: "#7B4B2A",
     fontSize: 12,
@@ -864,6 +1127,17 @@ const styles = StyleSheet.create({
     color: "#7E776E",
     fontSize: 12,
     fontWeight: "600",
+  },
+  headerDeleteAccountButton: {
+    alignSelf: "flex-start",
+    marginTop: 6,
+    paddingVertical: 2,
+  },
+  headerDeleteAccountButtonText: {
+    color: "#A01828",
+    fontSize: 12,
+    fontWeight: "800",
+    textDecorationLine: "underline",
   },
   weatherHeaderButton: {
     width: 42,
@@ -906,6 +1180,32 @@ const styles = StyleSheet.create({
     color: "#5D6A5D",
     fontSize: 15,
     fontWeight: "600",
+  },
+  reauthScrim: {
+    flex: 1,
+    backgroundColor: "rgba(28, 24, 20, 0.44)",
+    justifyContent: "center",
+    padding: 18,
+  },
+  reauthCard: {
+    width: "100%",
+    maxWidth: 420,
+    minHeight: 520,
+    alignSelf: "center",
+    maxHeight: "92%",
+    borderRadius: 26,
+    backgroundColor: "#EEE4D7",
+    borderWidth: 1,
+    borderColor: "#D8C9B2",
+    paddingHorizontal: 18,
+    paddingVertical: 22,
+  },
+  reauthMessage: {
+    color: "#73491F",
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
+    paddingTop: 8,
   },
   weatherModalScrim: {
     flex: 1,

@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/page-header";
 import { getFeedTicketAdminBundle, type FeedTicketAdminFilters } from "@/lib/feed-ticket-data";
-import { getPlatformScreenTextValues } from "@/lib/platform-content";
+import { getPlatformReportOption, getPlatformScreenTextValues } from "@/lib/platform-content";
 
 import { FeedTicketConsole } from "./feed-ticket-console";
 
@@ -25,6 +25,10 @@ export default async function FeedTicketsPage({ searchParams }: FeedTicketsPageP
   };
   const bundle = await getFeedTicketAdminBundle(filters);
   const screenText = await getPlatformScreenTextValues(["admin_feed_title", "admin_feed_desc"]);
+  const flockFeedAuditReport = await getPlatformReportOption({
+    location: "admin_feed_tickets",
+    name: "FlockFeedAudit",
+  });
   const heroTitle = screenText.get("admin_feed_title") || "Reconcile Feed Tickets";
   const heroBody =
     screenText.get("admin_feed_desc") ||
@@ -33,7 +37,7 @@ export default async function FeedTicketsPage({ searchParams }: FeedTicketsPageP
   return (
     <>
       <PageHeader eyebrow="Console" title={heroTitle} body={heroBody} />
-      <FeedTicketConsole bundle={bundle} />
+      <FeedTicketConsole bundle={bundle} reportOption={flockFeedAuditReport} />
     </>
   );
 }

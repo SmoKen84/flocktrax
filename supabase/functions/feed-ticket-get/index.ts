@@ -78,7 +78,8 @@ function emptyDraft() {
     id: null,
     ticket_number: null,
     delivered_at: new Date().toISOString(),
-    ticket_weight_lbs: null,
+    ticket_weight_lbs: 0,
+    ticket_type: "Reg",
     feed_name: null,
     vendor_name: null,
     source_type: null,
@@ -179,7 +180,7 @@ Deno.serve(async (req) => {
       const [ticketResult, dropsResult] = await Promise.all([
         service
           .from("feed_tickets")
-          .select("id,ticket_num,feedmill,delivery_date,comment,feed_weight,feed_name,source_type")
+          .select("id,ticket_num,feedmill,delivery_date,comment,feed_weight,feed_name,source_type,ticket_type")
           .eq("id", ticketId)
           .limit(1),
         service
@@ -200,6 +201,10 @@ Deno.serve(async (req) => {
           ticket_number: ticket.ticket_num ?? null,
           delivered_at: ticket.delivery_date ? `${ticket.delivery_date}T00:00:00.000Z` : new Date().toISOString(),
           ticket_weight_lbs: typeof ticket.feed_weight === "number" ? ticket.feed_weight : null,
+          ticket_type:
+            ticket.ticket_type === "xTran" || ticket.ticket_type === "iTran" || ticket.ticket_type === "f2f"
+              ? ticket.ticket_type
+              : "Reg",
           feed_name: ticket.feed_name ?? null,
           vendor_name: ticket.feedmill ?? null,
           source_type: ticket.source_type ?? "mill",

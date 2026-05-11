@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getServiceClient, loadOpenIssueBundle } from "../_shared/issues.ts";
 import { getAuthenticatedUserId, getMobileAccessContext } from "../_shared/mobile-access.ts";
 
 function corsHeaders(req: Request) {
@@ -87,6 +88,28 @@ function isDate(value: string | null | undefined) {
   return dt.getUTCFullYear() === year && dt.getUTCMonth() === month - 1 && dt.getUTCDate() === day;
 }
 
+function getTodayIsoDate(timeZone: string | null) {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timeZone ?? "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const parts = formatter.formatToParts(new Date());
+    const year = parts.find((part) => part.type === "year")?.value;
+    const month = parts.find((part) => part.type === "month")?.value;
+    const day = parts.find((part) => part.type === "day")?.value;
+    if (year && month && day) {
+      return `${year}-${month}-${day}`;
+    }
+  } catch {
+    // Fall back to UTC below if the device timezone is invalid.
+  }
+
+  return new Date().toISOString().slice(0, 10);
+}
+
 function pickPresent(payload: Record<string, unknown>, keys: string[]) {
   const row: Record<string, unknown> = {};
   for (const key of keys) {
@@ -167,6 +190,7 @@ async function getDailyAgeTasks(
 
 async function buildPlacementDayItem(
   supabase: ReturnType<typeof createClient>,
+  service: ReturnType<typeof createClient>,
   placementId: string,
   logDate: string,
 ) {
@@ -202,9 +226,11 @@ async function buildPlacementDayItem(
   const mortalityRow = mortalityResult.data?.[0] ?? null;
   const placedDate = typeof flock?.date_placed === "string" ? flock.date_placed : null;
   const ageDays = placedDate ? Math.round((new Date(`${logDate}T00:00:00Z`).getTime() - new Date(`${placedDate}T00:00:00Z`).getTime()) / 86400000) : null;
+  const issueBundle = await loadOpenIssueBundle(service, placementId, placement.barn_id);
 
   return {
     placement_id: placement.id,
+    barn_id: placement.barn_id,
     placement_code: placement.placement_key,
     farm_name: farm?.farm_name ?? "",
     barn_code: barn?.barn_code ?? "",
@@ -241,6 +267,8 @@ async function buildPlacementDayItem(
     grade_feathers: mortalityRow?.grade_feathers ?? null,
     grade_lame: mortalityRow?.grade_lame ?? null,
     grade_pecking: mortalityRow?.grade_pecking ?? null,
+    barn_issues: issueBundle.barn_issues,
+    placement_issues: issueBundle.placement_issues,
     daily_tasks: await getDailyAgeTasks(supabase, dailyRow?.age_days ?? ageDays),
     daily_is_active: dailyRow?.is_active ?? true,
     mortality_is_active: mortalityRow?.is_active ?? true,
@@ -301,6 +329,7 @@ Deno.serve(async (req) => {
       mortality_saved: true,
       item: {
         placement_id: placementId ?? "00000000-0000-0000-0000-000000000000",
+        barn_id: "00000000-0000-0000-0000-000000000001",
         log_date: logDate ?? "2026-03-13",
         rel_humidity: 65.5,
         outside_temp_current: 58.2,
@@ -311,6 +340,8 @@ Deno.serve(async (req) => {
         feedlines_flag: false,
         nipple_lines_flag: false,
         bird_health_alert: true,
+        barn_issues: [],
+        placement_issues: [],
       },
       mode: "adalo_test",
       debug: {
@@ -351,9 +382,15 @@ Deno.serve(async (req) => {
 
   const placementId = typeof payload.placement_id === "string" ? payload.placement_id : null;
   const logDate = typeof payload.log_date === "string" ? payload.log_date : null;
+  const deviceTimeZone = req.headers.get("x-device-timezone");
 
   if (!isUuid(placementId) || !isDate(logDate)) {
     return json(req, { ok: false, error: "Invalid or missing placement_id or log_date" }, 400);
+  }
+
+  const todayIsoDate = getTodayIsoDate(deviceTimeZone);
+  if (logDate > todayIsoDate) {
+    return json(req, { ok: false, error: "Log date cannot be in the future." }, 400);
   }
 
   const dailyFields = [
@@ -435,10 +472,11 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = getClient(accessToken);
+    const service = getServiceClient();
     const userId = await getAuthenticatedUserId(supabase);
     const { data: placementRows, error: placementLookupError } = await supabase
       .from("placements")
-      .select("id,farm_id")
+      .select("id,farm_id,flock_id")
       .eq("id", placementId)
       .limit(1);
 
@@ -449,6 +487,21 @@ Deno.serve(async (req) => {
     const placementRow = placementRows?.[0];
     if (!placementRow) {
       return json(req, { ok: false, error: "Placement not found" }, 404);
+    }
+
+    const { data: flockRows, error: flockLookupError } = await supabase
+      .from("flocks")
+      .select("date_placed")
+      .eq("id", placementRow.flock_id)
+      .limit(1);
+
+    if (flockLookupError) {
+      return json(req, { ok: false, error: flockLookupError.message }, 400);
+    }
+
+    const placedDate = flockRows?.[0]?.date_placed;
+    if (typeof placedDate === "string" && logDate < placedDate) {
+      return json(req, { ok: false, error: "Log date cannot be before the flock was placed." }, 400);
     }
 
     const access = await getMobileAccessContext(supabase, userId, placementRow.farm_id);
@@ -496,7 +549,7 @@ Deno.serve(async (req) => {
       mortalityResult = data;
     }
 
-    const combinedRow = await buildPlacementDayItem(supabase, placementId, logDate);
+    const combinedRow = await buildPlacementDayItem(supabase, service, placementId, logDate);
 
     return json(req, {
       ok: true,

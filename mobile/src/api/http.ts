@@ -7,7 +7,11 @@ import {
   FeedTicketListItem,
   FeedTicketListResponse,
   FeedTicketResponse,
+  IssueEntityType,
+  IssueType,
   LoginResponse,
+  PlacementIssueBundle,
+  PlacementIssueBundleResponse,
   PlacementFilterMeta,
   PlacementDayItem,
   PlacementDayResponse,
@@ -26,6 +30,26 @@ type RequestOptions = {
   token?: string;
   body?: unknown;
 };
+
+type ErrorPayload = {
+  error?: string;
+  message?: string;
+  detail?: string;
+};
+
+export class AuthError extends Error {
+  status: number;
+
+  constructor(message: string, status = 401) {
+    super(message);
+    this.name = "AuthError";
+    this.status = status;
+  }
+}
+
+export function isAuthError(error: unknown): error is AuthError {
+  return error instanceof AuthError;
+}
 
 export async function login(email: string, password: string): Promise<AuthSession> {
   const payload = await request<LoginResponse>("auth-login", {
@@ -49,6 +73,17 @@ export async function requestPasswordReset(email: string): Promise<void> {
   await request<{ ok?: boolean; error?: string }>("auth-forgot-password", {
     method: "POST",
     body: { email },
+  });
+}
+
+export async function deleteCurrentAccount(
+  token: string,
+  confirmation: string,
+): Promise<void> {
+  await request<{ ok?: boolean; error?: string }>("auth-delete-account", {
+    method: "POST",
+    token,
+    body: { confirmation },
   });
 }
 
@@ -192,6 +227,24 @@ export async function submitPlacementDay(
   return payload.item;
 }
 
+export async function markChicksArrived(
+  token: string,
+  placementId: string,
+  arrivalDate?: string | null,
+): Promise<void> {
+  if (!placementId.trim()) {
+    throw new Error("Placement is required.");
+  }
+
+  await requestRestRpc<Record<string, unknown>[]>("mark_chicks_arrived", {
+    token,
+    body: {
+      p_placement_id: placementId,
+      ...(arrivalDate?.trim() ? { p_arrival_date: arrivalDate.trim() } : {}),
+    },
+  });
+}
+
 export async function getWeightEntry(
   token: string,
   placementId: string,
@@ -286,6 +339,7 @@ export async function submitFeedTicket(
       ticket_number: item.ticket_number,
       delivered_at: item.delivered_at,
       ticket_weight_lbs: item.ticket_weight_lbs,
+      ticket_type: item.ticket_type,
       feed_name: item.feed_name,
       vendor_name: item.vendor_name,
       source_type: item.source_type,
@@ -299,6 +353,60 @@ export async function submitFeedTicket(
   }
 
   return payload.item;
+}
+
+export async function createIssue(
+  token: string,
+  input: {
+    entityType: IssueEntityType;
+    entityId: string;
+    issueType: IssueType;
+    description?: string | null;
+    placementId?: string | null;
+    reportedLogDate?: string | null;
+  },
+): Promise<PlacementIssueBundle> {
+  const payload = await request<PlacementIssueBundleResponse>("issue-create", {
+    method: "POST",
+    token,
+    body: {
+      entity_type: input.entityType,
+      entity_id: input.entityId,
+      issue_type: input.issueType,
+      description: input.description ?? null,
+      placement_id: input.placementId ?? null,
+      reported_log_date: input.reportedLogDate ?? null,
+    },
+  });
+
+  if (!payload.ok || !payload.bundle) {
+    throw new Error(payload.error ?? "Unable to create issue.");
+  }
+
+  return payload.bundle;
+}
+
+export async function resolveIssue(
+  token: string,
+  input: {
+    issueId: string;
+    resolutionNote?: string | null;
+  },
+): Promise<PlacementIssueBundle> {
+  const payload = await request<PlacementIssueBundleResponse>("issue-resolve", {
+    method: "POST",
+    token,
+    body: {
+      issue_id: input.issueId,
+      resolution_note: input.resolutionNote ?? null,
+    },
+  });
+
+  if (!payload.ok || !payload.bundle) {
+    throw new Error(payload.error ?? "Unable to resolve issue.");
+  }
+
+  return payload.bundle;
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -322,7 +430,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     headers.Authorization = `Bearer ${apiConfig.supabaseAnonKey}`;
   }
 
-  const response = await fetch(`${apiConfig.apiBaseUrl}/${path}`, {
+  const requestUrl = `${apiConfig.apiBaseUrl}/${path}`;
+  const response = await fetch(requestUrl, {
     method,
     headers,
     body: method === "POST" ? JSON.stringify(options.body ?? {}) : undefined,
@@ -330,13 +439,85 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   const raw = await response.text();
   const payload = safeJsonParse<T & { error?: string }>(raw);
+  const authMessage = getAuthErrorMessage(payload as ErrorPayload | null);
+
+  if (response.status === 401 || response.status === 403 || authMessage) {
+    throw new AuthError(
+      authMessage ??
+        (payload && typeof payload === "object" && "error" in payload && payload.error
+          ? String(payload.error)
+          : "Your session expired. Sign in again to continue."),
+      response.status || 401,
+    );
+  }
 
   if (!response.ok && payload && typeof payload === "object" && "error" in payload && payload.error) {
     throw new Error(payload.error);
   }
 
   if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}`);
+    throw new Error(`Request to ${path} failed with status ${response.status}.`);
+  }
+
+  return payload as T;
+}
+
+async function requestRestRpc<T>(
+  rpcName: string,
+  options: {
+    token: string;
+    body?: unknown;
+  },
+): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  if (deviceTimeZone) {
+    headers["X-Device-Timezone"] = deviceTimeZone;
+  }
+
+  if (apiConfig.supabaseAnonKey) {
+    headers.apikey = apiConfig.supabaseAnonKey;
+  }
+
+  headers.Authorization = `Bearer ${options.token}`;
+
+  const response = await fetch(`${apiConfig.supabaseUrl}/rest/v1/rpc/${rpcName}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(options.body ?? {}),
+  });
+
+  const raw = await response.text();
+  const payload = safeJsonParse<T & { message?: string; error?: string }>(raw);
+  const authMessage = getAuthErrorMessage(payload as ErrorPayload | null);
+
+  if (response.status === 401 || response.status === 403 || authMessage) {
+    throw new AuthError(
+      String(
+        authMessage ??
+          (payload && typeof payload === "object"
+            ? ("message" in payload && typeof payload.message === "string" && payload.message) ||
+              ("error" in payload && typeof payload.error === "string" && payload.error) ||
+              "Your session expired. Sign in again to continue."
+            : "Your session expired. Sign in again to continue."),
+      ),
+      response.status || 401,
+    );
+  }
+
+  if (!response.ok) {
+    if (payload && typeof payload === "object") {
+      if ("message" in payload && typeof payload.message === "string" && payload.message) {
+        throw new Error(payload.message);
+      }
+      if ("error" in payload && typeof payload.error === "string" && payload.error) {
+        throw new Error(payload.error);
+      }
+    }
+    throw new Error(`Request to rpc/${rpcName} failed with status ${response.status}.`);
   }
 
   return payload as T;
@@ -352,6 +533,45 @@ function safeJsonParse<T>(raw: string): T {
   } catch {
     throw new Error("The server returned a non-JSON response.");
   }
+}
+
+function getAuthErrorMessage(payload: ErrorPayload | null) {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const parts = [payload.error, payload.message, payload.detail]
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .map((value) => value.trim());
+
+  if (parts.length === 0) {
+    return null;
+  }
+
+  const combined = parts.join(" ").toLowerCase();
+  const authSignals = [
+    "jwt",
+    "jws",
+    "compactdecodeerror",
+    "invalid number of parts",
+    "expected 3 parts",
+    "authorization",
+    "bearer token",
+    "missing_bearer_token",
+    "auth_error",
+    "user_lookup_failed",
+    "session expired",
+    "sign in again",
+    "invalid token",
+    "token expired",
+    "authenticated user",
+  ];
+
+  if (!authSignals.some((signal) => combined.includes(signal))) {
+    return null;
+  }
+
+  return "Your session expired. Sign in again to continue.";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
