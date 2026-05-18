@@ -235,11 +235,15 @@ Purpose:
   - [FlockTrax_Project_Wide_Detailed_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Project_Wide_Detailed_Checkpoint_2026-05-18.md)
   - crash-safe full-project checkpoint covering live deployment state, repo branch/HEAD, exact dirty-worktree file list, local-only mobile/web-admin/supabase changes, and reboot recovery guidance
 
+- `2026-05-18`
+  - [FlockTrax_Release_5_0_Git_Baseline_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Release_5_0_Git_Baseline_Checkpoint_2026-05-18.md)
+  - release baseline checkpoint covering commit `df64dfd`, production deployment `dpl_9DiCtGz39vTGyRhzTG7z2pCAcsFD`, hosted admin build marker `5.0`, and the now-filed git-backed clean-start state
+
 # Latest Checkpoint
 
 - `2026-05-18`
-  - [FlockTrax_Project_Wide_Detailed_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Project_Wide_Detailed_Checkpoint_2026-05-18.md)
-  - project-wide resume checkpoint covering the latest live deployment, broad repo state, exact dirty-worktree snapshot, and reboot-safe recovery instructions
+  - [FlockTrax_Release_5_0_Git_Baseline_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Release_5_0_Git_Baseline_Checkpoint_2026-05-18.md)
+  - git-backed release baseline covering the production `5.0` deploy, filed repo commit, hosted release marker, and recommended clean-chat resume point
 
 ## Notes
 
@@ -252,12 +256,12 @@ Purpose:
 
 If only one checkpoint should be loaded first right now, use:
 
-- [FlockTrax_Project_Wide_Detailed_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Project_Wide_Detailed_Checkpoint_2026-05-18.md)
+- [FlockTrax_Release_5_0_Git_Baseline_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Release_5_0_Git_Baseline_Checkpoint_2026-05-18.md)
 
 Reason:
-- it is the best cold-start recovery note if the machine reboots unexpectedly
-- it captures the current live deployment, branch and commit, and the exact dirty-worktree snapshot
-- it points back to the more focused flock-history and master checkpoints when deeper feature detail is needed
+- it is the cleanest current baseline after filing the work into git and pushing production
+- it captures the exact release commit, production deployment id, and hosted admin build marker `5.0`
+- it points back to the broader project-wide and report-specific checkpoints when deeper detail is needed
 
 For broader system state beyond the report feature, also use:
 

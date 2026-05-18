@@ -31,13 +31,16 @@ snapshots/
 
 # Local backups / gold copies
 _gold/
+backups/
 
 # Generated output artifacts
 output/pdf/
+mobile/dist-ios-releasecheck/
+mobile/dist-store-releasecheck/
+**/__pycache__/
 
 # One-off shell artifacts
 -Body
 -ContentType
 -Method
 iwr
-
