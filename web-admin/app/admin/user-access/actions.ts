@@ -226,14 +226,11 @@ async function findAuthUserByEmail(admin: AdminClient, email: string) {
   return { user, error: null };
 }
 
-async function bestEffortDeleteUserArtifacts(admin: AdminClient, userId: string) {
+async function bestEffortRevokeUserAccessArtifacts(admin: AdminClient, userId: string) {
   const operations = [
     admin.from("user_roles").delete().eq("user_id", userId),
     admin.from("farm_memberships").delete().eq("user_id", userId),
     admin.from("farm_group_memberships").delete().eq("user_id", userId),
-    admin.from("profiles").delete().eq("id", userId),
-    admin.from("app_users").delete().eq("user_id", userId),
-    admin.from("core_users").delete().eq("id", userId),
   ];
 
   await Promise.allSettled(operations);
@@ -700,34 +697,105 @@ export async function inviteUserAccessAction(formData: FormData) {
   });
 }
 
-export async function deleteUserAccessAction(formData: FormData) {
+export async function resendUserAccessInviteAction(formData: FormData) {
+  const { admin, target } = await getTargetWriteContext(formData);
+
+  if (target.status !== "invited") {
+    bounce(formData, {
+      error: "Fresh setup links can only be sent to users who have not signed in yet.",
+      selected: target.id,
+    });
+    unreachable("Target is not invite-pending");
+  }
+
+  if (!target.email || target.email === "No email on file") {
+    bounce(formData, {
+      error: "This user does not have a valid email address on file for password setup.",
+      selected: target.id,
+    });
+    unreachable("Missing target email");
+  }
+
+  const appOrigin = await getAppOrigin();
+  const recoveryResult = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email: target.email,
+    options: {
+      redirectTo: `${appOrigin}/auth/callback?next=/reset-password`,
+    },
+  });
+
+  if (recoveryResult.error) {
+    bounce(formData, { error: recoveryResult.error.message, selected: target.id });
+    unreachable("Recovery link generation failed");
+  }
+
+  const recoveryTokenHash = recoveryResult.data.properties?.hashed_token?.trim() ?? "";
+  if (!recoveryTokenHash) {
+    bounce(formData, {
+      error: `Supabase did not return a password setup token for ${target.email}.`,
+      selected: target.id,
+    });
+    unreachable("Recovery token hash missing");
+  }
+
+  try {
+    await sendInviteEmail({
+      to: target.email,
+      actionUrl: buildAuthCallbackActionUrl(appOrigin, recoveryTokenHash, "recovery"),
+      appOrigin,
+      fullName: target.displayName,
+      roleLabel: target.roleLabel,
+      mode: "recovery",
+    });
+  } catch (error) {
+    bounce(formData, {
+      error:
+        error instanceof Error
+          ? error.message
+          : `A password setup link was created for ${target.email}, but the email could not be sent.`,
+      selected: target.id,
+    });
+    unreachable("Recovery email send failed");
+  }
+
+  revalidatePath("/admin/user-access");
+  bounce(formData, {
+    notice: `A fresh password setup link was sent to ${target.email}.`,
+    selected: target.id,
+  });
+}
+
+export async function disableUserAccessAction(formData: FormData) {
   const { admin, bundle, actor, target } = await getTargetWriteContext(formData);
   const actorRole = resolveRoleTemplate(bundle.roles, actor.role);
   const confirmation = coerce(formData.get("confirmation"));
 
   if (!isSuperAdminRole(actorRole)) {
-    bounce(formData, { error: "Only super admins can permanently delete users.", selected: target.id });
-    unreachable("Delete user not allowed");
+    bounce(formData, { error: "Only super admins can retire users.", selected: target.id });
+    unreachable("Disable user not allowed");
   }
 
-  if (confirmation.toUpperCase() !== "DELETE") {
+  if (confirmation.toUpperCase() !== "RETIRE") {
     bounce(formData, {
-      error: "Type DELETE to confirm permanent removal of this user.",
+      error: "Type RETIRE to confirm access shutdown for this user.",
       selected: target.id,
     });
-    unreachable("Delete confirmation missing");
+    unreachable("Disable confirmation missing");
   }
 
-  await bestEffortDeleteUserArtifacts(admin, target.id);
+  await bestEffortRevokeUserAccessArtifacts(admin, target.id);
 
-  const deleteResult = await admin.auth.admin.deleteUser(target.id);
-  if (deleteResult.error) {
-    bounce(formData, { error: deleteResult.error.message, selected: target.id });
+  const disableResult = await admin.auth.admin.updateUserById(target.id, {
+    ban_duration: "876000h",
+  });
+  if (disableResult.error) {
+    bounce(formData, { error: disableResult.error.message, selected: target.id });
   }
 
   revalidatePath("/admin/user-access");
   bounce(formData, {
-    notice: `${target.displayName} was permanently deleted.`,
-    selected: null,
+    notice: `${target.displayName} was retired. Login is disabled and live access assignments were removed while audit history stays intact.`,
+    selected: target.id,
   });
 }

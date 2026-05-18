@@ -3,25 +3,34 @@
 import { startTransition, useEffect, useState } from "react";
 
 import { ActivePlacementDashboard } from "@/components/active-placement-dashboard";
-import type { ActivePlacementRecord, FarmGroupRecord, FarmRecord } from "@/lib/types";
+import type { ActivePlacementRecord, BreedOptionRecord, FarmGroupRecord, FarmRecord } from "@/lib/types";
 
 type LiveDashboardPanelProps = {
+  breedOptions: BreedOptionRecord[];
   farmGroups: FarmGroupRecord[];
   farms: FarmRecord[];
   placements: ActivePlacementRecord[];
+  historyReportLabel: string;
 };
 
 type DashboardPayload = LiveDashboardPanelProps;
 
 export function LiveDashboardPanel({
+  breedOptions: initialBreedOptions,
   farmGroups: initialFarmGroups,
   farms: initialFarms,
+  historyReportLabel,
   placements: initialPlacements,
 }: LiveDashboardPanelProps) {
+  const [breedOptions, setBreedOptions] = useState(initialBreedOptions);
   const [farmGroups, setFarmGroups] = useState(initialFarmGroups);
   const [farms, setFarms] = useState(initialFarms);
   const [placements, setPlacements] = useState(initialPlacements);
   const [refreshPending, setRefreshPending] = useState(false);
+
+  useEffect(() => {
+    setBreedOptions(initialBreedOptions);
+  }, [initialBreedOptions]);
 
   useEffect(() => {
     setFarmGroups(initialFarmGroups);
@@ -50,6 +59,7 @@ export function LiveDashboardPanel({
 
       const payload = (await response.json()) as DashboardPayload;
       startTransition(() => {
+        setBreedOptions(payload.breedOptions);
         setFarmGroups(payload.farmGroups);
         setFarms(payload.farms);
         setPlacements(payload.placements);
@@ -67,7 +77,13 @@ export function LiveDashboardPanel({
         </button>
       </div>
 
-      <ActivePlacementDashboard farmGroups={farmGroups} farms={farms} placements={placements} />
+      <ActivePlacementDashboard
+        breedOptions={breedOptions}
+        farmGroups={farmGroups}
+        farms={farms}
+        historyReportLabel={historyReportLabel}
+        placements={placements}
+      />
     </div>
   );
 }

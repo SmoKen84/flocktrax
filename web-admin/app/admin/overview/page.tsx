@@ -3,9 +3,16 @@ import Link from "next/link";
 import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
 import { LiveDashboardPanel } from "@/components/live-dashboard-panel";
 import { getAdminData } from "@/lib/admin-data";
+import { applyPlacementEditorAccess } from "@/lib/placement-editor-access";
+import { getAppSettingTextValues } from "@/lib/platform-content";
 
 export default async function OverviewPage() {
-  const data = await getAdminData();
+  const [data, appText] = await Promise.all([
+    getAdminData(),
+    getAppSettingTextValues(["flock_history_title"]),
+  ]);
+  const placements = await applyPlacementEditorAccess(data.activePlacements);
+  const historyReportLabel = appText.get("flock_history_title")?.value || "History Report";
 
   return (
     <>
@@ -27,9 +34,11 @@ export default async function OverviewPage() {
       </section>
 
       <LiveDashboardPanel
+        breedOptions={data.breedOptions}
         farmGroups={data.farmGroups}
         farms={data.farms}
-        placements={data.activePlacements}
+        historyReportLabel={historyReportLabel}
+        placements={placements}
       />
 
       <section className="grid-2">

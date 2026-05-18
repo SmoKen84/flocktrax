@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getServiceClient, loadOpenIssueBundle } from "../_shared/issues.ts";
+import { getServiceClient, loadOpenIssueBundle, syncDerivedPlacementIssues } from "../_shared/issues.ts";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -116,6 +116,7 @@ async function buildPlacementDayItem(
   const placementAgeDays = typeof placementMeta.placed_date === "string"
     ? daysBetween(logDate, placementMeta.placed_date)
     : null;
+  await syncDerivedPlacementIssues(service, [placementId]);
   const issueBundle = await loadOpenIssueBundle(service, placementId, placementMeta.barn_id);
 
   return {

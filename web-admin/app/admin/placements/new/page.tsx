@@ -5,7 +5,7 @@ import { SchedulePlacementForm } from "@/app/admin/placements/new/schedule-place
 import { SchedulerFilters } from "@/app/admin/placements/new/scheduler-filters";
 import { PageHeader } from "@/components/page-header";
 import { getUserAccessBundle, resolveRoleTemplate } from "@/lib/access-control";
-import { getPlatformScreenTextValues } from "@/lib/platform-content";
+import { getAppSettingTextValues, getPlatformScreenTextValues } from "@/lib/platform-content";
 import { getPlacementSchedulerBundle } from "@/lib/placement-scheduler-data";
 
 type NewPlacementPageProps = {
@@ -34,7 +34,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
   const notice = readParam(params?.notice);
   const error = readParam(params?.error);
   const mode = selectedModeParam === "placements" ? "placements" : "blocked";
-  const [bundle, accessBundle, screenTextValues] = await Promise.all([
+  const [bundle, accessBundle, screenTextValues, appTextValues] = await Promise.all([
     getPlacementSchedulerBundle(),
     getUserAccessBundle(),
     getPlatformScreenTextValues([
@@ -43,6 +43,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
       "calendar_farm_view",
       "calendar_barn_view",
     ]),
+    getAppSettingTextValues(["flock_history_title"]),
   ]);
   const actingUser = accessBundle.users.find((user) => user.id === accessBundle.actingUserId) ?? accessBundle.users[0] ?? null;
   const actingRole = actingUser ? resolveRoleTemplate(accessBundle.roles, actingUser.role) : null;
@@ -145,6 +146,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
 
   const maleBreedOptions = bundle.breeds.filter((breed) => !breed.sex || breed.sex === "male" || breed.sex === "unsexed");
   const femaleBreedOptions = bundle.breeds.filter((breed) => !breed.sex || breed.sex === "female" || breed.sex === "unsexed");
+  const historyReportLabel = appTextValues.get("flock_history_title")?.value || "History Report";
 
   return (
     <>
@@ -285,6 +287,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                 const content = (
                   <>
                     <span className="placement-scheduler-day-number">{day.dayNumber}</span>
+                    {day.hasLiveHaulScheduled ? <span className="placement-scheduler-day-lh-flag">LH</span> : null}
                     {day.items.length > 0 ? (
                       <div className="placement-scheduler-day-stack">
                         {day.items.slice(0, 2).map((item) => (
@@ -383,14 +386,26 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                       <span>Date Removed</span>
                       <input defaultValue={selectedPlacement.actualEndDate ?? ""} name="date_removed" type="date" />
                     </label>
-                    <label className="field">
-                      <span>Start Females</span>
-                      <input defaultValue={selectedPlacement.femaleCount ?? ""} name="start_cnt_females" type="number" />
-                    </label>
-                    <label className="field">
-                      <span>Start Males</span>
-                      <input defaultValue={selectedPlacement.maleCount ?? ""} name="start_cnt_males" type="number" />
-                    </label>
+                    <div className="placement-scheduler-start-row">
+                      <label className="field">
+                        <span>Start Males</span>
+                        <input
+                          className="placement-scheduler-start-input"
+                          defaultValue={selectedPlacement.maleCount ?? ""}
+                          name="start_cnt_males"
+                          type="number"
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Start Females</span>
+                        <input
+                          className="placement-scheduler-start-input"
+                          defaultValue={selectedPlacement.femaleCount ?? ""}
+                          name="start_cnt_females"
+                          type="number"
+                        />
+                      </label>
+                    </div>
                     <div className="placement-scheduler-triplet">
                       <label className="field field-third">
                         <span>LH 1 Date</span>
@@ -437,6 +452,17 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                     </p>
                   </div>
 
+                  <div className="placement-scheduler-form-actions">
+                    {canShowPlacementHistoryReport(selectedPlacement) ? (
+                      <Link
+                        className="button-secondary"
+                        href={`/admin/flocks/${selectedPlacement.flockId}/report`}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {historyReportLabel}
+                      </Link>
+                    ) : null}
                     <button className="button" type="submit">
                       Save Placement
                     </button>
@@ -449,7 +475,8 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                         Delete Scheduled Flock
                       </button>
                     ) : null}
-                  </form>
+                  </div>
+                </form>
                 ) : (
                 <>
                   <div className="helper-banner">
@@ -534,14 +561,26 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                   <span>Date Removed</span>
                   <input defaultValue={selectedPlacement.actualEndDate ?? ""} name="date_removed" type="date" />
                 </label>
-                <label className="field">
-                  <span>Start Females</span>
-                  <input defaultValue={selectedPlacement.femaleCount ?? ""} name="start_cnt_females" type="number" />
-                </label>
-                <label className="field">
-                  <span>Start Males</span>
-                  <input defaultValue={selectedPlacement.maleCount ?? ""} name="start_cnt_males" type="number" />
-                </label>
+                <div className="placement-scheduler-start-row">
+                  <label className="field">
+                    <span>Start Males</span>
+                    <input
+                      className="placement-scheduler-start-input"
+                      defaultValue={selectedPlacement.maleCount ?? ""}
+                      name="start_cnt_males"
+                      type="number"
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Start Females</span>
+                    <input
+                      className="placement-scheduler-start-input"
+                      defaultValue={selectedPlacement.femaleCount ?? ""}
+                      name="start_cnt_females"
+                      type="number"
+                    />
+                  </label>
+                </div>
                 <div className="placement-scheduler-triplet">
                   <label className="field field-third">
                     <span>LH 1 Date</span>
@@ -637,14 +676,26 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                   <span>Date Removed</span>
                   <input defaultValue={selectedPlacement.actualEndDate ?? ""} name="date_removed" type="date" />
                 </label>
-                <label className="field">
-                  <span>Start Females</span>
-                  <input defaultValue={selectedPlacement.femaleCount ?? ""} name="start_cnt_females" type="number" />
-                </label>
-                <label className="field">
-                  <span>Start Males</span>
-                  <input defaultValue={selectedPlacement.maleCount ?? ""} name="start_cnt_males" type="number" />
-                </label>
+                <div className="placement-scheduler-start-row">
+                  <label className="field">
+                    <span>Start Males</span>
+                    <input
+                      className="placement-scheduler-start-input"
+                      defaultValue={selectedPlacement.maleCount ?? ""}
+                      name="start_cnt_males"
+                      type="number"
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Start Females</span>
+                    <input
+                      className="placement-scheduler-start-input"
+                      defaultValue={selectedPlacement.femaleCount ?? ""}
+                      name="start_cnt_females"
+                      type="number"
+                    />
+                  </label>
+                </div>
                 <div className="placement-scheduler-triplet">
                   <label className="field field-third">
                     <span>LH 1 Date</span>
@@ -691,9 +742,21 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                 </p>
               </div>
 
-              <button className="button" type="submit">
-                Save Placement
-              </button>
+              <div className="placement-scheduler-form-actions">
+                {canShowPlacementHistoryReport(selectedPlacement) ? (
+                  <Link
+                    className="button-secondary"
+                    href={`/admin/flocks/${selectedPlacement.flockId}/report`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {historyReportLabel}
+                  </Link>
+                ) : null}
+                <button className="button" type="submit">
+                  Save Placement
+                </button>
+              </div>
             </form>
           ) : canCreateForSelectedDate ? (
             <SchedulePlacementForm
@@ -772,6 +835,8 @@ type CalendarWindow = {
   endDate: string;
   actualEndDate?: string | null;
   isActive?: boolean;
+  isComplete?: boolean;
+  flockIsInBarn?: boolean;
   headCount?: number | null;
   femaleCount?: number | null;
   maleCount?: number | null;
@@ -802,6 +867,9 @@ function buildCalendar(month: string, windows: CalendarWindow[], selectedDate: s
     date.setUTCDate(firstGridDay.getUTCDate() + index);
     const iso = date.toISOString().slice(0, 10);
     const items = tonedWindows.filter((window) => iso >= window.startDate && iso <= window.endDate);
+    const hasLiveHaulScheduled = items.some(
+      (item) => item.lh1Date === iso || item.lh2Date === iso || item.lh3Date === iso,
+    );
     return {
       date: iso,
       dayNumber: date.getUTCDate(),
@@ -810,6 +878,7 @@ function buildCalendar(month: string, windows: CalendarWindow[], selectedDate: s
       isBlocked: items.length > 0,
       isRecommended: recommendedStartDate === iso,
       isActive: items.some((item) => item.isActive),
+      hasLiveHaulScheduled,
       items,
       tone: items[0]?.tone ?? 0,
     };
@@ -923,6 +992,15 @@ function getPlacementStateTone(window: { isFuture?: boolean; isComplete?: boolea
   if (window.isActive) return "active";
   if (window.isFuture) return "scheduled";
   return "interim";
+}
+
+function canShowPlacementHistoryReport(window: {
+  flockId?: string | null;
+  flockIsInBarn?: boolean;
+  isComplete?: boolean;
+  actualEndDate?: string | null;
+}) {
+  return Boolean(window.flockId && (window.flockIsInBarn || window.isComplete || window.actualEndDate));
 }
 
 function allowsGlobalSchedulerScope(roleKey: string | null) {

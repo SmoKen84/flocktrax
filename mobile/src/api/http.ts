@@ -1,4 +1,5 @@
 import { apiConfig } from "./config";
+import { Platform } from "react-native";
 import {
   AuthSession,
   DashboardSettings,
@@ -415,9 +416,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     "Content-Type": "application/json",
   };
   const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const mobilePlatform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : null;
 
   if (deviceTimeZone) {
     headers["X-Device-Timezone"] = deviceTimeZone;
+  }
+
+  if (mobilePlatform) {
+    headers["X-Mobile-Platform"] = mobilePlatform;
   }
 
   if (apiConfig.supabaseAnonKey) {
@@ -441,7 +447,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const payload = safeJsonParse<T & { error?: string }>(raw);
   const authMessage = getAuthErrorMessage(payload as ErrorPayload | null);
 
-  if (response.status === 401 || response.status === 403 || authMessage) {
+  if (response.status === 401 || authMessage) {
     throw new AuthError(
       authMessage ??
         (payload && typeof payload === "object" && "error" in payload && payload.error
@@ -473,9 +479,14 @@ async function requestRestRpc<T>(
     "Content-Type": "application/json",
   };
   const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const mobilePlatform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : null;
 
   if (deviceTimeZone) {
     headers["X-Device-Timezone"] = deviceTimeZone;
+  }
+
+  if (mobilePlatform) {
+    headers["X-Mobile-Platform"] = mobilePlatform;
   }
 
   if (apiConfig.supabaseAnonKey) {
@@ -494,7 +505,7 @@ async function requestRestRpc<T>(
   const payload = safeJsonParse<T & { message?: string; error?: string }>(raw);
   const authMessage = getAuthErrorMessage(payload as ErrorPayload | null);
 
-  if (response.status === 401 || response.status === 403 || authMessage) {
+  if (response.status === 401 || authMessage) {
     throw new AuthError(
       String(
         authMessage ??

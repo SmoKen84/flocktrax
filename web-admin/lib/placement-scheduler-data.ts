@@ -29,6 +29,7 @@ export type PlacementSchedulerWindow = {
   isFuture: boolean;
   isActive: boolean;
   isComplete: boolean;
+  flockIsInBarn: boolean;
   headCount: number | null;
   femaleCount: number | null;
   maleCount: number | null;
@@ -86,6 +87,7 @@ type FlockRow = {
   max_date: string | null;
   is_active: boolean | null;
   is_complete: boolean | null;
+  is_in_barn: boolean | null;
   start_cnt_females: number | null;
   start_cnt_males: number | null;
   breed_males: string | null;
@@ -221,7 +223,7 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
     supabase.from("barns").select("id,farm_id,barn_code,sort_code,is_active"),
     supabase
       .from("flocks")
-      .select("id,farm_id,flock_number,date_placed,max_date,is_active,is_complete,start_cnt_females,start_cnt_males,breed_males,breed_females")
+      .select("id,farm_id,flock_number,date_placed,max_date,is_active,is_complete,is_in_barn,start_cnt_females,start_cnt_males,breed_males,breed_females")
       .order("date_placed", { ascending: false }),
     supabase
       .from("placements")
@@ -364,6 +366,7 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
     const isFuture = startDate > today;
     const isActive = row.is_active !== false && !row.date_removed && startDate <= today;
     const isComplete = !!row.date_removed || flock?.is_complete === true || (!isActive && projectedEnd < today);
+    const flockIsInBarn = flock?.is_in_barn === true;
     const window: PlacementSchedulerWindow = {
       id: row.id,
       barnId: row.barn_id,
@@ -377,6 +380,7 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
       isFuture,
       isActive,
       isComplete,
+      flockIsInBarn,
       headCount:
         typeof flock?.start_cnt_females === "number" || typeof flock?.start_cnt_males === "number"
           ? (flock?.start_cnt_females ?? 0) + (flock?.start_cnt_males ?? 0)

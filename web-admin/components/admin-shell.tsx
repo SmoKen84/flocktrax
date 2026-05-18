@@ -26,7 +26,8 @@ const configurationLinks = [
   { label: "Breed Benchmarks", href: "/admin/breed-benchmarks" },
 ];
 
-const archiveLinks = [
+const utilityLinks = [
+  { label: "About", href: "/admin/about" },
   { label: "Flocks", href: "/admin/flocks" },
   { label: "Activity Log", href: "/admin/activity-log" },
 ];
@@ -216,8 +217,8 @@ export function AdminShell({ children, displayName, roleKey, roleLabel, scopeLab
             </div>
 
             <div className="splash-sidebar-group">
-              <p className="splash-sidebar-label">Archives</p>
-              {archiveLinks.map(renderNavItem)}
+              <p className="splash-sidebar-label">Utilities</p>
+              {utilityLinks.map(renderNavItem)}
             </div>
           </div>
 

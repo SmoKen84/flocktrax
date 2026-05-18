@@ -5,8 +5,9 @@ import { createSupabaseAdminClient } from "@/lib/supabase/server";
 type PlatformControlRow = {
   id: number;
   group: string | null;
-  version: number | null;
+  version: string | null;
   build: number | null;
+  build_label: string | null;
   released: string | null;
 };
 
@@ -54,6 +55,16 @@ export type PlatformSplashContent = {
   }>;
 };
 
+export type PublishedPlatformVersion = {
+  key: "admin" | "mobile_ios" | "mobile_droid";
+  label: string;
+  version: string | null;
+  build: number | null;
+  buildLabel: string | null;
+  released: string | null;
+  versionLine: string | null;
+};
+
 export async function getPlatformScreenTextValues(names: string[]) {
   noStore();
 
@@ -77,6 +88,39 @@ export async function getPlatformScreenTextValues(names: string[]) {
   );
 
   return new Map(rows.map((row) => [normalize(row.name).toLowerCase(), normalize(row.display)]));
+}
+
+export async function getAppSettingTextValues(names: string[]) {
+  noStore();
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase || names.length === 0) {
+    return new Map<string, { value: string; desc: string }>();
+  }
+
+  const requested = new Set(names.map((name) => normalize(name).toLowerCase()).filter((name) => name.length > 0));
+  if (requested.size === 0) {
+    return new Map<string, { value: string; desc: string }>();
+  }
+
+  const { data } = await supabase
+    .from("app_settings")
+    .select("name,value,desc");
+
+  const rows =
+    ((data as Array<{ name: string | null; value: string | number | null; desc: string | null }> | null) ?? []).filter(
+      (row) => requested.has(normalize(row.name).toLowerCase()),
+    );
+
+  return new Map(
+    rows.map((row) => [
+      normalize(row.name).toLowerCase(),
+      {
+        value: normalize(row.value === null || row.value === undefined ? "" : String(row.value)),
+        desc: normalize(row.desc),
+      },
+    ]),
+  );
 }
 
 function normalize(value: string | null | undefined) {
@@ -110,11 +154,14 @@ function buildVersionLine(control: PlatformControlRow | null) {
 
   const parts: string[] = [];
 
-  if (control.version !== null) {
-    parts.push(`Version ${control.version}`);
+  if (normalize(control.version).length > 0) {
+    parts.push(`Version ${normalize(control.version)}`);
   }
 
-  if (control.build !== null) {
+  const buildLabel = normalize(control.build_label);
+  if (buildLabel.length > 0) {
+    parts.push(`Build ${buildLabel}`);
+  } else if (control.build !== null) {
     parts.push(`Build ${control.build}`);
   }
 
@@ -123,6 +170,28 @@ function buildVersionLine(control: PlatformControlRow | null) {
   }
 
   return parts.length ? parts.join(" · ") : null;
+}
+
+function findControlRowByGroupKeys(rows: PlatformControlRow[], keys: string[]) {
+  const normalizedKeys = keys.map((key) => key.toLowerCase());
+
+  return rows.find((row) => normalizedKeys.includes(normalize(row.group).toLowerCase())) ?? null;
+}
+
+function toPublishedPlatformVersion(
+  key: PublishedPlatformVersion["key"],
+  label: string,
+  control: PlatformControlRow | null,
+): PublishedPlatformVersion {
+  return {
+    key,
+    label,
+    version: normalize(control?.version) || null,
+    build: control?.build ?? null,
+    buildLabel: normalize(control?.build_label) || null,
+    released: normalize(control?.released) || null,
+    versionLine: buildVersionLine(control),
+  };
 }
 
 export async function getPlatformPolicyByName(name: string) {
@@ -215,7 +284,7 @@ export async function getPlatformSplashContent(): Promise<PlatformSplashContent>
     { data: screenRows, error: screenError },
     { data: policyRows, error: policyError },
   ] = await Promise.all([
-    supabase.schema("platform").from("control").select("id, group, version, build, released").order("id", { ascending: false }),
+    supabase.schema("platform").from("control").select("id, group, version, build, build_label, released").order("id", { ascending: false }),
     supabase.schema("platform").from("screen_txt").select("id, name, display, note, scrn_location").order("id", { ascending: true }),
     supabase
       .schema("platform")
@@ -229,8 +298,8 @@ export async function getPlatformSplashContent(): Promise<PlatformSplashContent>
   const policies = (policyRows as PlatformLicensePolicyRow[] | null) ?? [];
 
   const control =
-    allControlRows.find((row) => normalize(row.group).toLowerCase() === "admin") ??
-    allControlRows.find((row) => normalize(row.group).toLowerCase() === "global") ??
+    findControlRowByGroupKeys(allControlRows, ["admin", "web_admin", "webapp", "web_admin_console"]) ??
+    findControlRowByGroupKeys(allControlRows, ["global"]) ??
     allControlRows[0] ??
     null;
 
@@ -272,5 +341,38 @@ export async function getPlatformSplashContent(): Promise<PlatformSplashContent>
         note: normalize(row.note) || null,
       }))
       .filter((row) => row.body.length > 0),
+  };
+}
+
+export async function getPublishedPlatformVersions() {
+  noStore();
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return {
+      admin: toPublishedPlatformVersion("admin", "FlockTrax-Admin", null),
+      mobileIos: toPublishedPlatformVersion("mobile_ios", "iPhone (iOS)", null),
+      mobileAndroid: toPublishedPlatformVersion("mobile_droid", "Android", null),
+    };
+  }
+
+  const { data } = await supabase
+    .schema("platform")
+    .from("control")
+    .select("id, group, version, build, build_label, released")
+    .order("id", { ascending: false });
+
+  const rows = (data as PlatformControlRow[] | null) ?? [];
+
+  const adminControl =
+    findControlRowByGroupKeys(rows, ["admin", "web_admin", "webapp", "web_admin_console"]) ??
+    findControlRowByGroupKeys(rows, ["global"]);
+  const iosControl = findControlRowByGroupKeys(rows, ["mobile_ios", "ios"]);
+  const androidControl = findControlRowByGroupKeys(rows, ["mobile_droid", "android"]);
+
+  return {
+    admin: toPublishedPlatformVersion("admin", "FlockTrax-Admin", adminControl),
+    mobileIos: toPublishedPlatformVersion("mobile_ios", "iPhone (iOS)", iosControl),
+    mobileAndroid: toPublishedPlatformVersion("mobile_droid", "Android", androidControl),
   };
 }

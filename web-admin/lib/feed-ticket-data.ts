@@ -33,6 +33,10 @@ export type FeedTicketAdminRow = {
   comment: string | null;
 };
 
+type FeedTicketAdminRowWithSort = FeedTicketAdminRow & {
+  barnSortCode: string | null;
+};
+
 export type FeedTicketAdminBundle = {
   rows: FeedTicketAdminRow[];
   filters: {
@@ -116,6 +120,12 @@ type FeedBinRow = {
   bin_num: string | number | null;
 };
 
+type BarnRow = {
+  id: string;
+  barn_code: string | null;
+  sort_code: string | null;
+};
+
 export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters = {}): Promise<FeedTicketAdminBundle> {
   noStore();
 
@@ -185,7 +195,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
       ? admin.from("farms").select("id,farm_name").in("id", farmIds)
       : Promise.resolve({ data: [], error: null }),
     barnIds.length
-      ? admin.from("barns").select("id,barn_code").in("id", barnIds)
+      ? admin.from("barns").select("id,barn_code,sort_code").in("id", barnIds)
       : Promise.resolve({ data: [], error: null }),
     binIds.length
       ? admin.from("feedbins").select("id,barn_id,bin_num").in("id", binIds)
@@ -202,7 +212,9 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
   }
 
   const farmNameById = new Map((farmsResult.data ?? []).map((row) => [row.id, String(row.farm_name ?? "")]));
-  const barnCodeById = new Map((barnsResult.data ?? []).map((row) => [row.id, String(row.barn_code ?? "")]));
+  const barnRows = (barnsResult.data ?? []) as BarnRow[];
+  const barnCodeById = new Map(barnRows.map((row) => [row.id, String(row.barn_code ?? "")]));
+  const barnSortCodeById = new Map(barnRows.map((row) => [row.id, normalize(row.sort_code)]));
   const binCodeById = new Map(
     ((binsResult.data ?? []) as FeedBinRow[]).map((row) => [row.id, row.bin_num === null || row.bin_num === undefined ? "" : String(row.bin_num)]),
   );
@@ -267,9 +279,10 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
         feedType: feedType || null,
         dropWeightLbs: typeof drop.drop_weight === "number" ? drop.drop_weight : null,
         comment: normalize(drop.comment) || null,
-      } satisfies FeedTicketAdminRow;
+        barnSortCode: barnSortCodeById.get(drop.barn_id ?? "") || null,
+      } satisfies FeedTicketAdminRowWithSort;
     })
-    .filter((row): row is FeedTicketAdminRow => row !== null)
+    .filter((row): row is FeedTicketAdminRowWithSort => row !== null)
     .sort((a, b) => {
       const aDate = a.deliveryDate ?? "";
       const bDate = b.deliveryDate ?? "";
@@ -290,8 +303,20 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
   const barns = Array.from(new Set(rows.map((row) => normalize(row.barnCode)).filter(Boolean))).sort((a, b) =>
     a.localeCompare(b, undefined, { numeric: true }),
   );
-  const bins = Array.from(new Set(rows.map((row) => normalize(row.binCode)).filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b, undefined, { numeric: true }),
+  const bins = Array.from(
+    new Map(
+      rows
+        .filter((row) => normalize(row.binCode))
+        .sort((left, right) => {
+          const leftSort = left.barnSortCode || "";
+          const rightSort = right.barnSortCode || "";
+          if (leftSort !== rightSort) {
+            return leftSort.localeCompare(rightSort, undefined, { numeric: true });
+          }
+          return normalize(left.binCode).localeCompare(normalize(right.binCode), undefined, { numeric: true });
+        })
+        .map((row) => [normalize(row.binCode), normalize(row.binCode)]),
+    ).values(),
   );
   const flocks = Array.from(new Set(rows.map((row) => normalize(row.placementCode)).filter(Boolean))).sort((a, b) =>
     a.localeCompare(b, undefined, { numeric: true }),
@@ -307,7 +332,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
   const summaryText = buildSummaryText(normalizedFilters, rows);
 
   return {
-    rows,
+    rows: rows.map(({ barnSortCode: _barnSortCode, ...row }) => row),
     filters: normalizedFilters,
     rollups: {
       ticketCount: distinctTicketIds.size,

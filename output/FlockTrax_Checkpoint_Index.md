@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-05-11`
+Updated: `2026-05-18`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -215,6 +215,32 @@ Purpose:
   - [FlockTrax_Release_And_Auth_Detailed_Checkpoint_2026-05-11.md](C:\dev\FlockTrax\output\FlockTrax_Release_And_Auth_Detailed_Checkpoint_2026-05-11.md)
   - detailed release/auth checkpoint covering the live Action Items state, custom SMTP invite flow, existing-user password setup fix, super-admin user deletion, current mobile hardening status, and the next iOS/Android release steps
 
+- `2026-05-11 PM`
+  - [FlockTrax_Release_Build13_Checkpoint_2026-05-11_PM.md](C:\dev\FlockTrax\output\FlockTrax_Release_Build13_Checkpoint_2026-05-11_PM.md)
+  - short release baseline after repo snapshot commit, fresh repo-backed admin deploy, and iOS `1.0.2 (13)` submission to TestFlight
+
+- `2026-05-12`
+  - [FlockTrax_Testing_Issue_List_2026-05-12.md](C:\dev\FlockTrax\output\FlockTrax_Testing_Issue_List_2026-05-12.md)
+  - active testing punch list for issues discovered during validation before the next coding pass
+
+- `2026-05-18`
+  - [FlockTrax_Web_Admin_UI_Polish_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Web_Admin_UI_Polish_Checkpoint_2026-05-18.md)
+  - web-admin UI polish checkpoint covering split placement-tile badges, cyan Action Items selected-row styling, Barn View `LH` calendar markers, and the production deployment ids for those releases
+
+- `2026-05-18`
+  - [FlockTrax_Flock_History_Report_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Flock_History_Report_Checkpoint_2026-05-18.md)
+  - flock history report checkpoint covering the new print/PDF matrix report, report launch points, app_settings-driven titles, mortality rollups, and local verification state
+
+- `2026-05-18`
+  - [FlockTrax_Project_Wide_Detailed_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Project_Wide_Detailed_Checkpoint_2026-05-18.md)
+  - crash-safe full-project checkpoint covering live deployment state, repo branch/HEAD, exact dirty-worktree file list, local-only mobile/web-admin/supabase changes, and reboot recovery guidance
+
+# Latest Checkpoint
+
+- `2026-05-18`
+  - [FlockTrax_Project_Wide_Detailed_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Project_Wide_Detailed_Checkpoint_2026-05-18.md)
+  - project-wide resume checkpoint covering the latest live deployment, broad repo state, exact dirty-worktree snapshot, and reboot-safe recovery instructions
+
 ## Notes
 
 - The recovered May 1 to May 3 weekend checkpoints were not originally present as `.md` files in the repo output folder.
@@ -226,9 +252,19 @@ Purpose:
 
 If only one checkpoint should be loaded first right now, use:
 
-- [FlockTrax_Release_And_Auth_Detailed_Checkpoint_2026-05-11.md](C:\dev\FlockTrax\output\FlockTrax_Release_And_Auth_Detailed_Checkpoint_2026-05-11.md)
+- [FlockTrax_Project_Wide_Detailed_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Project_Wide_Detailed_Checkpoint_2026-05-18.md)
 
 Reason:
-- it captures the latest release-critical state across web-admin auth, Action Items, mobile hardening, and store-release readiness
-- it includes the now-working custom invite and password-setup flow
-- it points directly at the next release sequence: local Expo hardening, iOS candidate build, and Android publication
+- it is the best cold-start recovery note if the machine reboots unexpectedly
+- it captures the current live deployment, branch and commit, and the exact dirty-worktree snapshot
+- it points back to the more focused flock-history and master checkpoints when deeper feature detail is needed
+
+For broader system state beyond the report feature, also use:
+
+- [FlockTrax_Web_Admin_UI_Polish_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Web_Admin_UI_Polish_Checkpoint_2026-05-18.md)
+
+- [FlockTrax_Master_Checkpoint_2026-05-16_PM.md](C:\dev\FlockTrax\output\FlockTrax_Master_Checkpoint_2026-05-16_PM.md)
+
+For the shorter build-cut baseline specifically, also use:
+
+- [FlockTrax_Release_Build13_Checkpoint_2026-05-11_PM.md](C:\dev\FlockTrax\output\FlockTrax_Release_Build13_Checkpoint_2026-05-11_PM.md)

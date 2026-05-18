@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
       ? { data: [], error: null }
       : await service
           .from("barns")
-          .select("id,barn_code,farm_id")
+          .select("id,barn_code,farm_id,sort_code")
           .in("id", barnIds);
 
     if (barnsResult.error) throw new Error(barnsResult.error.message);
@@ -171,6 +171,18 @@ Deno.serve(async (req) => {
         active_placement_id: placement?.id ?? null,
         active_placement_code: placement?.placement_key ?? null,
       };
+    }).sort((left, right) => {
+      const leftBarn = barnById.get(left.barn_id);
+      const rightBarn = barnById.get(right.barn_id);
+      const leftSort = typeof leftBarn?.sort_code === "string" ? leftBarn.sort_code : "";
+      const rightSort = typeof rightBarn?.sort_code === "string" ? rightBarn.sort_code : "";
+      if (leftSort !== rightSort) {
+        return leftSort.localeCompare(rightSort, undefined, { numeric: true });
+      }
+      if ((left.barn_code ?? "") !== (right.barn_code ?? "")) {
+        return (left.barn_code ?? "").localeCompare(right.barn_code ?? "", undefined, { numeric: true });
+      }
+      return (left.bin_code ?? "").localeCompare(right.bin_code ?? "", undefined, { numeric: true });
     });
 
     let item = emptyDraft();

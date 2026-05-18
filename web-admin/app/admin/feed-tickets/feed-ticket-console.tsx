@@ -56,6 +56,7 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
   const [farm, setFarm] = useState(bundle.filters.farm);
   const [barn, setBarn] = useState(bundle.filters.barn);
   const [bin, setBin] = useState(bundle.filters.bin);
+  const [sourceType, setSourceType] = useState(bundle.filters.sourceType);
   const [flockCode, setFlockCode] = useState(bundle.filters.flockCode);
   const [dateFrom, setDateFrom] = useState(bundle.filters.dateFrom);
   const [dateTo, setDateTo] = useState(bundle.filters.dateTo);
@@ -99,6 +100,7 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
     if (farm.trim()) params.set("farm", farm.trim());
     if (barn.trim()) params.set("barn", barn.trim());
     if (bin.trim()) params.set("bin", bin.trim());
+    if (sourceType.trim()) params.set("sourceType", sourceType.trim());
     if (flockCode.trim()) params.set("flockCode", flockCode.trim());
     if (dateFrom.trim()) params.set("dateFrom", dateFrom.trim());
     if (dateTo.trim()) params.set("dateTo", dateTo.trim());
@@ -112,6 +114,7 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
     setFarm("");
     setBarn("");
     setBin("");
+    setSourceType("");
     setFlockCode("");
     setDateFrom("");
     setDateTo("");
@@ -235,6 +238,11 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
               <label className="feed-ticket-flat-field feed-ticket-flat-ticket">
                 <span>Ticket:</span>
                 <input onChange={(event) => setTicketNumber(event.target.value)} placeholder="Feed Ticket #" type="text" value={ticketNumber} />
+              </label>
+
+              <label className="feed-ticket-flat-field feed-ticket-flat-source">
+                <span>Feedmill / Source:</span>
+                <input onChange={(event) => setSourceType(event.target.value)} placeholder="Type feedmill or source" type="text" value={sourceType} />
               </label>
 
               <div className="feed-ticket-flat-field-grid">
@@ -525,10 +533,15 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
             <div className="feed-ticket-selector-list">
               <button
                 className="feed-ticket-selector-option"
-                onClick={() => {
-                  assignSelectorValue(selectorState.field, "", { setFarm, setBarn, setBin, setFlockCode });
-                  setSelectorState(null);
-                }}
+                  onClick={() => {
+                    assignSelectorValue(selectorState.field, "", {
+                      setFarm,
+                      setBarn,
+                      setBin,
+                      setFlockCode,
+                    });
+                    setSelectorState(null);
+                  }}
                 type="button"
               >
                 Clear Selection
@@ -538,7 +551,12 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
                   className="feed-ticket-selector-option"
                   key={option}
                   onClick={() => {
-                    assignSelectorValue(selectorState.field, option, { setFarm, setBarn, setBin, setFlockCode });
+                    assignSelectorValue(selectorState.field, option, {
+                      setFarm,
+                      setBarn,
+                      setBin,
+                      setFlockCode,
+                    });
                     setSelectorState(null);
                   }}
                   type="button"

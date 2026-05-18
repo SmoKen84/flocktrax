@@ -4,6 +4,7 @@ import type {
   ActivePlacementRecord,
   ActivityLogRecord,
   AdminDataBundle,
+  BreedOptionRecord,
   FarmGroupRecord,
   FarmRecord,
   FlockRecord,
@@ -16,6 +17,19 @@ class AdminDataError extends Error {
     this.name = "AdminDataError";
   }
 }
+
+const CONSOLE_TIME_ZONE = "America/Chicago";
+const CONSOLE_DATE_KEY_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+  timeZone: CONSOLE_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const CONSOLE_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: CONSOLE_TIME_ZONE,
+  hour: "numeric",
+  minute: "2-digit",
+});
 
 type FarmGroupRow = {
   id: string;
@@ -89,6 +103,7 @@ type PlacementRow = {
   is_active: boolean | null;
   placement_key: string;
   lh1_date: string | null;
+  lh2_date: string | null;
   lh3_date: string | null;
   active_start?: string | null;
   active_end?: string | null;
@@ -246,7 +261,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
   }
 
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = formatConsoleDateKey(new Date());
 
     const [
       farmGroupsResult,
@@ -254,7 +269,6 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       barnsResult,
       flocksResult,
       placementsResult,
-      issuesResult,
       placementLogsResult,
       dailyFlagsResult,
       mortalityLogsResult,
@@ -282,12 +296,8 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         .order("date_placed", { ascending: false }),
       supabase
         .from("placements")
-        .select("id,farm_id,barn_id,flock_id,date_removed,is_active,placement_key,lh1_date,lh3_date,active_start,active_end,created_at")
+        .select("id,farm_id,barn_id,flock_id,date_removed,is_active,placement_key,lh1_date,lh2_date,lh3_date,active_start,active_end,created_at")
         .order("placement_key"),
-      supabase
-        .from("issues")
-        .select("entity_type,entity_id,status")
-        .eq("status", "open"),
       supabase
         .from("v_placement_daily")
         .select("placement_id,log_date")
@@ -324,7 +334,6 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       barnsResult.error ||
       flocksResult.error ||
       placementsResult.error ||
-      issuesResult.error ||
       placementLogsResult.error ||
       dailyFlagsResult.error ||
       mortalityLogsResult.error ||
@@ -339,7 +348,6 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         barnsResult.error ||
         flocksResult.error ||
         placementsResult.error ||
-        issuesResult.error ||
         placementLogsResult.error ||
         dailyFlagsResult.error ||
         mortalityLogsResult.error ||
@@ -361,7 +369,6 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     });
     const flockRows = (flocksResult.data ?? []) as FlockRow[];
     const placementRows = (placementsResult.data ?? []) as PlacementRow[];
-    const issueRows = (issuesResult.data ?? []) as IssueRow[];
     const placementLogRows = (placementLogsResult.data ?? []) as PlacementLogRow[];
     const dailyFlagRows = (dailyFlagsResult.data ?? []) as DailyFlagRow[];
     const mortalityRows = (mortalityLogsResult.data ?? []) as MortalityRow[];
@@ -383,6 +390,24 @@ export async function getAdminData(): Promise<AdminDataBundle> {
 
     const activePlacementsRaw = placementRows.filter((row) => row.is_active === true);
     const activePlacementIds = new Set(activePlacementsRaw.map((row) => row.id));
+
+    const { error: derivedIssueSyncError } = await supabase.rpc("sync_derived_placement_issues", {
+      p_placement_ids: Array.from(activePlacementIds),
+    });
+
+    if (derivedIssueSyncError) {
+      throw new AdminDataError(
+        `Admin data failed to sync derived placement issues: ${derivedIssueSyncError.message}`,
+      );
+    }
+
+    const issuesResult = await supabase.from("issues").select("entity_type,entity_id,status");
+
+    if (issuesResult.error) {
+      throw new AdminDataError(`Admin data failed to load issue rows: ${issuesResult.error.message}`);
+    }
+
+    const issueRows = (issuesResult.data ?? []) as IssueRow[];
 
     const placementsByFarmId = countBy(activePlacementsRaw, (row) => row.farm_id);
     const activePlacementsByGroupId = countBy(activePlacementsRaw, (row) => {
@@ -452,6 +477,12 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       };
     });
 
+    const breedOptions: BreedOptionRecord[] = breedRows.map((row) => ({
+      id: row.id,
+      label: row.breed_name ?? row.code ?? row.id,
+      sex: row.sex ?? null,
+    }));
+
     const latestLogByPlacement = new Map<string, string>();
     for (const row of placementLogRows) {
       if (!latestLogByPlacement.has(row.placement_id)) {
@@ -489,6 +520,8 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     >();
     const openBarnIssueCountByBarnId = new Map<string, number>();
     const openPlacementIssueCountByPlacementId = new Map<string, number>();
+    const resolvedBarnIssueCountByBarnId = new Map<string, number>();
+    const resolvedPlacementIssueCountByPlacementId = new Map<string, number>();
 
     const flockById = new Map(flockRows.map((row) => [row.id, row]));
     const breedById = new Map(breedRows.map((row) => [row.id, row]));
@@ -663,23 +696,43 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     }
 
     for (const row of issueRows) {
-      if (row.status !== "open" || typeof row.entity_id !== "string") {
+      if (typeof row.entity_id !== "string") {
+        continue;
+      }
+
+      const isOpen = row.status === "open";
+      const isResolved = row.status === "resolved";
+      if (!isOpen && !isResolved) {
         continue;
       }
 
       if (row.entity_type === "barn") {
-        openBarnIssueCountByBarnId.set(
-          row.entity_id,
-          (openBarnIssueCountByBarnId.get(row.entity_id) ?? 0) + 1,
-        );
+        if (isOpen) {
+          openBarnIssueCountByBarnId.set(
+            row.entity_id,
+            (openBarnIssueCountByBarnId.get(row.entity_id) ?? 0) + 1,
+          );
+        } else {
+          resolvedBarnIssueCountByBarnId.set(
+            row.entity_id,
+            (resolvedBarnIssueCountByBarnId.get(row.entity_id) ?? 0) + 1,
+          );
+        }
         continue;
       }
 
       if (row.entity_type === "placement") {
-        openPlacementIssueCountByPlacementId.set(
-          row.entity_id,
-          (openPlacementIssueCountByPlacementId.get(row.entity_id) ?? 0) + 1,
-        );
+        if (isOpen) {
+          openPlacementIssueCountByPlacementId.set(
+            row.entity_id,
+            (openPlacementIssueCountByPlacementId.get(row.entity_id) ?? 0) + 1,
+          );
+        } else {
+          resolvedPlacementIssueCountByPlacementId.set(
+            row.entity_id,
+            (resolvedPlacementIssueCountByPlacementId.get(row.entity_id) ?? 0) + 1,
+          );
+        }
       }
     }
 
@@ -785,6 +838,8 @@ export async function getAdminData(): Promise<AdminDataBundle> {
             };
       const openBarnIssueCount = openBarnIssueCountByBarnId.get(barn.id) ?? 0;
       const openPlacementIssueCount = row ? (openPlacementIssueCountByPlacementId.get(row.id) ?? 0) : 0;
+      const resolvedBarnIssueCount = resolvedBarnIssueCountByBarnId.get(barn.id) ?? 0;
+      const resolvedPlacementIssueCount = row ? (resolvedPlacementIssueCountByPlacementId.get(row.id) ?? 0) : 0;
       const startedFemaleCount = flock?.start_cnt_females ?? 0;
       const startedMaleCount = flock?.start_cnt_males ?? 0;
       const currentFemaleCount = Math.max(0, startedFemaleCount - mortalityTotals.femaleTotal);
@@ -831,6 +886,8 @@ export async function getAdminData(): Promise<AdminDataBundle> {
           row?.placement_key ??
           (tileState === "empty" ? `Open ${barn.barn_code ?? "Barn"}` : `${flock?.flock_number ?? "TBD"}-${barn.barn_code ?? "Barn"}`),
         placementId: row?.id ?? "",
+        flockId: row?.flock_id ?? "",
+        flockNumber: flock?.flock_number ?? null,
         farmGroupId: farm?.farm_group_id ?? "ungrouped",
         farmGroupName: farmGroup?.groupName ?? farm?.farm_group_name ?? "Ungrouped",
         farmId: barn.farm_id,
@@ -840,6 +897,8 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         flockCode: flock?.flock_number?.toString() ?? "None",
         integrator: farmGroup?.integrator ?? "Not set",
         placedDate,
+        projectedEndDate: flock?.max_date ?? row?.active_end ?? "",
+        dateRemoved: row?.date_removed ?? null,
         estimatedFirstCatch: flock?.max_date ?? (placedDate ? addDays(placedDate, 38) : ""),
         ageDays,
         headCount: currentFemaleCount + currentMaleCount,
@@ -847,8 +906,11 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         submissionStatus,
         dashboardStatusLabel: dashboardStatus.label,
         dashboardStatusTone: dashboardStatus.tone,
+        completedTodayLabel: dailyFlags.completedTodayLabel,
         openBarnIssueCount,
         openPlacementIssueCount,
+        resolvedBarnIssueCount,
+        resolvedPlacementIssueCount,
         startedFemaleCount,
         startedMaleCount,
         mortalityFemaleTotal: mortalityTotals.femaleTotal,
@@ -869,9 +931,19 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         latestMaleWeightCount: weightSummary.male.count,
         latestFemaleWeightDate: weightSummary.female.logDate,
         latestMaleWeightDate: weightSummary.male.logDate,
+        breedFemales: flock?.breed_females ?? null,
+        breedMales: flock?.breed_males ?? null,
         lh1Date: row?.lh1_date ?? null,
+        lh2Date: row?.lh2_date ?? null,
         lh3Date: row?.lh3_date ?? null,
         tileState,
+        placementEditorAccess: {
+          canOpen: false,
+          canView: false,
+          canEditFlockFields: false,
+          canEditPlacementFields: false,
+          message: null,
+        },
         nextPlacement: nextPlacementRow
           ? {
               placementCode: nextPlacementRow.placement_key,
@@ -880,7 +952,10 @@ export async function getAdminData(): Promise<AdminDataBundle> {
             }
           : null,
         placementIsActive: row?.is_active === true,
+        flockIsActive: flock?.is_active === true,
         flockIsInBarn,
+        flockIsComplete: flock?.is_complete === true,
+        flockIsSettled: flock?.is_settled === true,
         barnIsEmpty: barn.is_empty === true,
         canMarkBarnEmpty: row?.is_active === true && flockIsInBarn && canCheckoutByAge,
         hasWeightData: !!(weightSummary.female.logDate || weightSummary.male.logDate),
@@ -917,6 +992,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       farms,
       barnsByFarmId,
       flocks,
+      breedOptions,
       placementHints: [],
       activePlacements,
     };
@@ -1109,11 +1185,15 @@ function formatCompletionBadgeLabel(timestamp: string | null, today: string) {
     return null;
   }
 
-  if (date.toISOString().slice(0, 10) !== today) {
+  if (formatConsoleDateKey(date) !== today) {
     return null;
   }
 
-  return `Done ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+  return `Done ${CONSOLE_TIME_FORMATTER.format(date)}`;
+}
+
+function formatConsoleDateKey(value: Date) {
+  return CONSOLE_DATE_KEY_FORMATTER.format(value);
 }
 
 export async function getFarmById(

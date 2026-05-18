@@ -25,7 +25,8 @@ const configurationLinks = [
   { label: "Breed Benchmarks", href: "/admin/breed-benchmarks" },
 ];
 
-const archiveLinks = [
+const utilityLinks = [
+  { label: "About", href: "/admin/about" },
   { label: "Flocks", href: "/admin/flocks" },
   { label: "Activity Log", href: "/admin/activity-log" },
 ];
@@ -164,8 +165,8 @@ export default async function HomePage() {
           </div>
 
           <div className="splash-sidebar-group" data-disabled={!isSignedIn}>
-            <p className="splash-sidebar-label">Archives</p>
-            {archiveLinks.map(renderSplashNavItem)}
+            <p className="splash-sidebar-label">Utilities</p>
+            {utilityLinks.map(renderSplashNavItem)}
           </div>
           </div>
 

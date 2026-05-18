@@ -66,6 +66,20 @@ export type PlacementDraftHint = {
   flockCode: string;
 };
 
+export type PlacementEditorAccessRecord = {
+  canOpen: boolean;
+  canView: boolean;
+  canEditFlockFields: boolean;
+  canEditPlacementFields: boolean;
+  message: string | null;
+};
+
+export type BreedOptionRecord = {
+  id: string;
+  label: string;
+  sex: string | null;
+};
+
 export type ActivityLogRecord = {
   id: string;
   occurredAt: string;
@@ -83,6 +97,8 @@ export type ActivePlacementRecord = {
   id: string;
   placementCode: string;
   placementId: string;
+  flockId: string;
+  flockNumber: number | null;
   farmGroupId: string;
   farmGroupName: string;
   farmId: string;
@@ -92,6 +108,8 @@ export type ActivePlacementRecord = {
   flockCode: string;
   integrator: string;
   placedDate: string;
+  projectedEndDate: string;
+  dateRemoved: string | null;
   estimatedFirstCatch: string;
   ageDays: number;
   headCount: number;
@@ -99,8 +117,11 @@ export type ActivePlacementRecord = {
   submissionStatus: "submitted" | "pending" | "attention";
   dashboardStatusLabel: string;
   dashboardStatusTone: "good" | "warn" | "danger" | "neutral";
+  completedTodayLabel: string | null;
   openBarnIssueCount: number;
   openPlacementIssueCount: number;
+  resolvedBarnIssueCount: number;
+  resolvedPlacementIssueCount: number;
   startedFemaleCount: number;
   startedMaleCount: number;
   mortalityFemaleTotal: number;
@@ -131,16 +152,23 @@ export type ActivePlacementRecord = {
   latestMaleWeightCount: number | null;
   latestFemaleWeightDate: string | null;
   latestMaleWeightDate: string | null;
+  breedFemales: string | null;
+  breedMales: string | null;
   lh1Date: string | null;
+  lh2Date: string | null;
   lh3Date: string | null;
   tileState: "live" | "awaiting" | "scheduled" | "empty";
+  placementEditorAccess: PlacementEditorAccessRecord;
   nextPlacement: {
     placementCode: string;
     flockCode: string;
     placedDate: string;
   } | null;
   placementIsActive: boolean;
+  flockIsActive: boolean;
   flockIsInBarn: boolean;
+  flockIsComplete: boolean;
+  flockIsSettled: boolean;
   barnIsEmpty: boolean;
   canMarkBarnEmpty: boolean;
   hasWeightData: boolean;
@@ -153,6 +181,7 @@ export type AdminDataBundle = {
   farms: FarmRecord[];
   barnsByFarmId: Record<string, BarnRecord[]>;
   flocks: FlockRecord[];
+  breedOptions: BreedOptionRecord[];
   placementHints: PlacementDraftHint[];
   activePlacements: ActivePlacementRecord[];
 };
@@ -201,6 +230,10 @@ export type AccessUserRecord = {
   status: "active" | "invited" | "inactive";
   memberships: AccessMembership[];
   note: string;
+  activityLabel: string;
+  statusDetail: string;
+  canResendInvite: boolean;
+  isDisabled: boolean;
 };
 
 export type AccessReview = {
@@ -221,4 +254,6 @@ export type UserAccessBundle = {
   actingUserId: string | null;
   roles: AccessRoleTemplate[];
   users: AccessUserRecord[];
+  farmGroups: FarmGroupRecord[];
+  farms: FarmRecord[];
 };

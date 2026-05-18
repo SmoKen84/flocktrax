@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -87,6 +88,7 @@ export function DashboardScreen({
   const selectedFarmName =
     availableFarms.find((farm) => farm.farm_id === selectedFarmId)?.farm_name ??
     "All farms";
+  const mobileReleaseLine = buildMobileReleaseLine(settings);
 
   const filteredPlacements = useMemo(() => {
     const normalized = search.trim().toLowerCase();
@@ -225,6 +227,10 @@ export function DashboardScreen({
         </Pressable>
       </View>
 
+      {mobileReleaseLine ? (
+        <Text style={styles.releaseLine}>{mobileReleaseLine}</Text>
+      ) : null}
+
       {loading ? (
         <View style={styles.loading}>
           <ActivityIndicator size="large" color="#8B572A" />
@@ -356,6 +362,33 @@ export function DashboardScreen({
       />
     </View>
   );
+}
+
+function buildMobileReleaseLine(settings: DashboardSettings | null) {
+  const version = settings?.mobile_release_version?.trim() ?? "";
+  const build = typeof settings?.mobile_release_build === "number" ? settings.mobile_release_build : null;
+  const released = settings?.mobile_release_released?.trim() ?? "";
+
+  if (!version && build === null && !released) {
+    return null;
+  }
+
+  const platformLabel = Platform.OS === "ios" ? "iPhone" : Platform.OS === "android" ? "Android" : "Mobile";
+  const parts = [`Published ${platformLabel}`];
+
+  if (version) {
+    parts.push(`v${version}`);
+  }
+
+  if (build !== null) {
+    parts.push(`Build ${build}`);
+  }
+
+  if (released) {
+    parts.push(released);
+  }
+
+  return parts.join(" | ");
 }
 
 type CompactFilterButtonProps = {
@@ -856,6 +889,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 10,
     marginBottom: 8,
+  },
+  releaseLine: {
+    color: "#857867",
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: -2,
+    marginBottom: 10,
   },
   actionButton: {
     flex: 1,

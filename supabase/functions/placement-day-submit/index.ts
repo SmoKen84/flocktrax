@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getServiceClient, loadOpenIssueBundle } from "../_shared/issues.ts";
+import { getServiceClient, loadOpenIssueBundle, syncDerivedPlacementIssues } from "../_shared/issues.ts";
 import { getAuthenticatedUserId, getMobileAccessContext } from "../_shared/mobile-access.ts";
 
 function corsHeaders(req: Request) {
@@ -158,6 +158,16 @@ function assignIfDefined(target: Record<string, unknown>, key: string, value: un
   }
 }
 
+function hasMeaningfulGradeValues(payload: Record<string, unknown>, gradeFields: string[]) {
+  return gradeFields.some((field) => payload[field] !== undefined && payload[field] !== null);
+}
+
+function stripKeys(target: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    delete target[key];
+  }
+}
+
 async function getDailyAgeTasks(
   supabase: ReturnType<typeof createClient>,
   ageDays: number | null,
@@ -226,6 +236,7 @@ async function buildPlacementDayItem(
   const mortalityRow = mortalityResult.data?.[0] ?? null;
   const placedDate = typeof flock?.date_placed === "string" ? flock.date_placed : null;
   const ageDays = placedDate ? Math.round((new Date(`${logDate}T00:00:00Z`).getTime() - new Date(`${placedDate}T00:00:00Z`).getTime()) / 86400000) : null;
+  await syncDerivedPlacementIssues(service, [placementId]);
   const issueBundle = await loadOpenIssueBundle(service, placementId, placement.barn_id);
 
   return {
@@ -462,7 +473,6 @@ Deno.serve(async (req) => {
 
   const shouldSaveDaily = hasAnyOwnKeys(pickPresent(payload, dailyFields)) || payload.daily_is_active !== undefined;
   const shouldSaveMortality = hasAnyOwnKeys(pickPresent(payload, mortalityFields)) || payload.mortality_is_active !== undefined;
-  const includesGradeUpdates = hasAnyOwnKeys(pickPresent(payload, gradeFields));
   const includesMortalityCoreUpdates =
     hasAnyOwnKeys(pickPresent(payload, mortalityCoreFields)) || payload.mortality_is_active !== undefined;
 
@@ -505,6 +515,7 @@ Deno.serve(async (req) => {
     }
 
     const access = await getMobileAccessContext(supabase, userId, placementRow.farm_id);
+    const includesMeaningfulGradeUpdates = hasMeaningfulGradeValues(mortalityPayload, gradeFields);
 
     if (shouldSaveDaily && !access.permissions.daily_logs) {
       return json(req, { ok: false, error: "You are not authorized to save daily log entries." }, 403);
@@ -514,7 +525,13 @@ Deno.serve(async (req) => {
       return json(req, { ok: false, error: "You are not authorized to save mortality entries." }, 403);
     }
 
-    if (includesGradeUpdates && !access.permissions.grade_birds) {
+    if (!access.permissions.grade_birds && !includesMeaningfulGradeUpdates) {
+      // Current mobile releases always post grading keys as null from the mortality tab.
+      // Strip those placeholders so non-grading users can save mortality without wiping grades.
+      stripKeys(mortalityPayload, gradeFields);
+    }
+
+    if (includesMeaningfulGradeUpdates && !access.permissions.grade_birds) {
       return json(req, { ok: false, error: "You are not authorized to save grading entries." }, 403);
     }
 

@@ -450,7 +450,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                           </Link>
                         </td>
                         <td>{context?.placementCode ?? "—"}</td>
-                        <td>{formatActor(issue.opened_by, userDisplayNameById)}</td>
+                        <td>{formatActor(issue.opened_by, userDisplayNameById, issue)}</td>
                         <td>{issue.status === "resolved" ? "Complete" : "Waiting"}</td>
                       </tr>
                     );
@@ -760,7 +760,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
             <aside className="action-items-detail-meta">
               <div className="action-items-detail-meta-row">
                 <span>Entry By:</span>
-                <strong>{formatActor(selectedIssue.opened_by, userDisplayNameById)}</strong>
+                <strong>{formatActor(selectedIssue.opened_by, userDisplayNameById, selectedIssue)}</strong>
               </div>
               <div className="action-items-detail-meta-row">
                 <span>Date:</span>
@@ -867,8 +867,17 @@ function formatStatusLabel(value: IssueStatus) {
   return value === "resolved" ? "Closed" : "Open";
 }
 
-function formatActor(value: string | null, userDisplayNameById: Map<string, string>) {
-  if (!value) return "Unknown";
+function formatActor(
+  value: string | null,
+  userDisplayNameById: Map<string, string>,
+  issue?: Pick<IssueRow, "description"> | null,
+) {
+  if (!value) {
+    if ((issue?.description ?? "").startsWith("Auto-derived:")) {
+      return "FlockTrax";
+    }
+    return "Unknown";
+  }
   const displayName = userDisplayNameById.get(value);
   if (displayName) return displayName;
   return value.length > 10 ? `${value.slice(0, 6)}...` : value;
@@ -883,9 +892,17 @@ function formatLinkedTargetValue(issue: EnrichedIssue) {
 }
 
 function compareIssueUpdatesAscending(left: IssueUpdateRow, right: IssueUpdateRow) {
-  const leftTime = left.created_at ? new Date(left.created_at).getTime() : 0;
-  const rightTime = right.created_at ? new Date(right.created_at).getTime() : 0;
-  return leftTime - rightTime;
+  const leftDate = left.effective_date ?? left.created_at ?? "";
+  const rightDate = right.effective_date ?? right.created_at ?? "";
+  const leftTime = leftDate ? new Date(leftDate).getTime() : 0;
+  const rightTime = rightDate ? new Date(rightDate).getTime() : 0;
+  if (leftTime !== rightTime) {
+    return leftTime - rightTime;
+  }
+
+  const leftCreated = left.created_at ? new Date(left.created_at).getTime() : 0;
+  const rightCreated = right.created_at ? new Date(right.created_at).getTime() : 0;
+  return leftCreated - rightCreated;
 }
 
 function dedupeBy<T>(items: T[], keyFn: (item: T) => string) {

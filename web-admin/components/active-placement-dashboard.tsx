@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, type KeyboardEvent, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 
@@ -9,15 +9,18 @@ import {
   makePlacementCurrentAction,
   markBarnEmptyAction,
   markChicksArrivedAction,
+  saveDashboardPlacementEditorAction,
   savePlacementLhDatesAction,
   type LhDateActionResult,
 } from "@/app/admin/overview/actions";
-import type { ActivePlacementRecord, FarmGroupRecord, FarmRecord } from "@/lib/types";
+import type { ActivePlacementRecord, BreedOptionRecord, FarmGroupRecord, FarmRecord } from "@/lib/types";
 
 type ActivePlacementDashboardProps = {
+  breedOptions: BreedOptionRecord[];
   placements: ActivePlacementRecord[];
   farmGroups: FarmGroupRecord[];
   farms: FarmRecord[];
+  historyReportLabel: string;
 };
 
 type SubmissionFilter = "all" | ActivePlacementRecord["submissionStatus"];
@@ -136,13 +139,425 @@ function formatIssueSummary(placement: ActivePlacementRecord) {
   return parts.length > 0 ? parts.join(" · ") : "No open issues";
 }
 
-function buildActionItemsHref(placement: ActivePlacementRecord) {
+function getIssueBadgeTone(placement: ActivePlacementRecord) {
+  return placement.openPlacementIssueCount > 0 ? "danger" : "warn";
+}
+
+function canShowHistoryReportLink(placement: ActivePlacementRecord) {
+  return Boolean(
+    placement.flockId &&
+      (placement.flockIsInBarn || placement.flockIsComplete || placement.flockIsSettled || placement.dateRemoved),
+  );
+}
+
+function buildActionItemsHref(placement: ActivePlacementRecord, status: "open" | "resolved" = "open") {
   const params = new URLSearchParams();
   params.set("farmId", placement.farmId);
   params.set("barnId", placement.barnId);
   params.set("placementId", placement.placementId);
-  params.append("status", "open");
+  params.append("status", status);
   return `/admin/issues?${params.toString()}`;
+}
+
+function formatIssueCountLine(count: number, label: "Placement" | "Barn") {
+  return `${count} ${label} Issue${count === 1 ? "" : "s"}`;
+}
+
+function formatDateInputValue(value: string | null | undefined) {
+  return String(value ?? "").slice(0, 10);
+}
+
+function formatLifecycleFlag(value: boolean) {
+  return value ? "Yes" : "No";
+}
+
+function derivePlacementLifecycle(placement: ActivePlacementRecord) {
+  if (placement.tileState === "empty") {
+    return {
+      label: "Open Barn",
+      detail: "No active or scheduled placement is attached to this barn right now.",
+      systemState: "Placement No | Active No | Flock Active No | In Barn No | Complete No | Settled No",
+    };
+  }
+
+  if (placement.flockIsComplete) {
+    return {
+      label: "Completed",
+      detail: "This flock has already been marked complete in the system lifecycle.",
+      systemState: `Placement ${formatLifecycleFlag(Boolean(placement.placementId))} | Active ${formatLifecycleFlag(
+        placement.placementIsActive,
+      )} | Flock Active ${formatLifecycleFlag(placement.flockIsActive)} | In Barn ${formatLifecycleFlag(
+        placement.flockIsInBarn,
+      )} | Complete Yes | Settled ${formatLifecycleFlag(
+        placement.flockIsSettled,
+      )}`,
+    };
+  }
+
+  if (placement.dateRemoved) {
+    return {
+      label: "Checked Out",
+      detail: `A removed date is recorded for ${placement.dateRemoved}, so this flock has moved past in-barn production.`,
+      systemState: `Placement ${formatLifecycleFlag(Boolean(placement.placementId))} | Active ${formatLifecycleFlag(
+        placement.placementIsActive,
+      )} | Flock Active ${formatLifecycleFlag(placement.flockIsActive)} | In Barn ${formatLifecycleFlag(
+        placement.flockIsInBarn,
+      )} | Complete ${formatLifecycleFlag(
+        placement.flockIsComplete,
+      )} | Settled ${formatLifecycleFlag(placement.flockIsSettled)}`,
+    };
+  }
+
+  if (placement.tileState === "scheduled") {
+    return {
+      label: "Scheduled",
+      detail: "The placement exists on the board but has not been activated yet.",
+      systemState: `Placement Yes | Active ${formatLifecycleFlag(placement.placementIsActive)} | Flock Active ${formatLifecycleFlag(
+        placement.flockIsActive,
+      )} | In Barn ${formatLifecycleFlag(
+        placement.flockIsInBarn,
+      )} | Complete ${formatLifecycleFlag(placement.flockIsComplete)} | Settled ${formatLifecycleFlag(
+        placement.flockIsSettled,
+      )}`,
+    };
+  }
+
+  if (placement.tileState === "awaiting") {
+    return {
+      label: "Active / Awaiting Arrival",
+      detail:
+        "The placement is active in the system, but the flock has not been confirmed in the barn yet. In this stage, the placement can still receive feed deliveries, allocations, and action items while the barn is waiting on chick arrival.",
+      systemState: `Placement Yes | Active Yes | Flock Active ${formatLifecycleFlag(
+        placement.flockIsActive,
+      )} | In Barn No | Complete ${formatLifecycleFlag(
+        placement.flockIsComplete,
+      )} | Settled ${formatLifecycleFlag(placement.flockIsSettled)}`,
+    };
+  }
+
+  if (placement.tileState === "live") {
+    return {
+      label: "In Barn / Live",
+      detail: "The flock is active and confirmed in the barn, so this placement is currently in production.",
+      systemState: `Placement Yes | Active Yes | Flock Active ${formatLifecycleFlag(
+        placement.flockIsActive,
+      )} | In Barn Yes | Complete ${formatLifecycleFlag(
+        placement.flockIsComplete,
+      )} | Settled ${formatLifecycleFlag(placement.flockIsSettled)}`,
+    };
+  }
+
+  return {
+    label: "System State Unknown",
+    detail: "This placement does not match one of the standard lifecycle stages yet.",
+    systemState: `Placement ${formatLifecycleFlag(Boolean(placement.placementId))} | Active ${formatLifecycleFlag(
+      placement.placementIsActive,
+    )} | Flock Active ${formatLifecycleFlag(placement.flockIsActive)} | In Barn ${formatLifecycleFlag(
+      placement.flockIsInBarn,
+    )} | Complete ${formatLifecycleFlag(placement.flockIsComplete)} | Settled ${formatLifecycleFlag(
+      placement.flockIsSettled,
+    )}`,
+  };
+}
+
+function PlacementEditorPopup({
+  breedOptions,
+  historyReportLabel,
+  onClose,
+  placement,
+}: {
+  breedOptions: BreedOptionRecord[];
+  historyReportLabel: string;
+  onClose: () => void;
+  placement: ActivePlacementRecord;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [actionState, setActionState] = useState<LhDateActionResult>({
+    status: "idle",
+    message: "",
+  });
+  const [projectedEndDate, setProjectedEndDate] = useState(formatDateInputValue(placement.projectedEndDate));
+  const [dateRemoved, setDateRemoved] = useState(formatDateInputValue(placement.dateRemoved));
+  const [startCntMales, setStartCntMales] = useState(String(placement.startedMaleCount || ""));
+  const [startCntFemales, setStartCntFemales] = useState(String(placement.startedFemaleCount || ""));
+  const [breedMales, setBreedMales] = useState(placement.breedMales ?? "");
+  const [breedFemales, setBreedFemales] = useState(placement.breedFemales ?? "");
+  const [lh1Date, setLh1Date] = useState(formatDateInputValue(placement.lh1Date));
+  const [lh2Date, setLh2Date] = useState(formatDateInputValue(placement.lh2Date));
+  const [lh3Date, setLh3Date] = useState(formatDateInputValue(placement.lh3Date));
+
+  useEffect(() => {
+    setProjectedEndDate(formatDateInputValue(placement.projectedEndDate));
+    setDateRemoved(formatDateInputValue(placement.dateRemoved));
+    setStartCntMales(String(placement.startedMaleCount || ""));
+    setStartCntFemales(String(placement.startedFemaleCount || ""));
+    setBreedMales(placement.breedMales ?? "");
+    setBreedFemales(placement.breedFemales ?? "");
+    setLh1Date(formatDateInputValue(placement.lh1Date));
+    setLh2Date(formatDateInputValue(placement.lh2Date));
+    setLh3Date(formatDateInputValue(placement.lh3Date));
+    setActionState({ status: "idle", message: "" });
+  }, [placement]);
+
+  const maleBreedOptions = useMemo(
+    () =>
+      breedOptions.filter((option) => {
+        const normalizedSex = String(option.sex ?? "").trim().toLowerCase();
+        return !normalizedSex || normalizedSex.startsWith("m") || normalizedSex === "unsexed";
+      }),
+    [breedOptions],
+  );
+  const femaleBreedOptions = useMemo(
+    () =>
+      breedOptions.filter((option) => {
+        const normalizedSex = String(option.sex ?? "").trim().toLowerCase();
+        return !normalizedSex || normalizedSex.startsWith("f") || normalizedSex === "unsexed";
+      }),
+    [breedOptions],
+  );
+  const canSave =
+    placement.placementEditorAccess.canEditFlockFields || placement.placementEditorAccess.canEditPlacementFields;
+  const lifecycle = derivePlacementLifecycle(placement);
+  const canShowHistoryReport = canShowHistoryReportLink(placement);
+
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  function savePlacement() {
+    if (!canSave) {
+      return;
+    }
+
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("placement_id", placement.placementId);
+      formData.set("projected_end_date", projectedEndDate);
+      formData.set("date_removed", dateRemoved);
+      formData.set("start_cnt_males", startCntMales);
+      formData.set("start_cnt_females", startCntFemales);
+      formData.set("breed_males", breedMales);
+      formData.set("breed_females", breedFemales);
+      formData.set("lh1_date", lh1Date);
+      formData.set("lh2_date", lh2Date);
+      formData.set("lh3_date", lh3Date);
+
+      const result = await saveDashboardPlacementEditorAction(formData);
+      setActionState(result);
+
+      if (result.status === "success") {
+        onClose();
+        router.refresh();
+      }
+    });
+  }
+
+  return createPortal(
+    <div className="dashboard-placement-editor-shell" onClick={onClose}>
+      <div
+        aria-modal="true"
+        className="dashboard-placement-editor-panel"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+      >
+        <div className="dashboard-placement-editor-header">
+          <div className="dashboard-placement-editor-title-block">
+            <p className="dashboard-placement-editor-placement-line">
+              {placement.farmName} &middot; Barn {placement.barnCode} &middot; {placement.placementCode}
+            </p>
+            <h3>Placement Editor</h3>
+            <p className="dashboard-placement-editor-copy">
+              Placement date stays locked from the live dashboard. Other fields unlock only where your role has edit
+              permission.
+            </p>
+          </div>
+          <button className="button-secondary" disabled={isPending} onClick={onClose} type="button">
+            Close
+          </button>
+        </div>
+
+        {!placement.placementEditorAccess.canView ? (
+          <div className="dashboard-placement-editor-blocked">
+            <p>{placement.placementEditorAccess.message ?? "This placement is not available for viewing."}</p>
+          </div>
+        ) : (
+          <>
+            {placement.placementEditorAccess.message ? (
+              <p className="dashboard-placement-editor-note">{placement.placementEditorAccess.message}</p>
+            ) : null}
+
+            {actionState.status !== "idle" ? (
+              <p
+                className={
+                  actionState.status === "error"
+                    ? "dashboard-placement-editor-feedback is-error"
+                    : "dashboard-placement-editor-feedback is-success"
+                }
+              >
+                {actionState.message}
+              </p>
+            ) : null}
+
+            <div className="dashboard-placement-editor-summary">
+              <div className="dashboard-placement-editor-card">
+                <span>Placed Date</span>
+                <strong>{placement.placedDate || "Pending"}</strong>
+              </div>
+              <div className="dashboard-placement-editor-card">
+                <span>Flock</span>
+                <strong>{placement.flockCode}</strong>
+              </div>
+              <div className="dashboard-placement-editor-card">
+                <span>Status</span>
+                <strong>{placement.dashboardStatusLabel}</strong>
+              </div>
+              <div className="dashboard-placement-editor-card dashboard-placement-editor-card--lifecycle">
+                <span>Lifecycle</span>
+                <strong>{lifecycle.label}</strong>
+                <small>{lifecycle.detail}</small>
+              </div>
+            </div>
+            <p className="dashboard-placement-editor-system-state">{lifecycle.systemState}</p>
+
+            <div className="placement-scheduler-form dashboard-placement-editor-form">
+              <div className="form-grid dashboard-placement-editor-grid">
+                <label className="field dashboard-placement-editor-field dashboard-placement-editor-field--tight">
+                  <span>Placed Date</span>
+                  <input disabled readOnly type="date" value={formatDateInputValue(placement.placedDate)} />
+                </label>
+                <label className="field dashboard-placement-editor-field dashboard-placement-editor-field--tight">
+                  <span>Projected End</span>
+                  <input
+                    disabled={!placement.placementEditorAccess.canEditFlockFields || isPending}
+                    onChange={(event) => setProjectedEndDate(event.target.value)}
+                    type="date"
+                    value={projectedEndDate}
+                  />
+                </label>
+                <label className="field dashboard-placement-editor-field dashboard-placement-editor-field--tight">
+                  <span>Date Removed</span>
+                  <input
+                    disabled={!placement.placementEditorAccess.canEditPlacementFields || isPending}
+                    onChange={(event) => setDateRemoved(event.target.value)}
+                    type="date"
+                    value={dateRemoved}
+                  />
+                </label>
+                <div className="placement-scheduler-start-row dashboard-placement-editor-dual-row">
+                  <label className="field dashboard-placement-editor-field dashboard-placement-editor-field--tight">
+                    <span>Start Males</span>
+                    <input
+                      className="placement-scheduler-start-input"
+                      disabled={!placement.placementEditorAccess.canEditFlockFields || isPending}
+                      inputMode="numeric"
+                      onChange={(event) => setStartCntMales(event.target.value)}
+                      type="number"
+                      value={startCntMales}
+                    />
+                  </label>
+                  <label className="field dashboard-placement-editor-field dashboard-placement-editor-field--tight">
+                    <span>Start Females</span>
+                    <input
+                      className="placement-scheduler-start-input"
+                      disabled={!placement.placementEditorAccess.canEditFlockFields || isPending}
+                      inputMode="numeric"
+                      onChange={(event) => setStartCntFemales(event.target.value)}
+                      type="number"
+                      value={startCntFemales}
+                    />
+                  </label>
+                </div>
+                <div className="placement-scheduler-triplet dashboard-placement-editor-triplet-row">
+                  <label className="field field-third dashboard-placement-editor-field dashboard-placement-editor-field--tight">
+                    <span>LH 1 Date</span>
+                    <input
+                      disabled={!placement.placementEditorAccess.canEditPlacementFields || isPending}
+                      onChange={(event) => setLh1Date(event.target.value)}
+                      type="date"
+                      value={lh1Date}
+                    />
+                  </label>
+                  <label className="field field-third dashboard-placement-editor-field dashboard-placement-editor-field--tight">
+                    <span>LH 2 Date</span>
+                    <input
+                      disabled={!placement.placementEditorAccess.canEditPlacementFields || isPending}
+                      onChange={(event) => setLh2Date(event.target.value)}
+                      type="date"
+                      value={lh2Date}
+                    />
+                  </label>
+                  <label className="field field-third dashboard-placement-editor-field dashboard-placement-editor-field--tight">
+                    <span>LH 3 Date</span>
+                    <input
+                      disabled={!placement.placementEditorAccess.canEditPlacementFields || isPending}
+                      onChange={(event) => setLh3Date(event.target.value)}
+                      type="date"
+                      value={lh3Date}
+                    />
+                  </label>
+                </div>
+                <label className="field dashboard-placement-editor-field dashboard-placement-editor-field--wide">
+                  <span>Breed Males</span>
+                  <select
+                    disabled={!placement.placementEditorAccess.canEditFlockFields || isPending}
+                    onChange={(event) => setBreedMales(event.target.value)}
+                    value={breedMales}
+                  >
+                    <option value=""></option>
+                    {maleBreedOptions.map((breed) => (
+                      <option key={breed.id} value={breed.id}>
+                        {breed.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field dashboard-placement-editor-field dashboard-placement-editor-field--wide">
+                  <span>Breed Females</span>
+                  <select
+                    disabled={!placement.placementEditorAccess.canEditFlockFields || isPending}
+                    onChange={(event) => setBreedFemales(event.target.value)}
+                    value={breedFemales}
+                  >
+                    <option value=""></option>
+                    {femaleBreedOptions.map((breed) => (
+                      <option key={breed.id} value={breed.id}>
+                        {breed.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div className="dashboard-placement-editor-actions">
+              {canShowHistoryReport ? (
+                <Link
+                  className="tile-action-button tile-action-button--secondary"
+                  href={`/admin/flocks/${placement.flockId}/report`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {historyReportLabel}
+                </Link>
+              ) : null}
+              <button className="tile-action-button tile-action-button--secondary" disabled={isPending} onClick={onClose} type="button">
+                Cancel
+              </button>
+              {canSave ? (
+                <button className="tile-action-button" disabled={isPending} onClick={savePlacement} type="button">
+                  {isPending ? "Saving..." : "Save Placement"}
+                </button>
+              ) : (
+                <div className="tile-action-button dashboard-placement-editor-readonly">Read Only</div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 function CheckoutFlockPopup({
@@ -394,11 +809,15 @@ function MortalityPopup({
 }
 
 function PlacementTile({
+  historyReportLabel,
+  onOpenPlacementEditor,
   placement,
   editingPlacementId,
   onBeginEdit,
   onEndEdit,
 }: {
+  historyReportLabel: string;
+  onOpenPlacementEditor: (placementId: string) => void;
   placement: ActivePlacementRecord;
   editingPlacementId: string | null;
   onBeginEdit: (placementId: string) => void;
@@ -441,7 +860,12 @@ function PlacementTile({
   const canEditLhDates = placement.placementIsActive && placement.ageDays >= 42;
   const prioritizeOperationalAction = shouldPrioritizeOperationalAction(placement, operationalAction);
   const hasOpenItems = placement.openBarnIssueCount > 0 || placement.openPlacementIssueCount > 0;
-  const actionItemsHref = buildActionItemsHref(placement);
+  const openActionItemsHref = buildActionItemsHref(placement, "open");
+  const resolvedActionItemsHref = buildActionItemsHref(placement, "resolved");
+  const issueBadgeTone = getIssueBadgeTone(placement);
+  const shouldShowCompletionBadge = placement.tileState === "live" && Boolean(placement.completedTodayLabel);
+  const shouldShowPendingBadge = placement.tileState === "live" && !hasOpenItems && !shouldShowCompletionBadge;
+  const shouldShowDefaultHeaderBadge = placement.tileState !== "live";
 
   function beginEdit() {
     if (!canEditLhDates || anotherTileIsEditing) {
@@ -521,23 +945,73 @@ function PlacementTile({
     runOperationalAction();
   }
 
+  function openPlacementEditor() {
+    if (!placement.placementEditorAccess.canOpen) {
+      return;
+    }
+
+    onOpenPlacementEditor(placement.placementId);
+  }
+
+  function handleTileClick(event: MouseEvent<HTMLElement>) {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("a,button,input,select,textarea,label")) {
+      return;
+    }
+
+    openPlacementEditor();
+  }
+
+  function handleTileKeyDown(event: KeyboardEvent<HTMLElement>) {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("a,button,input,select,textarea")) {
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openPlacementEditor();
+    }
+  }
+
   return (
-    <article className="placement-tile" data-state={placement.tileState}>
+    <article
+      aria-label={`Open placement editor for ${placement.placementCode} in ${placement.farmName} barn ${placement.barnCode}`}
+      className="placement-tile placement-tile--clickable"
+      data-state={placement.tileState}
+      onClick={handleTileClick}
+      onKeyDown={handleTileKeyDown}
+      role="button"
+      tabIndex={0}
+    >
       <div className="placement-tile-header">
         <div>
           <p className="placement-tile-barn">{placement.barnCode}</p>
           <h3 className="placement-tile-farm">{placement.farmName}</h3>
           <p className="placement-kicker">{placement.farmGroupName}</p>
         </div>
-        {hasOpenItems ? (
-          <Link className="status-pill" data-tone={placement.dashboardStatusTone} href={actionItemsHref}>
-            {placement.dashboardStatusLabel}
-          </Link>
-        ) : (
-          <span className="status-pill" data-tone={placement.dashboardStatusTone}>
-            {placement.dashboardStatusLabel}
-          </span>
-        )}
+        <div className="placement-tile-pill-stack">
+          {shouldShowCompletionBadge ? (
+            <span className="status-pill" data-tone="good">
+              {placement.completedTodayLabel}
+            </span>
+          ) : null}
+          {hasOpenItems ? (
+            <Link className="status-pill" data-tone={issueBadgeTone} href={openActionItemsHref}>
+              {placement.dashboardStatusLabel}
+            </Link>
+          ) : null}
+          {shouldShowPendingBadge ? (
+            <span className="status-pill" data-tone={placement.dashboardStatusTone}>
+              {placement.dashboardStatusLabel}
+            </span>
+          ) : null}
+          {shouldShowDefaultHeaderBadge ? (
+            <span className="status-pill" data-tone={placement.dashboardStatusTone}>
+              {placement.dashboardStatusLabel}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="placement-summary-grid">
@@ -555,18 +1029,20 @@ function PlacementTile({
         </div>
       </div>
 
-      {hasOpenItems ? (
-        <Link className="tile-issue-summary tile-issue-summary-link" data-tone={placement.dashboardStatusTone} href={actionItemsHref}>
-          {formatIssueSummary(placement)}
+      <div className="tile-issue-summary-grid">
+        <Link className="tile-issue-summary tile-issue-summary-link" data-tone={placement.dashboardStatusTone} href={openActionItemsHref}>
+          <span className="tile-issue-summary-heading">Open Items:</span>
+          <span>{formatIssueCountLine(placement.openPlacementIssueCount, "Placement")}</span>
+          <span>{formatIssueCountLine(placement.openBarnIssueCount, "Barn")}</span>
         </Link>
-      ) : (
-        <div className="tile-issue-summary" data-tone={placement.dashboardStatusTone}>
-          {formatIssueSummary(placement)}
-        </div>
-      )}
-      <div className="tile-issue-actions">
-        <Link className="tile-inline-link" href={actionItemsHref}>
-          Open Items
+        <Link
+          className="tile-issue-summary tile-issue-summary-link tile-issue-summary-link--resolved"
+          data-tone="neutral"
+          href={resolvedActionItemsHref}
+        >
+          <span className="tile-issue-summary-heading">Closed Items:</span>
+          <span>{formatIssueCountLine(placement.resolvedPlacementIssueCount, "Placement")}</span>
+          <span>{formatIssueCountLine(placement.resolvedBarnIssueCount, "Barn")}</span>
         </Link>
       </div>
 
@@ -692,6 +1168,15 @@ function PlacementTile({
           >
             LH Dates
           </button>
+        ) : canShowHistoryReportLink(placement) ? (
+          <Link
+            className="tile-action-button"
+            href={`/admin/flocks/${placement.flockId}/report`}
+            rel="noreferrer"
+            target="_blank"
+          >
+            {historyReportLabel}
+          </Link>
         ) : (
           <div aria-hidden="true" className="tile-action-button tile-action-button--ghost" />
         )}
@@ -810,11 +1295,14 @@ function PlacementTile({
 }
 
 export function ActivePlacementDashboard({
+  breedOptions,
+  historyReportLabel,
   placements,
   farmGroups,
   farms,
 }: ActivePlacementDashboardProps) {
   const [editingPlacementId, setEditingPlacementId] = useState<string | null>(null);
+  const [selectedPlacementId, setSelectedPlacementId] = useState<string | null>(null);
   const [farmGroupId, setFarmGroupId] = useState("all");
   const [farmId, setFarmId] = useState("all");
   const [submissionFilter, setSubmissionFilter] = useState<SubmissionFilter>("all");
@@ -856,6 +1344,10 @@ export function ActivePlacementDashboard({
       ).length,
     [placements],
   );
+  const selectedPlacement =
+    (selectedPlacementId
+      ? placements.find((placement) => placement.placementId === selectedPlacementId) ?? null
+      : null);
 
   return (
     <section className="panel card live-dashboard-panel">
@@ -943,9 +1435,11 @@ export function ActivePlacementDashboard({
         {filteredPlacements.map((placement) => (
           <PlacementTile
             editingPlacementId={editingPlacementId}
+            historyReportLabel={historyReportLabel}
             key={placement.id}
             onBeginEdit={setEditingPlacementId}
             onEndEdit={() => setEditingPlacementId(null)}
+            onOpenPlacementEditor={setSelectedPlacementId}
             placement={placement}
           />
         ))}
@@ -955,6 +1449,14 @@ export function ActivePlacementDashboard({
         <div className="helper-banner" style={{ marginTop: 18 }}>
           No barn tiles match the current filter set.
         </div>
+      ) : null}
+      {selectedPlacement ? (
+        <PlacementEditorPopup
+          breedOptions={breedOptions}
+          historyReportLabel={historyReportLabel}
+          onClose={() => setSelectedPlacementId(null)}
+          placement={selectedPlacement}
+        />
       ) : null}
     </section>
   );

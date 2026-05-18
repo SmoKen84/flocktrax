@@ -4,11 +4,12 @@ import {
   addFarmGroupMembershipAction,
   addFarmMembershipAction,
   assignUserRoleAction,
-  deleteUserAccessAction,
+  disableUserAccessAction,
   inviteUserAccessAction,
   removeFarmGroupMembershipAction,
   removeFarmMembershipAction,
   removeUserRoleAction,
+  resendUserAccessInviteAction,
 } from "@/app/admin/user-access/actions";
 import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
 import {
@@ -94,22 +95,21 @@ export default async function UserAccessPage({ searchParams }: UserAccessPagePro
   );
   const codesMode = canEditCodes && mode === "codes";
   const inviteMode = !codesMode && mode === "invite";
+  const actorIsSuperAdmin = isSuperAdminRole(actingRole);
   const isSelfSelected = selectedTarget?.id === actingUser.id;
   const canManageLiveAssignments = Boolean(selectedTarget && selectedTargetReview?.canEdit && !isSelfSelected);
+  const scopedFarmGroups = getScopedFarmGroups(bundle, actingUser, actorIsSuperAdmin);
+  const scopedFarms = getScopedFarms(bundle, actingUser, actorIsSuperAdmin);
 
   const groupOptions = Array.from(
     new Map(
-      bundle.users
-        .flatMap((user) => user.memberships.filter((membership) => membership.scopeType === "farm_group"))
-        .map((membership) => [membership.scopeId, membership.scopeLabel]),
+      scopedFarmGroups.map((farmGroup) => [farmGroup.id, farmGroup.groupName]),
     ).entries(),
   ).sort((left, right) => left[1].localeCompare(right[1]));
 
   const farmOptions = Array.from(
     new Map(
-      bundle.users
-        .flatMap((user) => user.memberships.filter((membership) => membership.scopeType === "farm"))
-        .map((membership) => [membership.scopeId, membership.scopeLabel]),
+      scopedFarms.map((farm) => [farm.id, farm.farmName]),
     ).entries(),
   ).sort((left, right) => left[1].localeCompare(right[1]));
 
@@ -136,9 +136,14 @@ export default async function UserAccessPage({ searchParams }: UserAccessPagePro
     label: role.label,
   }));
   const canInviteUsers = actorCanManageUsers(actingRole) && inviteRoleOptions.length > 0;
-  const actorIsSuperAdmin = isSuperAdminRole(actingRole);
   const hasActiveFilters = Boolean(groupFilter || farmFilter || statusFilter);
-  const canDeleteSelectedUser = Boolean(selectedTarget && actorIsSuperAdmin && !isSelfSelected);
+  const canDisableSelectedUser = Boolean(selectedTarget && actorIsSuperAdmin && !isSelfSelected);
+  const canResendSelectedInvite = Boolean(
+    selectedTarget &&
+    canManageLiveAssignments &&
+    !isSelfSelected &&
+    selectedTarget.canResendInvite,
+  );
 
   const buildUserAccessHref = (targetUserId?: string, overrideMode?: string | null) => {
     const query = new URLSearchParams();
@@ -269,6 +274,7 @@ export default async function UserAccessPage({ searchParams }: UserAccessPagePro
                     <p className="access-user-meta">
                       {user.roleLabel} / {summarizeMemberships(user.memberships) || "No memberships assigned"}
                     </p>
+                    <p className="access-user-note">{user.activityLabel}</p>
                   </div>
                   <div className="access-user-status-block">
                     <span className="access-user-status" data-status={user.status}>
@@ -293,6 +299,7 @@ export default async function UserAccessPage({ searchParams }: UserAccessPagePro
                     <p className="access-user-meta">
                       {user.roleLabel} / {summarizeMemberships(user.memberships) || "No memberships assigned"}
                     </p>
+                    <p className="access-user-note">{user.activityLabel}</p>
                   </div>
                   <div className="access-user-status-block">
                     <span className="access-user-status" data-status={user.status}>
@@ -427,28 +434,45 @@ export default async function UserAccessPage({ searchParams }: UserAccessPagePro
                     <span className="access-target-status">{selectedTarget?.status ?? "idle"}</span>
                   </div>
                   <div className="access-target-panel-foot">
-                    <p className="access-target-login">Last selection: {selectedTarget ? selectedTarget.displayName : "none"}</p>
-                    <p className="access-target-note">
-                      {selectedTarget?.note ?? "Live grant details appear here when a user is selected."}
+                    <p className="access-target-login">
+                      {selectedTarget?.activityLabel ?? "Select a user to review account activity."}
                     </p>
-                    {canDeleteSelectedUser && selectedTarget ? (
-                      <form action={deleteUserAccessAction} className="access-delete-user-form">
-                        <input name="return_to" type="hidden" value={buildUserAccessHref(selectedTarget.id, null)} />
-                        <input name="target_user_id" type="hidden" value={selectedTarget.id} />
-                        <label className="field field-wide">
-                          <span>Delete User</span>
-                          <input
-                            autoComplete="off"
-                            name="confirmation"
-                            placeholder='Type DELETE to permanently remove this user'
-                            type="text"
-                          />
-                        </label>
-                        <button className="button-ghost access-delete-user-button" type="submit">
-                          Permanently Delete User
-                        </button>
-                      </form>
+                    <p className="access-target-note">
+                      {selectedTarget?.statusDetail ?? "Live grant details appear here when a user is selected."}
+                    </p>
+                    {selectedTarget?.note ? (
+                      <p className="access-target-note access-target-note-secondary">{selectedTarget.note}</p>
                     ) : null}
+                    <div className="access-target-actions">
+                      {canResendSelectedInvite && selectedTarget ? (
+                        <form action={resendUserAccessInviteAction} className="access-resend-invite-form">
+                          <input name="return_to" type="hidden" value={buildUserAccessHref(selectedTarget.id, null)} />
+                          <input name="target_user_id" type="hidden" value={selectedTarget.id} />
+                          <button className="button-secondary" type="submit">
+                            Resend Setup Link
+                          </button>
+                        </form>
+                      ) : null}
+
+                      {canDisableSelectedUser && selectedTarget ? (
+                        <form action={disableUserAccessAction} className="access-delete-user-form">
+                          <input name="return_to" type="hidden" value={buildUserAccessHref(selectedTarget.id, null)} />
+                          <input name="target_user_id" type="hidden" value={selectedTarget.id} />
+                          <label className="field field-wide">
+                            <span>Retire User Access</span>
+                            <input
+                              autoComplete="off"
+                              name="confirmation"
+                              placeholder='Type RETIRE to disable sign-in and remove live access'
+                              type="text"
+                            />
+                          </label>
+                          <button className="button-ghost access-delete-user-button" type="submit">
+                            Retire User
+                          </button>
+                        </form>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
 
@@ -860,6 +884,61 @@ function actorCanManageUsers(role: ReturnType<typeof resolveRoleTemplate>) {
 function isSuperAdminRole(role: ReturnType<typeof resolveRoleTemplate>) {
   const normalizedRole = normalizeKey(role.key);
   return normalizedRole === "super_admin" || normalizedRole === "superadmin" || normalizedRole.includes("super");
+}
+
+function getScopedFarmGroups(
+  bundle: Awaited<ReturnType<typeof getUserAccessBundle>>,
+  actingUser: Awaited<ReturnType<typeof getUserAccessBundle>>["users"][number],
+  actorIsSuperAdmin: boolean,
+) {
+  if (actorIsSuperAdmin) {
+    return bundle.farmGroups;
+  }
+
+  const accessibleGroupIds = new Set(
+    actingUser.memberships
+      .filter((membership) => membership.scopeType === "farm_group")
+      .map((membership) => membership.scopeId),
+  );
+
+  for (const membership of actingUser.memberships) {
+    if (membership.scopeType !== "farm") {
+      continue;
+    }
+
+    const farm = bundle.farms.find((row) => row.id === membership.scopeId);
+    if (farm) {
+      accessibleGroupIds.add(farm.farmGroupId);
+    }
+  }
+
+  return bundle.farmGroups.filter((farmGroup) => accessibleGroupIds.has(farmGroup.id));
+}
+
+function getScopedFarms(
+  bundle: Awaited<ReturnType<typeof getUserAccessBundle>>,
+  actingUser: Awaited<ReturnType<typeof getUserAccessBundle>>["users"][number],
+  actorIsSuperAdmin: boolean,
+) {
+  if (actorIsSuperAdmin) {
+    return bundle.farms;
+  }
+
+  const accessibleFarmIds = new Set(
+    actingUser.memberships
+      .filter((membership) => membership.scopeType === "farm")
+      .map((membership) => membership.scopeId),
+  );
+
+  const accessibleGroupIds = new Set(
+    actingUser.memberships
+      .filter((membership) => membership.scopeType === "farm_group")
+      .map((membership) => membership.scopeId),
+  );
+
+  return bundle.farms.filter(
+    (farm) => accessibleFarmIds.has(farm.id) || accessibleGroupIds.has(farm.farmGroupId),
+  );
 }
 
 function getAssignableRoleOptions(

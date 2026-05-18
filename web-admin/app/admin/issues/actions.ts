@@ -225,7 +225,7 @@ export async function addIssueUpdateAction(formData: FormData) {
     issue_id: issueId,
     entry_type: safeEntryType,
     entry_text: entryText,
-    effective_date: effectiveDate || null,
+    effective_date: effectiveDate || new Date().toISOString().slice(0, 10),
     created_by: user.id,
   });
 

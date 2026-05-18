@@ -169,6 +169,8 @@ export async function getUserAccessBundle(): Promise<UserAccessBundle> {
   return {
     actingUserId,
     roles: liveRoles.length > 0 ? liveRoles : fallbackRoleTemplates,
+    farmGroups: adminData.farmGroups,
+    farms: adminData.farms,
     users:
       liveUsers.length > 0
         ? liveUsers
@@ -511,11 +513,13 @@ async function getLiveAccessUsers(
       roleLabel: resolvedRole.label,
       status: deriveUserStatus(appUser),
       memberships,
-      note: memberships.length > 0
-        ? appUser.last_sign_in_at
-          ? `Last active ${formatLastSeen(appUser.last_sign_in_at)}.`
-          : "Authenticated in Supabase. No recent sign-in has been recorded yet."
-        : "Authenticated in Supabase, but no FlockTrax memberships have been assigned yet.",
+      note: deriveUserNote(appUser, memberships),
+      activityLabel: deriveActivityLabel(appUser),
+      statusDetail: deriveStatusDetail(appUser, memberships),
+      canResendInvite: !appUser.banned_until || appUser.banned_until === "none"
+        ? !appUser.last_sign_in_at
+        : false,
+      isDisabled: Boolean(appUser.banned_until && appUser.banned_until !== "none"),
     } satisfies AccessUserRecord;
   });
 
@@ -647,6 +651,10 @@ function buildMockUsers(
       status: "active",
       memberships: [integratorMembership, secondaryIntegratorMembership],
       note: "Platform owner with full visibility and system authority.",
+      activityLabel: "Last active recently",
+      statusDetail: "Signed in and managing the full platform.",
+      canResendInvite: false,
+      isDisabled: false,
     },
     {
       id: "user-julia",
@@ -658,6 +666,10 @@ function buildMockUsers(
       status: "active",
       memberships: [integratorMembership],
       note: "Corporate live operations manager across one integrator group.",
+      activityLabel: "Last active recently",
+      statusDetail: "Signed in and assigned across the integrator scope.",
+      canResendInvite: false,
+      isDisabled: false,
     },
     {
       id: "user-maria",
@@ -669,6 +681,10 @@ function buildMockUsers(
       status: "active",
       memberships: [primaryFarmGroupMembership],
       note: "Grower-side owner/admin responsible for farms inside a single farm group.",
+      activityLabel: "Last active recently",
+      statusDetail: "Signed in and assigned across the grower scope.",
+      canResendInvite: false,
+      isDisabled: false,
     },
     {
       id: "user-jon",
@@ -680,6 +696,10 @@ function buildMockUsers(
       status: "active",
       memberships: [primaryFarmMembership],
       note: "Farm manager limited to assigned farm operations and local execution.",
+      activityLabel: "Last active recently",
+      statusDetail: "Signed in and assigned at the farm level.",
+      canResendInvite: false,
+      isDisabled: false,
     },
     {
       id: "user-ella",
@@ -691,6 +711,10 @@ function buildMockUsers(
       status: "invited",
       memberships: [primaryFarmMembership, secondaryFarmMembership].filter(Boolean) as AccessMembership[],
       note: "Specialist restricted to weights and grading across assigned farms.",
+      activityLabel: "No sign-in recorded yet",
+      statusDetail: "Invite pending. Password setup is not complete yet.",
+      canResendInvite: true,
+      isDisabled: false,
     },
     {
       id: "user-miguel",
@@ -702,6 +726,10 @@ function buildMockUsers(
       status: "active",
       memberships: [secondaryFarmGroupMembership],
       note: "Separate grower admin that should stay isolated from other farm groups.",
+      activityLabel: "Last active recently",
+      statusDetail: "Signed in and assigned across the grower scope.",
+      canResendInvite: false,
+      isDisabled: false,
     },
   ];
 }
@@ -799,6 +827,52 @@ function deriveUserStatus(user: LiveAppUserRow): AccessUserRecord["status"] {
   }
 
   return "active";
+}
+
+function deriveActivityLabel(user: LiveAppUserRow) {
+  if (user.banned_until && user.banned_until !== "none") {
+    return "Sign-in disabled";
+  }
+
+  if (!user.last_sign_in_at) {
+    return "No sign-in recorded yet";
+  }
+
+  return `Last active ${formatLastSeen(user.last_sign_in_at)}`;
+}
+
+function deriveStatusDetail(user: LiveAppUserRow, memberships: AccessMembership[]) {
+  if (user.banned_until && user.banned_until !== "none") {
+    return "Access retired. Login is disabled, but historical records stay attached to this user id.";
+  }
+
+  if (!user.last_sign_in_at) {
+    return memberships.length > 0
+      ? "Invite pending. Assigned scope is ready, but password setup has not been completed yet."
+      : "Invite pending. This user still needs scope and password setup to start working.";
+  }
+
+  if (memberships.length === 0) {
+    return "Signed in successfully, but no FlockTrax memberships are attached yet.";
+  }
+
+  return "Signed in and operating inside the assigned FlockTrax scope.";
+}
+
+function deriveUserNote(user: LiveAppUserRow, memberships: AccessMembership[]) {
+  if (user.banned_until && user.banned_until !== "none") {
+    return "Access retired. Sign-in is disabled while preserving the user id for audit history.";
+  }
+
+  if (!user.last_sign_in_at) {
+    return memberships.length > 0
+      ? "Invite link can be resent from this screen if the original setup link expired."
+      : "This auth user exists, but no memberships have been assigned yet.";
+  }
+
+  return memberships.length > 0
+    ? `Last active ${formatLastSeen(user.last_sign_in_at)}.`
+    : "Authenticated in Supabase, but no FlockTrax memberships have been assigned yet.";
 }
 
 function formatLastSeen(value: string) {

@@ -1,6 +1,19 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { Fraunces, Source_Sans_3 } from "next/font/google";
 import type { ReactNode } from "react";
+
+const sansFont = Source_Sans_3({
+  subsets: ["latin"],
+  variable: "--font-source-sans",
+  display: "swap",
+});
+
+const serifFont = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "FlockTrax Admin",
@@ -20,7 +33,7 @@ type RootLayoutProps = {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={`${sansFont.variable} ${serifFont.variable}`}>{children}</body>
     </html>
   );
 }

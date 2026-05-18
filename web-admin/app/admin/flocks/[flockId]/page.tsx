@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/page-header";
 import { getFlockById } from "@/lib/admin-data";
+import { getAppSettingTextValues } from "@/lib/platform-content";
 
 type FlockDetailPageProps = {
   params: Promise<{ flockId: string }>;
@@ -9,11 +11,16 @@ type FlockDetailPageProps = {
 
 export default async function FlockDetailPage({ params }: FlockDetailPageProps) {
   const { flockId } = await params;
-  const flock = await getFlockById(flockId);
+  const [flock, appText] = await Promise.all([
+    getFlockById(flockId),
+    getAppSettingTextValues(["flock_history_title"]),
+  ]);
 
   if (!flock) {
     notFound();
   }
+
+  const historyReportLabel = appText.get("flock_history_title")?.value || "History Report";
 
   return (
     <>
@@ -21,6 +28,11 @@ export default async function FlockDetailPage({ params }: FlockDetailPageProps) 
         eyebrow="Flock Detail"
         title={`Flock ${flock.flockCode} is the planning source for one or more placements.`}
         body="This is where admins will eventually maintain flock-specific planning data such as placed date, estimated first live haul, bird counts, and allocation intent."
+        actions={
+          <Link className="button" href={`/admin/flocks/${flock.id}/report`} rel="noreferrer" target="_blank">
+            {historyReportLabel}
+          </Link>
+        }
       />
 
       <section className="panel card">

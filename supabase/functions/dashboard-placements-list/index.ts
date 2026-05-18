@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getServiceClient, loadOpenIssueCounts } from "../_shared/issues.ts";
+import { getServiceClient, loadOpenIssueCounts, syncDerivedPlacementIssues } from "../_shared/issues.ts";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -69,6 +69,18 @@ function readDeviceTimeZone(req: Request) {
   } catch {
     return "UTC";
   }
+}
+
+function readMobilePlatform(req: Request) {
+  const value = (req.headers.get("x-mobile-platform") ?? req.headers.get("X-Mobile-Platform") ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (value === "ios" || value === "android") {
+    return value;
+  }
+
+  return null;
 }
 
 function formatDateInTimeZone(date: Date, timeZone: string) {
@@ -208,6 +220,9 @@ Deno.serve(async (req) => {
         short_date: "mm/dd/yy",
         first_lh: 42,
         allow_historical_entry: false,
+        mobile_release_version: "1.0.2",
+        mobile_release_build: 7,
+        mobile_release_released: "2026-05-15",
       },
       count: 1,
       mode: "adalo_test",
@@ -225,6 +240,7 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   const deviceTimeZone = readDeviceTimeZone(req);
+  const mobilePlatform = readMobilePlatform(req);
   const today = formatDateInTimeZone(new Date(), deviceTimeZone);
   const body = req.method === "POST" ? await readBody(req) : {};
   const includeInactive = parseBoolean(url.searchParams.get("include_inactive")) || body.include_inactive === true;
@@ -362,6 +378,9 @@ Deno.serve(async (req) => {
     let shortDateSetting = "mm/dd/yy";
     let firstLivehaulDaysSetting = 38;
     let allowHistoricalEntry = false;
+    let mobileReleaseVersion: string | null = null;
+    let mobileReleaseBuild: number | null = null;
+    let mobileReleaseReleased: string | null = null;
     const { data: publicAppSettingRows, error: publicAppSettingsError } = await supabase
       .from("app_settings")
       .select("name,value")
@@ -403,6 +422,32 @@ Deno.serve(async (req) => {
 
         if (["allow_historical_entry", "historical_entry", "historical_mode", "history_backfill"].includes(name)) {
           allowHistoricalEntry = ["1", "true", "yes", "on"].includes(rawValue);
+        }
+      }
+    }
+
+    if (mobilePlatform) {
+      const targetGroup = mobilePlatform === "ios" ? "mobile_ios" : "mobile_droid";
+      const { data: controlRows, error: controlError } = await service
+        .schema("platform")
+        .from("control")
+        .select("group,version,build,released")
+        .eq("group", targetGroup)
+        .order("id", { ascending: false })
+        .limit(1);
+
+      if (!controlError) {
+        const controlRow = controlRows?.[0];
+        if (controlRow) {
+          mobileReleaseVersion =
+            typeof controlRow.version === "string" && controlRow.version.trim().length > 0
+              ? controlRow.version.trim()
+              : null;
+          mobileReleaseBuild = typeof controlRow.build === "number" ? controlRow.build : null;
+          mobileReleaseReleased =
+            typeof controlRow.released === "string" && controlRow.released.trim().length > 0
+              ? controlRow.released.trim()
+              : null;
         }
       }
     }
@@ -624,6 +669,8 @@ Deno.serve(async (req) => {
       }
     }
 
+    await syncDerivedPlacementIssues(service, placementIds);
+
     const { barnCounts: barnIssueCountByBarnId, placementCounts: placementIssueCountByPlacementId } =
       await loadOpenIssueCounts(service, { placementIds, barnIds });
 
@@ -779,6 +826,9 @@ Deno.serve(async (req) => {
         short_date: shortDateSetting,
         first_lh: firstLivehaulDaysSetting,
         allow_historical_entry: allowHistoricalEntry,
+        mobile_release_version: mobileReleaseVersion,
+        mobile_release_build: mobileReleaseBuild,
+        mobile_release_released: mobileReleaseReleased,
       },
       count: count ?? items.length,
     });

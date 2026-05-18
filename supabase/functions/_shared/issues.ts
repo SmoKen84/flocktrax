@@ -114,6 +114,25 @@ export function mapIssueRow(row: Record<string, unknown>): IssueItem {
   };
 }
 
+export async function syncDerivedPlacementIssues(
+  service: ReturnType<typeof createClient>,
+  placementIds: string[],
+) {
+  const normalizedIds = Array.from(
+    new Set(
+      placementIds.filter((value): value is string => typeof value === "string" && value.length > 0),
+    ),
+  );
+
+  const { error } = await service.rpc("sync_derived_placement_issues", {
+    p_placement_ids: normalizedIds,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export async function loadOpenIssueBundle(
   service: ReturnType<typeof createClient>,
   placementId: string,

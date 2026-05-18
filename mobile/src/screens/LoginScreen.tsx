@@ -244,8 +244,7 @@ export function LoginScreen({
         {!isReauthMode ? (
           <View style={styles.footer}>
             <Text style={styles.footerStatus}>Signed out of FlockTrax-Mobile.</Text>
-            <Text style={styles.footerMeta}>Release 0.1.0 | Build FLM-2026.04.04-a</Text>
-            <Text style={styles.footerMeta}>Release date: April 4, 2026</Text>
+            <Text style={styles.footerMeta}>Published mobile release details load on the dashboard after sign-in.</Text>
           </View>
         ) : null}
 
