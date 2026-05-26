@@ -9,11 +9,13 @@ import { updatePasswordAction } from "../login/actions";
 type ResetPasswordPageProps = {
   searchParams?: Promise<{
     error?: string;
+    invite_target?: string;
   }>;
 };
 
 export default async function ResetPasswordPage({ searchParams }: ResetPasswordPageProps) {
   const params = searchParams ? await searchParams : {};
+  const inviteTarget = params?.invite_target === "mobile" ? "mobile" : "admin";
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -28,11 +30,22 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
       <section className="login-modal-panel">
         <div className="login-modal-intro">
           <p className="hero-kicker">Password Recovery</p>
-          <FlockTraxWordmark compact product="Admin" tone="accent" />
+          <FlockTraxWordmark compact product={inviteTarget === "mobile" ? "Mobile" : "Admin"} tone="accent" />
           <h1 className="hero-title login-hero-title">Set a new password.</h1>
           <p className="hero-body login-hero-body">
-            You are resetting the password for <strong>{user.email}</strong>. Save the new password, then return to
-            the login screen and sign in normally.
+            {inviteTarget === "mobile"
+              ? (
+                <>
+                  You are setting the password for <strong>{user.email}</strong>. After saving it, open the FlockTrax
+                  mobile app and sign in there.
+                </>
+              )
+              : (
+                <>
+                  You are resetting the password for <strong>{user.email}</strong>. Save the new password, then return
+                  to the login screen and sign in normally.
+                </>
+              )}
           </p>
         </div>
 
@@ -45,6 +58,7 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
           </div>
 
           <form action={updatePasswordAction} className="login-form">
+            <input name="invite_target" type="hidden" value={inviteTarget} />
             <div className="field">
               <label htmlFor="reset-password">New Password</label>
               <input autoComplete="new-password" id="reset-password" name="password" type="password" />
@@ -64,9 +78,11 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
               <button className="button" type="submit">
                 Save Password
               </button>
-              <Link className="button-secondary" href="/login">
-                Back to Login
-              </Link>
+              {inviteTarget === "mobile" ? null : (
+                <Link className="button-secondary" href="/login">
+                  Back to Login
+                </Link>
+              )}
             </div>
           </form>
         </article>

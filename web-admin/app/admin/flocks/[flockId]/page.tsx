@@ -29,9 +29,19 @@ export default async function FlockDetailPage({ params }: FlockDetailPageProps) 
         title={`Flock ${flock.flockCode} is the planning source for one or more placements.`}
         body="This is where admins will eventually maintain flock-specific planning data such as placed date, estimated first live haul, bird counts, and allocation intent."
         actions={
-          <Link className="button" href={`/admin/flocks/${flock.id}/report`} rel="noreferrer" target="_blank">
-            {historyReportLabel}
-          </Link>
+          <>
+            <Link className="button" href={`/admin/flocks/${flock.id}/report`} rel="noreferrer" target="_blank">
+              {historyReportLabel}
+            </Link>
+            <Link
+              className="button-secondary"
+              href={`/admin/flocks/${flock.id}/report?mode=micro`}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Micro Archive Copy
+            </Link>
+          </>
         }
       />
 

@@ -220,6 +220,7 @@ Deno.serve(async (req) => {
         short_date: "mm/dd/yy",
         first_lh: 42,
         allow_historical_entry: false,
+        after_save_goback: false,
         mobile_release_version: "1.0.2",
         mobile_release_build: 7,
         mobile_release_released: "2026-05-15",
@@ -378,6 +379,7 @@ Deno.serve(async (req) => {
     let shortDateSetting = "mm/dd/yy";
     let firstLivehaulDaysSetting = 38;
     let allowHistoricalEntry = false;
+    let afterSaveGoBack = false;
     let mobileReleaseVersion: string | null = null;
     let mobileReleaseBuild: number | null = null;
     let mobileReleaseReleased: string | null = null;
@@ -422,6 +424,10 @@ Deno.serve(async (req) => {
 
         if (["allow_historical_entry", "historical_entry", "historical_mode", "history_backfill"].includes(name)) {
           allowHistoricalEntry = ["1", "true", "yes", "on"].includes(rawValue);
+        }
+
+        if (["after_save_goback", "after-save-goback", "aftersavegoback"].includes(name)) {
+          afterSaveGoBack = ["1", "true", "yes", "on"].includes(rawValue);
         }
       }
     }
@@ -826,6 +832,7 @@ Deno.serve(async (req) => {
         short_date: shortDateSetting,
         first_lh: firstLivehaulDaysSetting,
         allow_historical_entry: allowHistoricalEntry,
+        after_save_goback: afterSaveGoBack,
         mobile_release_version: mobileReleaseVersion,
         mobile_release_build: mobileReleaseBuild,
         mobile_release_released: mobileReleaseReleased,

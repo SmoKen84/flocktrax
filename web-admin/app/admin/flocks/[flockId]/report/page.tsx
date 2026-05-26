@@ -8,10 +8,14 @@ import { getAppSettingTextValues } from "@/lib/platform-content";
 
 type FlockHistoryReportPageProps = {
   params: Promise<{ flockId: string }>;
+  searchParams?: Promise<{
+    mode?: string;
+  }>;
 };
 
-export default async function FlockHistoryReportPage({ params }: FlockHistoryReportPageProps) {
+export default async function FlockHistoryReportPage({ params, searchParams }: FlockHistoryReportPageProps) {
   const { flockId } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
   const [report, appText] = await Promise.all([
     getFlockHistoryReportBundle(flockId),
     getAppSettingTextValues([
@@ -26,32 +30,45 @@ export default async function FlockHistoryReportPage({ params }: FlockHistoryRep
     notFound();
   }
 
+  const isMicroArchive = resolvedSearchParams?.mode === "micro";
   const titlePlacementCode = report.placements[0]?.placementCode || report.flockCode;
   const reportBody =
-    appText.get("flock_history_title")?.desc ||
-    "Print-ready flock history with daily log data on one matrix page and mortality data on a companion matrix page.";
+    isMicroArchive
+      ? "Compact portrait archive copy for on-screen review, attachment storage, and zoomed recordkeeping."
+      : (
+        appText.get("flock_history_title")?.desc ||
+        "Print-ready flock history with daily log data on one matrix page and mortality data on a companion matrix page."
+      );
   const page1Title = appText.get("flock_history_pg1")?.value || "Daily Log Matrix";
   const page1Body =
-    appText.get("flock_history_pg1")?.desc ||
-    "Dates run down the page. Daily log data points run across the page.";
+    isMicroArchive
+      ? "Compact portrait environment matrix for archive and attachment use."
+      : (
+        appText.get("flock_history_pg1")?.desc ||
+        "Dates run down the page. Daily log data points run across the page."
+      );
   const page2Title = appText.get("flock_history_pg2")?.value || "Mortality Matrix";
   const page2Body =
-    appText.get("flock_history_pg2")?.desc ||
-    "Companion matrix for mortality and health-marker fields so the layout stays readable in landscape format.";
+    isMicroArchive
+      ? "Compact portrait mortality matrix matched to the archive copy format."
+      : (
+        appText.get("flock_history_pg2")?.desc ||
+        "Companion matrix for mortality and health-marker fields so the layout stays readable in landscape format."
+      );
 
   return (
     <>
       <style>{`
         @media print {
           @page {
-            size: landscape;
-            margin: 0.35in;
+            size: ${isMicroArchive ? "portrait" : "landscape"};
+            margin: ${isMicroArchive ? "0.28in" : "0.35in"};
           }
         }
       `}</style>
 
       <PageHeader
-        eyebrow="Flock History Report"
+        eyebrow={isMicroArchive ? "Micro Archive Copy" : "Flock History Report"}
         title={
           <>
             <span>{`Flock ${titlePlacementCode}`}</span>
@@ -63,7 +80,7 @@ export default async function FlockHistoryReportPage({ params }: FlockHistoryRep
         actions={<FlockHistoryReportActions />}
       />
 
-      <section className="panel card flock-history-report-shell">
+      <section className={`panel card flock-history-report-shell${isMicroArchive ? " flock-history-report-shell--micro" : ""}`}>
         <div className="flock-history-report-summary-grid">
           <div className="flock-history-report-summary-card flock-history-report-summary-card--compact">
             <span>Flock</span>

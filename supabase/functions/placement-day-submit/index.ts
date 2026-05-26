@@ -262,7 +262,7 @@ async function buildPlacementDayItem(
     nipple_lines_flag: dailyRow?.nipple_lines_flag === true,
     bird_health_alert: dailyRow?.bird_health_alert === true,
     min_vent: dailyRow?.min_vent ?? null,
-    is_oda_open: dailyRow?.is_oda_open ?? false,
+    is_oda_open: dailyRow?.is_oda_open ?? (typeof ageDays === "number" && ageDays >= 14),
     oda_exception: dailyRow?.oda_exception ?? null,
     naoh: dailyRow?.naoh ?? null,
     comment: dailyRow?.comment ?? null,

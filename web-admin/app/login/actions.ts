@@ -78,22 +78,24 @@ export async function forgotPasswordAction(formData: FormData) {
 export async function updatePasswordAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const confirmPassword = String(formData.get("confirm_password") ?? "");
+  const inviteTarget = String(formData.get("invite_target") ?? "").trim().toLowerCase() === "mobile" ? "mobile" : "admin";
+  const resetPasswordPath = inviteTarget === "mobile" ? "/reset-password?invite_target=mobile" : "/reset-password";
 
   if (!password || !confirmPassword) {
-    redirect("/reset-password?error=Enter+and+confirm+the+new+password.");
+    redirect(`${resetPasswordPath}${resetPasswordPath.includes("?") ? "&" : "?"}error=Enter+and+confirm+the+new+password.`);
   }
 
   if (password !== confirmPassword) {
-    redirect("/reset-password?error=The+passwords+do+not+match.");
+    redirect(`${resetPasswordPath}${resetPasswordPath.includes("?") ? "&" : "?"}error=The+passwords+do+not+match.`);
   }
 
   if (password.length < 8) {
-    redirect("/reset-password?error=Use+at+least+8+characters+for+the+new+password.");
+    redirect(`${resetPasswordPath}${resetPasswordPath.includes("?") ? "&" : "?"}error=Use+at+least+8+characters+for+the+new+password.`);
   }
 
   const supabase = await createSupabaseServerClient();
   if (!supabase) {
-    redirect("/reset-password?error=Supabase+password+reset+is+not+configured+for+the+web+app.");
+    redirect(`${resetPasswordPath}${resetPasswordPath.includes("?") ? "&" : "?"}error=Supabase+password+reset+is+not+configured+for+the+web+app.`);
   }
 
   const {
@@ -109,7 +111,12 @@ export async function updatePasswordAction(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/reset-password?error=${encodeURIComponent(error.message)}`);
+    redirect(`${resetPasswordPath}${resetPasswordPath.includes("?") ? "&" : "?"}error=${encodeURIComponent(error.message)}`);
+  }
+
+  if (inviteTarget === "mobile") {
+    await supabase.auth.signOut();
+    redirect("/mobile-access-ready?notice=Password+updated.+Open+the+FlockTrax+mobile+app+and+sign+in+there.");
   }
 
   redirect("/login?notice=Password+updated.+Sign+in+with+your+new+password.");

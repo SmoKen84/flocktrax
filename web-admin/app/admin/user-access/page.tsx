@@ -384,6 +384,17 @@ export default async function UserAccessPage({ searchParams }: UserAccessPagePro
                   </div>
 
                   <div className="field">
+                    <label htmlFor="invite-target">Invite Destination</label>
+                    <select defaultValue="" id="invite-target" name="invite_target" required>
+                      <option disabled value="">
+                        Choose destination
+                      </option>
+                      <option value="mobile">Mobile App</option>
+                      <option value="admin">Admin Console</option>
+                    </select>
+                  </div>
+
+                  <div className="field">
                     <label htmlFor="invite-group">Farm Group</label>
                     <select defaultValue="" id="invite-group" name="farm_group_id">
                       <option value="">No farm group yet</option>

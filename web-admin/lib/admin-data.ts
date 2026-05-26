@@ -90,6 +90,7 @@ type BreedSpecRow = {
   geneticname: string | null;
   breedid: string | null;
   age: number | null;
+  dayfeedperbird: number | null;
   targetweight: number | null;
   is_active: boolean | null;
 };
@@ -324,7 +325,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         .order("breed_name"),
       supabase
         .from("stdbreedspec")
-        .select("geneticname,breedid,age,targetweight,is_active")
+        .select("geneticname,breedid,age,dayfeedperbird,targetweight,is_active")
         .eq("is_active", true),
     ]);
 
@@ -879,6 +880,35 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const completionPercent = tileState === "awaiting" ? 100 : baseCompletionPercent;
       const ageDays = daysRelativeToToday(placedDate);
       const canCheckoutByAge = ageDays >= checkoutAgeAvailability;
+      const feedProjection = row
+        ? buildTenDayFeedProjection({
+            today,
+            ageDays,
+            currentFemaleCount,
+            currentMaleCount,
+            projectedFemaleMortalityPerDay: resolveProjectedMortalityPerDay(
+              mortalityTotals.femaleLast7Days,
+              mortalityTotals.femaleFirst7Days,
+              ageDays,
+            ),
+            projectedMaleMortalityPerDay: resolveProjectedMortalityPerDay(
+              mortalityTotals.maleLast7Days,
+              mortalityTotals.maleFirst7Days,
+              ageDays,
+            ),
+            breedFemales: flock?.breed_females ?? null,
+            breedMales: flock?.breed_males ?? null,
+            breedById,
+            breedSpecRows,
+            liveHaulDates: [row.lh1_date, row.lh2_date, row.lh3_date],
+          })
+        : {
+            total: null,
+            average: null,
+            range: { first: null, last: null },
+            liveHaulDates: [],
+            daily: [],
+          };
 
       return {
         id: row?.id ?? `barn-${barn.id}`,
@@ -923,6 +953,11 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         mortalityMaleFirst7Days: mortalityTotals.maleFirst7Days,
         mortalityFirst7DayBreakdown,
         mortalityLast7DayBreakdown,
+        feedProjectionTenDayTotal: feedProjection.total,
+        feedProjectionTenDayAverage: feedProjection.average,
+        feedProjectionTenDayRange: feedProjection.range,
+        feedProjectionLiveHaulDates: feedProjection.liveHaulDates,
+        feedProjectionTenDayDaily: feedProjection.daily,
         latestFemaleWeight: weightSummary.female.avgWeight,
         latestMaleWeight: weightSummary.male.avgWeight,
         latestFemaleWeightPercentExpected,
@@ -1409,11 +1444,12 @@ function normalizeBreedSex(value: string | null | undefined) {
   return normalized || null;
 }
 
-function resolveBreedTargetWeight(
+function resolveBreedSpecMetric(
   breedId: string | null,
   ageDays: number | null,
   breedById: Map<string, BreedRow>,
   breedSpecRows: BreedSpecRow[],
+  metric: "targetweight" | "dayfeedperbird",
 ) {
   if (!breedId || ageDays === null) {
     return null;
@@ -1438,15 +1474,35 @@ function resolveBreedTargetWeight(
     );
   });
 
-  if (typeof exactMatch?.targetweight === "number") {
-    return exactMatch.targetweight;
+  const exactMetric = exactMatch?.[metric];
+  if (typeof exactMetric === "number" && Number.isFinite(exactMetric)) {
+    return exactMetric;
   }
 
   const fallbackMatch = breedSpecRows.find((row) => {
     return row.age === ageDays && normalizeBreedText(row.geneticname) === breedName;
   });
 
-  return typeof fallbackMatch?.targetweight === "number" ? fallbackMatch.targetweight : null;
+  const fallbackMetric = fallbackMatch?.[metric];
+  return typeof fallbackMetric === "number" && Number.isFinite(fallbackMetric) ? fallbackMetric : null;
+}
+
+function resolveBreedTargetWeight(
+  breedId: string | null,
+  ageDays: number | null,
+  breedById: Map<string, BreedRow>,
+  breedSpecRows: BreedSpecRow[],
+) {
+  return resolveBreedSpecMetric(breedId, ageDays, breedById, breedSpecRows, "targetweight");
+}
+
+function resolveBreedDayFeedPerBird(
+  breedId: string | null,
+  ageDays: number | null,
+  breedById: Map<string, BreedRow>,
+  breedSpecRows: BreedSpecRow[],
+) {
+  return resolveBreedSpecMetric(breedId, ageDays, breedById, breedSpecRows, "dayfeedperbird");
 }
 
 function calculateBenchmarkPercent(actualWeight: number | null, expectedWeight: number | null) {
@@ -1461,6 +1517,180 @@ function calculateBenchmarkPercent(actualWeight: number | null, expectedWeight: 
   }
 
   return (actualWeight / expectedWeight) * 100;
+}
+
+function resolveProjectedMortalityPerDay(last7Days: number, first7Days: number, ageDays: number) {
+  if (last7Days > 0) {
+    return last7Days / 7;
+  }
+
+  if (first7Days > 0) {
+    return first7Days / Math.min(7, Math.max(ageDays, 1));
+  }
+
+  return 0;
+}
+
+function applyLiveHaulReduction({
+  femalePopulation,
+  malePopulation,
+  femaleRemoval,
+  maleRemoval,
+}: {
+  femalePopulation: number;
+  malePopulation: number;
+  femaleRemoval: number;
+  maleRemoval: number;
+}) {
+  return {
+    femalePopulation: Math.max(0, femalePopulation - femaleRemoval),
+    malePopulation: Math.max(0, malePopulation - maleRemoval),
+  };
+}
+
+function buildTenDayFeedProjection({
+  today,
+  ageDays,
+  currentFemaleCount,
+  currentMaleCount,
+  projectedFemaleMortalityPerDay,
+  projectedMaleMortalityPerDay,
+  breedFemales,
+  breedMales,
+  breedById,
+  breedSpecRows,
+  liveHaulDates,
+}: {
+  today: string;
+  ageDays: number;
+  currentFemaleCount: number;
+  currentMaleCount: number;
+  projectedFemaleMortalityPerDay: number;
+  projectedMaleMortalityPerDay: number;
+  breedFemales: string | null;
+  breedMales: string | null;
+  breedById: Map<string, BreedRow>;
+  breedSpecRows: BreedSpecRow[];
+  liveHaulDates: Array<string | null>;
+}) {
+  const scheduledLiveHaulDates = liveHaulDates
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => left.localeCompare(right));
+  const liveHaulDatesInWindow = scheduledLiveHaulDates.filter((date) => {
+    return date > today && date <= addDays(today, 10);
+  });
+  const liveHaulIndexByDate = new Map(scheduledLiveHaulDates.map((date, index) => [date, index]));
+
+  let femalePopulation = currentFemaleCount;
+  let malePopulation = currentMaleCount;
+  let firstLiveHaulFemaleRemoval: number | null = null;
+  let firstLiveHaulMaleRemoval: number | null = null;
+  const daily: Array<{
+    date: string;
+    ageDays: number;
+    totalBirds: number;
+    totalFeed: number | null;
+    liveHaulFraction: number | null;
+    liveHaulLabel: string | null;
+  }> = [];
+
+  for (let dayOffset = 1; dayOffset <= 10; dayOffset += 1) {
+    femalePopulation = Math.max(0, femalePopulation - projectedFemaleMortalityPerDay);
+    malePopulation = Math.max(0, malePopulation - projectedMaleMortalityPerDay);
+
+    const date = addDays(today, dayOffset);
+    const projectedAgeDays = ageDays + dayOffset;
+    const femaleFeedPerBird = resolveBreedDayFeedPerBird(
+      breedFemales,
+      projectedAgeDays,
+      breedById,
+      breedSpecRows,
+    );
+    const maleFeedPerBird = resolveBreedDayFeedPerBird(
+      breedMales,
+      projectedAgeDays,
+      breedById,
+      breedSpecRows,
+    );
+    const totalFeed =
+      femaleFeedPerBird === null && maleFeedPerBird === null
+        ? null
+        : (femaleFeedPerBird ?? 0) * femalePopulation + (maleFeedPerBird ?? 0) * malePopulation;
+    const liveHaulIndex = liveHaulIndexByDate.get(date);
+    const appliesLiveHaul = liveHaulIndex !== undefined;
+    const isFinalLiveHaul = appliesLiveHaul && liveHaulIndex === scheduledLiveHaulDates.length - 1;
+    let liveHaulFraction: number | null = null;
+    let liveHaulLabel: string | null = null;
+
+    if (appliesLiveHaul) {
+      if (isFinalLiveHaul) {
+        liveHaulFraction = femalePopulation + malePopulation > 0 ? 1 : null;
+        liveHaulLabel = "Final live haul clears remaining birds for the next day.";
+      } else if (liveHaulIndex === 0) {
+        liveHaulFraction = 1 / 3;
+        liveHaulLabel = "Next day uses a one-third live-haul reduction from this day's population.";
+      } else {
+        const totalPopulation = femalePopulation + malePopulation;
+        const fixedRemoval =
+          (firstLiveHaulFemaleRemoval ?? 0) + (firstLiveHaulMaleRemoval ?? 0);
+        liveHaulFraction = totalPopulation > 0 ? Math.min(1, fixedRemoval / totalPopulation) : null;
+        liveHaulLabel = "Next day uses the same bird reduction as the first live haul.";
+      }
+    }
+
+    daily.push({
+      date,
+      ageDays: projectedAgeDays,
+      totalBirds: Math.round(femalePopulation + malePopulation),
+      totalFeed,
+      liveHaulFraction,
+      liveHaulLabel,
+    });
+
+    if (appliesLiveHaul) {
+      if (isFinalLiveHaul) {
+        femalePopulation = 0;
+        malePopulation = 0;
+      } else if (liveHaulIndex === 0) {
+        firstLiveHaulFemaleRemoval = femalePopulation / 3;
+        firstLiveHaulMaleRemoval = malePopulation / 3;
+        const reducedPopulation = applyLiveHaulReduction({
+          femalePopulation,
+          malePopulation,
+          femaleRemoval: firstLiveHaulFemaleRemoval,
+          maleRemoval: firstLiveHaulMaleRemoval,
+        });
+        femalePopulation = reducedPopulation.femalePopulation;
+        malePopulation = reducedPopulation.malePopulation;
+      } else {
+        const reducedPopulation = applyLiveHaulReduction({
+          femalePopulation,
+          malePopulation,
+          femaleRemoval: Math.min(femalePopulation, firstLiveHaulFemaleRemoval ?? 0),
+          maleRemoval: Math.min(malePopulation, firstLiveHaulMaleRemoval ?? 0),
+        });
+        femalePopulation = reducedPopulation.femalePopulation;
+        malePopulation = reducedPopulation.malePopulation;
+      }
+    }
+  }
+
+  const feedValues = daily
+    .map((entry) => entry.totalFeed)
+    .filter((value): value is number => value !== null && Number.isFinite(value));
+  const total = feedValues.length > 0 ? feedValues.reduce((sum, value) => sum + value, 0) : null;
+  const average = total !== null ? total / daily.length : null;
+
+  return {
+    total,
+    average,
+    range: {
+      first: daily[0]?.totalFeed ?? null,
+      last: daily[daily.length - 1]?.totalFeed ?? null,
+    },
+    liveHaulDates: liveHaulDatesInWindow,
+    daily,
+  };
 }
 
 function comparePlacementRows(

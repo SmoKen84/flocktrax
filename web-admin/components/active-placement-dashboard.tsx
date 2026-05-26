@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition, type KeyboardEvent, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -13,6 +14,7 @@ import {
   savePlacementLhDatesAction,
   type LhDateActionResult,
 } from "@/app/admin/overview/actions";
+import feedBinIcon from "@/screens/FeedBin.png";
 import type { ActivePlacementRecord, BreedOptionRecord, FarmGroupRecord, FarmRecord } from "@/lib/types";
 
 type ActivePlacementDashboardProps = {
@@ -59,6 +61,35 @@ function formatExpectedWeightPercent(value: number | null) {
 
 function formatSampleCount(value: number | null) {
   return value ?? 0;
+}
+
+function formatFeedAmount(value: number | null) {
+  if (value === null || Number.isNaN(value)) {
+    return "Pending";
+  }
+
+  return `${Math.round(value).toLocaleString()} lb`;
+}
+
+function formatFeedRange(first: number | null, last: number | null) {
+  if (first === null || last === null || Number.isNaN(first) || Number.isNaN(last)) {
+    return "Pending";
+  }
+
+  return `${Math.round(first).toLocaleString()} to ${Math.round(last).toLocaleString()} lb`;
+}
+
+function formatShortDate(value: string) {
+  const dt = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(dt.getTime())) {
+    return value;
+  }
+
+  return dt.toLocaleDateString("en-US", {
+    month: "numeric",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function formatPeriodLossPercent(losses: number, started: number) {
@@ -532,14 +563,24 @@ function PlacementEditorPopup({
 
             <div className="dashboard-placement-editor-actions">
               {canShowHistoryReport ? (
-                <Link
-                  className="tile-action-button tile-action-button--secondary"
-                  href={`/admin/flocks/${placement.flockId}/report`}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  {historyReportLabel}
-                </Link>
+                <>
+                  <Link
+                    className="tile-action-button tile-action-button--secondary"
+                    href={`/admin/flocks/${placement.flockId}/report`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {historyReportLabel}
+                  </Link>
+                  <Link
+                    className="tile-action-button tile-action-button--secondary"
+                    href={`/admin/flocks/${placement.flockId}/report?mode=micro`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Micro Archive Copy
+                  </Link>
+                </>
               ) : null}
               <button className="tile-action-button tile-action-button--secondary" disabled={isPending} onClick={onClose} type="button">
                 Cancel
@@ -808,6 +849,94 @@ function MortalityPopup({
   );
 }
 
+function FeedProjectionPopup({
+  placement,
+  onClose,
+}: {
+  placement: ActivePlacementRecord;
+  onClose: () => void;
+}) {
+  const startDate = placement.feedProjectionTenDayDaily[0]?.date ?? null;
+  const endDate =
+    placement.feedProjectionTenDayDaily[placement.feedProjectionTenDayDaily.length - 1]?.date ?? null;
+  const liveHaulAdjustmentLabel =
+    placement.feedProjectionLiveHaulDates.length > 0
+      ? placement.feedProjectionLiveHaulDates.map((date) => formatShortDate(date)).join(", ")
+      : "None in window";
+
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
+    <div className="mortality-popup-shell" onClick={onClose}>
+      <div className="mortality-popup-panel feed-projection-popup-panel" onClick={(event) => event.stopPropagation()}>
+        <div className="mortality-popup-header">
+          <div className="mortality-popup-title-block">
+            <p className="mortality-popup-placement-line">
+              {placement.farmName} &middot; Barn {placement.barnCode} &middot; {placement.placementCode}
+            </p>
+            <h3>10 Day Feed Requirement</h3>
+          </div>
+          <div className="mortality-popup-sidecar">
+            <button className="button-secondary" onClick={onClose} type="button">
+              Close
+            </button>
+          </div>
+        </div>
+
+        <div className="mortality-popup-summary feed-projection-popup-summary">
+          <div className="mortality-popup-stat mortality-popup-stat-compact">
+            <span>Total Requirement</span>
+            <strong>{formatFeedAmount(placement.feedProjectionTenDayTotal)}</strong>
+          </div>
+          <div className="mortality-popup-stat mortality-popup-stat-compact">
+            <span>Average Per Day</span>
+            <strong>{formatFeedAmount(placement.feedProjectionTenDayAverage)}</strong>
+          </div>
+          <div className="mortality-popup-stat mortality-popup-stat-compact">
+            <span>Daily Range</span>
+            <strong>
+              {formatFeedRange(
+                placement.feedProjectionTenDayRange.first,
+                placement.feedProjectionTenDayRange.last,
+              )}
+            </strong>
+          </div>
+          <div className="mortality-popup-stat mortality-popup-stat-compact">
+            <span>Window</span>
+            <strong>
+              {startDate && endDate ? `${formatShortDate(startDate)} to ${formatShortDate(endDate)}` : "Pending"}
+            </strong>
+          </div>
+        </div>
+
+        <div className="mortality-popup-stat feed-projection-popup-note">
+          <span>Live Haul Adjustment</span>
+          <strong>{liveHaulAdjustmentLabel}</strong>
+        </div>
+
+        <div className="feed-projection-popup-grid">
+          {placement.feedProjectionTenDayDaily.map((day) => (
+            <div className="feed-projection-popup-day" key={`${placement.id}-${day.date}`}>
+              <strong>{formatShortDate(day.date)}</strong>
+              <span>Age {day.ageDays} days</span>
+              <p>{formatFeedAmount(day.totalFeed)}</p>
+              <small>{day.totalBirds.toLocaleString()} birds</small>
+              {day.liveHaulLabel ? (
+                <em>
+                  {day.liveHaulLabel}
+                </em>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function PlacementTile({
   historyReportLabel,
   onOpenPlacementEditor,
@@ -834,6 +963,7 @@ function PlacementTile({
     message: "",
   });
   const [mortalityPopupMode, setMortalityPopupMode] = useState<"first7" | "last7" | null>(null);
+  const [showFeedProjectionPopup, setShowFeedProjectionPopup] = useState(false);
   const [showCheckoutPopup, setShowCheckoutPopup] = useState(false);
   const [checkoutRemovedDate, setCheckoutRemovedDate] = useState(() => new Date().toISOString().slice(0, 10));
 
@@ -866,6 +996,7 @@ function PlacementTile({
   const shouldShowCompletionBadge = placement.tileState === "live" && Boolean(placement.completedTodayLabel);
   const shouldShowPendingBadge = placement.tileState === "live" && !hasOpenItems && !shouldShowCompletionBadge;
   const shouldShowDefaultHeaderBadge = placement.tileState !== "live";
+  const hasFeedProjection = placement.feedProjectionTenDayDaily.length > 0 && placement.feedProjectionTenDayTotal !== null;
 
   function beginEdit() {
     if (!canEditLhDates || anotherTileIsEditing) {
@@ -1183,84 +1314,85 @@ function PlacementTile({
       </div>
 
       <div className="placement-subpanel-grid">
-          <section className="tile-subpanel tile-subpanel--haul">
-            <h4>Live Haul</h4>
-            <dl className="tile-subpanel-list">
-              <div className="tile-subpanel-item">
-                <dt>Estimated</dt>
-                <dd className="tile-subpanel-value">{placement.estimatedFirstCatch || "Pending"}</dd>
-              </div>
-              <div className="tile-subpanel-item">
-                <dt>First LH Date</dt>
-                <dd>
-                  {isEditingLhDates ? (
-                    <input
-                      className="tile-subpanel-input"
-                      onChange={(event) => setLh1DateValue(event.target.value)}
-                      type="date"
-                      value={lh1DateValue}
-                    />
-                  ) : (
-                    <span className="tile-subpanel-value">{savedLh1Date}</span>
-                  )}
-                </dd>
-              </div>
-              <div className="tile-subpanel-item">
-                <dt>Last LH Date</dt>
-                <dd>
-                  {isEditingLhDates ? (
-                    <input
-                      className="tile-subpanel-input"
-                      onChange={(event) => setLh3DateValue(event.target.value)}
-                      type="date"
-                      value={lh3DateValue}
-                    />
-                  ) : (
-                    <span className="tile-subpanel-value">{savedLh3Date}</span>
-                  )}
-                </dd>
-              </div>
-            </dl>
-            {actionState.status === "error" ? (
-              <p className="tile-subpanel-feedback">{actionState.message}</p>
-            ) : null}
-          </section>
+        <section className="tile-subpanel tile-subpanel--haul">
+          <h4>Live Haul</h4>
+          <dl className="tile-subpanel-list">
+            <div className="tile-subpanel-item">
+              <dt>Estimated</dt>
+              <dd className="tile-subpanel-value">{placement.estimatedFirstCatch || "Pending"}</dd>
+            </div>
+            <div className="tile-subpanel-item">
+              <dt>First LH Date</dt>
+              <dd>
+                {isEditingLhDates ? (
+                  <input
+                    className="tile-subpanel-input"
+                    onChange={(event) => setLh1DateValue(event.target.value)}
+                    type="date"
+                    value={lh1DateValue}
+                  />
+                ) : (
+                  <span className="tile-subpanel-value">{savedLh1Date}</span>
+                )}
+              </dd>
+            </div>
+            <div className="tile-subpanel-item">
+              <dt>Last LH Date</dt>
+              <dd>
+                {isEditingLhDates ? (
+                  <input
+                    className="tile-subpanel-input"
+                    onChange={(event) => setLh3DateValue(event.target.value)}
+                    type="date"
+                    value={lh3DateValue}
+                  />
+                ) : (
+                  <span className="tile-subpanel-value">{savedLh3Date}</span>
+                )}
+              </dd>
+            </div>
+          </dl>
+          {actionState.status === "error" ? (
+            <p className="tile-subpanel-feedback">{actionState.message}</p>
+          ) : null}
+        </section>
 
-          <section className="tile-subpanel tile-subpanel--weight">
-            <h4>Weight</h4>
-            <dl className="tile-subpanel-list">
-              <div className="tile-subpanel-item">
-                <dt>Male Avg</dt>
-                <dd className="tile-subpanel-value tile-subpanel-value--accent tile-subpanel-value-inline">
-                  <span>{formatWeight(placement.latestMaleWeight)}</span>
-                  <span className="tile-subpanel-inline-meta">
-                    {formatExpectedWeightPercent(placement.latestMaleWeightPercentExpected)}
-                  </span>
-                </dd>
-              </div>
-              <div className="tile-subpanel-item">
-                <dt>Female Avg</dt>
-                <dd className="tile-subpanel-value tile-subpanel-value--accent tile-subpanel-value-inline">
-                  <span>{formatWeight(placement.latestFemaleWeight)}</span>
-                  <span className="tile-subpanel-inline-meta">
-                    {formatExpectedWeightPercent(placement.latestFemaleWeightPercentExpected)}
-                  </span>
-                </dd>
-              </div>
-              <div className="tile-subpanel-item">
-                <dt>Sample Size</dt>
-                <dd className="tile-subpanel-value tile-subpanel-value--accent">
-                  {formatSampleCount(placement.latestMaleWeightCount)} / {formatSampleCount(placement.latestFemaleWeightCount)}
-                </dd>
-              </div>
-              <div className="tile-subpanel-item">
-                <dt>As Of</dt>
-                <dd className="tile-subpanel-value tile-subpanel-value--accent">
-                  {placement.latestMaleWeightDate ?? placement.latestFemaleWeightDate ?? "No scale data yet"}
-                </dd>
-              </div>
-            </dl>
-          </section>
+        <section className="tile-subpanel tile-subpanel--weight">
+          <h4>Weight</h4>
+          <dl className="tile-subpanel-list">
+            <div className="tile-subpanel-item">
+              <dt>Male Avg</dt>
+              <dd className="tile-subpanel-value tile-subpanel-value--accent tile-subpanel-value-inline">
+                <span>{formatWeight(placement.latestMaleWeight)}</span>
+                <span className="tile-subpanel-inline-meta">
+                  {formatExpectedWeightPercent(placement.latestMaleWeightPercentExpected)}
+                </span>
+              </dd>
+            </div>
+            <div className="tile-subpanel-item">
+              <dt>Female Avg</dt>
+              <dd className="tile-subpanel-value tile-subpanel-value--accent tile-subpanel-value-inline">
+                <span>{formatWeight(placement.latestFemaleWeight)}</span>
+                <span className="tile-subpanel-inline-meta">
+                  {formatExpectedWeightPercent(placement.latestFemaleWeightPercentExpected)}
+                </span>
+              </dd>
+            </div>
+            <div className="tile-subpanel-item">
+              <dt>Sample Size</dt>
+              <dd className="tile-subpanel-value tile-subpanel-value--accent">
+                {formatSampleCount(placement.latestMaleWeightCount)} / {formatSampleCount(placement.latestFemaleWeightCount)}
+              </dd>
+            </div>
+            <div className="tile-subpanel-item">
+              <dt>As Of</dt>
+              <dd className="tile-subpanel-value tile-subpanel-value--accent">
+                {placement.latestMaleWeightDate ?? placement.latestFemaleWeightDate ?? "No scale data yet"}
+              </dd>
+            </div>
+          </dl>
+        </section>
+
       </div>
 
       <div className="progress-block">
@@ -1272,12 +1404,27 @@ function PlacementTile({
           <div className="progress-fill" style={{ width: `${placement.completionPercent}%` }} />
         </div>
       </div>
+      {hasFeedProjection ? (
+        <div className="tile-feed-action-row">
+          <button
+            aria-label={`Open 10 day feed requirement for ${placement.placementCode}`}
+            className="tile-feed-action-button"
+            onClick={() => setShowFeedProjectionPopup(true)}
+            type="button"
+          >
+            <Image alt="" className="tile-feed-action-icon" priority={false} src={feedBinIcon} />
+          </button>
+        </div>
+      ) : null}
       {mortalityPopupMode ? (
         <MortalityPopup
           mode={mortalityPopupMode}
           onClose={() => setMortalityPopupMode(null)}
           placement={placement}
         />
+      ) : null}
+      {showFeedProjectionPopup ? (
+        <FeedProjectionPopup onClose={() => setShowFeedProjectionPopup(false)} placement={placement} />
       ) : null}
       {showCheckoutPopup ? (
         <CheckoutFlockPopup

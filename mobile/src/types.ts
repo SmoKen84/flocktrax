@@ -59,6 +59,7 @@ export type DashboardSettings = {
   short_date: string | null;
   first_lh: number | null;
   allow_historical_entry: boolean;
+  after_save_goback: boolean;
   mobile_release_version: string | null;
   mobile_release_build: number | null;
   mobile_release_released: string | null;

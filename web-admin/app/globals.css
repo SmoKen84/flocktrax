@@ -4174,6 +4174,113 @@ tr:last-child td {
   background: linear-gradient(90deg, var(--gold), var(--accent));
 }
 
+.tile-feed-action-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.tile-feed-action-button {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(84, 49, 30, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 250, 242, 0.96);
+  color: #6f331d;
+  box-shadow: 0 10px 22px rgba(48, 41, 29, 0.08);
+  transform: translateX(-18px);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.tile-feed-action-button:hover {
+  transform: translateX(-18px) translateY(-1px);
+  border-color: rgba(84, 49, 30, 0.3);
+  box-shadow: 0 14px 28px rgba(48, 41, 29, 0.12);
+}
+
+.tile-feed-action-button:focus-visible {
+  outline: 2px solid rgba(84, 110, 229, 0.45);
+  outline-offset: 2px;
+}
+
+.tile-feed-action-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.feed-projection-popup-panel {
+  width: min(980px, 100%);
+}
+
+.feed-projection-popup-summary {
+  margin-bottom: 0.85rem;
+}
+
+.feed-projection-popup-note {
+  margin-bottom: 1rem;
+}
+
+.feed-projection-popup-note strong {
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.feed-projection-popup-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.feed-projection-popup-day {
+  display: grid;
+  gap: 0.22rem;
+  min-height: 138px;
+  padding: 0.85rem 0.75rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(131, 90, 42, 0.14);
+  background: rgba(255, 255, 255, 0.78);
+  text-align: center;
+}
+
+.feed-projection-popup-day strong {
+  color: #2d241b;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.feed-projection-popup-day span {
+  color: rgba(82, 59, 38, 0.74);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.feed-projection-popup-day p {
+  margin: 0.1rem 0 0;
+  color: #8b3f25;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.feed-projection-popup-day small {
+  color: rgba(82, 59, 38, 0.86);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.feed-projection-popup-day em {
+  color: #2f4fa8;
+  font-size: 0.74rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
 .registry-panel {
   display: grid;
   gap: 18px;
@@ -7943,6 +8050,83 @@ tr:last-child td {
   gap: 1rem;
 }
 
+.flock-history-report-shell--micro {
+  gap: 0.75rem;
+}
+
+.flock-history-report-shell--micro .flock-history-report-summary-grid {
+  gap: 0.38rem;
+}
+
+.flock-history-report-shell--micro .flock-history-report-summary-card,
+.flock-history-report-shell--micro .flock-history-report-hero,
+.flock-history-report-shell--micro .flock-history-report-placement-meta > div {
+  padding: 0.45rem 0.58rem;
+}
+
+.flock-history-report-shell--micro .flock-history-report-summary-card span,
+.flock-history-report-shell--micro .flock-history-report-hero span,
+.flock-history-report-shell--micro .flock-history-report-placement-meta span {
+  font-size: 0.66rem;
+  line-height: 1.15;
+}
+
+.flock-history-report-shell--micro .flock-history-report-summary-card strong,
+.flock-history-report-shell--micro .flock-history-report-hero strong,
+.flock-history-report-shell--micro .flock-history-report-placement-meta strong {
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+}
+
+.flock-history-report-shell--micro .flock-history-report-page {
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.flock-history-report-shell--micro .flock-history-report-placement-block {
+  gap: 0.55rem;
+}
+
+.flock-history-report-shell--micro .flock-history-report-placement-meta {
+  gap: 0.45rem;
+}
+
+.flock-history-report-shell--micro .flock-history-report-table {
+  font-size: 0.62rem;
+}
+
+.flock-history-report-shell--micro .flock-history-report-table th,
+.flock-history-report-shell--micro .flock-history-report-table td {
+  padding: 0.28rem 0.32rem;
+}
+
+.flock-history-report-shell--micro .flock-history-report-table th {
+  font-size: 0.54rem;
+  letter-spacing: 0.04em;
+}
+
+.flock-history-report-shell--micro .flock-history-report-col-date {
+  width: 4.9rem;
+  min-width: 4.9rem;
+}
+
+.flock-history-report-shell--micro .flock-history-report-col-age {
+  width: 1.8rem;
+  min-width: 1.8rem;
+}
+
+.flock-history-report-shell--micro .flock-history-report-comment-cell {
+  padding-top: 0.22rem !important;
+  padding-bottom: 0.42rem !important;
+  font-size: 0.62rem;
+  line-height: 1.25;
+}
+
+.flock-history-report-shell--micro .flock-history-report-comment-label {
+  font-size: 0.55rem;
+  letter-spacing: 0.04em;
+}
+
 .flock-history-report-summary-grid,
 .flock-history-report-hero,
 .flock-history-report-placement-meta > div,
@@ -8269,6 +8453,98 @@ tr:last-child td {
   .flock-history-report-table td {
     padding: 6px 7px;
   }
+
+  .flock-history-report-table-wrap {
+    overflow: visible !important;
+    border-radius: 0 !important;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-summary-grid {
+    gap: 0.24rem;
+  }
+
+  .flock-history-report-shell--micro,
+  .flock-history-report-shell--micro .flock-history-report-pages,
+  .flock-history-report-shell--micro .flock-history-report-page,
+  .flock-history-report-shell--micro .flock-history-report-placement-block {
+    display: block !important;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-summary-card,
+  .flock-history-report-shell--micro .flock-history-report-hero,
+  .flock-history-report-shell--micro .flock-history-report-placement-meta > div {
+    padding: 0.24rem 0.3rem;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-summary-card span,
+  .flock-history-report-shell--micro .flock-history-report-hero span,
+  .flock-history-report-shell--micro .flock-history-report-placement-meta span {
+    font-size: 0.54rem;
+    line-height: 1.05;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-summary-card strong,
+  .flock-history-report-shell--micro .flock-history-report-hero strong,
+  .flock-history-report-shell--micro .flock-history-report-placement-meta strong {
+    font-size: 0.57rem;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-page {
+    gap: 0.55rem;
+    padding: 0.45rem;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-page-header p {
+    font-size: 0.68rem;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-table {
+    table-layout: fixed;
+    font-size: 6.3pt;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-table th,
+  .flock-history-report-shell--micro .flock-history-report-table td {
+    padding: 2px 3px;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-table th {
+    font-size: 5.4pt;
+    letter-spacing: 0.02em;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-col-date {
+    width: 4.1rem;
+    min-width: 4.1rem;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-col-age {
+    width: 1.4rem;
+    min-width: 1.4rem;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-page-header,
+  .flock-history-report-shell--micro .flock-history-report-placement-meta,
+  .flock-history-report-shell--micro .flock-history-report-hero--totals {
+    display: block !important;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-placement-meta > div {
+    display: inline-block;
+    margin: 0 0.18rem 0.18rem 0;
+    vertical-align: top;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-comment-cell {
+    padding-top: 2px !important;
+    padding-bottom: 3px !important;
+    font-size: 5.8pt;
+    line-height: 1.15;
+  }
+
+  .flock-history-report-shell--micro .flock-history-report-table thead {
+    display: table-header-group;
+  }
 }
 
 @media (max-width: 860px) {
@@ -8448,6 +8724,10 @@ tr:last-child td {
     grid-template-columns: 1fr;
   }
 
+  .feed-projection-popup-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .dashboard-placement-editor-card--lifecycle {
     grid-column: auto;
   }
@@ -8474,6 +8754,10 @@ tr:last-child td {
   .hero-panel,
   .card {
     padding: 20px;
+  }
+
+  .feed-projection-popup-grid {
+    grid-template-columns: 1fr;
   }
 
   .login-modal-shell {

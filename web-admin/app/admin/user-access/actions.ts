@@ -9,6 +9,7 @@ import { sendInviteEmail } from "@/lib/email/invite-email";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 
 type AdminClient = NonNullable<ReturnType<typeof createSupabaseAdminClient>>;
+type InviteTarget = "admin" | "mobile";
 
 function normalizeKey(value: string) {
   return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
@@ -47,6 +48,10 @@ function isSuperAdminRole(role: ReturnType<typeof resolveRoleTemplate>) {
 
 function coerce(value: FormDataEntryValue | null) {
   return String(value ?? "").trim();
+}
+
+function normalizeInviteTarget(value: string): InviteTarget {
+  return value.trim().toLowerCase() === "mobile" ? "mobile" : "admin";
 }
 
 function buildReturnLocation(
@@ -104,6 +109,10 @@ function buildAuthCallbackActionUrl(
 ) {
   const base = appOrigin.replace(/\/+$/, "");
   return `${base}/auth/callback?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(type)}&next=${encodeURIComponent(next)}`;
+}
+
+function buildPasswordSetupNextPath(target: InviteTarget) {
+  return target === "mobile" ? "/reset-password?invite_target=mobile" : "/reset-password";
 }
 
 async function getAppOrigin() {
@@ -193,7 +202,14 @@ async function resolveRoleRow(admin: AdminClient, roleKey: string) {
 }
 
 async function listAllAuthUsers(admin: AdminClient) {
-  const users: Array<{ id: string; email?: string | null }> = [];
+  const users: Array<{
+    id: string;
+    email?: string | null;
+    user_metadata?: {
+      invite_target?: string | null;
+      [key: string]: unknown;
+    } | null;
+  }> = [];
   const perPage = 200;
 
   for (let page = 1; page <= 20; page += 1) {
@@ -202,7 +218,14 @@ async function listAllAuthUsers(admin: AdminClient) {
       return { data: [], error: result.error.message };
     }
 
-    const batch = (result.data.users ?? []) as Array<{ id: string; email?: string | null }>;
+    const batch = (result.data.users ?? []) as Array<{
+      id: string;
+      email?: string | null;
+      user_metadata?: {
+        invite_target?: string | null;
+        [key: string]: unknown;
+      } | null;
+    }>;
     users.push(...batch);
 
     if (batch.length < perPage) {
@@ -224,6 +247,25 @@ async function findAuthUserByEmail(admin: AdminClient, email: string) {
     usersResult.data.find((candidate) => String(candidate.email ?? "").trim().toLowerCase() === normalizedEmail) ?? null;
 
   return { user, error: null };
+}
+
+async function persistInviteTargetMetadata(admin: AdminClient, userId: string, inviteTarget: InviteTarget) {
+  const existingUserResult = await admin.auth.admin.getUserById(userId);
+  if (existingUserResult.error || !existingUserResult.data.user) {
+    return;
+  }
+
+  const existingMetadata =
+    existingUserResult.data.user.user_metadata && typeof existingUserResult.data.user.user_metadata === "object"
+      ? existingUserResult.data.user.user_metadata
+      : {};
+
+  await admin.auth.admin.updateUserById(userId, {
+    user_metadata: {
+      ...existingMetadata,
+      invite_target: inviteTarget,
+    },
+  });
 }
 
 async function bestEffortRevokeUserAccessArtifacts(admin: AdminClient, userId: string) {
@@ -508,9 +550,10 @@ export async function inviteUserAccessAction(formData: FormData) {
   const roleKey = coerce(formData.get("role_key"));
   const farmGroupId = coerce(formData.get("farm_group_id"));
   const farmId = coerce(formData.get("farm_id"));
+  const inviteTarget = normalizeInviteTarget(coerce(formData.get("invite_target")));
 
-  if (!email || !roleKey) {
-    bounce(formData, { error: "Enter an email address and choose a role for the invite.", mode: "invite" });
+  if (!email || !roleKey || !coerce(formData.get("invite_target"))) {
+    bounce(formData, { error: "Enter an email address, choose a role, and choose the invite destination.", mode: "invite" });
     unreachable("Missing invite email or role");
   }
 
@@ -530,18 +573,20 @@ export async function inviteUserAccessAction(formData: FormData) {
   let inviteNotice = `Invitation sent to ${email}.`;
   const appOrigin = await getAppOrigin();
   const displayName = fullName || email.split("@")[0];
+  const passwordSetupPath = buildPasswordSetupNextPath(inviteTarget);
 
   if (!userId) {
     const inviteResult = await admin.auth.admin.generateLink({
       type: "invite",
       email,
       options: {
-        redirectTo: `${appOrigin}/auth/callback?next=/reset-password`,
+        redirectTo: `${appOrigin}/auth/callback?next=${encodeURIComponent(passwordSetupPath)}`,
         data: {
           full_name: displayName,
           name: displayName,
           display_name: displayName,
           role: roleKey,
+          invite_target: inviteTarget,
         },
       },
     });
@@ -563,11 +608,12 @@ export async function inviteUserAccessAction(formData: FormData) {
     try {
       await sendInviteEmail({
         to: email,
-        actionUrl: buildAuthCallbackActionUrl(appOrigin, inviteTokenHash, "invite"),
+        actionUrl: buildAuthCallbackActionUrl(appOrigin, inviteTokenHash, "invite", passwordSetupPath),
         appOrigin,
         fullName: displayName,
         roleLabel: roleKey,
         mode: "invite",
+        target: inviteTarget,
       });
     } catch (error) {
       bounce(formData, {
@@ -604,7 +650,7 @@ export async function inviteUserAccessAction(formData: FormData) {
       type: "recovery",
       email,
       options: {
-        redirectTo: `${appOrigin}/auth/callback?next=/reset-password`,
+        redirectTo: `${appOrigin}/auth/callback?next=${encodeURIComponent(passwordSetupPath)}`,
       },
     });
 
@@ -625,11 +671,12 @@ export async function inviteUserAccessAction(formData: FormData) {
     try {
       await sendInviteEmail({
         to: email,
-        actionUrl: buildAuthCallbackActionUrl(appOrigin, recoveryTokenHash, "recovery"),
+        actionUrl: buildAuthCallbackActionUrl(appOrigin, recoveryTokenHash, "recovery", passwordSetupPath),
         appOrigin,
         fullName: displayName,
         roleLabel: roleKey,
         mode: "recovery",
+        target: inviteTarget,
       });
     } catch (error) {
       bounce(formData, {
@@ -643,6 +690,10 @@ export async function inviteUserAccessAction(formData: FormData) {
     }
 
     inviteNotice = `${email} already existed in Supabase Auth. A fresh password setup link was sent and access assignments were updated.`;
+  }
+
+  if (userId) {
+    await persistInviteTargetMetadata(admin, userId, inviteTarget);
   }
 
   const roleRow = await resolveRoleRow(admin, roleKey);
@@ -717,11 +768,20 @@ export async function resendUserAccessInviteAction(formData: FormData) {
   }
 
   const appOrigin = await getAppOrigin();
+  const existingUserResult = await findAuthUserByEmail(admin, target.email);
+  if (existingUserResult.error) {
+    bounce(formData, { error: existingUserResult.error, selected: target.id });
+    unreachable("Unable to inspect invited auth user metadata");
+  }
+  const inviteTarget = normalizeInviteTarget(
+    String(existingUserResult.user?.user_metadata?.invite_target ?? "admin"),
+  );
+  const passwordSetupPath = buildPasswordSetupNextPath(inviteTarget);
   const recoveryResult = await admin.auth.admin.generateLink({
     type: "recovery",
     email: target.email,
     options: {
-      redirectTo: `${appOrigin}/auth/callback?next=/reset-password`,
+      redirectTo: `${appOrigin}/auth/callback?next=${encodeURIComponent(passwordSetupPath)}`,
     },
   });
 
@@ -742,11 +802,12 @@ export async function resendUserAccessInviteAction(formData: FormData) {
   try {
     await sendInviteEmail({
       to: target.email,
-      actionUrl: buildAuthCallbackActionUrl(appOrigin, recoveryTokenHash, "recovery"),
+      actionUrl: buildAuthCallbackActionUrl(appOrigin, recoveryTokenHash, "recovery", passwordSetupPath),
       appOrigin,
       fullName: target.displayName,
       roleLabel: target.roleLabel,
       mode: "recovery",
+      target: inviteTarget,
     });
   } catch (error) {
     bounce(formData, {

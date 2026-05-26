@@ -132,6 +132,7 @@ export function PlacementDayScreen({
     setCalendarCursor(getMonthStart(logDate));
   }, [logDate]);
 
+  const canChangeFocusDate = settings?.allow_historical_entry === true;
   const displayLogDate = formatDateByPattern(logDate, settings?.dow_date, logDate);
   const dailyTaskSlots = buildDailyTaskSlots(draft?.daily_tasks);
 
@@ -148,7 +149,7 @@ export function PlacementDayScreen({
       return;
     }
 
-    const validationError = validateDraft(draft, logDate);
+    const validationError = validateDraft(draft, logDate, settings);
     if (validationError) {
       setLocalMessage(validationError);
       return;
@@ -158,17 +159,13 @@ export function PlacementDayScreen({
       setSaving(true);
       setLocalMessage(null);
       await onSave(draft);
-      if (shouldAutoAdvanceHistoricalDate(logDate, settings)) {
-        const nextDate = addDaysToIsoDate(logDate, 1);
-        setLocalMessage(
-          `Saved. Loading ${formatShortDate(nextDate, settings?.short_date, nextDate)}...`,
-        );
-        onChangeDate(nextDate);
-        onLoadDate(nextDate);
-      } else {
-        setLocalMessage("Saved to hosted FlockTrax.");
-      }
       setHasUnsavedChanges(false);
+      if (shouldReturnToDashboardAfterSave(settings)) {
+        setLocalMessage("Saved to hosted FlockTrax. Returning to dashboard...");
+        onBack();
+        return;
+      }
+      setLocalMessage("Saved to hosted FlockTrax.");
     } catch (error) {
       if (isAuthError(error)) {
         return;
@@ -192,7 +189,7 @@ export function PlacementDayScreen({
       return false;
     }
 
-    const validationError = validateDraft(draft, logDate);
+    const validationError = validateDraft(draft, logDate, settings);
     if (validationError) {
       setLocalMessage(validationError);
       return false;
@@ -425,14 +422,16 @@ export function PlacementDayScreen({
           <Text style={styles.entryLabel}>Entry Date:</Text>
           <View style={styles.entryDateRow}>
             <Pressable
+              disabled={!canChangeFocusDate}
               onPress={() => setIsCalendarOpen(true)}
-              style={styles.entryDateInputButton}
+              style={[styles.entryDateInputButton, !canChangeFocusDate && styles.buttonDisabled]}
             >
               <Text style={styles.entryDateInputText}>{displayLogDate}</Text>
             </Pressable>
             <Pressable
+              disabled={!canChangeFocusDate}
               onPress={() => setIsCalendarOpen(true)}
-              style={styles.changeDateButton}
+              style={[styles.changeDateButton, !canChangeFocusDate && styles.buttonDisabled]}
             >
               <Text style={styles.changeDateButtonText}>Pick{"\n"}Date</Text>
             </Pressable>
@@ -1448,28 +1447,25 @@ function toNullableNumber(value: string, fallback?: number) {
   return Number.isFinite(parsed) ? parsed : fallback ?? null;
 }
 
-function shouldAutoAdvanceHistoricalDate(
+function shouldReturnToDashboardAfterSave(settings: DashboardSettings | null) {
+  return settings?.after_save_goback === true;
+}
+
+function validateDraft(
+  draft: PlacementDayItem,
   logDate: string,
   settings: DashboardSettings | null,
 ) {
-  if (settings?.allow_historical_entry !== true) {
-    return false;
-  }
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(logDate)) {
-    return false;
-  }
-
-  return logDate < todayIsoDate();
-}
-
-function validateDraft(draft: PlacementDayItem, logDate: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(logDate)) {
     return "Log date must use MM/DD/YY.";
   }
 
   if (logDate > todayIsoDate()) {
     return "Log date cannot be in the future.";
+  }
+
+  if (settings?.allow_historical_entry !== true && logDate !== todayIsoDate()) {
+    return "Historical entry is disabled. Save is limited to today's date.";
   }
 
   if (draft.placed_date && logDate < draft.placed_date) {
@@ -1547,12 +1543,6 @@ function toIsoDate(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
-}
-
-function addDaysToIsoDate(value: string, days: number) {
-  const date = parseIsoDate(value);
-  date.setDate(date.getDate() + days);
-  return toIsoDate(date);
 }
 
 function todayIsoDate() {

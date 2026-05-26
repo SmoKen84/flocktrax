@@ -142,7 +142,9 @@ async function buildPlacementDayItem(
     nipple_lines_flag: dailyRow?.nipple_lines_flag === true,
     bird_health_alert: dailyRow?.bird_health_alert === true,
     min_vent: typeof dailyRow?.min_vent === "string" ? dailyRow.min_vent : null,
-    is_oda_open: dailyRow?.is_oda_open === true,
+    is_oda_open:
+      dailyRow?.is_oda_open === true ||
+      (!dailyRow && typeof placementAgeDays === "number" && placementAgeDays >= 14),
     oda_exception: typeof dailyRow?.oda_exception === "string" ? dailyRow.oda_exception : null,
     naoh: typeof dailyRow?.naoh === "string" ? dailyRow.naoh : null,
     comment: typeof dailyRow?.comment === "string" ? dailyRow.comment : null,
@@ -277,7 +279,7 @@ Deno.serve(async (req) => {
         nipple_lines_flag: false,
         bird_health_alert: true,
         min_vent: "Minimum",
-        is_oda_open: false,
+        is_oda_open: true,
         oda_exception: "",
         naoh: "Normal",
         comment: "Adalo schema capture only",

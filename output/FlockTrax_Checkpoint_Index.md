@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-05-18`
+Updated: `2026-05-26`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -239,11 +239,27 @@ Purpose:
   - [FlockTrax_Release_5_0_Git_Baseline_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Release_5_0_Git_Baseline_Checkpoint_2026-05-18.md)
   - release baseline checkpoint covering commit `df64dfd`, production deployment `dpl_9DiCtGz39vTGyRhzTG7z2pCAcsFD`, hosted admin build marker `5.0`, and the now-filed git-backed clean-start state
 
+- `2026-05-19`
+  - [FlockTrax_Local_Production_Sync_And_Invite_Flow_Checkpoint_2026-05-19.md](C:\dev\FlockTrax\output\FlockTrax_Local_Production_Sync_And_Invite_Flow_Checkpoint_2026-05-19.md)
+  - detailed sync checkpoint covering the live web deploy and Supabase function deploys, hosted build marker `5.1`, the live feed/ODA changes, and the still-local invite-flow plus `Micro Archive Copy` work
+
+- `2026-05-25`
+  - [FlockTrax_BinSentry_Forecast_Planning_Checkpoint_2026-05-25.md](C:\dev\FlockTrax\output\FlockTrax_BinSentry_Forecast_Planning_Checkpoint_2026-05-25.md)
+  - planning-only checkpoint covering the BinSentry 10-day forecast popup concept, projection lifecycle/storage direction, the `forecast + verification + correction` workflow, and the local-only live-haul feed-projection bug fix
+
+- `2026-05-25`
+  - [FlockTrax_BinSentry_10_Day_Forecast_Popup_Mini_Spec_2026-05-25.md](C:\dev\FlockTrax\output\FlockTrax_BinSentry_10_Day_Forecast_Popup_Mini_Spec_2026-05-25.md)
+  - implementation-plan-only mini spec for the popup, BinSentry data needs, feed balance logic, projection persistence, and phased development lifecycle
+
+- `2026-05-26`
+  - [FlockTrax_Mobile_Historical_Entry_And_After_Save_Flags_Checkpoint_2026-05-26.md](C:\dev\FlockTrax\output\FlockTrax_Mobile_Historical_Entry_And_After_Save_Flags_Checkpoint_2026-05-26.md)
+  - mobile execution checkpoint covering the new `after_save_goback` setting, the separation from `allow_historical_entry`, disabled date-picking when historical entry is off, and successful mobile typecheck validation
+
 # Latest Checkpoint
 
-- `2026-05-18`
-  - [FlockTrax_Release_5_0_Git_Baseline_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Release_5_0_Git_Baseline_Checkpoint_2026-05-18.md)
-  - git-backed release baseline covering the production `5.0` deploy, filed repo commit, hosted release marker, and recommended clean-chat resume point
+- `2026-05-26`
+  - [FlockTrax_Mobile_Historical_Entry_And_After_Save_Flags_Checkpoint_2026-05-26.md](C:\dev\FlockTrax\output\FlockTrax_Mobile_Historical_Entry_And_After_Save_Flags_Checkpoint_2026-05-26.md)
+  - current best resume point for the mobile daily-log flag split between `allow_historical_entry` and `after_save_goback`
 
 ## Notes
 
@@ -254,14 +270,32 @@ Purpose:
 
 ## Recommended Active Baseline
 
-If only one checkpoint should be loaded first right now, use:
+If the topic is the mobile daily-log save flow or historical-entry behavior, load first:
 
-- [FlockTrax_Release_5_0_Git_Baseline_Checkpoint_2026-05-18.md](C:\dev\FlockTrax\output\FlockTrax_Release_5_0_Git_Baseline_Checkpoint_2026-05-18.md)
+- [FlockTrax_Mobile_Historical_Entry_And_After_Save_Flags_Checkpoint_2026-05-26.md](C:\dev\FlockTrax\output\FlockTrax_Mobile_Historical_Entry_And_After_Save_Flags_Checkpoint_2026-05-26.md)
 
 Reason:
-- it is the cleanest current baseline after filing the work into git and pushing production
-- it captures the exact release commit, production deployment id, and hosted admin build marker `5.0`
-- it points back to the broader project-wide and report-specific checkpoints when deeper detail is needed
+- it is the most current execution checkpoint
+- it documents the exact mobile behavior split now implemented locally
+- it points directly to the touched mobile and Supabase function files
+
+If the topic is BinSentry forecasting or feed-projection planning, load first:
+
+- [FlockTrax_BinSentry_Forecast_Planning_Checkpoint_2026-05-25.md](C:\dev\FlockTrax\output\FlockTrax_BinSentry_Forecast_Planning_Checkpoint_2026-05-25.md)
+
+Reason:
+- it is the most current checkpoint
+- it captures the agreed planning direction without prematurely moving into implementation
+- it links the planning spec to the broader May 19 execution baseline
+
+If only one execution-state checkpoint should be loaded first right now, use:
+
+- [FlockTrax_Local_Production_Sync_And_Invite_Flow_Checkpoint_2026-05-19.md](C:\dev\FlockTrax\output\FlockTrax_Local_Production_Sync_And_Invite_Flow_Checkpoint_2026-05-19.md)
+
+Reason:
+- it is the most current checkpoint
+- it captures both sides of the current state: what is already live and what still exists only locally
+- it includes the exact dirty file snapshot, current production deployment id, and hosted admin build marker `5.1`
 
 For broader system state beyond the report feature, also use:
 

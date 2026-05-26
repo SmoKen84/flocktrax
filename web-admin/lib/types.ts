@@ -144,6 +144,21 @@ export type ActivePlacementRecord = {
     male: number;
     female: number;
   }>;
+  feedProjectionTenDayTotal: number | null;
+  feedProjectionTenDayAverage: number | null;
+  feedProjectionTenDayRange: {
+    first: number | null;
+    last: number | null;
+  };
+  feedProjectionLiveHaulDates: string[];
+  feedProjectionTenDayDaily: Array<{
+    date: string;
+    ageDays: number;
+    totalBirds: number;
+    totalFeed: number | null;
+    liveHaulFraction: number | null;
+    liveHaulLabel: string | null;
+  }>;
   latestFemaleWeight: number | null;
   latestMaleWeight: number | null;
   latestFemaleWeightPercentExpected: number | null;

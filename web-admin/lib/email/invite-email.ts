@@ -7,6 +7,7 @@ type InviteEmailInput = {
   fullName: string;
   roleLabel: string;
   mode?: "invite" | "recovery";
+  target?: "admin" | "mobile";
 };
 
 function readRequiredEnv(name: string) {
@@ -27,9 +28,10 @@ function isSmtpEnabled() {
   );
 }
 
-function buildInviteHtml({ actionUrl, appOrigin, fullName, roleLabel, mode = "invite" }: InviteEmailInput) {
+function buildInviteHtml({ actionUrl, appOrigin, fullName, roleLabel, mode = "invite", target = "admin" }: InviteEmailInput) {
   const safeName = fullName || "there";
   const isRecovery = mode === "recovery";
+  const isMobileTarget = target === "mobile";
   const heading = isRecovery ? "Your access has been updated" : "You're invited";
   const actionLabel = isRecovery ? "Set Password" : "Accept Invite";
   const actionCopy = isRecovery
@@ -52,6 +54,13 @@ function buildInviteHtml({ actionUrl, appOrigin, fullName, roleLabel, mode = "in
       <p style="margin: 0 0 18px;">
         ${actionCopy}
       </p>
+      ${
+        isMobileTarget
+          ? `<p style="margin: 0 0 18px; color: #6b675f;">
+        This link is for a <strong>mobile-app account</strong>. After you save the password, open FlockTrax Mobile and sign in there instead of using the admin console.
+      </p>`
+          : ""
+      }
       <p style="margin: 0 0 20px;">
         <a
           href="${actionUrl}"
@@ -73,9 +82,10 @@ function buildInviteHtml({ actionUrl, appOrigin, fullName, roleLabel, mode = "in
   `;
 }
 
-function buildInviteText({ actionUrl, appOrigin, fullName, roleLabel, mode = "invite" }: InviteEmailInput) {
+function buildInviteText({ actionUrl, appOrigin, fullName, roleLabel, mode = "invite", target = "admin" }: InviteEmailInput) {
   const safeName = fullName || "there";
   const isRecovery = mode === "recovery";
+  const isMobileTarget = target === "mobile";
   return [
     "FlockTrax Admin",
     "",
@@ -87,6 +97,9 @@ function buildInviteText({ actionUrl, appOrigin, fullName, roleLabel, mode = "in
     isRecovery
       ? "Use the link below to set a new password and access your account:"
       : "Use the link below to activate your account and finish setting your password:",
+    ...(isMobileTarget
+      ? ["", "This link is for a mobile-app account. After you save the password, open FlockTrax Mobile and sign in there instead of using the admin console."]
+      : []),
     "",
     actionUrl,
     "",
