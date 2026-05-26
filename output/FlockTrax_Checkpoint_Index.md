@@ -255,11 +255,15 @@ Purpose:
   - [FlockTrax_Mobile_Historical_Entry_And_After_Save_Flags_Checkpoint_2026-05-26.md](C:\dev\FlockTrax\output\FlockTrax_Mobile_Historical_Entry_And_After_Save_Flags_Checkpoint_2026-05-26.md)
   - mobile execution checkpoint covering the new `after_save_goback` setting, the separation from `allow_historical_entry`, disabled date-picking when historical entry is off, and successful mobile typecheck validation
 
+- `2026-05-26`
+  - [FlockTrax_Mobile_1_0_3_Build14_Submission_Checkpoint_2026-05-26.md](C:\dev\FlockTrax\output\FlockTrax_Mobile_1_0_3_Build14_Submission_Checkpoint_2026-05-26.md)
+  - mobile release checkpoint covering iOS version `1.0.3`, EAS build `14`, the hosted `mobile_ios` platform-control bump, and the scheduled App Store Connect submission
+
 # Latest Checkpoint
 
 - `2026-05-26`
-  - [FlockTrax_Mobile_Historical_Entry_And_After_Save_Flags_Checkpoint_2026-05-26.md](C:\dev\FlockTrax\output\FlockTrax_Mobile_Historical_Entry_And_After_Save_Flags_Checkpoint_2026-05-26.md)
-  - current best resume point for the mobile daily-log flag split between `allow_historical_entry` and `after_save_goback`
+  - [FlockTrax_Mobile_1_0_3_Build14_Submission_Checkpoint_2026-05-26.md](C:\dev\FlockTrax\output\FlockTrax_Mobile_1_0_3_Build14_Submission_Checkpoint_2026-05-26.md)
+  - current best resume point for the iOS mobile release cut to `1.0.3 (14)` and the hosted `mobile_ios` release-marker bump
 
 ## Notes
 
@@ -278,6 +282,15 @@ Reason:
 - it is the most current execution checkpoint
 - it documents the exact mobile behavior split now implemented locally
 - it points directly to the touched mobile and Supabase function files
+
+If the topic is the iOS mobile release that was just cut, load first:
+
+- [FlockTrax_Mobile_1_0_3_Build14_Submission_Checkpoint_2026-05-26.md](C:\dev\FlockTrax\output\FlockTrax_Mobile_1_0_3_Build14_Submission_Checkpoint_2026-05-26.md)
+
+Reason:
+- it captures the actual EAS build id, artifact link, submission link, and hosted `mobile_ios` release marker
+- it records the exact repo commit used for the build
+- it documents the remaining manual confirmation point in App Store Connect
 
 If the topic is BinSentry forecasting or feed-projection planning, load first:
 
