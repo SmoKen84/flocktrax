@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/page-header";
 import { getFeedTicketAdminBundle, type FeedTicketAdminFilters } from "@/lib/feed-ticket-data";
-import { getPlatformReportOption, getPlatformScreenTextValues } from "@/lib/platform-content";
+import { buildFeedTicketTypeOptions, getFeedTicketTypeSettingNames } from "@/lib/feed-ticket-types";
+import { getAppSettingTextValues, getPlatformReportOption, getPlatformScreenTextValues } from "@/lib/platform-content";
 
 import { FeedTicketConsole } from "./feed-ticket-console";
 
@@ -13,6 +14,7 @@ export default async function FeedTicketsPage({ searchParams }: FeedTicketsPageP
   const filters: FeedTicketAdminFilters = {
     listMode: firstParam(params.listMode) === "drop" ? "drop" : "ticket",
     ticketNumber: firstParam(params.ticketNumber),
+    ticketTypes: allParams(params.ticketType),
     flockCode: firstParam(params.flockCode),
     farm: firstParam(params.farm),
     barn: firstParam(params.barn),
@@ -29,6 +31,12 @@ export default async function FeedTicketsPage({ searchParams }: FeedTicketsPageP
     location: "admin_feed_tickets",
     name: "FlockFeedAudit",
   });
+  const feedTicketEditorReport = await getPlatformReportOption({
+    location: "admin_feed_tickets",
+    name: "feed_ticket_editor",
+  });
+  const ticketTypeSettings = await getAppSettingTextValues(getFeedTicketTypeSettingNames());
+  const ticketTypeOptions = buildFeedTicketTypeOptions(ticketTypeSettings);
   const heroTitle = screenText.get("admin_feed_title") || "Reconcile Feed Tickets";
   const heroBody =
     screenText.get("admin_feed_desc") ||
@@ -37,7 +45,12 @@ export default async function FeedTicketsPage({ searchParams }: FeedTicketsPageP
   return (
     <>
       <PageHeader eyebrow="Console" title={heroTitle} body={heroBody} />
-      <FeedTicketConsole bundle={bundle} reportOption={flockFeedAuditReport} />
+      <FeedTicketConsole
+        bundle={bundle}
+        reportOption={flockFeedAuditReport}
+        ticketPrintReportOption={feedTicketEditorReport}
+        ticketTypeOptions={ticketTypeOptions}
+      />
     </>
   );
 }
@@ -53,4 +66,12 @@ function firstParam(value: string | string[] | undefined) {
 function toBoolean(value: string | string[] | undefined) {
   const raw = Array.isArray(value) ? value[0] : value;
   return raw === "true" || raw === "on" || raw === "1";
+}
+
+function allParams(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  return value ? [value] : [];
 }

@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { reportSessionExpired } from "@/components/session-recovery-layer";
+import {
+  formatFeedTicketTypeHelp as formatHostedFeedTicketTypeHelp,
+  formatFeedTicketTypeOptionLabel as formatHostedFeedTicketTypeOptionLabel,
+} from "@/lib/feed-ticket-types";
 
 type FeedTicketType = "Reg" | "xTran" | "iTran" | "f2f";
 
@@ -77,15 +81,20 @@ type Props = {
   ticketId: string | null;
   onClose: () => void;
   onSaved: (ticketId: string | null) => void;
+  printReportHelpText?: string | null;
+  ticketTypeOptions: Array<{
+    key: FeedTicketType;
+    value: string;
+    description: string;
+  }>;
 };
 
-const TICKET_TYPE_OPTIONS: FeedTicketType[] = ["Reg", "xTran", "iTran", "f2f"];
 const DROP_FEED_TYPES = ["Starter", "Grower", "Other"] as const;
 const LOAD_TYPE_OPTIONS = ["Starter", "Grower", "Split"] as const;
 const DRAFT_STORAGE_PREFIX = "flocktrax:feed-ticket-draft";
 const SESSION_RESTORED_EVENT = "flocktrax:session-restored";
 
-export function FeedTicketEditor({ ticketId, onClose, onSaved }: Props) {
+export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpText, ticketTypeOptions }: Props) {
   const isExistingTicket = Boolean(ticketId);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -341,6 +350,18 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved }: Props) {
     }
   }
 
+  function handleOpenPrintReport() {
+    if (!item?.id) {
+      setMessageTone("error");
+      setMessage("Save this feed ticket before printing its report.");
+      return;
+    }
+
+    const params = new URLSearchParams();
+    params.set("ticketId", item.id);
+    window.open(`/admin/feed-tickets/ticket-report?${params.toString()}`, "_blank", "noopener,noreferrer");
+  }
+
   if (loading) {
     return (
       <div className="feed-ticket-editor-inline-shell">
@@ -380,6 +401,16 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved }: Props) {
               <h3 className="feed-ticket-editor-ticket-number">{item.ticket_number?.trim() || "New Ticket"}</h3>
             </div>
             <div className="feed-ticket-editor-toolbar">
+              <button
+                aria-label="Print feed ticket"
+                className="button-secondary feed-ticket-editor-icon-button"
+                disabled={saving}
+                onClick={handleOpenPrintReport}
+                title={item.id ? printReportHelpText || "Open print ticket report" : "Save the ticket before printing"}
+                type="button"
+              >
+                <PrintIcon />
+              </button>
               {isExistingTicket ? (
                 <button className="button-secondary feed-ticket-editor-delete" disabled={saving || deleting} onClick={() => void handleDelete()} type="button">
                   {deleting ? "Deleting..." : "Delete"}
@@ -432,9 +463,13 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved }: Props) {
               />
             </label>
 
-            <label className="feed-ticket-editor-field">
+            <label
+              className="feed-ticket-editor-field"
+              title={formatTicketTypeHelp(ticketTypeOptions.find((option) => option.key === item.ticket_type) ?? null)}
+            >
               <span>Ticket Type</span>
               <select
+                className="feed-ticket-editor-ticket-type-select"
                 onChange={(event) => {
                   const nextType = event.target.value as FeedTicketType;
                   const shouldAssignPreview =
@@ -453,9 +488,9 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved }: Props) {
                 }}
                 value={item.ticket_type}
               >
-                {TICKET_TYPE_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
+                {ticketTypeOptions.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {formatTicketTypeOptionLabel(option)}
                   </option>
                 ))}
               </select>
@@ -1058,4 +1093,31 @@ function verbosePlacementState(option: PlacementOption) {
   if (option.is_in_barn) return "In Barn";
   if (option.is_active) return "Active";
   return "Open";
+}
+
+function formatTicketTypeHelp(
+  option: { value: string; description: string } | null,
+) {
+  return formatHostedFeedTicketTypeHelp(option);
+}
+
+function formatTicketTypeOptionLabel(
+  option: { value: string; description: string },
+) {
+  return formatHostedFeedTicketTypeOptionLabel(option.value, option.description);
+}
+
+function PrintIcon() {
+  return (
+    <svg aria-hidden="true" fill="none" height="16" viewBox="0 0 24 24" width="16">
+      <path
+        d="M7 8V4h10v4M7 14H5.5A1.5 1.5 0 0 1 4 12.5v-3A1.5 1.5 0 0 1 5.5 8h13A1.5 1.5 0 0 1 20 9.5v3a1.5 1.5 0 0 1-1.5 1.5H17m-10 0v6h10v-6H7Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path d="M8 17h8M8 11h.01" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+    </svg>
+  );
 }

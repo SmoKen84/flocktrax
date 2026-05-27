@@ -5,6 +5,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/server";
 export type FeedTicketAdminFilters = {
   listMode?: "ticket" | "drop" | null;
   ticketNumber?: string | null;
+  ticketTypes?: string[] | null;
   flockCode?: string | null;
   farm?: string | null;
   barn?: string | null;
@@ -42,6 +43,7 @@ export type FeedTicketAdminBundle = {
   filters: {
     listMode: "ticket" | "drop";
     ticketNumber: string;
+    ticketTypes: string[];
     flockCode: string;
     farm: string;
     barn: string;
@@ -63,6 +65,7 @@ export type FeedTicketAdminBundle = {
   summaryText: string;
   filterOptions: {
     sourceTypes: string[];
+    ticketTypes: string[];
     farms: string[];
     barns: string[];
     bins: string[];
@@ -87,6 +90,41 @@ export type FeedTicketFlockReportBundle = {
     byTicketType: Array<{ key: string; pounds: number }>;
     bySource: Array<{ key: string; pounds: number }>;
   };
+};
+
+export type FeedTicketPrintBundle = {
+  ticket: {
+    id: string;
+    ticketNumber: string | null;
+    deliveryDate: string | null;
+    ticketType: string | null;
+    vendorName: string | null;
+    feedName: string | null;
+    loadType: string | null;
+    grossWeightLbs: number | null;
+    comment: string | null;
+    createdByName: string | null;
+    createdAt: string | null;
+    updatedByName: string | null;
+    updatedAt: string | null;
+  };
+  drops: Array<{
+    id: string;
+    dropOrder: number;
+    farmName: string | null;
+    barnCode: string | null;
+    binCode: string | null;
+    placementCode: string | null;
+    feedType: string | null;
+    dropWeightLbs: number | null;
+    comment: string | null;
+  }>;
+  totals: {
+    dropCount: number;
+    totalDropWeightLbs: number;
+    remainingWeightLbs: number | null;
+  };
+  generatedAt: string;
 };
 
 type FeedTicketRow = {
@@ -126,6 +164,24 @@ type BarnRow = {
   sort_code: string | null;
 };
 
+type FeedTicketPrintRow = {
+  id: string;
+  ticket_num: string | null;
+  delivery_date: string | null;
+  ticket_type: string | null;
+  feedmill: string | null;
+  feed_name: string | null;
+  source_type: string | null;
+  feed_weight: number | null;
+  comment: string | null;
+  created_by?: string | null;
+  updated_by?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  created_on?: string | null;
+  updated_on?: string | null;
+};
+
 export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters = {}): Promise<FeedTicketAdminBundle> {
   noStore();
 
@@ -137,6 +193,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
   const normalizedFilters: FeedTicketAdminBundle["filters"] = {
     listMode: filters.listMode === "drop" ? "drop" : "ticket",
     ticketNumber: normalize(filters.ticketNumber),
+    ticketTypes: normalizeTicketTypes(filters.ticketTypes),
     flockCode: normalize(filters.flockCode),
     farm: normalize(filters.farm),
     barn: normalize(filters.barn),
@@ -158,6 +215,9 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
   if (normalizedFilters.ticketNumber) {
     ticketsQuery = ticketsQuery.ilike("ticket_num", `%${normalizedFilters.ticketNumber}%`);
   }
+  if (normalizedFilters.ticketTypes.length > 0) {
+    ticketsQuery = ticketsQuery.in("ticket_type", normalizedFilters.ticketTypes);
+  }
   if (normalizedFilters.dateFrom) {
     ticketsQuery = ticketsQuery.gte("delivery_date", normalizedFilters.dateFrom);
   }
@@ -173,7 +233,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
   const tickets = (ticketRows ?? []) as FeedTicketRow[];
   const ticketIds = tickets.map((row) => row.id).filter(Boolean);
   if (ticketIds.length === 0) {
-    return emptyFeedTicketBundle(normalizedFilters, collectSourceTypes(tickets));
+    return emptyFeedTicketBundle(normalizedFilters, collectSourceTypes(tickets), collectTicketTypes(tickets));
   }
 
   const { data: dropRows, error: dropsError } = await admin
@@ -221,6 +281,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
 
   const ticketById = new Map(tickets.map((row) => [row.id, row]));
   const sourceTypes = collectSourceTypes(tickets);
+  const ticketTypes = collectTicketTypes(tickets);
   const shouldFilterType = normalizedFilters.includeStarter || normalizedFilters.includeGrower;
 
   const rows = drops
@@ -294,7 +355,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
     });
 
   if (rows.length === 0) {
-    return emptyFeedTicketBundle(normalizedFilters, sourceTypes);
+    return emptyFeedTicketBundle(normalizedFilters, sourceTypes, ticketTypes);
   }
 
   const farms = Array.from(new Set(rows.map((row) => normalize(row.farmName)).filter(Boolean))).sort((a, b) =>
@@ -351,6 +412,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
     summaryText,
     filterOptions: {
       sourceTypes,
+      ticketTypes,
       farms,
       barns,
       bins,
@@ -403,6 +465,146 @@ export async function getFeedTicketFlockReportBundle(filters: FeedTicketAdminFil
   };
 }
 
+export async function getFeedTicketPrintBundle(ticketId: string): Promise<FeedTicketPrintBundle | null> {
+  noStore();
+
+  const normalizedTicketId = normalize(ticketId);
+  if (!normalizedTicketId) {
+    return null;
+  }
+
+  const admin = createSupabaseAdminClient();
+  if (!admin) {
+    throw new Error("Feed ticket data could not connect to Supabase.");
+  }
+
+  const { data: ticketRows, error: ticketError } = await admin
+    .from("feed_tickets")
+    .select("*")
+    .eq("id", normalizedTicketId)
+    .limit(1);
+
+  if (ticketError) {
+    throw new Error(ticketError.message);
+  }
+
+  const ticket = (ticketRows?.[0] ?? null) as FeedTicketPrintRow | null;
+  if (!ticket) {
+    return null;
+  }
+
+  const { data: dropRows, error: dropError } = await admin
+    .from("feed_drops")
+    .select("id,drop_order,farm_id,barn_id,feed_bin_id,placement_code,type,drop_weight,comment,bin_code")
+    .eq("feed_ticket_id", normalizedTicketId)
+    .order("drop_order", { ascending: true })
+    .order("id", { ascending: true });
+
+  if (dropError) {
+    throw new Error(dropError.message);
+  }
+
+  const drops = (dropRows ?? []) as Array<{
+    id: string;
+    drop_order: number | null;
+    farm_id: string | null;
+    barn_id: string | null;
+    feed_bin_id: string | null;
+    placement_code: string | null;
+    type: string | null;
+    drop_weight: number | null;
+    comment: string | null;
+    bin_code: string | null;
+  }>;
+
+  const farmIds = Array.from(new Set(drops.map((row) => row.farm_id).filter(Boolean)));
+  const barnIds = Array.from(new Set(drops.map((row) => row.barn_id).filter(Boolean)));
+  const binIds = Array.from(new Set(drops.map((row) => row.feed_bin_id).filter(Boolean)));
+  const userIds = Array.from(
+    new Set([ticket.created_by, ticket.updated_by].filter((value): value is string => typeof value === "string" && value.length > 0)),
+  );
+
+  const [farmsResult, barnsResult, binsResult, usersResult] = await Promise.all([
+    farmIds.length
+      ? admin.from("farms").select("id,farm_name").in("id", farmIds)
+      : Promise.resolve({ data: [], error: null }),
+    barnIds.length
+      ? admin.from("barns").select("id,barn_code").in("id", barnIds)
+      : Promise.resolve({ data: [], error: null }),
+    binIds.length
+      ? admin.from("feedbins").select("id,bin_num").in("id", binIds)
+      : Promise.resolve({ data: [], error: null }),
+    userIds.length
+      ? admin.from("profiles").select("id,full_name,email").in("id", userIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (farmsResult.error || barnsResult.error || binsResult.error || usersResult.error) {
+    throw new Error(
+      farmsResult.error?.message ??
+        barnsResult.error?.message ??
+        binsResult.error?.message ??
+        usersResult.error?.message ??
+        "Feed ticket reference lookup failed.",
+    );
+  }
+
+  const farmNameById = new Map((farmsResult.data ?? []).map((row) => [row.id, normalize(row.farm_name)]));
+  const barnCodeById = new Map((barnsResult.data ?? []).map((row) => [row.id, normalize(row.barn_code)]));
+  const binCodeById = new Map(
+    ((binsResult.data ?? []) as Array<{ id: string; bin_num: string | number | null }>).map((row) => [
+      row.id,
+      row.bin_num === null || row.bin_num === undefined ? "" : String(row.bin_num),
+    ]),
+  );
+  const userNameById = new Map(
+    ((usersResult.data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>).map((row) => [
+      row.id,
+      normalize(row.full_name) || normalize(row.email) || row.id,
+    ]),
+  );
+
+  const normalizedDrops = drops.map((drop, index) => ({
+    id: drop.id,
+    dropOrder: typeof drop.drop_order === "number" ? drop.drop_order : index + 1,
+    farmName: farmNameById.get(drop.farm_id ?? "") || null,
+    barnCode: barnCodeById.get(drop.barn_id ?? "") || null,
+    binCode: binCodeById.get(drop.feed_bin_id ?? "") || normalize(drop.bin_code) || null,
+    placementCode: normalize(drop.placement_code) || null,
+    feedType: normalize(drop.type) || null,
+    dropWeightLbs: typeof drop.drop_weight === "number" ? drop.drop_weight : null,
+    comment: normalize(drop.comment) || null,
+  }));
+
+  const totalDropWeightLbs = normalizedDrops.reduce((sum, drop) => sum + (drop.dropWeightLbs ?? 0), 0);
+
+  return {
+    ticket: {
+      id: ticket.id,
+      ticketNumber: normalize(ticket.ticket_num) || null,
+      deliveryDate: ticket.delivery_date ?? null,
+      ticketType: normalize(ticket.ticket_type) || null,
+      vendorName: normalize(ticket.feedmill) || null,
+      feedName: normalize(ticket.feed_name) || null,
+      loadType: normalize(ticket.source_type) || null,
+      grossWeightLbs: typeof ticket.feed_weight === "number" ? ticket.feed_weight : null,
+      comment: normalize(ticket.comment) || null,
+      createdByName: userNameById.get(ticket.created_by ?? "") || null,
+      createdAt: ticket.created_at ?? ticket.created_on ?? null,
+      updatedByName: userNameById.get(ticket.updated_by ?? "") || null,
+      updatedAt: ticket.updated_at ?? ticket.updated_on ?? null,
+    },
+    drops: normalizedDrops,
+    totals: {
+      dropCount: normalizedDrops.length,
+      totalDropWeightLbs,
+      remainingWeightLbs:
+        typeof ticket.feed_weight === "number" ? ticket.feed_weight - totalDropWeightLbs : null,
+    },
+    generatedAt: new Date().toISOString(),
+  };
+}
+
 function normalize(value: string | null | undefined) {
   return (value ?? "").trim();
 }
@@ -410,6 +612,23 @@ function normalize(value: string | null | undefined) {
 function collectSourceTypes(rows: FeedTicketRow[]) {
   return Array.from(new Set(rows.map((row) => normalize(row.source_type ?? row.feed_name ?? row.feedmill ?? "")).filter(Boolean))).sort((a, b) =>
     a.localeCompare(b, undefined, { numeric: true }),
+  );
+}
+
+function collectTicketTypes(rows: FeedTicketRow[]) {
+  return Array.from(new Set(rows.map((row) => normalize(row.ticket_type)).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true }),
+  );
+}
+
+function normalizeTicketTypes(values: string[] | null | undefined) {
+  const allowed = new Set(["Reg", "xTran", "iTran", "f2f"]);
+  return Array.from(
+    new Set(
+      (values ?? [])
+        .map((value) => normalize(value))
+        .filter((value) => allowed.has(value)),
+    ),
   );
 }
 
@@ -450,6 +669,7 @@ function buildSummaryText(
 function emptyFeedTicketBundle(
   filters: FeedTicketAdminBundle["filters"],
   sourceTypes: string[] = [],
+  ticketTypes: string[] = [],
 ): FeedTicketAdminBundle {
   return {
     rows: [],
@@ -465,6 +685,7 @@ function emptyFeedTicketBundle(
     summaryText: "No matching feed_drop records.",
     filterOptions: {
       sourceTypes,
+      ticketTypes,
       farms: [],
       barns: [],
       bins: [],

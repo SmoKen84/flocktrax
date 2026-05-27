@@ -7200,10 +7200,59 @@ tr:last-child td {
   justify-self: start;
 }
 
+.feed-ticket-flat-ticket-types {
+  width: 100%;
+  max-width: 34rem;
+}
+
 .feed-ticket-flat-source {
   width: 100%;
   max-width: 14rem;
   justify-self: start;
+}
+
+.feed-ticket-flat-ticket-type-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.8rem;
+}
+
+.feed-ticket-flat-ticket-type-option {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 0.35rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid rgba(161, 136, 97, 0.18);
+  border-radius: 0.7rem;
+  background: rgba(255, 252, 247, 0.96);
+  color: #2d241b;
+  cursor: pointer;
+}
+
+.feed-ticket-flat-ticket-type-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.feed-ticket-flat-ticket-type-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid rgba(115, 73, 31, 0.45);
+  border-radius: 0.18rem;
+  background: #fff;
+  color: #8f1d13;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.feed-ticket-flat-ticket-type-option strong {
+  font-size: 0.88rem;
+  font-weight: 900;
 }
 
 .feed-ticket-flat-field-grid {
@@ -7638,6 +7687,15 @@ tr:last-child td {
   margin-left: auto;
 }
 
+.feed-ticket-editor-icon-button {
+  min-width: 2.75rem;
+  padding-inline: 0.75rem;
+}
+
+.feed-ticket-editor-icon-button svg {
+  display: block;
+}
+
 .feed-ticket-editor-ticket-number {
   margin: 0;
   color: #5468d4;
@@ -7657,6 +7715,11 @@ tr:last-child td {
   color: #bc7447;
   font-size: 0.9rem;
   font-weight: 800;
+}
+
+.feed-ticket-editor-ticket-type-select,
+.feed-ticket-editor-ticket-type-select option {
+  font-family: "Courier New", Courier, monospace;
 }
 
 .feed-ticket-editor-delete {
@@ -8045,6 +8108,228 @@ tr:last-child td {
   padding: 1.2rem 1rem !important;
 }
 
+.feed-ticket-print-shell {
+  display: grid;
+  gap: 1rem;
+  overflow: visible;
+}
+
+.feed-ticket-print-header-card,
+.feed-ticket-print-detail-card {
+  border: 1px solid rgba(171, 152, 121, 0.22);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(255, 252, 246, 0.96), rgba(249, 244, 235, 0.94));
+  box-shadow: 0 16px 30px rgba(78, 57, 32, 0.08);
+}
+
+.feed-ticket-print-header-card {
+  padding: 1.15rem;
+}
+
+.feed-ticket-print-title-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  padding-bottom: 0.95rem;
+  margin-bottom: 0.95rem;
+  border-bottom: 1px solid rgba(171, 152, 121, 0.22);
+}
+
+.feed-ticket-print-kicker,
+.feed-ticket-print-generated span,
+.feed-ticket-print-title-block span {
+  margin: 0;
+  color: #7d664f;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.feed-ticket-print-ticket-number {
+  margin: 0.2rem 0 0;
+  color: #2f2417;
+  font-size: 1.9rem;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.feed-ticket-print-subtitle {
+  margin: 0.42rem 0 0;
+  color: #7d664f;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.feed-ticket-print-generated {
+  display: grid;
+  gap: 0.18rem;
+  justify-items: end;
+}
+
+.feed-ticket-print-generated strong {
+  color: #2f2417;
+  font-size: 0.92rem;
+}
+
+.feed-ticket-print-title-block {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.feed-ticket-print-title-block article {
+  display: grid;
+  gap: 0.26rem;
+  padding: 0.72rem 0.82rem;
+  border: 1px solid rgba(171, 152, 121, 0.18);
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.feed-ticket-print-title-block strong {
+  color: #2f2417;
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
+.feed-ticket-print-ticket-type-value {
+  font-family: "Courier New", Courier, monospace;
+  white-space: pre;
+}
+
+.feed-ticket-print-gross-weight-value {
+  font-size: 1.42rem !important;
+  line-height: 1.05;
+  font-weight: 900 !important;
+}
+
+.feed-ticket-print-title-block-note {
+  grid-column: 1 / -1;
+}
+
+.feed-ticket-print-detail-card {
+  overflow: hidden;
+}
+
+.feed-ticket-print-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.feed-ticket-print-table th,
+.feed-ticket-print-table td {
+  padding: 0.8rem 0.85rem;
+  border-bottom: 1px solid rgba(171, 152, 121, 0.16);
+  text-align: left;
+  vertical-align: top;
+  color: #2f2417;
+}
+
+.feed-ticket-print-table th {
+  background: rgba(201, 177, 139, 0.2);
+  color: #6b543e;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.feed-ticket-print-number-col {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.feed-ticket-flat-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.feed-ticket-flat-sort-button[data-active="true"] {
+  color: #8f1d13;
+}
+
+.feed-ticket-flat-sort-glyph {
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.feed-ticket-print-emphasis {
+  font-weight: 800;
+}
+
+.feed-ticket-print-empty {
+  text-align: center;
+  color: rgba(70, 82, 66, 0.82);
+  padding: 1rem !important;
+}
+
+.feed-ticket-print-screen-actions {
+  display: inline-flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.feed-ticket-print-audit {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.3rem 0.15rem 0;
+}
+
+.feed-ticket-print-audit-row {
+  display: grid;
+  grid-template-columns: auto minmax(8rem, 1fr) auto minmax(8rem, 1fr);
+  gap: 0.45rem 0.75rem;
+  align-items: baseline;
+}
+
+.feed-ticket-print-audit-row span {
+  color: #7d664f;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.feed-ticket-print-audit-row strong {
+  color: #2f2417;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .feed-ticket-print-title-block {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .feed-ticket-print-title-row {
+    flex-direction: column;
+  }
+
+  .feed-ticket-print-generated {
+    justify-items: start;
+  }
+
+  .feed-ticket-print-title-block {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .feed-ticket-print-detail-card {
+    overflow-x: auto;
+  }
+}
+
 .flock-history-report-shell {
   display: grid;
   gap: 1rem;
@@ -8338,14 +8623,15 @@ tr:last-child td {
 @media print {
   @page {
     size: portrait;
-    margin: 0.45in;
+    margin: 0.3in;
   }
 
   .admin-sidebar-shell,
   .admin-sidebar,
   .admin-sidebar-shell,
   .hero-actions,
-  .feed-ticket-report-screen-actions {
+  .feed-ticket-report-screen-actions,
+  .feed-ticket-print-screen-actions {
     display: none !important;
   }
 
@@ -8358,6 +8644,8 @@ tr:last-child td {
 
   .hero-panel,
   .feed-ticket-report-shell,
+  .feed-ticket-print-header-card,
+  .feed-ticket-print-detail-card,
   .flock-history-report-shell,
   .feed-ticket-report-meta > div,
   .feed-ticket-report-total-card,
@@ -8400,6 +8688,112 @@ tr:last-child td {
   .feed-ticket-report-table th,
   .feed-ticket-report-table td {
     padding: 8px 10px;
+  }
+
+  .feed-ticket-print-shell {
+    gap: 0.3rem;
+    overflow: visible !important;
+    break-after: auto !important;
+    page-break-after: auto !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .feed-ticket-print-header-card {
+    padding: 0.5rem;
+  }
+
+  .feed-ticket-print-page > .hero-panel {
+    display: none !important;
+  }
+
+  .feed-ticket-print-page {
+    break-after: auto !important;
+    page-break-after: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .feed-ticket-print-header-card,
+  .feed-ticket-print-detail-card {
+    overflow: visible !important;
+    break-inside: auto;
+    page-break-inside: auto;
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+
+  .feed-ticket-print-title-row {
+    padding-bottom: 0.28rem;
+    margin-bottom: 0.3rem;
+    gap: 0.6rem;
+  }
+
+  .feed-ticket-print-ticket-number {
+    font-size: 16pt;
+  }
+
+  .feed-ticket-print-subtitle {
+    margin-top: 0.2rem;
+    font-size: 0.68rem;
+    line-height: 1.2;
+  }
+
+  .feed-ticket-print-title-block {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.22rem;
+  }
+
+  .feed-ticket-print-title-block article {
+    padding: 0.3rem 0.38rem;
+    border-radius: 0.28rem;
+    gap: 0.14rem;
+  }
+
+  .feed-ticket-print-title-block span {
+    font-size: 0.52rem;
+  }
+
+  .feed-ticket-print-title-block strong,
+  .feed-ticket-print-generated strong {
+    font-size: 0.66rem;
+    line-height: 1.15;
+  }
+
+  .feed-ticket-print-gross-weight-value {
+    font-size: 0.88rem !important;
+  }
+
+  .feed-ticket-print-table {
+    font-size: 8pt;
+  }
+
+  .feed-ticket-print-table th,
+  .feed-ticket-print-table td {
+    padding: 4px 5px;
+    line-height: 1.15;
+  }
+
+  .feed-ticket-print-audit {
+    gap: 0.12rem;
+    padding-top: 0.08rem;
+    break-after: auto !important;
+    page-break-after: auto !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .feed-ticket-print-audit-row {
+    grid-template-columns: auto 1fr auto 1fr;
+    gap: 0.15rem 0.38rem;
+  }
+
+  .feed-ticket-print-audit-row span {
+    font-size: 0.5rem;
+  }
+
+  .feed-ticket-print-audit-row strong {
+    font-size: 0.6rem;
   }
 
   .flock-history-report-summary-grid {

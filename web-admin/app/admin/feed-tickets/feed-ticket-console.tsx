@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import type { FeedTicketAdminBundle, FeedTicketAdminRow } from "@/lib/feed-ticket-data";
+import { formatFeedTicketTypeHelp } from "@/lib/feed-ticket-types";
 import { FeedTicketEditor } from "./feed-ticket-editor";
 
 const ROWS_PER_PAGE = 12;
@@ -19,6 +20,15 @@ type FeedTicketConsoleProps = {
     group: string | null;
     location: string | null;
   } | null;
+  ticketPrintReportOption?: {
+    title: string | null;
+    subtitle: string | null;
+  } | null;
+  ticketTypeOptions: Array<{
+    key: TicketTypeFilter;
+    value: string;
+    description: string;
+  }>;
 };
 
 type SelectorState =
@@ -34,6 +44,7 @@ type TicketAggregateRow = {
   ticketId: string;
   deliveryDate: string | null;
   ticketNumber: string | null;
+  ticketType: string | null;
   source: string | null;
   grossWeightLbs: number | null;
   farmName: string | null;
@@ -48,11 +59,36 @@ type TicketAggregateRow = {
   comment: string | null;
 };
 
-export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsoleProps) {
+type TicketTypeFilter = "Reg" | "xTran" | "iTran" | "f2f";
+
+type SortDirection = "asc" | "desc";
+
+type SortKey =
+  | "deliveryDate"
+  | "ticketNumber"
+  | "ticketType"
+  | "source"
+  | "grossWeightLbs"
+  | "farmName"
+  | "barnCode"
+  | "binCode"
+  | "placementCode"
+  | "feedType"
+  | "dropWeightLbs";
+
+export function FeedTicketConsole({
+  bundle,
+  reportOption,
+  ticketPrintReportOption,
+  ticketTypeOptions,
+}: FeedTicketConsoleProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [listMode, setListMode] = useState<"ticket" | "drop">(bundle.filters.listMode);
   const [ticketNumber, setTicketNumber] = useState(bundle.filters.ticketNumber);
+  const [ticketTypes, setTicketTypes] = useState<TicketTypeFilter[]>(
+    (bundle.filters.ticketTypes as TicketTypeFilter[]) ?? [],
+  );
   const [farm, setFarm] = useState(bundle.filters.farm);
   const [barn, setBarn] = useState(bundle.filters.barn);
   const [bin, setBin] = useState(bundle.filters.bin);
@@ -67,9 +103,15 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
   const [readerState, setReaderState] = useState<{ title: string; value: string } | null>(null);
   const [editorTicketId, setEditorTicketId] = useState<string | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
+  const [sortKey, setSortKey] = useState<SortKey>("deliveryDate");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const ticketRows = useMemo(() => groupTicketRows(bundle.rows), [bundle.rows]);
-  const displayedRows = listMode === "drop" ? bundle.rows : ticketRows;
+  const baseRows = listMode === "drop" ? bundle.rows : ticketRows;
+  const displayedRows = useMemo(
+    () => sortRows(baseRows, sortKey, sortDirection, listMode),
+    [baseRows, sortDirection, sortKey, listMode],
+  );
   const totalPages = Math.max(1, Math.ceil(displayedRows.length / ROWS_PER_PAGE));
   const safePageIndex = Math.min(pageIndex, totalPages - 1);
   const visibleRows = useMemo(
@@ -97,6 +139,7 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
     const params = new URLSearchParams();
     params.set("listMode", listMode);
     if (ticketNumber.trim()) params.set("ticketNumber", ticketNumber.trim());
+    for (const ticketType of ticketTypes) params.append("ticketType", ticketType);
     if (farm.trim()) params.set("farm", farm.trim());
     if (barn.trim()) params.set("barn", barn.trim());
     if (bin.trim()) params.set("bin", bin.trim());
@@ -111,6 +154,7 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
 
   function clearFilters() {
     setTicketNumber("");
+    setTicketTypes([]);
     setFarm("");
     setBarn("");
     setBin("");
@@ -129,6 +173,22 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
 
   function toggleSelected(id: string) {
     setSelectedIds((current) => (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]));
+  }
+
+  function toggleTicketType(ticketType: TicketTypeFilter) {
+    setTicketTypes((current) =>
+      current.includes(ticketType)
+        ? current.filter((entry) => entry !== ticketType)
+        : [...current, ticketType],
+    );
+  }
+
+  function handleSort(nextKey: SortKey) {
+    setPageIndex(0);
+    setSortDirection((currentDirection) =>
+      sortKey === nextKey ? (currentDirection === "asc" ? "desc" : "asc") : defaultDirectionForSort(nextKey),
+    );
+    setSortKey(nextKey);
   }
 
   function setAllSelected(checked: boolean) {
@@ -151,7 +211,9 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
             setEditorTicketId(null);
             router.refresh();
           }}
+          printReportHelpText={ticketPrintReportOption?.subtitle ?? null}
           ticketId={editorTicketId === "__new__" ? null : editorTicketId}
+          ticketTypeOptions={ticketTypeOptions}
         />
       ) : (
         <>
@@ -239,6 +301,27 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
                 <span>Ticket:</span>
                 <input onChange={(event) => setTicketNumber(event.target.value)} placeholder="Feed Ticket #" type="text" value={ticketNumber} />
               </label>
+
+              <div className="feed-ticket-flat-field feed-ticket-flat-ticket-types">
+                <span>Ticket Types:</span>
+                <div className="feed-ticket-flat-ticket-type-row" role="group" aria-label="Ticket Types">
+                  {ticketTypeOptions.map((option) => (
+                    <label
+                      className="feed-ticket-flat-ticket-type-option"
+                      key={option.key}
+                      title={formatFeedTicketTypeHelp(option)}
+                    >
+                      <input
+                        checked={ticketTypes.includes(option.key)}
+                        onChange={() => toggleTicketType(option.key)}
+                        type="checkbox"
+                      />
+                      <span className="feed-ticket-flat-ticket-type-box">{ticketTypes.includes(option.key) ? "X" : ""}</span>
+                      <strong>{option.value}</strong>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
               <label className="feed-ticket-flat-field feed-ticket-flat-source">
                 <span>Feedmill / Source:</span>
@@ -354,16 +437,16 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
                           type="checkbox"
                         />
                       </th>
-                      <th>Date</th>
-                      <th>Farm(s)</th>
-                      <th>Barn(s)</th>
-                      <th>Bin(s)</th>
-                      <th>Flock(s)</th>
-                      <th>Type</th>
-                      <th>Drop Weight</th>
-                      <th>Ticket</th>
-                      <th>Source</th>
-                      <th>Gross Weight</th>
+                      <th>{renderSortHeader("Date", "deliveryDate", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Farm(s)", "farmName", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Barn(s)", "barnCode", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Bin(s)", "binCode", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Flock(s)", "placementCode", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Feed Type", "feedType", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Drop Weight", "dropWeightLbs", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Ticket", "ticketNumber", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Source", "source", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Gross Weight", "grossWeightLbs", sortKey, sortDirection, handleSort)}</th>
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -384,7 +467,7 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
                           <td>
                             <div className="feed-ticket-flat-subnote-cell">
                               <strong>{row.ticketNumber || "--"}</strong>
-                              <span>ticket ref</span>
+                              <span>{row.ticketType || "ticket ref"}</span>
                             </div>
                           </td>
                           <td>{row.source || "--"}</td>
@@ -424,16 +507,16 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
                           type="checkbox"
                         />
                       </th>
-                      <th>Date</th>
-                      <th>Ticket</th>
-                      <th>Source</th>
-                      <th>Gross Weight</th>
-                      <th>Farm</th>
-                      <th>Barn</th>
-                      <th>Bin</th>
-                      <th>Flock</th>
-                      <th>Type</th>
-                      <th>Drop Weight</th>
+                      <th>{renderSortHeader("Date", "deliveryDate", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Ticket", "ticketNumber", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Source", "source", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Gross Weight", "grossWeightLbs", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Farm", "farmName", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Barn", "barnCode", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Bin", "binCode", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Flock", "placementCode", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Ticket Type", "ticketType", sortKey, sortDirection, handleSort)}</th>
+                      <th>{renderSortHeader("Drop Weight", "dropWeightLbs", sortKey, sortDirection, handleSort)}</th>
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -468,7 +551,7 @@ export function FeedTicketConsole({ bundle, reportOption }: FeedTicketConsolePro
                               setReaderState({ title, value }),
                             )}
                           </td>
-                          <td>{row.feedType || "--"}</td>
+                          <td>{row.ticketType || "--"}</td>
                           <td>{formatWeightCompact(row.dropWeightLbs)}</td>
                           <td className="list-action-cell">
                             <div className="list-action-stack">
@@ -642,6 +725,7 @@ function groupTicketRows(rows: FeedTicketAdminRow[]): TicketAggregateRow[] {
         ticketId: row.ticketId,
         deliveryDate: row.deliveryDate,
         ticketNumber: row.ticketNumber,
+        ticketType: row.ticketType,
         source: row.source,
         grossWeightLbs: row.grossWeightLbs,
         farmName: row.farmName,
@@ -660,6 +744,7 @@ function groupTicketRows(rows: FeedTicketAdminRow[]): TicketAggregateRow[] {
 
     current.dropWeightLbs += row.dropWeightLbs ?? 0;
     current.ticketId = row.ticketId;
+    current.ticketType = current.ticketType ?? row.ticketType;
     current.starterDropWeightLbs += row.feedType?.toLowerCase() === "starter" ? row.dropWeightLbs ?? 0 : 0;
     current.growerDropWeightLbs += row.feedType?.toLowerCase() === "grower" ? row.dropWeightLbs ?? 0 : 0;
     current.dropCount += 1;
@@ -820,6 +905,89 @@ function formatDate(value: string | null | undefined) {
     day: "2-digit",
     year: "2-digit",
   });
+}
+
+function renderSortHeader(
+  label: string,
+  key: SortKey,
+  activeKey: SortKey,
+  direction: SortDirection,
+  onSort: (key: SortKey) => void,
+) {
+  const isActive = key === activeKey;
+  return (
+    <button
+      className="feed-ticket-flat-sort-button"
+      data-active={isActive ? "true" : "false"}
+      onClick={() => onSort(key)}
+      type="button"
+    >
+      <span>{label}</span>
+      <span className="feed-ticket-flat-sort-glyph" aria-hidden="true">
+        {isActive ? (direction === "asc" ? "▲" : "▼") : "↕"}
+      </span>
+    </button>
+  );
+}
+
+function defaultDirectionForSort(key: SortKey): SortDirection {
+  if (key === "deliveryDate" || key === "grossWeightLbs" || key === "dropWeightLbs") {
+    return "desc";
+  }
+  return "asc";
+}
+
+function sortRows(
+  rows: Array<FeedTicketAdminRow | TicketAggregateRow>,
+  sortKey: SortKey,
+  sortDirection: SortDirection,
+  listMode: "ticket" | "drop",
+) {
+  const direction = sortDirection === "asc" ? 1 : -1;
+  return [...rows].sort((left, right) => {
+    const comparison = compareRowValues(left, right, sortKey, listMode);
+    if (comparison !== 0) {
+      return comparison * direction;
+    }
+
+    const dateComparison = compareNullableStrings(left.deliveryDate, right.deliveryDate);
+    if (dateComparison !== 0) {
+      return dateComparison * -1;
+    }
+
+    return compareNullableStrings(left.ticketNumber, right.ticketNumber);
+  });
+}
+
+function compareRowValues(
+  left: FeedTicketAdminRow | TicketAggregateRow,
+  right: FeedTicketAdminRow | TicketAggregateRow,
+  sortKey: SortKey,
+  listMode: "ticket" | "drop",
+) {
+  if (sortKey === "grossWeightLbs" || sortKey === "dropWeightLbs") {
+    return compareNullableNumbers(left[sortKey], right[sortKey]);
+  }
+
+  if (sortKey === "deliveryDate") {
+    return compareNullableStrings(left.deliveryDate, right.deliveryDate);
+  }
+
+  if (sortKey === "ticketType") {
+    const leftType = listMode === "ticket" ? (left as TicketAggregateRow).ticketType : left.ticketType;
+    const rightType = listMode === "ticket" ? (right as TicketAggregateRow).ticketType : right.ticketType;
+    return compareNullableStrings(leftType, rightType);
+  }
+
+  return compareNullableStrings(left[sortKey], right[sortKey]);
+}
+
+function compareNullableStrings(left: string | null | undefined, right: string | null | undefined) {
+  return (left ?? "").localeCompare(right ?? "", undefined, { numeric: true, sensitivity: "base" });
+}
+
+function compareNullableNumbers(left: number | null | undefined, right: number | null | undefined) {
+  return (left ?? Number.NEGATIVE_INFINITY) - (right ?? Number.NEGATIVE_INFINITY);
 }
 
 function toFeedShortLabel(value: string | null | undefined) {
