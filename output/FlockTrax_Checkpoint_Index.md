@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-05-26`
+Updated: `2026-05-27`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -259,11 +259,15 @@ Purpose:
   - [FlockTrax_Mobile_1_0_3_Build14_Submission_Checkpoint_2026-05-26.md](C:\dev\FlockTrax\output\FlockTrax_Mobile_1_0_3_Build14_Submission_Checkpoint_2026-05-26.md)
   - mobile release checkpoint covering iOS version `1.0.3`, EAS build `14`, the hosted `mobile_ios` platform-control bump, and the scheduled App Store Connect submission
 
+- `2026-05-27`
+  - [FlockTrax_Feed_Ticket_Print_Report_Production_Checkpoint_2026-05-27.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Ticket_Print_Report_Production_Checkpoint_2026-05-27.md)
+  - production checkpoint covering the new feed ticket print report, ticket-type metadata wiring, Vercel deployment `dpl_2tmNf8TVhpo4Z433Gcrr5RuMy2BZ`, and hosted admin build marker `5.2`
+
 # Latest Checkpoint
 
-- `2026-05-26`
-  - [FlockTrax_Mobile_1_0_3_Build14_Submission_Checkpoint_2026-05-26.md](C:\dev\FlockTrax\output\FlockTrax_Mobile_1_0_3_Build14_Submission_Checkpoint_2026-05-26.md)
-  - current best resume point for the iOS mobile release cut to `1.0.3 (14)` and the hosted `mobile_ios` release-marker bump
+- `2026-05-27`
+  - [FlockTrax_Feed_Ticket_Print_Report_Production_Checkpoint_2026-05-27.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Ticket_Print_Report_Production_Checkpoint_2026-05-27.md)
+  - current best resume point for the feed ticket print-report production release and hosted admin build marker `5.2`
 
 ## Notes
 
@@ -301,14 +305,23 @@ Reason:
 - it captures the agreed planning direction without prematurely moving into implementation
 - it links the planning spec to the broader May 19 execution baseline
 
+If the topic is feed ticket reporting, ticket printing, or the admin production release that just went live, load first:
+
+- [FlockTrax_Feed_Ticket_Print_Report_Production_Checkpoint_2026-05-27.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Ticket_Print_Report_Production_Checkpoint_2026-05-27.md)
+
+Reason:
+- it captures the exact deployed commit, Vercel deployment id, and live `flocktrax.com` alias state
+- it records the hosted admin build marker bump to `5.2`
+- it documents the remaining Supabase migration-repair auth issue so it does not get rediscovered the hard way
+
 If only one execution-state checkpoint should be loaded first right now, use:
 
-- [FlockTrax_Local_Production_Sync_And_Invite_Flow_Checkpoint_2026-05-19.md](C:\dev\FlockTrax\output\FlockTrax_Local_Production_Sync_And_Invite_Flow_Checkpoint_2026-05-19.md)
+- [FlockTrax_Feed_Ticket_Print_Report_Production_Checkpoint_2026-05-27.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Ticket_Print_Report_Production_Checkpoint_2026-05-27.md)
 
 Reason:
 - it is the most current checkpoint
-- it captures both sides of the current state: what is already live and what still exists only locally
-- it includes the exact dirty file snapshot, current production deployment id, and hosted admin build marker `5.1`
+- it captures both repo and production state after the feed ticket report release
+- it includes the exact deployed commit, production deployment id, and hosted admin build marker `5.2`
 
 For broader system state beyond the report feature, also use:
 
