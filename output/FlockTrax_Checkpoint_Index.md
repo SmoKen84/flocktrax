@@ -263,11 +263,15 @@ Purpose:
   - [FlockTrax_Feed_Ticket_Print_Report_Production_Checkpoint_2026-05-27.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Ticket_Print_Report_Production_Checkpoint_2026-05-27.md)
   - production checkpoint covering the new feed ticket print report, ticket-type metadata wiring, Vercel deployment `dpl_2tmNf8TVhpo4Z433Gcrr5RuMy2BZ`, and hosted admin build marker `5.2`
 
+- `2026-05-28`
+  - [FlockTrax_Action_Items_Work_Order_Production_Checkpoint_2026-05-28.md](C:\dev\FlockTrax\output\FlockTrax_Action_Items_Work_Order_Production_Checkpoint_2026-05-28.md)
+  - production checkpoint covering action-item list/work-order reporting, flock-history action-item print expansion, Vercel deployment `dpl_6Dq8Zrp1XbadeP43ZiktbE3S6uht`, and hosted admin build marker `5.3`
+
 # Latest Checkpoint
 
-- `2026-05-27`
-  - [FlockTrax_Feed_Ticket_Print_Report_Production_Checkpoint_2026-05-27.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Ticket_Print_Report_Production_Checkpoint_2026-05-27.md)
-  - current best resume point for the feed ticket print-report production release and hosted admin build marker `5.2`
+- `2026-05-28`
+  - [FlockTrax_Action_Items_Work_Order_Production_Checkpoint_2026-05-28.md](C:\dev\FlockTrax\output\FlockTrax_Action_Items_Work_Order_Production_Checkpoint_2026-05-28.md)
+  - current best resume point for the action-item report/work-order production release and hosted admin build marker `5.3`
 
 ## Notes
 
@@ -314,14 +318,23 @@ Reason:
 - it records the hosted admin build marker bump to `5.2`
 - it documents the remaining Supabase migration-repair auth issue so it does not get rediscovered the hard way
 
+If the topic is action items, work-order printing, flock-history action-item pages, or the current admin production baseline, load first:
+
+- [FlockTrax_Action_Items_Work_Order_Production_Checkpoint_2026-05-28.md](C:\dev\FlockTrax\output\FlockTrax_Action_Items_Work_Order_Production_Checkpoint_2026-05-28.md)
+
+Reason:
+- it is the newest production checkpoint
+- it captures the exact deployed commit, Vercel deployment id, and hosted admin build marker `5.3`
+- it records both the action-list/work-order print flows and the current unresolved Supabase migration-repair caveat
+
 If only one execution-state checkpoint should be loaded first right now, use:
 
-- [FlockTrax_Feed_Ticket_Print_Report_Production_Checkpoint_2026-05-27.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Ticket_Print_Report_Production_Checkpoint_2026-05-27.md)
+- [FlockTrax_Action_Items_Work_Order_Production_Checkpoint_2026-05-28.md](C:\dev\FlockTrax\output\FlockTrax_Action_Items_Work_Order_Production_Checkpoint_2026-05-28.md)
 
 Reason:
 - it is the most current checkpoint
-- it captures both repo and production state after the feed ticket report release
-- it includes the exact deployed commit, production deployment id, and hosted admin build marker `5.2`
+- it captures both repo and production state after the action-item reporting release
+- it includes the exact deployed commit, production deployment id, and hosted admin build marker `5.3`
 
 For broader system state beyond the report feature, also use:
 
