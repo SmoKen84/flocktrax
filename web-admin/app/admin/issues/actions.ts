@@ -11,6 +11,16 @@ function readTrimmedString(formData: FormData, key: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function readMultilineString(formData: FormData, key: string) {
+  const value = formData.get(key);
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const normalized = value.replace(/\r\n?/g, "\n");
+  return normalized.trim() ? normalized : "";
+}
+
 function buildReturnLocation(params: Record<string, string | null | undefined>) {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -42,7 +52,7 @@ export async function createIssueAction(formData: FormData) {
   const placementId = readTrimmedString(formData, "placement_id");
   const issueType = readTrimmedString(formData, "issue_type");
   const title = readTrimmedString(formData, "title");
-  const description = readTrimmedString(formData, "description");
+  const description = readMultilineString(formData, "description");
   const reportedLogDate = readTrimmedString(formData, "reported_log_date");
 
   if (!placementId) {
@@ -125,7 +135,7 @@ export async function resolveIssueAction(formData: FormData) {
 
   const issueId = readTrimmedString(formData, "issue_id");
   const placementId = readTrimmedString(formData, "placement_id");
-  const resolutionNote = readTrimmedString(formData, "resolution_note");
+  const resolutionNote = readMultilineString(formData, "resolution_note");
 
   if (!issueId) {
     redirect(buildReturnLocation({ placementId, error: "Action-item id is missing." }));
@@ -193,7 +203,7 @@ export async function addIssueUpdateAction(formData: FormData) {
   const issueId = readTrimmedString(formData, "issue_id");
   const placementId = readTrimmedString(formData, "placement_id");
   const entryType = readTrimmedString(formData, "entry_type");
-  const entryText = readTrimmedString(formData, "entry_text");
+  const entryText = readMultilineString(formData, "entry_text");
   const effectiveDate = readTrimmedString(formData, "effective_date");
 
   if (!issueId) {
@@ -259,7 +269,7 @@ export async function updateIssueAction(formData: FormData) {
   const placementId = readTrimmedString(formData, "placement_id");
   const issueType = readTrimmedString(formData, "issue_type");
   const title = readTrimmedString(formData, "title");
-  const description = readTrimmedString(formData, "description");
+  const description = readMultilineString(formData, "description");
   const reportedLogDate = readTrimmedString(formData, "reported_log_date");
 
   if (!issueId) {

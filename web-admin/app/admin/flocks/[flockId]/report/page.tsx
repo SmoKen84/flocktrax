@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/page-header";
 import { FlockHistoryReportActions } from "@/app/admin/flocks/flock-history-report-actions";
+import { getUserAccessBundle } from "@/lib/access-control";
 import { getFlockHistoryReportBundle } from "@/lib/flock-history-report";
 import { getAppSettingTextValues } from "@/lib/platform-content";
 
@@ -16,14 +17,16 @@ type FlockHistoryReportPageProps = {
 export default async function FlockHistoryReportPage({ params, searchParams }: FlockHistoryReportPageProps) {
   const { flockId } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
-  const [report, appText] = await Promise.all([
+  const [report, appText, accessBundle] = await Promise.all([
     getFlockHistoryReportBundle(flockId),
     getAppSettingTextValues([
       "flock_history_title",
       "flock_history_pg1",
       "flock_history_pg2",
       "flock_history_pg3",
+      "flock_history_pg4",
     ]),
+    getUserAccessBundle(),
   ]);
 
   if (!report) {
@@ -55,18 +58,18 @@ export default async function FlockHistoryReportPage({ params, searchParams }: F
         appText.get("flock_history_pg2")?.desc ||
         "Companion matrix for mortality and health-marker fields so the layout stays readable in landscape format."
       );
+  const page3Title = appText.get("flock_history_pg4")?.value || "Action Items";
+  const page3Body =
+    isMicroArchive
+      ? "Compact portrait action item archive with each item followed by its update history."
+      : (
+        appText.get("flock_history_pg4")?.desc ||
+        "Barn-linked and placement-linked action items for this flock, each shown with updates in chronological order."
+      );
+  const userDisplayNameById = new Map(accessBundle.users.map((user) => [user.id, user.displayName]));
 
   return (
     <>
-      <style>{`
-        @media print {
-          @page {
-            size: ${isMicroArchive ? "portrait" : "landscape"};
-            margin: ${isMicroArchive ? "0.28in" : "0.35in"};
-          }
-        }
-      `}</style>
-
       <PageHeader
         eyebrow={isMicroArchive ? "Micro Archive Copy" : "Flock History Report"}
         title={
@@ -129,6 +132,14 @@ export default async function FlockHistoryReportPage({ params, searchParams }: F
           <div className="flock-history-report-summary-card flock-history-report-summary-card--compact">
             <span>Generated</span>
             <strong>{formatTimestamp(report.generatedAt)}</strong>
+          </div>
+          <div className="flock-history-report-summary-card flock-history-report-summary-card--compact">
+            <span>Barn Actions</span>
+            <strong>{formatWhole(report.totals.barnActionItemCount)}</strong>
+          </div>
+          <div className="flock-history-report-summary-card flock-history-report-summary-card--compact">
+            <span>Placement Actions</span>
+            <strong>{formatWhole(report.totals.placementActionItemCount)}</strong>
           </div>
         </div>
 
@@ -335,6 +346,167 @@ export default async function FlockHistoryReportPage({ params, searchParams }: F
               ))
             ) : null}
           </section>
+
+          <section className="flock-history-report-page flock-history-report-page--break">
+            <div className="flock-history-report-page-header">
+              <div>
+                <p className="eyebrow">Page 4</p>
+                <h2>{page3Title}</h2>
+              </div>
+              <p>{page3Body}</p>
+            </div>
+
+            <div className="flock-history-report-hero flock-history-report-hero--totals flock-history-report-hero--actions">
+              <span><strong>Barn-linked Items:</strong> {formatWhole(report.totals.barnActionItemCount)}</span>
+              <span><strong>Placement-linked Items:</strong> {formatWhole(report.totals.placementActionItemCount)}</span>
+            </div>
+
+            <div className="flock-history-report-action-sections">
+              <section className="flock-history-report-action-section">
+                <div className="flock-history-report-action-section-header">
+                  <h3>Barn Linked Action Items</h3>
+                  <p>Items linked to the barn itself, with their child updates shown oldest to newest.</p>
+                </div>
+
+                {report.actionItems.barnLinked.length > 0 ? (
+                  <div className="flock-history-report-action-list">
+                    {report.actionItems.barnLinked.map((item) => (
+                      <article className="flock-history-report-action-card" key={item.id}>
+                        <div className="flock-history-report-action-card-header">
+                          <div>
+                            <p className="flock-history-report-action-kicker">{item.issueTypeLabel}</p>
+                            <h4>{item.title}</h4>
+                          </div>
+                          <div className="flock-history-report-action-status">
+                            <span>Status</span>
+                            <strong>{formatStatus(item.status)}</strong>
+                          </div>
+                        </div>
+
+                        <div className="flock-history-report-action-meta">
+                          <div>
+                            <span>Barn</span>
+                            <strong>{item.barnCode}</strong>
+                          </div>
+                          <div>
+                            <span>Placement</span>
+                            <strong>{item.placementCode || "--"}</strong>
+                          </div>
+                          <div>
+                            <span>Reported</span>
+                            <strong>{formatDate(item.reportedLogDate ?? item.openedAt)}</strong>
+                          </div>
+                          <div>
+                            <span>Opened By</span>
+                            <strong>{formatUser(item.openedBy, userDisplayNameById)}</strong>
+                          </div>
+                        </div>
+
+                        {hasVisibleText(item.description) ? (
+                          <div className="flock-history-report-action-copy">
+                            <span>Description</span>
+                            <p>{formatText(item.description)}</p>
+                          </div>
+                        ) : null}
+
+                        <div className="flock-history-report-action-updates">
+                          <p className="flock-history-report-action-updates-title">Updates</p>
+                          {item.updates.length > 0 ? (
+                            item.updates.map((update, index) => (
+                              <div className="flock-history-report-action-update" key={update.id}>
+                                <div className="flock-history-report-action-update-meta">
+                                  <strong>{`${index + 1}. ${formatEntryType(update.entryType)}`}</strong>
+                                  <span>{formatDate(update.effectiveDate ?? update.createdAt)}</span>
+                                  <span>{formatUser(update.createdBy, userDisplayNameById)}</span>
+                                </div>
+                                <p>{formatText(update.entryText)}</p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="flock-history-report-empty">No updates were found for this action item.</p>
+                          )}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="helper-banner">No barn-linked action items were found for this flock.</div>
+                )}
+              </section>
+
+              <section className="flock-history-report-action-section">
+                <div className="flock-history-report-action-section-header">
+                  <h3>Placement Linked Action Items</h3>
+                  <p>Items linked directly to placements, with updates grouped beneath each action item.</p>
+                </div>
+
+                {report.actionItems.placementLinked.length > 0 ? (
+                  <div className="flock-history-report-action-list">
+                    {report.actionItems.placementLinked.map((item) => (
+                      <article className="flock-history-report-action-card" key={item.id}>
+                        <div className="flock-history-report-action-card-header">
+                          <div>
+                            <p className="flock-history-report-action-kicker">{item.issueTypeLabel}</p>
+                            <h4>{item.title}</h4>
+                          </div>
+                          <div className="flock-history-report-action-status">
+                            <span>Status</span>
+                            <strong>{formatStatus(item.status)}</strong>
+                          </div>
+                        </div>
+
+                        <div className="flock-history-report-action-meta">
+                          <div>
+                            <span>Placement</span>
+                            <strong>{item.placementCode || "--"}</strong>
+                          </div>
+                          <div>
+                            <span>Barn</span>
+                            <strong>{item.barnCode}</strong>
+                          </div>
+                          <div>
+                            <span>Reported</span>
+                            <strong>{formatDate(item.reportedLogDate ?? item.openedAt)}</strong>
+                          </div>
+                          <div>
+                            <span>Opened By</span>
+                            <strong>{formatUser(item.openedBy, userDisplayNameById)}</strong>
+                          </div>
+                        </div>
+
+                        {hasVisibleText(item.description) ? (
+                          <div className="flock-history-report-action-copy">
+                            <span>Description</span>
+                            <p>{formatText(item.description)}</p>
+                          </div>
+                        ) : null}
+
+                        <div className="flock-history-report-action-updates">
+                          <p className="flock-history-report-action-updates-title">Updates</p>
+                          {item.updates.length > 0 ? (
+                            item.updates.map((update, index) => (
+                              <div className="flock-history-report-action-update" key={update.id}>
+                                <div className="flock-history-report-action-update-meta">
+                                  <strong>{`${index + 1}. ${formatEntryType(update.entryType)}`}</strong>
+                                  <span>{formatDate(update.effectiveDate ?? update.createdAt)}</span>
+                                  <span>{formatUser(update.createdBy, userDisplayNameById)}</span>
+                                </div>
+                                <p>{formatText(update.entryText)}</p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="flock-history-report-empty">No updates were found for this action item.</p>
+                          )}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="helper-banner">No placement-linked action items were found for this flock.</div>
+                )}
+              </section>
+            </div>
+          </section>
         </div>
       </section>
     </>
@@ -343,7 +515,7 @@ export default async function FlockHistoryReportPage({ params, searchParams }: F
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "--";
-  const date = new Date(`${value}T00:00:00`);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00`) : new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   const shortDate = date.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "2-digit" });
   const dayCode = date
@@ -394,4 +566,30 @@ function formatFlag(value: boolean) {
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "--";
   return `${value.toFixed(1)}%`;
+}
+
+function formatEntryType(value: string | null) {
+  switch (value) {
+    case "opened":
+      return "Opened";
+    case "resolved":
+      return "Resolved";
+    case "parts_ordered":
+      return "Parts Ordered";
+    case "progress":
+      return "Progress";
+    default:
+      return "Update";
+  }
+}
+
+function formatStatus(value: string | null | undefined) {
+  return value === "resolved" ? "Closed" : "Open";
+}
+
+function formatUser(value: string | null | undefined, userDisplayNameById: Map<string, string>) {
+  if (!value) return "Unknown";
+  const displayName = userDisplayNameById.get(value);
+  if (displayName) return displayName;
+  return value.length > 10 ? `${value.slice(0, 6)}...` : value;
 }

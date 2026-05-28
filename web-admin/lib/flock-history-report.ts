@@ -1,6 +1,7 @@
 import { unstable_noStore as noStore } from "next/cache";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { getDefaultIssueTypes } from "@/lib/issues";
 
 type FlockRow = {
   id: string;
@@ -80,6 +81,38 @@ type MortalityLogRow = {
   is_active: boolean | null;
 };
 
+type IssueRow = {
+  id: string;
+  entity_type: "barn" | "placement";
+  entity_id: string;
+  issue_type: string | null;
+  title: string | null;
+  description: string | null;
+  status: "open" | "resolved";
+  related_placement_id: string | null;
+  reported_log_date: string | null;
+  opened_at: string | null;
+  opened_by: string | null;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  resolution_note: string | null;
+};
+
+type IssueUpdateRow = {
+  id: string;
+  issue_id: string;
+  entry_type: string | null;
+  entry_text: string | null;
+  effective_date: string | null;
+  created_at: string | null;
+  created_by: string | null;
+};
+
+type IssueTypeRow = {
+  code: string;
+  label: string;
+};
+
 export type FlockHistoryDailyRow = {
   placementId: string;
   placementCode: string;
@@ -142,6 +175,37 @@ export type FlockHistoryPlacementSection = {
   mortalityRows: FlockHistoryMortalityRow[];
 };
 
+export type FlockHistoryActionUpdate = {
+  id: string;
+  issueId: string;
+  entryType: string | null;
+  entryText: string | null;
+  effectiveDate: string | null;
+  createdAt: string | null;
+  createdBy: string | null;
+};
+
+export type FlockHistoryActionItem = {
+  id: string;
+  entityType: "barn" | "placement";
+  entityId: string;
+  linkedPlacementId: string | null;
+  placementCode: string | null;
+  barnCode: string;
+  issueType: string | null;
+  issueTypeLabel: string;
+  title: string;
+  description: string | null;
+  status: "open" | "resolved";
+  reportedLogDate: string | null;
+  openedAt: string | null;
+  openedBy: string | null;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+  resolutionNote: string | null;
+  updates: FlockHistoryActionUpdate[];
+};
+
 export type FlockHistoryReportBundle = {
   generatedAt: string;
   flockId: string;
@@ -154,10 +218,16 @@ export type FlockHistoryReportBundle = {
   maleCount: number;
   status: string;
   placements: FlockHistoryPlacementSection[];
+  actionItems: {
+    barnLinked: FlockHistoryActionItem[];
+    placementLinked: FlockHistoryActionItem[];
+  };
   totals: {
     placementCount: number;
     dailyRowCount: number;
     mortalityRowCount: number;
+    barnActionItemCount: number;
+    placementActionItemCount: number;
     deadFemale: number;
     deadMale: number;
     cullFemale: number;
@@ -351,6 +421,127 @@ export async function getFlockHistoryReportBundle(flockId: string): Promise<Floc
       };
     });
 
+  const placementById = new Map(placementSections.map((placement) => [placement.placementId, placement]));
+  const firstPlacementByBarnId = new Map<string, FlockHistoryPlacementSection>();
+
+  for (const placement of placements) {
+    if (!firstPlacementByBarnId.has(placement.barn_id)) {
+      const section = placementById.get(placement.id);
+      if (section) {
+        firstPlacementByBarnId.set(placement.barn_id, section);
+      }
+    }
+  }
+
+  const [barnIssuesResult, placementIssuesResult, issueTypesResult] = await Promise.all([
+    barnIds.length > 0
+      ? admin
+          .from("issues")
+          .select(
+            "id,entity_type,entity_id,issue_type,title,description,status,related_placement_id,reported_log_date,opened_at,opened_by,resolved_at,resolved_by,resolution_note",
+          )
+          .eq("entity_type", "barn")
+          .in("entity_id", barnIds)
+          .order("opened_at", { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
+    placementIds.length > 0
+      ? admin
+          .from("issues")
+          .select(
+            "id,entity_type,entity_id,issue_type,title,description,status,related_placement_id,reported_log_date,opened_at,opened_by,resolved_at,resolved_by,resolution_note",
+          )
+          .eq("entity_type", "placement")
+          .in("entity_id", placementIds)
+          .order("opened_at", { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
+    admin.from("issue_types").select("code,label"),
+  ]);
+
+  if (barnIssuesResult.error && barnIssuesResult.error.code !== "42P01") {
+    throw new Error(barnIssuesResult.error.message);
+  }
+  if (placementIssuesResult.error && placementIssuesResult.error.code !== "42P01") {
+    throw new Error(placementIssuesResult.error.message);
+  }
+  if (issueTypesResult.error && issueTypesResult.error.code !== "42P01") {
+    throw new Error(issueTypesResult.error.message);
+  }
+
+  const issueRows = [
+    ...((barnIssuesResult.data ?? []) as IssueRow[]),
+    ...((placementIssuesResult.data ?? []) as IssueRow[]),
+  ];
+  const issueTypeLabelByCode = new Map<string, string>(
+    (
+      issueTypesResult.data && issueTypesResult.data.length > 0
+        ? (issueTypesResult.data as IssueTypeRow[])
+        : getDefaultIssueTypes().map((row) => ({ code: row.code, label: row.label }))
+    ).map((row) => [row.code, row.label]),
+  );
+  const issueIds = issueRows.map((row) => row.id);
+
+  const issueUpdatesResult =
+    issueIds.length > 0
+      ? await admin
+          .from("issue_updates")
+          .select("id,issue_id,entry_type,entry_text,effective_date,created_at,created_by")
+          .in("issue_id", issueIds)
+          .order("created_at", { ascending: true })
+      : { data: [], error: null };
+
+  if (issueUpdatesResult.error && issueUpdatesResult.error.code !== "42P01") {
+    throw new Error(issueUpdatesResult.error.message);
+  }
+
+  const issueUpdatesByIssueId = groupBy((issueUpdatesResult.data ?? []) as IssueUpdateRow[], (row) => row.issue_id);
+
+  const actionItems = issueRows
+    .slice()
+    .sort(compareIssuesAscending)
+    .map((issue) => {
+      const placementContext =
+        issue.entity_type === "placement"
+          ? placementById.get(issue.entity_id) ?? null
+          : issue.related_placement_id
+            ? placementById.get(issue.related_placement_id) ?? firstPlacementByBarnId.get(issue.entity_id) ?? null
+            : firstPlacementByBarnId.get(issue.entity_id) ?? null;
+
+      return {
+        id: issue.id,
+        entityType: issue.entity_type,
+        entityId: issue.entity_id,
+        linkedPlacementId: placementContext?.placementId ?? null,
+        placementCode: placementContext?.placementCode ?? null,
+        barnCode: placementContext?.barnCode ?? barnById.get(issue.entity_id)?.barn_code ?? "Barn",
+        issueType: issue.issue_type,
+        issueTypeLabel: issueTypeLabelByCode.get(issue.issue_type ?? "") ?? issue.title ?? "Action Item",
+        title: issue.title?.trim() || issueTypeLabelByCode.get(issue.issue_type ?? "") || "Action Item",
+        description: issue.description,
+        status: issue.status,
+        reportedLogDate: issue.reported_log_date,
+        openedAt: issue.opened_at,
+        openedBy: issue.opened_by,
+        resolvedAt: issue.resolved_at,
+        resolvedBy: issue.resolved_by,
+        resolutionNote: issue.resolution_note,
+        updates: (issueUpdatesByIssueId.get(issue.id) ?? [])
+          .slice()
+          .sort(compareIssueUpdatesAscending)
+          .map((update) => ({
+            id: update.id,
+            issueId: update.issue_id,
+            entryType: update.entry_type,
+            entryText: update.entry_text,
+            effectiveDate: update.effective_date,
+            createdAt: update.created_at,
+            createdBy: update.created_by,
+          })),
+      } satisfies FlockHistoryActionItem;
+    });
+
+  const barnActionItems = actionItems.filter((item) => item.entityType === "barn");
+  const placementActionItems = actionItems.filter((item) => item.entityType === "placement");
+
   return {
     generatedAt: new Date().toISOString(),
     flockId: flock.id,
@@ -363,10 +554,16 @@ export async function getFlockHistoryReportBundle(flockId: string): Promise<Floc
     maleCount: flock.start_cnt_males ?? 0,
     status: formatFlockStatus(flock),
     placements: placementSections,
+    actionItems: {
+      barnLinked: barnActionItems,
+      placementLinked: placementActionItems,
+    },
     totals: {
       placementCount: placementSections.length,
       dailyRowCount: placementSections.reduce((sum, item) => sum + item.dailyRows.length, 0),
       mortalityRowCount: placementSections.reduce((sum, item) => sum + item.mortalityRows.length, 0),
+      barnActionItemCount: barnActionItems.length,
+      placementActionItemCount: placementActionItems.length,
       deadFemale: deadFemaleTotal,
       deadMale: deadMaleTotal,
       cullFemale: cullFemaleTotal,
@@ -443,4 +640,32 @@ function groupBy<T>(rows: T[], getKey: (row: T) => string) {
     map.set(key, bucket);
   }
   return map;
+}
+
+function compareIssuesAscending(left: IssueRow, right: IssueRow) {
+  const leftDate = left.reported_log_date ?? left.opened_at ?? "";
+  const rightDate = right.reported_log_date ?? right.opened_at ?? "";
+  const leftTime = leftDate ? new Date(leftDate).getTime() : 0;
+  const rightTime = rightDate ? new Date(rightDate).getTime() : 0;
+  if (leftTime !== rightTime) {
+    return leftTime - rightTime;
+  }
+
+  const leftOpened = left.opened_at ? new Date(left.opened_at).getTime() : 0;
+  const rightOpened = right.opened_at ? new Date(right.opened_at).getTime() : 0;
+  return leftOpened - rightOpened;
+}
+
+function compareIssueUpdatesAscending(left: IssueUpdateRow, right: IssueUpdateRow) {
+  const leftDate = left.effective_date ?? left.created_at ?? "";
+  const rightDate = right.effective_date ?? right.created_at ?? "";
+  const leftTime = leftDate ? new Date(leftDate).getTime() : 0;
+  const rightTime = rightDate ? new Date(rightDate).getTime() : 0;
+  if (leftTime !== rightTime) {
+    return leftTime - rightTime;
+  }
+
+  const leftCreated = left.created_at ? new Date(left.created_at).getTime() : 0;
+  const rightCreated = right.created_at ? new Date(right.created_at).getTime() : 0;
+  return leftCreated - rightCreated;
 }

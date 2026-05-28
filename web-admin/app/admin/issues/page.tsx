@@ -19,6 +19,7 @@ type IssuesPageProps = {
 
 type IssueStatus = "open" | "resolved";
 type PanelMode = "detail" | "create" | "edit" | "update" | "resolve";
+type IssueSortKey = "date_opened" | "farm_barn" | "title" | "status";
 
 type IssueRow = {
   id: string;
@@ -79,6 +80,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
     dateStart: firstParam(params.dateStart),
     dateEnd: firstParam(params.dateEnd),
     statuses: paramArray(params.status),
+    sortBy: parseIssueSortKey(firstParam(params.sortBy)),
   };
 
   const adminClient = createSupabaseAdminClient();
@@ -178,21 +180,23 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
     };
   });
 
-  const filteredIssues = allIssues.filter((issue) => {
-    const context = issue.placementContext;
-    if (filters.farmId && context?.farmId !== filters.farmId) return false;
-    if (filters.barnId && context?.barnId !== filters.barnId) return false;
-    if (filters.flockCode) {
-      const flockNeedle = filters.flockCode.toLowerCase();
-      const flockText = `${context?.placementCode ?? ""} ${context?.flockCode ?? ""}`.toLowerCase();
-      if (!flockText.includes(flockNeedle)) return false;
-    }
-    if (filters.issueType && issue.issue_type !== filters.issueType) return false;
-    if (filters.statuses.length > 0 && !filters.statuses.includes(issue.status)) return false;
-    if (filters.dateStart && issue.reported_log_date && issue.reported_log_date < filters.dateStart) return false;
-    if (filters.dateEnd && issue.reported_log_date && issue.reported_log_date > filters.dateEnd) return false;
-    return true;
-  });
+  const filteredIssues = allIssues
+    .filter((issue) => {
+      const context = issue.placementContext;
+      if (filters.farmId && context?.farmId !== filters.farmId) return false;
+      if (filters.barnId && context?.barnId !== filters.barnId) return false;
+      if (filters.flockCode) {
+        const flockNeedle = filters.flockCode.toLowerCase();
+        const flockText = `${context?.placementCode ?? ""} ${context?.flockCode ?? ""}`.toLowerCase();
+        if (!flockText.includes(flockNeedle)) return false;
+      }
+      if (filters.issueType && issue.issue_type !== filters.issueType) return false;
+      if (filters.statuses.length > 0 && !filters.statuses.includes(issue.status)) return false;
+      if (filters.dateStart && issue.reported_log_date && issue.reported_log_date < filters.dateStart) return false;
+      if (filters.dateEnd && issue.reported_log_date && issue.reported_log_date > filters.dateEnd) return false;
+      return true;
+    })
+    .sort((left, right) => compareIssuesForSort(left, right, filters.sortBy));
 
   const selectedIssue =
     (selectedIssueId ? filteredIssues.find((issue) => issue.id === selectedIssueId) : null) ??
@@ -357,12 +361,26 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
               </label>
             </fieldset>
 
+            <label className="sync-engine-field action-items-filter-sort-field">
+              <span>Sort By:</span>
+              <select defaultValue={filters.sortBy} name="sortBy">
+                {ISSUE_SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <div className="action-items-filter-buttons action-items-filter-buttons--band">
+              <Link className="button" href="/admin/issues">
+                Clear
+              </Link>
               <button className="button" type="submit">
                 Apply
               </button>
-              <Link className="button" href="/admin/issues">
-                Clear
+              <Link className="button action-items-report-launch" href={buildIssuesReportHref(params)} target="_blank">
+                Action List
               </Link>
             </div>
           </form>
@@ -404,6 +422,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                   <th>Flock</th>
                   <th>Opened By</th>
                   <th>Resolved Status</th>
+                  <th>Work Order</th>
                 </tr>
               </thead>
               <tbody>
@@ -452,12 +471,27 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                         <td>{context?.placementCode ?? "—"}</td>
                         <td>{formatActor(issue.opened_by, userDisplayNameById, issue)}</td>
                         <td>{issue.status === "resolved" ? "Complete" : "Waiting"}</td>
+                        <td>
+                          {issue.status === "open" ? (
+                            <Link
+                              aria-label="Open work order"
+                              className="button-secondary action-items-work-order-button"
+                              href={`/admin/issues/work-order?issueId=${encodeURIComponent(issue.id)}`}
+                              target="_blank"
+                              title="Open printable work order"
+                            >
+                              <WorkOrderIcon />
+                            </Link>
+                          ) : (
+                            <span className="action-items-work-order-empty">--</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <p className="table-subtitle">No action items matched the current filter set.</p>
                     </td>
                   </tr>
@@ -943,6 +977,24 @@ function buildIssuesHref(
   return query ? `/admin/issues?${query}` : "/admin/issues";
 }
 
+function buildIssuesReportHref(params: Record<string, string | string[] | undefined>) {
+  const search = new URLSearchParams();
+
+  for (const [key, rawValue] of Object.entries(params)) {
+    if (!["farmId", "barnId", "flockCode", "issueType", "dateStart", "dateEnd", "sortBy"].includes(key)) continue;
+    const value = Array.isArray(rawValue) ? rawValue[0] ?? null : rawValue ?? null;
+    if (!value) continue;
+    search.set(key, value);
+  }
+
+  for (const value of paramArray(params.status)) {
+    search.append("status", value);
+  }
+
+  const query = search.toString();
+  return query ? `/admin/issues/report?${query}` : "/admin/issues/report";
+}
+
 function canManageActionTypes(role: ReturnType<typeof resolveRoleTemplate> | null) {
   if (!role) {
     return false;
@@ -957,4 +1009,105 @@ function canManageActionTypes(role: ReturnType<typeof resolveRoleTemplate> | nul
     const action = permissionRow.action.trim().toLowerCase().replace(/[\s-]+/g, "_");
     return action === "platform_settings" && (permissionRow.create || permissionRow.update || permissionRow.menuAccess);
   });
+}
+
+const ISSUE_SORT_OPTIONS: Array<{ value: IssueSortKey; label: string }> = [
+  { value: "date_opened", label: "Date Opened" },
+  { value: "farm_barn", label: "Farm / Barn" },
+  { value: "title", label: "Title" },
+  { value: "status", label: "Status" },
+];
+
+function parseIssueSortKey(value: string | null): IssueSortKey {
+  switch (value) {
+    case "farm_barn":
+    case "title":
+    case "status":
+    case "date_opened":
+      return value;
+    default:
+      return "date_opened";
+  }
+}
+
+function compareIssuesForSort(left: EnrichedIssue, right: EnrichedIssue, sortBy: IssueSortKey) {
+  switch (sortBy) {
+    case "farm_barn": {
+      const byContext = compareText(
+        `${left.placementContext?.farmName ?? ""} ${left.placementContext?.barnCode ?? ""} ${left.placementContext?.placementCode ?? ""}`,
+        `${right.placementContext?.farmName ?? ""} ${right.placementContext?.barnCode ?? ""} ${right.placementContext?.placementCode ?? ""}`,
+      );
+      return byContext || compareIssuesAscending(left, right);
+    }
+    case "title": {
+      const byTitle = compareText(left.title || getIssueLabel(left.issue_type), right.title || getIssueLabel(right.issue_type));
+      return byTitle || compareIssuesAscending(left, right);
+    }
+    case "status": {
+      const byStatus = compareText(left.status, right.status);
+      return byStatus || compareIssuesAscending(left, right);
+    }
+    case "date_opened":
+    default: {
+      const leftOpened = resolveIssueOpenedSortDate(left);
+      const rightOpened = resolveIssueOpenedSortDate(right);
+      const byDate = compareDateValue(leftOpened, rightOpened);
+      return byDate || compareIssuesAscending(left, right);
+    }
+  }
+}
+
+function compareIssuesAscending(left: EnrichedIssue, right: EnrichedIssue) {
+  const leftFarm = `${left.placementContext?.farmName ?? ""} ${left.placementContext?.barnCode ?? ""}`;
+  const rightFarm = `${right.placementContext?.farmName ?? ""} ${right.placementContext?.barnCode ?? ""}`;
+  const byContext = compareText(leftFarm, rightFarm);
+  if (byContext !== 0) {
+    return byContext;
+  }
+
+  const leftPlacement = left.placementContext?.placementCode ?? "";
+  const rightPlacement = right.placementContext?.placementCode ?? "";
+  const byPlacement = compareText(leftPlacement, rightPlacement);
+  if (byPlacement !== 0) {
+    return byPlacement;
+  }
+
+  const leftDate = left.reported_log_date ?? left.opened_at ?? "";
+  const rightDate = right.reported_log_date ?? right.opened_at ?? "";
+  return compareDateValue(leftDate, rightDate);
+}
+
+function resolveIssueOpenedSortDate(issue: EnrichedIssue) {
+  const openingUpdate = issue.updates[0] ?? null;
+  return openingUpdate?.effective_date ?? openingUpdate?.created_at ?? issue.reported_log_date ?? issue.opened_at ?? "";
+}
+
+function compareDateValue(left: string, right: string) {
+  const leftTime = left ? new Date(left).getTime() : 0;
+  const rightTime = right ? new Date(right).getTime() : 0;
+  return leftTime - rightTime;
+}
+
+function compareText(left: string | null | undefined, right: string | null | undefined) {
+  return String(left ?? "").localeCompare(String(right ?? ""), undefined, { numeric: true });
+}
+
+function WorkOrderIcon() {
+  return (
+    <svg aria-hidden="true" fill="none" height="16" viewBox="0 0 24 24" width="16">
+      <path
+        d="M8 3.75h8.25A1.75 1.75 0 0 1 18 5.5v13A1.75 1.75 0 0 1 16.25 20.25H7.75A1.75 1.75 0 0 1 6 18.5v-13A1.75 1.75 0 0 1 7.75 3.75H8Zm1.25 0V6h5.5V3.75"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M9 10.25h6M9 13.25h6M9 16.25h3.25"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.6"
+      />
+    </svg>
+  );
 }
