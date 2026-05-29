@@ -269,6 +269,10 @@ Purpose:
 
 # Latest Checkpoint
 
+- `2026-05-29`
+  - [FlockTrax_Off_Farm_Feed_Redirect_Production_Checkpoint_2026-05-29.md](C:\dev\FlockTrax\output\FlockTrax_Off_Farm_Feed_Redirect_Production_Checkpoint_2026-05-29.md)
+  - current best resume point for the off-farm feed redirect production rollout and feed-ticket handling baseline
+
 - `2026-05-28`
   - [FlockTrax_Action_Items_Work_Order_Production_Checkpoint_2026-05-28.md](C:\dev\FlockTrax\output\FlockTrax_Action_Items_Work_Order_Production_Checkpoint_2026-05-28.md)
   - current best resume point for the action-item report/work-order production release and hosted admin build marker `5.3`
@@ -318,6 +322,15 @@ Reason:
 - it records the hosted admin build marker bump to `5.2`
 - it documents the remaining Supabase migration-repair auth issue so it does not get rediscovered the hard way
 
+If the topic is feed-ticket drop redirection, emergency off-farm feed handling, or the newest feed-ticket production baseline, load first:
+
+- [FlockTrax_Off_Farm_Feed_Redirect_Production_Checkpoint_2026-05-29.md](C:\dev\FlockTrax\output\FlockTrax_Off_Farm_Feed_Redirect_Production_Checkpoint_2026-05-29.md)
+
+Reason:
+- it is the newest checkpoint
+- it captures the committed and deployed off-farm redirect rollout for shared feed-ticket handling
+- it clearly records the release boundary that web-admin and Supabase are live while mobile source is updated but not yet built for users
+
 If the topic is action items, work-order printing, flock-history action-item pages, or the current admin production baseline, load first:
 
 - [FlockTrax_Action_Items_Work_Order_Production_Checkpoint_2026-05-28.md](C:\dev\FlockTrax\output\FlockTrax_Action_Items_Work_Order_Production_Checkpoint_2026-05-28.md)
@@ -329,12 +342,12 @@ Reason:
 
 If only one execution-state checkpoint should be loaded first right now, use:
 
-- [FlockTrax_Action_Items_Work_Order_Production_Checkpoint_2026-05-28.md](C:\dev\FlockTrax\output\FlockTrax_Action_Items_Work_Order_Production_Checkpoint_2026-05-28.md)
+- [FlockTrax_Off_Farm_Feed_Redirect_Production_Checkpoint_2026-05-29.md](C:\dev\FlockTrax\output\FlockTrax_Off_Farm_Feed_Redirect_Production_Checkpoint_2026-05-29.md)
 
 Reason:
 - it is the most current checkpoint
-- it captures both repo and production state after the action-item reporting release
-- it includes the exact deployed commit, production deployment id, and hosted admin build marker `5.3`
+- it captures both repo and production state after the off-farm redirect feed-ticket rollout
+- it includes the exact deployed commit, production deployment id, and the mobile-release boundary for the new feature
 
 For broader system state beyond the report feature, also use:
 
