@@ -89,6 +89,8 @@ function emptyDraft() {
   };
 }
 
+const OFF_FARM_PLACEMENT_CODE = "OFF-FARM";
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders(req) });
@@ -197,7 +199,7 @@ Deno.serve(async (req) => {
           .limit(1),
         service
           .from("feed_drops")
-          .select("id,feed_bin_id,placement_id,placement_code,type,drop_weight,drop_order,comment,bin_code,barn_id")
+          .select("id,feed_bin_id,placement_id,placement_code,type,drop_weight,drop_order,comment,bin_code,barn_id,off_farm_redirect")
           .eq("feed_ticket_id", ticketId)
           .order("drop_order", { ascending: true }),
       ]);
@@ -230,11 +232,14 @@ Deno.serve(async (req) => {
               bin_code: bin?.bin_code ?? drop.bin_code ?? null,
               barn_code: bin?.barn_code ?? null,
               placement_id: drop.placement_id ?? null,
-              placement_code: drop.placement_code ?? bin?.active_placement_code ?? null,
+              placement_code: drop.off_farm_redirect === true
+                ? OFF_FARM_PLACEMENT_CODE
+                : drop.placement_code ?? bin?.active_placement_code ?? null,
               feed_type: drop.type ?? null,
               drop_weight_lbs: typeof drop.drop_weight === "number" ? drop.drop_weight : null,
               note: drop.comment ?? null,
               drop_order: typeof drop.drop_order === "number" ? drop.drop_order : 1,
+              off_farm_redirect: drop.off_farm_redirect === true,
             };
           }),
         };

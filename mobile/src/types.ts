@@ -268,6 +268,7 @@ export type FeedDropEntry = {
   drop_weight_lbs: number | null;
   note: string | null;
   drop_order: number;
+  off_farm_redirect?: boolean;
 };
 
 export type FeedTicketType = "Reg" | "xTran" | "iTran" | "f2f";

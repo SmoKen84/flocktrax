@@ -47,6 +47,7 @@ type EditorDrop = {
   drop_weight_lbs: number | null;
   note: string | null;
   drop_order: number;
+  off_farm_redirect?: boolean;
 };
 
 type EditorItem = {
@@ -93,6 +94,7 @@ const DROP_FEED_TYPES = ["Starter", "Grower", "Other"] as const;
 const LOAD_TYPE_OPTIONS = ["Starter", "Grower", "Split"] as const;
 const DRAFT_STORAGE_PREFIX = "flocktrax:feed-ticket-draft";
 const SESSION_RESTORED_EVENT = "flocktrax:session-restored";
+const OFF_FARM_PLACEMENT_CODE = "OFF-FARM";
 
 export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpText, ticketTypeOptions }: Props) {
   const isExistingTicket = Boolean(ticketId);
@@ -198,6 +200,17 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
     }
 
     const normalizedDrops = item.drops.map((drop) => {
+      if (drop.off_farm_redirect) {
+        return {
+          ...drop,
+          feed_bin_id: null,
+          bin_code: null,
+          barn_code: null,
+          placement_id: null,
+          placement_code: OFF_FARM_PLACEMENT_CODE,
+        };
+      }
+
       const regPlacement = resolveRegPlacement(item, placementOptions, drop);
       const manualHistoricalFallbackAllowed = isRegManualFallbackAllowed(
         item,
@@ -598,17 +611,20 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
               <span>Flock</span>
               <span>Feed Type</span>
               <span>Weight</span>
+              <span>Redirect</span>
               <span>Note</span>
               <span />
             </div>
             {item.drops.map((drop, index) => {
+              const isOffFarmRedirect = drop.off_farm_redirect === true;
               const currentPlacement = resolvePlacementOption(placementOptions, drop);
               const currentBin = resolveBinOption(item.bins, drop);
-              const regLockedPlacement = item.ticket_type === "Reg" ? resolveRegPlacement(item, placementOptions, drop) : null;
+              const regLockedPlacement =
+                item.ticket_type === "Reg" && !isOffFarmRedirect ? resolveRegPlacement(item, placementOptions, drop) : null;
               const regCanManuallyPickHistorical = item.ticket_type === "Reg"
                 ? isRegManualFallbackAllowed(item, placementOptions, drop, allowHistoricalEntry)
                 : false;
-              const displayedPlacement = regLockedPlacement ?? currentPlacement;
+              const displayedPlacement = isOffFarmRedirect ? null : regLockedPlacement ?? currentPlacement;
               const regManualPlacementOptions = item.ticket_type === "Reg" && regCanManuallyPickHistorical
                 ? resolveRegManualPlacementOptions(placementOptions, currentBin)
                 : [];
@@ -617,6 +633,7 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                 <div className="feed-ticket-editor-drop-row" key={`${drop.id ?? "new"}-${index}`}>
                   <span className="feed-ticket-editor-ordinal">{index + 1}</span>
                   <select
+                    disabled={isOffFarmRedirect}
                     onChange={(event) => {
                       const nextBin = item.bins.find((bin) => bin.feed_bin_id === event.target.value) ?? null;
                       const nextRegPlacement = item.ticket_type === "Reg" ? resolveRegPlacementForBin(item, placementOptions, nextBin) : null;
@@ -630,7 +647,7 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                     }}
                     value={drop.feed_bin_id ?? ""}
                   >
-                    <option value="">Select Bin</option>
+                    <option value="">{isOffFarmRedirect ? "Off Farm Redirect" : "Select Bin"}</option>
                     {currentBin ? (
                       <option value={currentBin.feed_bin_id}>{formatBinLabel(currentBin)}</option>
                     ) : null}
@@ -643,7 +660,7 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                       ))}
                   </select>
                   <select
-                    disabled={item.ticket_type === "Reg" && !regCanManuallyPickHistorical}
+                    disabled={isOffFarmRedirect || (item.ticket_type === "Reg" && !regCanManuallyPickHistorical)}
                     onChange={(event) => {
                       const nextPlacement = placementOptions.find((option) => option.placement_id === event.target.value) ?? null;
                       updateDrop(index, item, setItem, {
@@ -651,9 +668,11 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                         placement_code: nextPlacement?.placement_code ?? null,
                       });
                     }}
-                    value={displayedPlacement?.placement_id ?? ""}
+                    value={isOffFarmRedirect ? OFF_FARM_PLACEMENT_CODE : displayedPlacement?.placement_id ?? ""}
                   >
-                    {item.ticket_type === "Reg" ? (
+                    {isOffFarmRedirect ? (
+                      <option value={OFF_FARM_PLACEMENT_CODE}>{OFF_FARM_PLACEMENT_CODE}</option>
+                    ) : item.ticket_type === "Reg" ? (
                       regCanManuallyPickHistorical ? (
                         <>
                           <option value="">
@@ -713,8 +732,30 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                     type="number"
                     value={drop.drop_weight_lbs ?? ""}
                   />
+                  <label className="feed-ticket-editor-redirect-toggle">
+                    <input
+                      checked={isOffFarmRedirect}
+                      onChange={(event) =>
+                        updateDrop(index, item, setItem, event.target.checked
+                          ? {
+                              off_farm_redirect: true,
+                              feed_bin_id: null,
+                              bin_code: null,
+                              barn_code: null,
+                              placement_id: null,
+                              placement_code: OFF_FARM_PLACEMENT_CODE,
+                            }
+                          : {
+                              off_farm_redirect: false,
+                              placement_code: null,
+                            })}
+                      type="checkbox"
+                    />
+                    <span>Off Farm</span>
+                  </label>
                   <input
                     onChange={(event) => updateDrop(index, item, setItem, { note: event.target.value || null })}
+                    placeholder={isOffFarmRedirect ? "Required: where was this feed redirected?" : ""}
                     type="text"
                     value={drop.note ?? ""}
                   />
@@ -784,6 +825,7 @@ function normalizeItem(item: EditorItem): EditorItem {
     ticket_type: item.ticket_type ?? "Reg",
     drops: (item.drops ?? []).map((drop, index) => ({
       ...drop,
+      off_farm_redirect: drop.off_farm_redirect === true,
       drop_order: typeof drop.drop_order === "number" ? drop.drop_order : index + 1,
     })),
   };
@@ -797,8 +839,12 @@ function validateItem(item: EditorItem) {
   if (item.drops.length === 0) return "At least one drop is required.";
 
   for (const [index, drop] of item.drops.entries()) {
-    if (!drop.feed_bin_id) return `Drop ${index + 1} is missing a bin.`;
-    if (!drop.placement_id) return `Drop ${index + 1} is missing a flock.`;
+    if (drop.off_farm_redirect) {
+      if (!drop.note?.trim()) return `Drop ${index + 1} must include a note when marked Off Farm Redirect.`;
+    } else {
+      if (!drop.feed_bin_id) return `Drop ${index + 1} is missing a bin.`;
+      if (!drop.placement_id) return `Drop ${index + 1} is missing a flock.`;
+    }
     if (drop.drop_weight_lbs === null || drop.drop_weight_lbs === undefined || Math.abs(drop.drop_weight_lbs) <= 0.001) {
       return `Drop ${index + 1} must have a non-zero weight.`;
     }
@@ -816,6 +862,7 @@ function buildEmptyDrop(order: number): EditorDrop {
     drop_weight_lbs: null,
     note: null,
     drop_order: order,
+    off_farm_redirect: false,
   };
 }
 

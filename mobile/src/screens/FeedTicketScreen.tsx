@@ -35,6 +35,7 @@ type PendingDropState = {
   drop_weight_lbs: number | null;
   feed_type: string | null;
   note: string | null;
+  off_farm_redirect: boolean;
 };
 
 type PickerOption = {
@@ -47,6 +48,7 @@ type PickerOption = {
 const serifFont = Platform.select({ ios: "Georgia", android: "serif", default: undefined });
 const FEED_TYPES = ["Starter", "Grower", "Other"] as const;
 const TICKET_FEED_TYPES = ["Starter", "Grower", "Split"] as const;
+const OFF_FARM_PLACEMENT_CODE = "OFF-FARM";
 
 export function FeedTicketScreen({ canSave, item, loading, onBack, onSave }: Props) {
   const [draft, setDraft] = useState<FeedTicketItem | null>(item);
@@ -108,6 +110,7 @@ export function FeedTicketScreen({ canSave, item, loading, onBack, onSave }: Pro
     () => draft?.bins.find((bin) => bin.feed_bin_id === pendingDrop.feed_bin_id) ?? null,
     [draft, pendingDrop.feed_bin_id],
   );
+  const isOffFarmRedirect = pendingDrop.off_farm_redirect === true;
 
   async function handlePrimaryAction() {
     if (!draft) return;
@@ -167,15 +170,16 @@ export function FeedTicketScreen({ canSave, item, loading, onBack, onSave }: Pro
 
     const nextDrop: FeedDropEntry = {
       id: selectedDropIndex !== null ? draft.drops[selectedDropIndex]?.id ?? null : null,
-      feed_bin_id: selectedBin?.feed_bin_id ?? null,
-      bin_code: selectedBin?.bin_code ?? null,
-      barn_code: selectedBin?.barn_code ?? null,
-      placement_id: selectedBin?.active_placement_id ?? null,
-      placement_code: selectedBin?.active_placement_code ?? null,
+      feed_bin_id: isOffFarmRedirect ? null : selectedBin?.feed_bin_id ?? null,
+      bin_code: isOffFarmRedirect ? null : selectedBin?.bin_code ?? null,
+      barn_code: isOffFarmRedirect ? null : selectedBin?.barn_code ?? null,
+      placement_id: isOffFarmRedirect ? null : selectedBin?.active_placement_id ?? null,
+      placement_code: isOffFarmRedirect ? OFF_FARM_PLACEMENT_CODE : selectedBin?.active_placement_code ?? null,
       feed_type: pendingDrop.feed_type,
       drop_weight_lbs: pendingDrop.drop_weight_lbs,
       note: pendingDrop.note,
       drop_order: selectedDropIndex !== null ? selectedDropIndex + 1 : draft.drops.length + 1,
+      off_farm_redirect: isOffFarmRedirect,
     };
 
     if (isExistingTicket) {
@@ -516,27 +520,51 @@ export function FeedTicketScreen({ canSave, item, loading, onBack, onSave }: Pro
                     <View style={styles.gridThree}>
                       <StepSelectButton
                         label="Farm"
-                        value={selectedFarm?.farm_name || "Select"}
-                        onPress={() => setPickerState({ type: "farm" })}
+                        value={isOffFarmRedirect ? "Off Farm" : selectedFarm?.farm_name || "Select"}
+                        valueTone={isOffFarmRedirect ? "value" : "value"}
+                        onPress={() => {
+                          if (isOffFarmRedirect) return;
+                          setPickerState({ type: "farm" });
+                        }}
                       />
                       <StepSelectButton
                         label="Barn"
-                        value={selectedBarn?.barn_code || "Select"}
-                        onPress={() => setPickerState({ type: "barn", farmId: pendingDrop.farmId })}
+                        value={isOffFarmRedirect ? "--" : selectedBarn?.barn_code || "Select"}
+                        onPress={() => {
+                          if (isOffFarmRedirect) return;
+                          setPickerState({ type: "barn", farmId: pendingDrop.farmId });
+                        }}
                       />
                       <StepSelectButton
                         label="Bin"
-                        value={selectedBin?.bin_code || "Select"}
-                        valueTone={selectedBin ? "value" : "danger"}
-                        onPress={() =>
+                        value={isOffFarmRedirect ? "--" : selectedBin?.bin_code || "Select"}
+                        valueTone={isOffFarmRedirect ? "value" : selectedBin ? "value" : "danger"}
+                        onPress={() => {
+                          if (isOffFarmRedirect) return;
                           setPickerState({
                             type: "bin",
                             farmId: pendingDrop.farmId,
                             barnId: pendingDrop.barnId,
-                          })
-                        }
+                          });
+                        }}
                       />
                     </View>
+
+                    <FeedTypeToggle
+                      compact
+                      label="Off Farm Redirect"
+                      checked={isOffFarmRedirect}
+                      onPress={() => {
+                        setPendingDrop((current) => ({
+                          ...current,
+                          farmId: null,
+                          barnId: null,
+                          feed_bin_id: null,
+                          off_farm_redirect: !current.off_farm_redirect,
+                        }));
+                        setHasUnsavedChanges(true);
+                      }}
+                    />
 
                     <View style={styles.dropBodyRow}>
                       <View style={styles.dropTypeColumn}>
@@ -580,13 +608,16 @@ export function FeedTicketScreen({ canSave, item, loading, onBack, onSave }: Pro
                     </View>
 
                     <Text style={styles.pendingPlacement}>
-                      {selectedBin?.active_placement_code
+                      {isOffFarmRedirect
+                        ? "This drop will be excluded from internal bin and flock feed allocation."
+                        : selectedBin?.active_placement_code
                         ? `Active flock ${selectedBin.active_placement_code}`
                         : "Bin must resolve to an active flock before the drop can be saved."}
                     </Text>
 
                     <LabeledField
                       label="Drop Comment"
+                      placeholder={isOffFarmRedirect ? "Required: where was this feed redirected?" : undefined}
                       value={pendingDrop.note}
                       onChange={(value) => {
                         setPendingDrop((current) => ({ ...current, note: value || null }));
@@ -729,6 +760,7 @@ function buildPendingDrop(previous?: PendingDropState | null): PendingDropState 
     drop_weight_lbs: null,
     feed_type: null,
     note: null,
+    off_farm_redirect: previous?.off_farm_redirect ?? false,
   };
 }
 
@@ -742,12 +774,15 @@ function validateTicketHeader(draft: FeedTicketItem) {
 }
 
 function validatePendingDrop(drop: PendingDropState, bin: FeedBinOption | null) {
-  if (!drop.farmId) return "Select a farm for this drop.";
-  if (!drop.barnId) return "Select a barn for this drop.";
-  if (!drop.feed_bin_id || !bin) return "Select a bin for this drop.";
-  if (!bin.active_placement_id) return "That bin does not have an active flock assignment.";
+  if (!drop.off_farm_redirect) {
+    if (!drop.farmId) return "Select a farm for this drop.";
+    if (!drop.barnId) return "Select a barn for this drop.";
+    if (!drop.feed_bin_id || !bin) return "Select a bin for this drop.";
+    if (!bin.active_placement_id) return "That bin does not have an active flock assignment.";
+  }
   if (!drop.feed_type?.trim()) return "Choose the feed type for this drop.";
   if (!drop.drop_weight_lbs || drop.drop_weight_lbs <= 0) return "Drop pounds must be greater than zero.";
+  if (drop.off_farm_redirect && !drop.note?.trim()) return "Off Farm Redirect drops require a note.";
   return null;
 }
 
@@ -848,15 +883,16 @@ async function trySaveExistingDrop({
 
   const nextDrop: FeedDropEntry = {
     id: selectedDropIndex !== null ? draft.drops[selectedDropIndex]?.id ?? null : null,
-    feed_bin_id: selectedBin?.feed_bin_id ?? null,
-    bin_code: selectedBin?.bin_code ?? null,
-    barn_code: selectedBin?.barn_code ?? null,
-    placement_id: selectedBin?.active_placement_id ?? null,
-    placement_code: selectedBin?.active_placement_code ?? null,
+    feed_bin_id: pendingDrop.off_farm_redirect ? null : selectedBin?.feed_bin_id ?? null,
+    bin_code: pendingDrop.off_farm_redirect ? null : selectedBin?.bin_code ?? null,
+    barn_code: pendingDrop.off_farm_redirect ? null : selectedBin?.barn_code ?? null,
+    placement_id: pendingDrop.off_farm_redirect ? null : selectedBin?.active_placement_id ?? null,
+    placement_code: pendingDrop.off_farm_redirect ? OFF_FARM_PLACEMENT_CODE : selectedBin?.active_placement_code ?? null,
     feed_type: pendingDrop.feed_type,
     drop_weight_lbs: pendingDrop.drop_weight_lbs,
     note: pendingDrop.note,
     drop_order: selectedDropIndex !== null ? selectedDropIndex + 1 : draft.drops.length + 1,
+    off_farm_redirect: pendingDrop.off_farm_redirect,
   };
 
   const nextDraft = {
@@ -898,6 +934,7 @@ function buildPendingDropFromDrop(drop: FeedDropEntry, bins: FeedBinOption[]): P
     drop_weight_lbs: drop.drop_weight_lbs ?? null,
     feed_type: drop.feed_type ?? null,
     note: drop.note ?? null,
+    off_farm_redirect: drop.off_farm_redirect === true,
   };
 }
 
@@ -963,6 +1000,7 @@ function applyPickerSelection(
       farmId: selectedId,
       barnId: null,
       feed_bin_id: null,
+      off_farm_redirect: false,
     }));
     return;
   }
@@ -973,6 +1011,7 @@ function applyPickerSelection(
       farmId: pickerState.farmId,
       barnId: selectedId,
       feed_bin_id: null,
+      off_farm_redirect: false,
     }));
     return;
   }
@@ -985,6 +1024,7 @@ function applyPickerSelection(
     farmId: selectedBin.farm_id,
     barnId: selectedBin.barn_id,
     feed_bin_id: selectedBin.feed_bin_id,
+    off_farm_redirect: false,
   }));
 }
 
@@ -1113,6 +1153,7 @@ type LabeledFieldProps = {
   onChange: (value: string) => void;
   keyboardType?: "default" | "decimal-pad" | "number-pad";
   multiline?: boolean;
+  placeholder?: string;
 };
 
 function LabeledField({
@@ -1121,6 +1162,7 @@ function LabeledField({
   onChange,
   keyboardType = "default",
   multiline = false,
+  placeholder,
 }: LabeledFieldProps) {
   return (
     <View style={styles.labeledField}>
@@ -1129,6 +1171,7 @@ function LabeledField({
         keyboardType={keyboardType}
         multiline={multiline}
         onChangeText={onChange}
+        placeholder={placeholder}
         placeholderTextColor="#A59A89"
         style={[styles.input, multiline && styles.inputMultiline]}
         textAlignVertical={multiline ? "top" : "center"}

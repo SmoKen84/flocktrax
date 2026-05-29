@@ -115,6 +115,7 @@ export default async function FeedTicketPrintPage({ searchParams }: FeedTicketPr
                 <th>Flock</th>
                 <th>Feed Type</th>
                 <th className="feed-ticket-print-number-col">Drop Weight</th>
+                <th>Redirect</th>
                 <th>Note</th>
               </tr>
             </thead>
@@ -129,12 +130,13 @@ export default async function FeedTicketPrintPage({ searchParams }: FeedTicketPr
                     <td className="feed-ticket-print-emphasis">{drop.placementCode || "--"}</td>
                     <td>{drop.feedType || "--"}</td>
                     <td className="feed-ticket-print-number-col">{formatWeight(drop.dropWeightLbs)}</td>
+                    <td className="feed-ticket-print-flag-col">{drop.offFarmRedirect ? "X" : ""}</td>
                     <td>{drop.comment || "--"}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td className="feed-ticket-print-empty" colSpan={8}>
+                  <td className="feed-ticket-print-empty" colSpan={9}>
                     No drop lines are saved for this feed ticket.
                   </td>
                 </tr>

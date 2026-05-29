@@ -107,6 +107,7 @@ export default async function FeedTicketReportPage({ searchParams }: FeedTicketR
                   <th>Bin</th>
                   <th>Feed</th>
                   <th className="feed-ticket-report-number-col">Drop</th>
+                  <th>Redirect</th>
                   <th>Note</th>
                 </tr>
               </thead>
@@ -122,12 +123,13 @@ export default async function FeedTicketReportPage({ searchParams }: FeedTicketR
                       <td>{row.binCode || "--"}</td>
                       <td>{row.feedType || "--"}</td>
                       <td className="feed-ticket-report-number-col">{formatWeightAccounting(row.dropWeightLbs)}</td>
+                      <td className="feed-ticket-report-flag-col">{row.offFarmRedirect ? "X" : ""}</td>
                       <td>{row.comment || "--"}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td className="feed-ticket-report-empty" colSpan={9}>
+                    <td className="feed-ticket-report-empty" colSpan={10}>
                       No feed drops matched the selected flock and report filters.
                     </td>
                   </tr>

@@ -32,6 +32,7 @@ export type FeedTicketAdminRow = {
   feedType: string | null;
   dropWeightLbs: number | null;
   comment: string | null;
+  offFarmRedirect: boolean;
 };
 
 type FeedTicketAdminRowWithSort = FeedTicketAdminRow & {
@@ -118,6 +119,7 @@ export type FeedTicketPrintBundle = {
     feedType: string | null;
     dropWeightLbs: number | null;
     comment: string | null;
+    offFarmRedirect: boolean;
   }>;
   totals: {
     dropCount: number;
@@ -150,6 +152,7 @@ type FeedDropRow = {
   type: string | null;
   comment: string | null;
   bin_code: string | null;
+  off_farm_redirect?: boolean | null;
 };
 
 type FeedBinRow = {
@@ -238,7 +241,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
 
   const { data: dropRows, error: dropsError } = await admin
     .from("feed_drops")
-    .select("id,feed_ticket_id,farm_id,barn_id,feed_bin_id,drop_weight,placement_code,type,comment,bin_code")
+    .select("id,feed_ticket_id,farm_id,barn_id,feed_bin_id,drop_weight,placement_code,type,comment,bin_code,off_farm_redirect")
     .in("feed_ticket_id", ticketIds);
   if (dropsError) {
     throw new Error(dropsError.message);
@@ -340,6 +343,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
         feedType: feedType || null,
         dropWeightLbs: typeof drop.drop_weight === "number" ? drop.drop_weight : null,
         comment: normalize(drop.comment) || null,
+        offFarmRedirect: drop.off_farm_redirect === true,
         barnSortCode: barnSortCodeById.get(drop.barn_id ?? "") || null,
       } satisfies FeedTicketAdminRowWithSort;
     })
@@ -495,7 +499,7 @@ export async function getFeedTicketPrintBundle(ticketId: string): Promise<FeedTi
 
   const { data: dropRows, error: dropError } = await admin
     .from("feed_drops")
-    .select("id,drop_order,farm_id,barn_id,feed_bin_id,placement_code,type,drop_weight,comment,bin_code")
+    .select("id,drop_order,farm_id,barn_id,feed_bin_id,placement_code,type,drop_weight,comment,bin_code,off_farm_redirect")
     .eq("feed_ticket_id", normalizedTicketId)
     .order("drop_order", { ascending: true })
     .order("id", { ascending: true });
@@ -515,6 +519,7 @@ export async function getFeedTicketPrintBundle(ticketId: string): Promise<FeedTi
     drop_weight: number | null;
     comment: string | null;
     bin_code: string | null;
+    off_farm_redirect?: boolean | null;
   }>;
 
   const farmIds = Array.from(new Set(drops.map((row) => row.farm_id).filter(Boolean)));
@@ -574,6 +579,7 @@ export async function getFeedTicketPrintBundle(ticketId: string): Promise<FeedTi
     feedType: normalize(drop.type) || null,
     dropWeightLbs: typeof drop.drop_weight === "number" ? drop.drop_weight : null,
     comment: normalize(drop.comment) || null,
+    offFarmRedirect: drop.off_farm_redirect === true,
   }));
 
   const totalDropWeightLbs = normalizedDrops.reduce((sum, drop) => sum + (drop.dropWeightLbs ?? 0), 0);

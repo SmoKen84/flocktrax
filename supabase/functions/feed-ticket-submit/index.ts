@@ -15,6 +15,8 @@ type FlockStateRow = {
   is_in_barn: boolean | null;
 };
 
+const OFF_FARM_PLACEMENT_CODE = "OFF-FARM";
+
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
   const reqHeaders = req.headers.get("Access-Control-Request-Headers") ?? "authorization, content-type, x-adalo-test";
@@ -266,9 +268,20 @@ function normalizeDrops(rawDrops: unknown) {
         drop_weight_lbs: toNumber(row.drop_weight_lbs),
         note: typeof row.note === "string" ? row.note : null,
         drop_order: typeof row.drop_order === "number" ? row.drop_order : index + 1,
+        off_farm_redirect: row.off_farm_redirect === true,
       };
     })
-    .filter((drop) => drop.feed_bin_id && drop.placement_id && drop.drop_weight_lbs !== null && !isApproximatelyZero(drop.drop_weight_lbs));
+    .filter((drop) => {
+      if (drop.drop_weight_lbs === null || isApproximatelyZero(drop.drop_weight_lbs)) {
+        return false;
+      }
+
+      if (drop.off_farm_redirect) {
+        return true;
+      }
+
+      return Boolean(drop.feed_bin_id && drop.placement_id);
+    });
 }
 
 function hasUnresolvedPlacements(
@@ -391,6 +404,19 @@ Deno.serve(async (req) => {
       return json(req, { ok: false, error: "At least one valid feed drop is required." }, 400);
     }
 
+    for (const [index, drop] of drops.entries()) {
+      if (drop.off_farm_redirect) {
+        if (toTrimmedString(drop.note).length === 0) {
+          return json(req, { ok: false, error: `Drop ${index + 1} must include a note when marked Off Farm Redirect.` }, 400);
+        }
+        continue;
+      }
+
+      if (!isUuid(drop.feed_bin_id) || !isUuid(drop.placement_id)) {
+        return json(req, { ok: false, error: `Drop ${index + 1} is missing a valid bin or flock.` }, 400);
+      }
+    }
+
     const totalDropped = drops.reduce((sum, drop) => sum + (drop.drop_weight_lbs ?? 0), 0);
     const mathError = validateTicketMath(ticketType, ticketWeight, totalDropped, drops);
     if (mathError) {
@@ -417,7 +443,9 @@ Deno.serve(async (req) => {
     const accessContext = await getMobileAccessContext(userClient, userId);
     const allowHistoricalOverride = allowHistoricalEntry && isAdminLikeRole(accessContext.role);
 
-    const placementIds = Array.from(new Set(drops.map((drop) => drop.placement_id).filter(isUuid)));
+    const placementIds = Array.from(
+      new Set(drops.filter((drop) => !drop.off_farm_redirect).map((drop) => drop.placement_id).filter(isUuid)),
+    );
     const placementResult = placementIds.length === 0
       ? { data: [], error: null }
       : await service
@@ -462,7 +490,9 @@ Deno.serve(async (req) => {
       return json(req, { ok: false, error: placementStateError }, 400);
     }
 
-    const binIds = Array.from(new Set(drops.map((drop) => drop.feed_bin_id).filter(isUuid)));
+    const binIds = Array.from(
+      new Set(drops.filter((drop) => !drop.off_farm_redirect).map((drop) => drop.feed_bin_id).filter(isUuid)),
+    );
     const binsResult = binIds.length === 0
       ? { data: [], error: null }
       : await service
@@ -584,20 +614,25 @@ Deno.serve(async (req) => {
     }
 
     const insertDropsPayload = drops.map((drop, index) => {
-      const bin = binById.get(drop.feed_bin_id ?? "");
+      const bin = drop.off_farm_redirect ? null : binById.get(drop.feed_bin_id ?? "");
       return {
       feed_ticket_id: savedTicketId,
-      feed_bin_id: drop.feed_bin_id,
-      placement_id: drop.placement_id,
-      placement_code: drop.placement_code ?? placementCodeById.get(drop.placement_id ?? "") ?? null,
+      feed_bin_id: drop.off_farm_redirect ? null : drop.feed_bin_id,
+      placement_id: drop.off_farm_redirect ? null : drop.placement_id,
+      placement_code: drop.off_farm_redirect
+        ? OFF_FARM_PLACEMENT_CODE
+        : drop.placement_code ?? placementCodeById.get(drop.placement_id ?? "") ?? null,
       ticket_num: ticketNum,
-      bin_code: bin?.bin_num === null || bin?.bin_num === undefined ? drop.feed_bin_id : String(bin.bin_num),
+      bin_code: drop.off_farm_redirect
+        ? null
+        : bin?.bin_num === null || bin?.bin_num === undefined ? drop.feed_bin_id : String(bin.bin_num),
       type: drop.feed_type ?? (typeof payload.source_type === "string" && payload.source_type.trim() ? payload.source_type.trim() : "mill"),
       drop_weight: drop.drop_weight_lbs,
       comment: drop.note,
       farm_id: bin?.farm_id ?? null,
       barn_id: bin?.barn_id ?? null,
       drop_order: index + 1,
+      off_farm_redirect: drop.off_farm_redirect === true,
       };
     });
 
@@ -612,7 +647,7 @@ Deno.serve(async (req) => {
       service.from("farms").select("id,farm_name"),
       service
         .from("feed_drops")
-        .select("id,feed_bin_id,placement_id,placement_code,type,drop_weight,drop_order,comment,bin_code")
+        .select("id,feed_bin_id,placement_id,placement_code,type,drop_weight,drop_order,comment,bin_code,off_farm_redirect")
         .eq("feed_ticket_id", savedTicketId)
         .order("drop_order", { ascending: true }),
       service
@@ -681,11 +716,12 @@ Deno.serve(async (req) => {
             bin_code: bin?.bin_code ?? drop.bin_code ?? null,
             barn_code: bin?.barn_code ?? null,
             placement_id: drop.placement_id ?? null,
-            placement_code: drop.placement_code ?? null,
+            placement_code: drop.off_farm_redirect === true ? OFF_FARM_PLACEMENT_CODE : drop.placement_code ?? null,
             feed_type: drop.type ?? null,
             drop_weight_lbs: typeof drop.drop_weight === "number" ? drop.drop_weight : null,
             note: drop.comment ?? null,
             drop_order: typeof drop.drop_order === "number" ? drop.drop_order : 1,
+            off_farm_redirect: drop.off_farm_redirect === true,
           };
         }),
       },
