@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
+import { LiveSidebarClock } from "@/components/live-sidebar-clock";
 import { SessionRecoveryLayer } from "@/components/session-recovery-layer";
 
 const consoleLinks = [
@@ -71,19 +72,6 @@ export function AdminShell({ children, displayName, roleKey, roleLabel, scopeLab
     const normalized = normalizeRoleKey(roleKey);
     return normalized === "admin" || normalized === "super_admin" || normalized === "superadmin";
   })();
-  const now = new Date();
-  const sidebarDate = new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "America/Chicago",
-  }).format(now);
-  const sidebarTime = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "America/Chicago",
-  }).format(now);
 
   useEffect(() => {
     let cancelled = false;
@@ -201,8 +189,8 @@ export function AdminShell({ children, displayName, roleKey, roleLabel, scopeLab
             </form>
           </div>
 
-          <div className="splash-sidebar-datetime" suppressHydrationWarning>
-            <p>{`${sidebarDate} - ${sidebarTime}`}</p>
+          <div className="splash-sidebar-datetime">
+            <LiveSidebarClock separator=" - " />
           </div>
 
           <div className="splash-sidebar-groups">

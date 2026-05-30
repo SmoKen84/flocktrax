@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { reportSessionExpired } from "@/components/session-recovery-layer";
 import {
@@ -98,6 +98,7 @@ const OFF_FARM_PLACEMENT_CODE = "OFF-FARM";
 
 export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpText, ticketTypeOptions }: Props) {
   const isExistingTicket = Boolean(ticketId);
+  const skipNextDraftWriteRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -136,17 +137,15 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
         }
         const normalized = normalizeItem(payload.item);
         const restoredDraft = readDraft(ticketId);
-        if (restoredDraft && ticketId) {
-          setItem(restoredDraft);
+        setItem(normalized);
+        setRecoverableDraft(restoredDraft);
+        if (restoredDraft) {
           setMessageTone("success");
-          setMessage("Recovered unsaved feed ticket work from this browser.");
-        } else {
-          setItem(normalized);
-          setRecoverableDraft(restoredDraft && !ticketId ? restoredDraft : null);
-          if (restoredDraft && !ticketId) {
-            setMessageTone("success");
-            setMessage("Unsaved new-ticket work was found in this browser. Recover it or start fresh.");
-          }
+          setMessage(
+            ticketId
+              ? "Unsaved edits for this ticket were found in this browser. Recover them only if you want to replace the saved ticket view."
+              : "Unsaved new-ticket work was found in this browser. Recover it or start fresh.",
+          );
         }
         setPlacementOptions(payload.placementOptions ?? []);
         setTicketNumberDefaults(payload.ticketNumberDefaults ?? { voucherPrefix: null, nextVoucherNumber: null });
@@ -251,6 +250,11 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
       return;
     }
 
+    if (skipNextDraftWriteRef.current) {
+      skipNextDraftWriteRef.current = false;
+      return;
+    }
+
     writeDraft(ticketId, item);
   }, [item, ticketId]);
 
@@ -297,10 +301,12 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
         throw new Error(payload.error ?? "Feed ticket save failed.");
       }
       const saved = normalizeItem(payload.item);
+      skipNextDraftWriteRef.current = true;
       setItem(saved);
       clearDraft(ticketId);
       clearDraft(saved.id ?? null);
       clearDraft(null);
+      setRecoverableDraft(null);
       setMessageTone("success");
       setMessage("Feed ticket saved.");
       onSaved(saved.id ?? null);
@@ -324,10 +330,11 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
   }
 
   function handleDiscardRecoveredDraft() {
+    clearDraft(ticketId);
     clearDraft(null);
     setRecoverableDraft(null);
     setMessageTone("success");
-    setMessage("Discarded browser draft. Starting a fresh new ticket.");
+    setMessage(isExistingTicket ? "Discarded browser draft. Showing the saved ticket." : "Discarded browser draft. Starting a fresh new ticket.");
   }
 
   async function handleDelete() {
@@ -442,9 +449,9 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
             <div className={`feed-ticket-editor-banner ${messageTone === "success" ? "is-success" : "is-error"}`}>{message}</div>
           ) : null}
 
-          {!isExistingTicket && recoverableDraft ? (
+          {recoverableDraft ? (
             <div className="feed-ticket-editor-banner is-success feed-ticket-editor-recovery-actions">
-              <span>Unsaved new-ticket work is available in this browser.</span>
+              <span>{isExistingTicket ? "Unsaved ticket edits are available in this browser." : "Unsaved new-ticket work is available in this browser."}</span>
               <div className="feed-ticket-editor-recovery-buttons">
                 <button className="button" onClick={handleRecoverDraft} type="button">
                   Recover Draft

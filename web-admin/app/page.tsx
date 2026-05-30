@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
+import { LiveSidebarClock } from "@/components/live-sidebar-clock";
 import { getPlatformSplashContent } from "@/lib/platform-content";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -72,20 +73,6 @@ export default async function HomePage() {
     user?.user_metadata?.scope ??
     null;
 
-  const now = new Date();
-  const sidebarDate = new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "America/Chicago",
-  }).format(now);
-  const sidebarTime = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "America/Chicago",
-  }).format(now);
-
   const renderSplashNavItem = (item: { label: string; href?: string }) => {
     if (isSignedIn && item.href) {
       return (
@@ -108,66 +95,64 @@ export default async function HomePage() {
         {splash.versionLine ? <p className="splash-sidebar-version-tag">{splash.versionLine}</p> : null}
 
         <aside className="splash-sidebar">
-        <div className="splash-sidebar-utility-row">
-          {isSignedIn ? (
-            <Link
-              aria-label="Open options and settings"
-              className="splash-sidebar-utility-button"
-              href="/admin/settings"
-              title="Options & Settings"
-            >
-              ...
-            </Link>
+          <div className="splash-sidebar-utility-row">
+            {isSignedIn ? (
+              <Link
+                aria-label="Open options and settings"
+                className="splash-sidebar-utility-button"
+                href="/admin/settings"
+                title="Options & Settings"
+              >
+                ...
+              </Link>
+            ) : (
+              <span aria-hidden="true" className="splash-sidebar-utility-button" data-disabled="true">
+                ...
+              </span>
+            )}
+          </div>
+
+          <div className="splash-sidebar-brand">
+            <img alt="FlockTrax Victor mark" className="splash-sidebar-logo" src="/victor.svg" />
+            <div className="splash-sidebar-copy">
+              <FlockTraxWordmark compact descriptor={splash.descriptor} product="Admin" tone="light" />
+              <p className="splash-sidebar-subcopy">{splash.productLabel}</p>
+            </div>
+          </div>
+
+          {!isSignedIn ? (
+            <div className="splash-sidebar-login-row">
+              <Link className="button splash-sidebar-login-button" href="/login">
+                Login
+              </Link>
+            </div>
           ) : (
-            <span aria-hidden="true" className="splash-sidebar-utility-button" data-disabled="true">
-              ...
-            </span>
+            <div className="splash-sidebar-identity-card" aria-label="Signed in user">
+              <p className="splash-sidebar-identity-name">{displayName}</p>
+              <p className="splash-sidebar-identity-role">{roleLabel}</p>
+              {scopeLabel ? <p className="splash-sidebar-identity-scope">{scopeLabel}</p> : null}
+            </div>
           )}
-        </div>
 
-        <div className="splash-sidebar-brand">
-          <img alt="FlockTrax Victor mark" className="splash-sidebar-logo" src="/victor.svg" />
-          <div className="splash-sidebar-copy">
-            <FlockTraxWordmark compact descriptor={splash.descriptor} product="Admin" tone="light" />
-            <p className="splash-sidebar-subcopy">{splash.productLabel}</p>
-          </div>
-        </div>
-
-        {!isSignedIn ? (
-          <div className="splash-sidebar-login-row">
-            <Link className="button splash-sidebar-login-button" href="/login">
-              Login
-            </Link>
-          </div>
-        ) : (
-          <div className="splash-sidebar-identity-card" aria-label="Signed in user">
-            <p className="splash-sidebar-identity-name">{displayName}</p>
-            <p className="splash-sidebar-identity-role">{roleLabel}</p>
-            {scopeLabel ? <p className="splash-sidebar-identity-scope">{scopeLabel}</p> : null}
-          </div>
-        )}
-
-        <div className="splash-sidebar-datetime">
-          <p>
-            {sidebarDate} · {sidebarTime}
-          </p>
-        </div>
-
-        <div className="splash-sidebar-groups" data-disabled={!isSignedIn}>
-          <div className="splash-sidebar-group" data-disabled={!isSignedIn}>
-            <p className="splash-sidebar-label">Console</p>
-            {consoleLinks.map(renderSplashNavItem)}
+          <div className="splash-sidebar-datetime">
+            <LiveSidebarClock separator=" · " />
           </div>
 
-          <div className="splash-sidebar-group" data-disabled={!isSignedIn}>
-            <p className="splash-sidebar-label">Configuration</p>
-            {configurationLinks.map(renderSplashNavItem)}
-          </div>
+          <div className="splash-sidebar-groups" data-disabled={!isSignedIn}>
+            <div className="splash-sidebar-group" data-disabled={!isSignedIn}>
+              <p className="splash-sidebar-label">Console</p>
+              {consoleLinks.map(renderSplashNavItem)}
+            </div>
 
-          <div className="splash-sidebar-group" data-disabled={!isSignedIn}>
-            <p className="splash-sidebar-label">Utilities</p>
-            {utilityLinks.map(renderSplashNavItem)}
-          </div>
+            <div className="splash-sidebar-group" data-disabled={!isSignedIn}>
+              <p className="splash-sidebar-label">Configuration</p>
+              {configurationLinks.map(renderSplashNavItem)}
+            </div>
+
+            <div className="splash-sidebar-group" data-disabled={!isSignedIn}>
+              <p className="splash-sidebar-label">Utilities</p>
+              {utilityLinks.map(renderSplashNavItem)}
+            </div>
           </div>
 
           <div className="splash-sidebar-footer">
