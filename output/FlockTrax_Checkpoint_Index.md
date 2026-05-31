@@ -269,6 +269,10 @@ Purpose:
 
 # Latest Checkpoint
 
+- `2026-05-30`
+  - [FlockTrax_Admin_Hotfixes_And_Android_Build_Checkpoint_2026-05-30.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Hotfixes_And_Android_Build_Checkpoint_2026-05-30.md)
+  - current best resume point for the admin hotfix deploys, Android build `8`, and Google Play submission readiness blocker
+
 - `2026-05-29`
   - [FlockTrax_Off_Farm_Feed_Redirect_Production_Checkpoint_2026-05-29.md](C:\dev\FlockTrax\output\FlockTrax_Off_Farm_Feed_Redirect_Production_Checkpoint_2026-05-29.md)
   - current best resume point for the off-farm feed redirect production rollout and feed-ticket handling baseline
@@ -303,6 +307,15 @@ Reason:
 - it captures the actual EAS build id, artifact link, submission link, and hosted `mobile_ios` release marker
 - it records the exact repo commit used for the build
 - it documents the remaining manual confirmation point in App Store Connect
+
+If the topic is the current Android mobile build, Play Store submission readiness, or the newest admin hotfix baseline, load first:
+
+- [FlockTrax_Admin_Hotfixes_And_Android_Build_Checkpoint_2026-05-30.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Hotfixes_And_Android_Build_Checkpoint_2026-05-30.md)
+
+Reason:
+- it is the newest checkpoint
+- it captures the current production admin console state after the feed-ticket recovery, live clock, and sync-outbox error-detail deploys
+- it records the exact Android EAS build id and the remaining Google Play service-account blocker preventing submission
 
 If the topic is BinSentry forecasting or feed-projection planning, load first:
 
@@ -342,12 +355,12 @@ Reason:
 
 If only one execution-state checkpoint should be loaded first right now, use:
 
-- [FlockTrax_Off_Farm_Feed_Redirect_Production_Checkpoint_2026-05-29.md](C:\dev\FlockTrax\output\FlockTrax_Off_Farm_Feed_Redirect_Production_Checkpoint_2026-05-29.md)
+- [FlockTrax_Admin_Hotfixes_And_Android_Build_Checkpoint_2026-05-30.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Hotfixes_And_Android_Build_Checkpoint_2026-05-30.md)
 
 Reason:
 - it is the most current checkpoint
-- it captures both repo and production state after the off-farm redirect feed-ticket rollout
-- it includes the exact deployed commit, production deployment id, and the mobile-release boundary for the new feature
+- it captures both repo and production state after the latest admin hotfix deploys
+- it includes the exact Android store build id plus the current Google Play submission blocker so the next chat does not have to rediscover it
 
 For broader system state beyond the report feature, also use:
 
