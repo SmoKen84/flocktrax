@@ -450,6 +450,39 @@
   font-size: 0.84rem;
 }
 
+.sync-outbox-error-row td {
+  padding-top: 0;
+  background: rgba(153, 15, 22, 0.045);
+}
+
+.sync-outbox-error-cell {
+  position: static !important;
+  right: auto !important;
+  z-index: auto !important;
+  min-width: 0 !important;
+  box-shadow: none !important;
+}
+
+.sync-outbox-error-detail {
+  display: grid;
+  gap: 0.12rem;
+  padding: 0.18rem 0 0.35rem 2.75rem;
+}
+
+.sync-outbox-error-detail strong {
+  color: #8b1e26;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sync-outbox-error-detail span {
+  color: #6f2830;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
 .sync-outbox-field-button {
   width: 100%;
   padding: 0;

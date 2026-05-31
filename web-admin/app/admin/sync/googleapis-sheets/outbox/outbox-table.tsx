@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { Fragment } from "react";
 import { createPortal } from "react-dom";
 
 import type { GoogleSheetsOutboxRecord } from "@/lib/sync-data";
@@ -60,96 +61,108 @@ export function OutboxTable({
           <tbody>
             {normalizedItems.length > 0 ? (
               normalizedItems.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <span className="status-pill" data-tone={statusTone(item.status)}>
-                      {item.status}
-                    </span>
-                  </td>
-                  <td>{renderFieldButton("Farm", item.farmName ?? "Unknown farm", setActiveField)}</td>
-                  <td>
-                    {renderFieldButton(
-                      "Endpoint",
-                      [item.endpointName, item.spreadsheetName ?? item.spreadsheetId ?? "Workbook pending"].join("\n"),
-                      setActiveField,
-                      <span className="sync-outbox-inline-summary">{truncateText(item.endpointName, 12)}</span>,
-                    )}
-                  </td>
-                  <td>
-                    {renderFieldButton(
-                      "Placement",
-                      [item.placementKey ?? "No placement key", item.operation].join("\n"),
-                      setActiveField,
-                      <div className="sync-outbox-cell-stack">
-                        <strong>{item.placementKey ?? "No placement key"}</strong>
-                        <span>{item.operation}</span>
-                      </div>,
-                    )}
-                  </td>
-                  <td>{renderFieldButton("Log Date", item.logDate ?? "n/a", setActiveField)}</td>
-                  <td>{renderFieldButton("Entity", item.entityType, setActiveField)}</td>
-                  <td>
-                    {renderFieldButton(
-                      "Payload Snapshot",
-                      formatPayload(item.payload),
-                      setActiveField,
-                      <span className="sync-outbox-action-muted">View</span>,
-                    )}
-                  </td>
-                  <td>{renderFieldButton("Requested", formatTimestamp(item.requestedAt), setActiveField)}</td>
-                  <td>{renderFieldButton("Attempts", String(item.attempts), setActiveField)}</td>
-                  <td>
-                    {renderFieldButton(
-                      "Last Error",
-                      item.lastError ?? "OK",
-                      setActiveField,
-                      <span className="sync-outbox-truncated-text">{item.lastError ?? "OK"}</span>,
-                    )}
-                  </td>
-                  <td>
-                    <div className="list-action-stack">
-                      {canReplay(item.status) ? (
-                        <button
-                          aria-label={replayingOutboxId === item.id ? "Replaying outbox row" : "Replay outbox row"}
-                          className="list-action-button list-action-button-replay"
-                          disabled={replayingOutboxId === item.id}
-                          onClick={() => void onReplay(item.id)}
-                          title={replayingOutboxId === item.id ? "Replaying..." : "Replay"}
-                          type="button"
-                        >
-                          <ReplayIcon />
-                        </button>
-                      ) : null}
-                      {canRetry(item.status) ? (
-                        <button
-                          aria-label={retryingOutboxId === item.id ? "Retrying outbox row" : "Retry outbox row"}
-                          className="list-action-button list-action-button-replay"
-                          disabled={retryingOutboxId === item.id}
-                          onClick={() => void onRetry(item.id)}
-                          title={retryingOutboxId === item.id ? "Retrying..." : "Retry"}
-                          type="button"
-                        >
-                          <ReplayIcon />
-                        </button>
-                      ) : null}
-                      {canDelete(item.status) ? (
-                        <button
-                          aria-label={deletingOutboxId === item.id ? "Deleting outbox row" : "Delete outbox row"}
-                          className="list-action-button list-action-button-delete"
-                          disabled={deletingOutboxId === item.id}
-                          onClick={() => void onDelete(item.id)}
-                          title={deletingOutboxId === item.id ? "Deleting..." : "Delete"}
-                          type="button"
-                        >
-                          <CloseIcon />
-                        </button>
-                      ) : null}
-                      {!canReplay(item.status) && !canRetry(item.status) && !canDelete(item.status) ? (
-                        <span className="sync-outbox-action-muted">No action</span>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
+                <Fragment key={item.id}>
+                  <tr>
+                    <td>
+                      <span className="status-pill" data-tone={statusTone(item.status)}>
+                        {item.status}
+                      </span>
+                    </td>
+                    <td>{renderFieldButton("Farm", item.farmName ?? "Unknown farm", setActiveField)}</td>
+                    <td>
+                      {renderFieldButton(
+                        "Endpoint",
+                        [item.endpointName, item.spreadsheetName ?? item.spreadsheetId ?? "Workbook pending"].join("\n"),
+                        setActiveField,
+                        <span className="sync-outbox-inline-summary">{truncateText(item.endpointName, 12)}</span>,
+                      )}
+                    </td>
+                    <td>
+                      {renderFieldButton(
+                        "Placement",
+                        [item.placementKey ?? "No placement key", item.operation].join("\n"),
+                        setActiveField,
+                        <div className="sync-outbox-cell-stack">
+                          <strong>{item.placementKey ?? "No placement key"}</strong>
+                          <span>{item.operation}</span>
+                        </div>,
+                      )}
+                    </td>
+                    <td>{renderFieldButton("Log Date", item.logDate ?? "n/a", setActiveField)}</td>
+                    <td>{renderFieldButton("Entity", item.entityType, setActiveField)}</td>
+                    <td>
+                      {renderFieldButton(
+                        "Payload Snapshot",
+                        formatPayload(item.payload),
+                        setActiveField,
+                        <span className="sync-outbox-action-muted">View</span>,
+                      )}
+                    </td>
+                    <td>{renderFieldButton("Requested", formatTimestamp(item.requestedAt), setActiveField)}</td>
+                    <td>{renderFieldButton("Attempts", String(item.attempts), setActiveField)}</td>
+                    <td>
+                      {renderFieldButton(
+                        "Last Error",
+                        item.lastError ?? "OK",
+                        setActiveField,
+                        <span className="sync-outbox-truncated-text">{item.lastError ?? "OK"}</span>,
+                      )}
+                    </td>
+                    <td>
+                      <div className="list-action-stack">
+                        {canReplay(item.status) ? (
+                          <button
+                            aria-label={replayingOutboxId === item.id ? "Replaying outbox row" : "Replay outbox row"}
+                            className="list-action-button list-action-button-replay"
+                            disabled={replayingOutboxId === item.id}
+                            onClick={() => void onReplay(item.id)}
+                            title={replayingOutboxId === item.id ? "Replaying..." : "Replay"}
+                            type="button"
+                          >
+                            <ReplayIcon />
+                          </button>
+                        ) : null}
+                        {canRetry(item.status) ? (
+                          <button
+                            aria-label={retryingOutboxId === item.id ? "Retrying outbox row" : "Retry outbox row"}
+                            className="list-action-button list-action-button-replay"
+                            disabled={retryingOutboxId === item.id}
+                            onClick={() => void onRetry(item.id)}
+                            title={retryingOutboxId === item.id ? "Retrying..." : "Retry"}
+                            type="button"
+                          >
+                            <ReplayIcon />
+                          </button>
+                        ) : null}
+                        {canDelete(item.status) ? (
+                          <button
+                            aria-label={deletingOutboxId === item.id ? "Deleting outbox row" : "Delete outbox row"}
+                            className="list-action-button list-action-button-delete"
+                            disabled={deletingOutboxId === item.id}
+                            onClick={() => void onDelete(item.id)}
+                            title={deletingOutboxId === item.id ? "Deleting..." : "Delete"}
+                            type="button"
+                          >
+                            <CloseIcon />
+                          </button>
+                        ) : null}
+                        {!canReplay(item.status) && !canRetry(item.status) && !canDelete(item.status) ? (
+                          <span className="sync-outbox-action-muted">No action</span>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                  {item.status === "failed" && item.lastError?.trim() ? (
+                    <tr className="sync-outbox-error-row">
+                      <td className="sync-outbox-error-cell" colSpan={11}>
+                        <div className="sync-outbox-error-detail">
+                          <strong>Error:</strong>
+                          <span>{item.lastError.trim()}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
               ))
             ) : (
               <tr>
