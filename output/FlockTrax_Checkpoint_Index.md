@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-06-03`
+Updated: `2026-06-04`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### June 2026
+
+- `2026-06-04`
+  - [FlockTrax_Admin_Release_5_4_Closeout_And_Lifecycle_Production_Checkpoint_2026-06-04.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Release_5_4_Closeout_And_Lifecycle_Production_Checkpoint_2026-06-04.md)
+  - production release checkpoint covering commit `14af6b8`, hosted admin build marker `5.4`, Vercel deployment `dpl_FWFfcY4LiEUWiioTZJ1ZghRL6s19`, the live closeout/livehaul/lifecycle baseline, the day-1 mortality rule correction, and the deployed legacy mortality-upsert compatibility cleanup
 
 - `2026-06-03`
   - [FlockTrax_Digital_Archive_Summary_And_Report_Flow_Checkpoint_2026-06-03.md](C:\dev\FlockTrax\output\FlockTrax_Digital_Archive_Summary_And_Report_Flow_Checkpoint_2026-06-03.md)
@@ -377,12 +381,12 @@ Reason:
 
 If only one execution-state checkpoint should be loaded first right now, use:
 
-- [FlockTrax_Closeout_Report_Livehaul_Target_Sex_And_Archive_Recovery_Checkpoint_2026-06-02.md](C:\dev\FlockTrax\output\FlockTrax_Closeout_Report_Livehaul_Target_Sex_And_Archive_Recovery_Checkpoint_2026-06-02.md)
+- [FlockTrax_Admin_Release_5_4_Closeout_And_Lifecycle_Production_Checkpoint_2026-06-04.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Release_5_4_Closeout_And_Lifecycle_Production_Checkpoint_2026-06-04.md)
 
 Reason:
 - it is the newest checkpoint
-- it captures the new printable closeout report, the restored `282-W5` closeout state, the `All Barns` livehaul scheduler behavior, and the new `target_sex` breed-comparison correction
-- it records the still-pending Supabase migration step for `livehaul_schedule.target_sex`
+- it captures the exact pushed commit, Vercel deployment id, live `flocktrax.com` alias state, and hosted admin build marker `5.4`
+- it records the now-live closeout, livehaul, lifecycle, archive-summary, and day-1 mortality-rule baseline in one place
 
 - [FlockTrax_Closeout_Worksheet_And_Report_Links_Detailed_Checkpoint_2026-06-02.md](C:\dev\FlockTrax\output\FlockTrax_Closeout_Worksheet_And_Report_Links_Detailed_Checkpoint_2026-06-02.md)
 
