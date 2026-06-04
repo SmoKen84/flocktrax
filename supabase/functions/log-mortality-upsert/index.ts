@@ -86,11 +86,24 @@ Deno.serve(async (req)=>{
       ]
     }, 400);
   }
-  // Allow-list: edit to match your real log_mortality columns.
-  // Keep placement_id + log_date always included.
   const allowedFields = [
     "placement_id",
     "log_date",
+    "dead_female",
+    "dead_male",
+    "cull_female",
+    "cull_male",
+    "cull_female_note",
+    "cull_male_note",
+    "dead_reason",
+    "grade_litter",
+    "grade_footpad",
+    "grade_feathers",
+    "grade_lame",
+    "grade_pecking",
+    "mortality_is_active"
+  ];
+  const deprecatedFields = [
     "age_days",
     "male_dead",
     "female_dead",
@@ -104,6 +117,14 @@ Deno.serve(async (req)=>{
   for (const key of allowedFields){
     if (payload[key] !== undefined) upsertRow[key] = payload[key];
   }
+  // Preserve legacy compatibility for older callers that still post the old dead-count names.
+  if (payload.dead_male === undefined && payload.male_dead !== undefined) {
+    upsertRow.dead_male = payload.male_dead;
+  }
+  if (payload.dead_female === undefined && payload.female_dead !== undefined) {
+    upsertRow.dead_female = payload.female_dead;
+  }
+  const ignoredDeprecatedFields = deprecatedFields.filter((key)=>payload[key] !== undefined);
   const { data, error } = await supabase.from("log_mortality").upsert(upsertRow, {
     onConflict: "placement_id,log_date"
   }).select("*").single();
@@ -116,6 +137,7 @@ Deno.serve(async (req)=>{
   }
   return json(req, {
     ok: true,
-    row: data
+    row: data,
+    ignored_legacy_fields: ignoredDeprecatedFields
   }, 200);
 });

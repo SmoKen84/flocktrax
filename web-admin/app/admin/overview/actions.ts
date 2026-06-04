@@ -310,7 +310,7 @@ export async function makePlacementCurrentAction(placementId: string): Promise<L
 
   revalidatePath("/admin/overview");
 
-  return { status: "success", message: "Placement promoted to current." };
+  return { status: "success", message: "Placement promoted to get-ready status." };
 }
 
 export async function markBarnEmptyAction(
@@ -344,7 +344,7 @@ export async function markBarnEmptyAction(
   return {
     status: "success",
     message: hasNextPlacement
-      ? "Current flock checked out. Next flock is now in get-ready status."
-      : "Current flock checked out. Barn is now empty.",
+      ? "Current flock moved to closeout. Next flock is now in get-ready status."
+      : "Current flock moved to closeout. Barn is now empty.",
   };
 }

@@ -11,17 +11,20 @@ const consoleLinks = [
   { label: "Live Dashboard", href: "/admin/overview" },
   { label: "Action Items", href: "/admin/issues" },
   { label: "Feed Tickets", href: "/admin/feed-tickets" },
-  { label: "Placements", href: "/admin/placements/new" },
-  { label: "Rollups" },
   { label: "Sync Engine", href: "/admin/sync/googleapis-sheets" },
   { label: "Reports" },
+];
+
+const placementLinks = [
+  { label: "Schedule", href: "/admin/placements/new" },
+  { label: "Livehaul", href: "/admin/placements/livehaul" },
+  { label: "Closeout", href: "/admin/flock-closeout" },
 ];
 
 const configurationLinks = [
   { label: "Integrator", href: "/admin/integrator" },
   { label: "Groups, Farms & Barns", href: "/admin/farm-groups" },
   { label: "Feed Bins", href: "/admin/feed-bins" },
-  { label: "Placement Wizard", href: "/admin/placements/new" },
   { label: "User Access Control", href: "/admin/user-access" },
   { label: "Breed Benchmarks", href: "/admin/breed-benchmarks" },
 ];
@@ -142,6 +145,11 @@ export default async function HomePage() {
             <div className="splash-sidebar-group" data-disabled={!isSignedIn}>
               <p className="splash-sidebar-label">Console</p>
               {consoleLinks.map(renderSplashNavItem)}
+            </div>
+
+            <div className="splash-sidebar-group" data-disabled={!isSignedIn}>
+              <p className="splash-sidebar-label">Placements</p>
+              {placementLinks.map(renderSplashNavItem)}
             </div>
 
             <div className="splash-sidebar-group" data-disabled={!isSignedIn}>

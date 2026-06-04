@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-05-27`
+Updated: `2026-06-03`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -8,6 +8,16 @@ Purpose:
 - flag which notes were recovered from Codex local session history instead of already existing as repo files
 
 ## Chronological Index
+
+### June 2026
+
+- `2026-06-03`
+  - [FlockTrax_Digital_Archive_Summary_And_Report_Flow_Checkpoint_2026-06-03.md](C:\dev\FlockTrax\output\FlockTrax_Digital_Archive_Summary_And_Report_Flow_Checkpoint_2026-06-03.md)
+  - detailed checkpoint covering the new `Save Digital Archive Summary` packet, manual-print archive flow, embedded first-7-day/livehaul/feed/flock-history sections, and the fix for flock-history matrix truncation inside the combined document
+
+- `2026-06-03`
+  - [FlockTrax_Closeout_Queue_Report_And_Placement_Scheduler_Checkpoint_2026-06-03.md](C:\dev\FlockTrax\output\FlockTrax_Closeout_Queue_Report_And_Placement_Scheduler_Checkpoint_2026-06-03.md)
+  - detailed checkpoint covering the closeout queue matrix, worksheet sub-state checkboxes, closeout report livehaul/load ordering, placement scheduler fill-date fix, dashboard badge regression recovery, and the remaining `283-S2` livehaul discrepancy plus `75%` print-scale follow-up
 
 ### March 2026
 
@@ -269,6 +279,18 @@ Purpose:
 
 # Latest Checkpoint
 
+- `2026-06-02`
+  - [FlockTrax_Closeout_Report_Livehaul_Target_Sex_And_Archive_Recovery_Checkpoint_2026-06-02.md](C:\dev\FlockTrax\output\FlockTrax_Closeout_Report_Livehaul_Target_Sex_And_Archive_Recovery_Checkpoint_2026-06-02.md)
+  - current best resume point for the new printable closeout report, `All Barns` scheduler behavior, `282-W5` archive recovery, and sex-targeted livehaul breed comparison
+
+- `2026-06-02`
+  - [FlockTrax_Closeout_Worksheet_And_Report_Links_Detailed_Checkpoint_2026-06-02.md](C:\dev\FlockTrax\output\FlockTrax_Closeout_Worksheet_And_Report_Links_Detailed_Checkpoint_2026-06-02.md)
+  - current best resume point for the live `placement_closeouts` table, saveable closeout worksheet, livehaul-date breed comparison, first-7-day mortality correction, and closeout report/popup links
+
+- `2026-05-31`
+  - [FlockTrax_Lifecycle_Livehaul_Closeout_Detailed_Checkpoint_2026-05-31.md](C:\dev\FlockTrax\output\FlockTrax_Lifecycle_Livehaul_Closeout_Detailed_Checkpoint_2026-05-31.md)
+  - current best resume point for the live lifecycle-stage migration, two-table livehaul model, local scheduler/closeout UI, and corrected feed-estimator behavior
+
 - `2026-05-30`
   - [FlockTrax_Admin_Hotfixes_And_Android_Build_Checkpoint_2026-05-30.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Hotfixes_And_Android_Build_Checkpoint_2026-05-30.md)
   - current best resume point for the admin hotfix deploys, Android build `8`, and Google Play submission readiness blocker
@@ -355,12 +377,31 @@ Reason:
 
 If only one execution-state checkpoint should be loaded first right now, use:
 
+- [FlockTrax_Closeout_Report_Livehaul_Target_Sex_And_Archive_Recovery_Checkpoint_2026-06-02.md](C:\dev\FlockTrax\output\FlockTrax_Closeout_Report_Livehaul_Target_Sex_And_Archive_Recovery_Checkpoint_2026-06-02.md)
+
+Reason:
+- it is the newest checkpoint
+- it captures the new printable closeout report, the restored `282-W5` closeout state, the `All Barns` livehaul scheduler behavior, and the new `target_sex` breed-comparison correction
+- it records the still-pending Supabase migration step for `livehaul_schedule.target_sex`
+
+- [FlockTrax_Closeout_Worksheet_And_Report_Links_Detailed_Checkpoint_2026-06-02.md](C:\dev\FlockTrax\output\FlockTrax_Closeout_Worksheet_And_Report_Links_Detailed_Checkpoint_2026-06-02.md)
+
+Reason:
+- use this one second for the earlier June 2 closeout worksheet baseline
+- it captures the live `placement_closeouts` database step plus the current closeout-screen execution model
+- it records the corrected feed-accounting rule, livehaul-date breed comparison rule, first-7-day mortality meaning, and the report-launch shortcuts
+
+- [FlockTrax_Lifecycle_Livehaul_Closeout_Detailed_Checkpoint_2026-05-31.md](C:\dev\FlockTrax\output\FlockTrax_Lifecycle_Livehaul_Closeout_Detailed_Checkpoint_2026-05-31.md)
+
+Reason:
+- use this one second for the earlier lifecycle/livehaul baseline
+- it captures the current flock-lifecycle execution state across live schema changes, local admin UI work, and corrected feed-estimator behavior
+- it makes the local-versus-live boundary explicit so the next chat does not rediscover it the hard way
+
 - [FlockTrax_Admin_Hotfixes_And_Android_Build_Checkpoint_2026-05-30.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Hotfixes_And_Android_Build_Checkpoint_2026-05-30.md)
 
 Reason:
-- it is the most current checkpoint
-- it captures both repo and production state after the latest admin hotfix deploys
-- it includes the exact Android store build id plus the current Google Play submission blocker so the next chat does not have to rediscover it
+- use this one instead only if the resumed topic is specifically the Android build / Google Play submission blocker
 
 For broader system state beyond the report feature, also use:
 

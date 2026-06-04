@@ -80,6 +80,14 @@ export type BreedOptionRecord = {
   sex: string | null;
 };
 
+export type PlacementLifecycleStage =
+  | "scheduled"
+  | "awaiting_arrival"
+  | "in_barn_growing"
+  | "waiting_closeout"
+  | "closeout_submitted"
+  | "archived";
+
 export type ActivityLogRecord = {
   id: string;
   occurredAt: string;
@@ -98,6 +106,7 @@ export type ActivePlacementRecord = {
   placementCode: string;
   placementId: string;
   flockId: string;
+  lifecycleStage: PlacementLifecycleStage;
   flockNumber: number | null;
   farmGroupId: string;
   farmGroupName: string;
@@ -169,6 +178,7 @@ export type ActivePlacementRecord = {
   latestMaleWeightDate: string | null;
   breedFemales: string | null;
   breedMales: string | null;
+  liveHaulDates: string[];
   lh1Date: string | null;
   lh2Date: string | null;
   lh3Date: string | null;

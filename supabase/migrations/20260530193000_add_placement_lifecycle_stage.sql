@@ -1,0 +1,511 @@
+alter table public.placements
+  add column if not exists lifecycle_stage text,
+  add column if not exists closeout_submitted_at timestamp with time zone,
+  add column if not exists closeout_submitted_by uuid,
+  add column if not exists archived_at timestamp with time zone,
+  add column if not exists archived_by uuid;
+
+comment on column public.placements.lifecycle_stage is
+  'Authoritative business lifecycle stage for the placement operational lifecycle.';
+
+comment on column public.placements.closeout_submitted_at is
+  'Timestamp when flock closeout was submitted.';
+
+comment on column public.placements.closeout_submitted_by is
+  'Authenticated user who submitted flock closeout.';
+
+comment on column public.placements.archived_at is
+  'Timestamp when the placement was finalized into archive/history.';
+
+comment on column public.placements.archived_by is
+  'Authenticated user who archived the placement lifecycle record.';
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'placements_lifecycle_stage_check'
+      and conrelid = 'public.placements'::regclass
+  ) then
+    alter table public.placements
+      add constraint placements_lifecycle_stage_check
+      check (
+        lifecycle_stage in (
+          'scheduled',
+          'awaiting_arrival',
+          'in_barn_growing',
+          'waiting_closeout',
+          'closeout_submitted',
+          'archived'
+        )
+      );
+  end if;
+end
+$$;
+
+update public.placements p
+set lifecycle_stage = case
+  when p.archived_at is not null then 'archived'
+  when p.closeout_submitted_at is not null then 'closeout_submitted'
+  when p.date_removed is not null and coalesce(f.is_complete, false) = true then 'archived'
+  when p.date_removed is not null then 'waiting_closeout'
+  when p.is_active = true and coalesce(f.is_in_barn, false) = true then 'in_barn_growing'
+  when p.is_active = true then 'awaiting_arrival'
+  else 'scheduled'
+end
+from public.flocks f
+where f.id = p.flock_id
+  and (
+    p.lifecycle_stage is null
+    or p.lifecycle_stage not in (
+      'scheduled',
+      'awaiting_arrival',
+      'in_barn_growing',
+      'waiting_closeout',
+      'closeout_submitted',
+      'archived'
+    )
+  );
+
+update public.placements
+set lifecycle_stage = 'scheduled'
+where lifecycle_stage is null;
+
+alter table public.placements
+  alter column lifecycle_stage set default 'scheduled',
+  alter column lifecycle_stage set not null;
+
+create index if not exists idx_placements_lifecycle_stage_farm_barn
+  on public.placements (lifecycle_stage, farm_id, barn_id);
+
+drop function if exists public.make_placement_current(uuid);
+drop function if exists public.mark_chicks_arrived(uuid, date);
+drop function if exists public.mark_barn_empty(uuid, date);
+drop function if exists public.submit_flock_closeout(uuid, text);
+drop function if exists public.archive_flock_closeout(uuid);
+
+create or replace function public.make_placement_current(
+  p_placement_id uuid
+)
+returns table (
+  placement_id uuid,
+  barn_id uuid,
+  flock_id uuid,
+  placement_is_active boolean,
+  flock_is_in_barn boolean,
+  barn_is_empty boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_barn_id uuid;
+  v_flock_id uuid;
+  v_other_active uuid;
+  v_actor text;
+begin
+  v_actor := auth.uid()::text;
+
+  select p.barn_id, p.flock_id
+    into v_barn_id, v_flock_id
+  from public.placements p
+  where p.id = p_placement_id;
+
+  if v_barn_id is null or v_flock_id is null then
+    raise exception 'Placement % was not found.', p_placement_id;
+  end if;
+
+  select p.id
+    into v_other_active
+  from public.placements p
+  where p.barn_id = v_barn_id
+    and p.id <> p_placement_id
+    and p.is_active = true
+    and p.date_removed is null
+  limit 1;
+
+  if v_other_active is not null then
+    raise exception 'Barn % already has another active placement (%).', v_barn_id, v_other_active;
+  end if;
+
+  update public.placements
+    set is_active = true,
+        lifecycle_stage = 'awaiting_arrival',
+        updated_at = now(),
+        updated_by = coalesce(v_actor, updated_by)
+  where id = p_placement_id;
+
+  update public.flocks
+    set is_active = false,
+        is_in_barn = false,
+        updated_at = now(),
+        updated_by = coalesce(v_actor, updated_by)
+  where id in (
+    select p.flock_id
+    from public.placements p
+    where p.barn_id = v_barn_id
+      and p.id <> p_placement_id
+      and p.date_removed is null
+  );
+
+  update public.flocks
+    set is_active = true,
+        is_in_barn = false,
+        updated_at = now(),
+        updated_by = coalesce(v_actor, updated_by)
+  where id = v_flock_id;
+
+  perform public.sync_barn_current_state(v_barn_id);
+
+  perform public.write_activity_log(
+    p_placement_id := p_placement_id,
+    p_entry_type := 'state_change',
+    p_action_key := 'make_placement_current',
+    p_details := 'Placement promoted into get-ready status while the barn remains empty awaiting chick arrival.',
+    p_source := 'dashboard.state',
+    p_meta := jsonb_build_object('lifecycle_stage', 'awaiting_arrival')
+  );
+
+  return query
+  select p.id, p.barn_id, p.flock_id, p.is_active, f.is_in_barn, b.is_empty
+  from public.placements p
+  join public.flocks f
+    on f.id = p.flock_id
+  join public.barns b
+    on b.id = p.barn_id
+  where p.id = p_placement_id;
+end;
+$$;
+
+create or replace function public.mark_chicks_arrived(
+  p_placement_id uuid,
+  p_arrival_date date default current_date
+)
+returns table (
+  placement_id uuid,
+  barn_id uuid,
+  flock_id uuid,
+  placement_is_active boolean,
+  flock_is_in_barn boolean,
+  barn_is_empty boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_barn_id uuid;
+  v_flock_id uuid;
+  v_other_active uuid;
+  v_actor text;
+begin
+  v_actor := auth.uid()::text;
+
+  select p.barn_id, p.flock_id
+    into v_barn_id, v_flock_id
+  from public.placements p
+  where p.id = p_placement_id;
+
+  if v_barn_id is null or v_flock_id is null then
+    raise exception 'Placement % was not found.', p_placement_id;
+  end if;
+
+  select p.id
+    into v_other_active
+  from public.placements p
+  where p.barn_id = v_barn_id
+    and p.id <> p_placement_id
+    and p.is_active = true
+    and p.date_removed is null
+  limit 1;
+
+  if v_other_active is not null then
+    raise exception 'Barn % already has another active placement (%).', v_barn_id, v_other_active;
+  end if;
+
+  update public.placements
+    set is_active = true,
+        lifecycle_stage = 'in_barn_growing',
+        updated_at = now(),
+        updated_by = coalesce(v_actor, updated_by)
+  where id = p_placement_id;
+
+  update public.flocks
+    set is_active = false,
+        is_in_barn = false,
+        updated_at = now(),
+        updated_by = coalesce(v_actor, updated_by)
+  where id in (
+    select p.flock_id
+    from public.placements p
+    where p.barn_id = v_barn_id
+      and p.id <> p_placement_id
+  );
+
+  update public.flocks
+    set is_active = true,
+        is_in_barn = true,
+        updated_at = now(),
+        updated_by = coalesce(v_actor, updated_by)
+  where id = v_flock_id;
+
+  perform public.sync_barn_current_state(v_barn_id);
+
+  perform public.write_activity_log(
+    p_placement_id := p_placement_id,
+    p_entry_type := 'state_change',
+    p_action_key := 'mark_chicks_arrived',
+    p_details := format('Chicks arrived recorded for %s.', p_arrival_date),
+    p_source := 'dashboard.state',
+    p_meta := jsonb_build_object('arrival_date', p_arrival_date, 'lifecycle_stage', 'in_barn_growing')
+  );
+
+  return query
+  select p.id, p.barn_id, p.flock_id, p.is_active, f.is_in_barn, b.is_empty
+  from public.placements p
+  join public.flocks f
+    on f.id = p.flock_id
+  join public.barns b
+    on b.id = p.barn_id
+  where p.id = p_placement_id;
+end;
+$$;
+
+create or replace function public.mark_barn_empty(
+  p_barn_id uuid,
+  p_removed_date date default current_date
+)
+returns table (
+  placement_id uuid,
+  barn_id uuid,
+  flock_id uuid,
+  placement_is_active boolean,
+  flock_is_in_barn boolean,
+  barn_is_empty boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_current record;
+  v_next record;
+  v_actor text;
+  v_current_sort_date date;
+begin
+  v_actor := auth.uid()::text;
+
+  select p.id, p.flock_id, p.active_start, p.created_at
+    into v_current
+  from public.placements p
+  where p.barn_id = p_barn_id
+    and p.is_active = true
+    and p.date_removed is null
+  order by p.active_start asc nulls last, p.created_at asc
+  limit 1;
+
+  if v_current.id is null then
+    raise exception 'Barn % does not have an active placement to empty.', p_barn_id;
+  end if;
+
+  v_current_sort_date := v_current.active_start;
+
+  update public.placements
+    set is_active = false,
+        date_removed = coalesce(date_removed, p_removed_date),
+        lifecycle_stage = 'waiting_closeout',
+        updated_at = now(),
+        updated_by = coalesce(v_actor, updated_by)
+  where id = v_current.id;
+
+  update public.flocks
+    set is_active = false,
+        is_in_barn = false,
+        flock_removed = coalesce(flock_removed, p_removed_date),
+        updated_at = now(),
+        updated_by = coalesce(v_actor, updated_by)
+  where id = v_current.flock_id;
+
+  perform public.write_activity_log(
+    p_placement_id := v_current.id,
+    p_entry_type := 'state_change',
+    p_action_key := 'mark_barn_empty',
+    p_details := format('Flock checked out on %s and moved into closeout.', p_removed_date),
+    p_source := 'dashboard.state',
+    p_meta := jsonb_build_object(
+      'removed_date', p_removed_date,
+      'workflow', 'checkout_flock',
+      'lifecycle_stage', 'waiting_closeout'
+    )
+  );
+
+  select p.id, p.flock_id, p.active_start, p.created_at
+    into v_next
+  from public.placements p
+  where p.barn_id = p_barn_id
+    and p.id <> v_current.id
+    and (
+      (v_current_sort_date is null and p.created_at > v_current.created_at)
+      or (v_current_sort_date is not null and p.active_start > v_current_sort_date)
+      or (v_current_sort_date is not null and p.active_start = v_current_sort_date and p.created_at > v_current.created_at)
+    )
+    and p.date_removed is null
+  order by p.active_start asc nulls last, p.created_at asc
+  limit 1;
+
+  if v_next.id is not null then
+    update public.placements
+      set is_active = true,
+          lifecycle_stage = 'awaiting_arrival',
+          updated_at = now(),
+          updated_by = coalesce(v_actor, updated_by)
+    where id = v_next.id;
+
+    update public.flocks
+      set is_active = true,
+          is_in_barn = false,
+          updated_at = now(),
+          updated_by = coalesce(v_actor, updated_by)
+    where id = v_next.flock_id;
+
+    perform public.write_activity_log(
+      p_placement_id := v_next.id,
+      p_entry_type := 'state_change',
+      p_action_key := 'promote_next_placement',
+      p_details := 'Next scheduled placement promoted into get-ready status for incoming feed and arrival prep.',
+      p_source := 'dashboard.state',
+      p_meta := jsonb_build_object(
+        'removed_date', p_removed_date,
+        'workflow', 'checkout_flock',
+        'lifecycle_stage', 'awaiting_arrival'
+      )
+    );
+  end if;
+
+  perform public.sync_barn_current_state(p_barn_id);
+
+  if v_next.id is not null then
+    return query
+    select p.id, p.barn_id, p.flock_id, p.is_active, f.is_in_barn, b.is_empty
+    from public.placements p
+    join public.flocks f
+      on f.id = p.flock_id
+    join public.barns b
+      on b.id = p.barn_id
+    where p.id = v_next.id;
+  else
+    return query
+    select null::uuid, b.id, null::uuid, false, false, b.is_empty
+    from public.barns b
+    where b.id = p_barn_id;
+  end if;
+end;
+$$;
+
+create or replace function public.submit_flock_closeout(
+  p_placement_id uuid,
+  p_notes text default null
+)
+returns public.placements
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_actor uuid;
+  v_row public.placements%rowtype;
+begin
+  v_actor := auth.uid();
+
+  update public.placements
+    set lifecycle_stage = 'closeout_submitted',
+        closeout_submitted_at = now(),
+        closeout_submitted_by = coalesce(v_actor, closeout_submitted_by),
+        updated_at = now(),
+        updated_by = coalesce(v_actor::text, updated_by)
+  where id = p_placement_id
+    and lifecycle_stage = 'waiting_closeout'
+  returning *
+  into v_row;
+
+  if v_row.id is null then
+    raise exception 'Placement % is not in waiting_closeout.', p_placement_id;
+  end if;
+
+  perform public.write_activity_log(
+    p_placement_id := p_placement_id,
+    p_entry_type := 'state_change',
+    p_action_key := 'submit_flock_closeout',
+    p_details := coalesce(nullif(trim(p_notes), ''), 'Flock closeout submitted.'),
+    p_source := 'closeout.state',
+    p_meta := jsonb_build_object('lifecycle_stage', 'closeout_submitted')
+  );
+
+  return v_row;
+end;
+$$;
+
+create or replace function public.archive_flock_closeout(
+  p_placement_id uuid
+)
+returns public.placements
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_actor uuid;
+  v_flock_id uuid;
+  v_row public.placements%rowtype;
+begin
+  v_actor := auth.uid();
+
+  select flock_id
+    into v_flock_id
+  from public.placements
+  where id = p_placement_id;
+
+  update public.placements
+    set lifecycle_stage = 'archived',
+        archived_at = now(),
+        archived_by = coalesce(v_actor, archived_by),
+        is_active = false,
+        updated_at = now(),
+        updated_by = coalesce(v_actor::text, updated_by)
+  where id = p_placement_id
+    and lifecycle_stage in ('waiting_closeout', 'closeout_submitted')
+  returning *
+  into v_row;
+
+  if v_row.id is null then
+    raise exception 'Placement % is not eligible for archive.', p_placement_id;
+  end if;
+
+  update public.flocks
+    set is_active = false,
+        is_complete = true,
+        is_in_barn = false,
+        updated_at = now(),
+        updated_by = coalesce(v_actor::text, updated_by)
+  where id = v_flock_id;
+
+  perform public.write_activity_log(
+    p_placement_id := p_placement_id,
+    p_entry_type := 'state_change',
+    p_action_key := 'archive_flock_closeout',
+    p_details := 'Flock closeout archived into history.',
+    p_source := 'closeout.state',
+    p_meta := jsonb_build_object('lifecycle_stage', 'archived')
+  );
+
+  return v_row;
+end;
+$$;
+
+grant execute on function public.make_placement_current(uuid) to anon, authenticated, service_role;
+grant execute on function public.mark_chicks_arrived(uuid, date) to anon, authenticated, service_role;
+grant execute on function public.mark_barn_empty(uuid, date) to anon, authenticated, service_role;
+grant execute on function public.submit_flock_closeout(uuid, text) to anon, authenticated, service_role;
+grant execute on function public.archive_flock_closeout(uuid) to anon, authenticated, service_role;

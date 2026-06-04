@@ -174,6 +174,15 @@ function getIssueBadgeTone(placement: ActivePlacementRecord) {
   return placement.openPlacementIssueCount > 0 ? "danger" : "warn";
 }
 
+function getOpenItemsBadgeLabel(placement: ActivePlacementRecord) {
+  const totalOpenItems = placement.openBarnIssueCount + placement.openPlacementIssueCount;
+  if (totalOpenItems <= 0) {
+    return "Open";
+  }
+
+  return `Open ${totalOpenItems}`;
+}
+
 function canShowHistoryReportLink(placement: ActivePlacementRecord) {
   return Boolean(
     placement.flockId &&
@@ -211,83 +220,60 @@ function derivePlacementLifecycle(placement: ActivePlacementRecord) {
     };
   }
 
-  if (placement.flockIsComplete) {
-    return {
-      label: "Completed",
-      detail: "This flock has already been marked complete in the system lifecycle.",
-      systemState: `Placement ${formatLifecycleFlag(Boolean(placement.placementId))} | Active ${formatLifecycleFlag(
-        placement.placementIsActive,
-      )} | Flock Active ${formatLifecycleFlag(placement.flockIsActive)} | In Barn ${formatLifecycleFlag(
-        placement.flockIsInBarn,
-      )} | Complete Yes | Settled ${formatLifecycleFlag(
-        placement.flockIsSettled,
-      )}`,
-    };
-  }
+  const systemState = `Placement ${formatLifecycleFlag(Boolean(placement.placementId))} | Active ${formatLifecycleFlag(
+    placement.placementIsActive,
+  )} | Flock Active ${formatLifecycleFlag(placement.flockIsActive)} | In Barn ${formatLifecycleFlag(
+    placement.flockIsInBarn,
+  )} | Complete ${formatLifecycleFlag(placement.flockIsComplete)} | Settled ${formatLifecycleFlag(
+    placement.flockIsSettled,
+  )}`;
 
-  if (placement.dateRemoved) {
-    return {
-      label: "Checked Out",
-      detail: `A removed date is recorded for ${placement.dateRemoved}, so this flock has moved past in-barn production.`,
-      systemState: `Placement ${formatLifecycleFlag(Boolean(placement.placementId))} | Active ${formatLifecycleFlag(
-        placement.placementIsActive,
-      )} | Flock Active ${formatLifecycleFlag(placement.flockIsActive)} | In Barn ${formatLifecycleFlag(
-        placement.flockIsInBarn,
-      )} | Complete ${formatLifecycleFlag(
-        placement.flockIsComplete,
-      )} | Settled ${formatLifecycleFlag(placement.flockIsSettled)}`,
-    };
-  }
-
-  if (placement.tileState === "scheduled") {
-    return {
-      label: "Scheduled",
-      detail: "The placement exists on the board but has not been activated yet.",
-      systemState: `Placement Yes | Active ${formatLifecycleFlag(placement.placementIsActive)} | Flock Active ${formatLifecycleFlag(
-        placement.flockIsActive,
-      )} | In Barn ${formatLifecycleFlag(
-        placement.flockIsInBarn,
-      )} | Complete ${formatLifecycleFlag(placement.flockIsComplete)} | Settled ${formatLifecycleFlag(
-        placement.flockIsSettled,
-      )}`,
-    };
-  }
-
-  if (placement.tileState === "awaiting") {
-    return {
-      label: "Active / Awaiting Arrival",
-      detail:
-        "The placement is active in the system, but the flock has not been confirmed in the barn yet. In this stage, the placement can still receive feed deliveries, allocations, and action items while the barn is waiting on chick arrival.",
-      systemState: `Placement Yes | Active Yes | Flock Active ${formatLifecycleFlag(
-        placement.flockIsActive,
-      )} | In Barn No | Complete ${formatLifecycleFlag(
-        placement.flockIsComplete,
-      )} | Settled ${formatLifecycleFlag(placement.flockIsSettled)}`,
-    };
-  }
-
-  if (placement.tileState === "live") {
-    return {
-      label: "In Barn / Live",
-      detail: "The flock is active and confirmed in the barn, so this placement is currently in production.",
-      systemState: `Placement Yes | Active Yes | Flock Active ${formatLifecycleFlag(
-        placement.flockIsActive,
-      )} | In Barn Yes | Complete ${formatLifecycleFlag(
-        placement.flockIsComplete,
-      )} | Settled ${formatLifecycleFlag(placement.flockIsSettled)}`,
-    };
+  switch (placement.lifecycleStage) {
+    case "scheduled":
+      return {
+        label: "Scheduled",
+        detail: "The placement exists on the board but has not been activated yet.",
+        systemState,
+      };
+    case "awaiting_arrival":
+      return {
+        label: "Awaiting Arrival",
+        detail:
+          "The placement is active in the system, but the flock has not been confirmed in the barn yet. Feed, prep work, and action items can still be linked during this get-ready stage.",
+        systemState,
+      };
+    case "in_barn_growing":
+      return {
+        label: "In Barn / Growing",
+        detail: "The flock is active, confirmed in the barn, and currently in live production.",
+        systemState,
+      };
+    case "waiting_closeout":
+      return {
+        label: "Waiting Closeout",
+        detail: placement.dateRemoved
+          ? `This flock checked out on ${placement.dateRemoved}. Growout is over and closeout work now remains.`
+          : "This flock has left live production and is waiting for closeout work.",
+        systemState,
+      };
+    case "closeout_submitted":
+      return {
+        label: "Closeout Submitted",
+        detail: "Closeout has been submitted and the flock is waiting on final review or archival.",
+        systemState,
+      };
+    case "archived":
+      return {
+        label: "Archived",
+        detail: "This flock has completed its operational lifecycle and now lives in history.",
+        systemState,
+      };
   }
 
   return {
     label: "System State Unknown",
     detail: "This placement does not match one of the standard lifecycle stages yet.",
-    systemState: `Placement ${formatLifecycleFlag(Boolean(placement.placementId))} | Active ${formatLifecycleFlag(
-      placement.placementIsActive,
-    )} | Flock Active ${formatLifecycleFlag(placement.flockIsActive)} | In Barn ${formatLifecycleFlag(
-      placement.flockIsInBarn,
-    )} | Complete ${formatLifecycleFlag(placement.flockIsComplete)} | Settled ${formatLifecycleFlag(
-      placement.flockIsSettled,
-    )}`,
+    systemState,
   };
 }
 
@@ -710,7 +696,6 @@ function MortalityPopup({
   const femaleMortalityTotal =
     mode === "first7" ? placement.mortalityFemaleFirst7Days : placement.mortalityFemaleLast7Days;
   const title = mode === "first7" ? "First 7-Days Mortality" : "Last 7-Days Mortality";
-  const day1Losses = breakdown[0] ?? { male: 0, female: 0 };
   const livabilityMaleCount =
     mode === "first7"
       ? Math.max(0, placement.startedMaleCount - maleMortalityTotal)
@@ -725,14 +710,7 @@ function MortalityPopup({
   const femaleLivePercent = safePercent(livabilityFemaleCount, placement.startedFemaleCount);
   const maleMortPercent = Math.max(0, 100 - maleLivePercent);
   const femaleMortPercent = Math.max(0, 100 - femaleLivePercent);
-  const maleDoaTotal = mode === "first7" ? day1Losses.male : 0;
-  const femaleDoaTotal = mode === "first7" ? day1Losses.female : 0;
-  const maleDeadTotal = mode === "first7" ? Math.max(0, maleMortalityTotal - maleDoaTotal) : maleMortalityTotal;
-  const femaleDeadTotal =
-    mode === "first7" ? Math.max(0, femaleMortalityTotal - femaleDoaTotal) : femaleMortalityTotal;
-  const doaTotal = maleDoaTotal + femaleDoaTotal;
-  const deadTotal = maleDeadTotal + femaleDeadTotal;
-  const mortalityCountTotal = mode === "first7" ? doaTotal + deadTotal : periodLosses;
+  const mortalityCountTotal = mode === "first7" ? maleMortalityTotal + femaleMortalityTotal : periodLosses;
   const totalMortPercent = safePercent(mortalityCountTotal, startedTotal);
   const totalLivePercent = Math.max(0, 100 - totalMortPercent);
 
@@ -783,23 +761,19 @@ function MortalityPopup({
             {mode === "first7" ? (
               <div className="mortality-popup-metric-table">
                 <div className="mortality-popup-metric-head" />
-                <div className="mortality-popup-metric-head">DOAs</div>
                 <div className="mortality-popup-metric-head">Dead</div>
                 <div className="mortality-popup-metric-head">Mort %</div>
 
                 <div className="mortality-popup-metric-label">Roos:</div>
-                <div>{formatCount(maleDoaTotal)}</div>
-                <div>{formatCount(maleDeadTotal)}</div>
+                <div>{formatCount(maleMortalityTotal)}</div>
                 <div>{formatPercent(maleMortPercent)}</div>
 
                 <div className="mortality-popup-metric-label">Hens:</div>
-                <div>{formatCount(femaleDoaTotal)}</div>
-                <div>{formatCount(femaleDeadTotal)}</div>
+                <div>{formatCount(femaleMortalityTotal)}</div>
                 <div>{formatPercent(femaleMortPercent)}</div>
 
                 <div className="mortality-popup-metric-label mortality-popup-metric-total">Totals</div>
-                <div className="mortality-popup-metric-total">{formatCount(doaTotal)}</div>
-                <div className="mortality-popup-metric-total">{formatCount(deadTotal)}</div>
+                <div className="mortality-popup-metric-total">{formatCount(mortalityCountTotal)}</div>
                 <div className="mortality-popup-metric-total">{formatPercent(totalMortPercent)}</div>
               </div>
             ) : (
@@ -1129,7 +1103,7 @@ function PlacementTile({
           ) : null}
           {hasOpenItems ? (
             <Link className="status-pill" data-tone={issueBadgeTone} href={openActionItemsHref}>
-              {placement.dashboardStatusLabel}
+              {getOpenItemsBadgeLabel(placement)}
             </Link>
           ) : null}
           {shouldShowPendingBadge ? (
@@ -1322,33 +1296,11 @@ function PlacementTile({
               <dd className="tile-subpanel-value">{placement.estimatedFirstCatch || "Pending"}</dd>
             </div>
             <div className="tile-subpanel-item">
-              <dt>First LH Date</dt>
-              <dd>
-                {isEditingLhDates ? (
-                  <input
-                    className="tile-subpanel-input"
-                    onChange={(event) => setLh1DateValue(event.target.value)}
-                    type="date"
-                    value={lh1DateValue}
-                  />
-                ) : (
-                  <span className="tile-subpanel-value">{savedLh1Date}</span>
-                )}
-              </dd>
-            </div>
-            <div className="tile-subpanel-item">
-              <dt>Last LH Date</dt>
-              <dd>
-                {isEditingLhDates ? (
-                  <input
-                    className="tile-subpanel-input"
-                    onChange={(event) => setLh3DateValue(event.target.value)}
-                    type="date"
-                    value={lh3DateValue}
-                  />
-                ) : (
-                  <span className="tile-subpanel-value">{savedLh3Date}</span>
-                )}
+              <dt>Dates</dt>
+              <dd className="tile-subpanel-value">
+                {placement.liveHaulDates.length > 0
+                  ? placement.liveHaulDates.map((date) => formatShortDate(date)).join(", ")
+                  : "No livehaul dates scheduled"}
               </dd>
             </div>
           </dl>

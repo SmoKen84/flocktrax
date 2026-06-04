@@ -8,6 +8,7 @@ import type {
   FarmGroupRecord,
   FarmRecord,
   FlockRecord,
+  PlacementLifecycleStage,
 } from "@/lib/types";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -100,6 +101,7 @@ type PlacementRow = {
   farm_id: string;
   barn_id: string;
   flock_id: string;
+  lifecycle_stage: PlacementLifecycleStage | null;
   date_removed: string | null;
   is_active: boolean | null;
   placement_key: string;
@@ -114,6 +116,13 @@ type PlacementRow = {
 type PlacementLogRow = {
   placement_id: string;
   log_date: string;
+};
+
+type LivehaulScheduleDashboardRow = {
+  placement_id: string;
+  lh_date: string;
+  head_target: number | null;
+  head_actual: number | null;
 };
 
 type DailyFlagRow = {
@@ -270,6 +279,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       barnsResult,
       flocksResult,
       placementsResult,
+      livehaulScheduleResult,
       placementLogsResult,
       dailyFlagsResult,
       mortalityLogsResult,
@@ -297,8 +307,12 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         .order("date_placed", { ascending: false }),
       supabase
         .from("placements")
-        .select("id,farm_id,barn_id,flock_id,date_removed,is_active,placement_key,lh1_date,lh2_date,lh3_date,active_start,active_end,created_at")
+        .select("id,farm_id,barn_id,flock_id,lifecycle_stage,date_removed,is_active,placement_key,lh1_date,lh2_date,lh3_date,active_start,active_end,created_at")
         .order("placement_key"),
+      supabase
+        .from("livehaul_schedule")
+        .select("placement_id,lh_date,head_target,head_actual")
+        .order("lh_date"),
       supabase
         .from("v_placement_daily")
         .select("placement_id,log_date")
@@ -335,6 +349,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       barnsResult.error ||
       flocksResult.error ||
       placementsResult.error ||
+      livehaulScheduleResult.error ||
       placementLogsResult.error ||
       dailyFlagsResult.error ||
       mortalityLogsResult.error ||
@@ -349,6 +364,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         barnsResult.error ||
         flocksResult.error ||
         placementsResult.error ||
+        livehaulScheduleResult.error ||
         placementLogsResult.error ||
         dailyFlagsResult.error ||
         mortalityLogsResult.error ||
@@ -370,6 +386,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     });
     const flockRows = (flocksResult.data ?? []) as FlockRow[];
     const placementRows = (placementsResult.data ?? []) as PlacementRow[];
+    const livehaulScheduleRows = (livehaulScheduleResult.data ?? []) as LivehaulScheduleDashboardRow[];
     const placementLogRows = (placementLogsResult.data ?? []) as PlacementLogRow[];
     const dailyFlagRows = (dailyFlagsResult.data ?? []) as DailyFlagRow[];
     const mortalityRows = (mortalityLogsResult.data ?? []) as MortalityRow[];
@@ -389,7 +406,9 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       .map((row) => Number.parseInt(String(row.value ?? "").trim(), 10))
       .find((value) => Number.isFinite(value) && value >= 0) ?? 0;
 
-    const activePlacementsRaw = placementRows.filter((row) => row.is_active === true);
+    const activePlacementsRaw = placementRows.filter((row) =>
+      row.lifecycle_stage === "awaiting_arrival" || row.lifecycle_stage === "in_barn_growing"
+    );
     const activePlacementIds = new Set(activePlacementsRaw.map((row) => row.id));
 
     const { error: derivedIssueSyncError } = await supabase.rpc("sync_derived_placement_issues", {
@@ -529,6 +548,24 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     const farmById = new Map(farmRows.map((row) => [row.id, row]));
     const groupById = new Map(farmGroups.map((row) => [row.id, row]));
     const barnById = new Map(barnRows.map((row) => [row.id, row]));
+    const liveHaulEventsByPlacementId = new Map<string, FeedProjectionLiveHaulEvent[]>();
+
+    for (const row of livehaulScheduleRows) {
+      const bucket = liveHaulEventsByPlacementId.get(row.placement_id) ?? [];
+      if (!bucket.some((event) => event.date === row.lh_date)) {
+        bucket.push({
+          date: row.lh_date,
+          targetHead: row.head_target,
+          actualHead: row.head_actual,
+        });
+      }
+      liveHaulEventsByPlacementId.set(row.placement_id, bucket);
+    }
+
+    for (const [placementId, events] of liveHaulEventsByPlacementId.entries()) {
+      events.sort((left, right) => left.date.localeCompare(right.date));
+      liveHaulEventsByPlacementId.set(placementId, events);
+    }
 
     for (const row of mortalityRows) {
       if (!activePlacementIds.has(row.placement_id) || row.is_active === false) {
@@ -561,7 +598,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const ageOnLogDate = placedDate ? daysBetween(row.log_date, placedDate) : null;
       const daysFromToday = daysSince(row.log_date);
 
-      if (ageOnLogDate !== null && ageOnLogDate <= 7) {
+      if (ageOnLogDate !== null && ageOnLogDate >= 0 && ageOnLogDate < 7) {
         bucket.femaleFirst7Days += femaleLoss;
         bucket.maleFirst7Days += maleLoss;
       }
@@ -748,17 +785,19 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const rowsForBarn = (placementsByBarnId.get(barn.id) ?? []).slice().sort((left, right) =>
         comparePlacementRows(left, right, flockById),
       );
-      const activeRow = rowsForBarn.find((row) => row.is_active === true && row.date_removed === null) ?? null;
-      const scheduledRow =
-        rowsForBarn.find((row) => row.is_active !== true && row.date_removed === null) ?? null;
+      const activeRow =
+        rowsForBarn.find(
+          (row) =>
+            row.lifecycle_stage === "awaiting_arrival" || row.lifecycle_stage === "in_barn_growing",
+        ) ?? null;
+      const scheduledRow = rowsForBarn.find((row) => row.lifecycle_stage === "scheduled") ?? null;
       const row = activeRow ?? scheduledRow ?? null;
       const nextPlacementRow =
         row && activeRow
           ? rowsForBarn.find(
               (candidate) =>
                 candidate.id !== row.id &&
-                candidate.is_active !== true &&
-                candidate.date_removed === null &&
+                candidate.lifecycle_stage === "scheduled" &&
                 comparePlacementRows(candidate, row, flockById) > 0,
             ) ??
             null
@@ -770,9 +809,9 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const placedDate = flock?.date_placed ?? row?.active_start ?? "";
       const latestLogDate = row ? latestLogByPlacement.get(row.id) ?? null : null;
       const submissionStatus =
-        row && row.is_active === true ? deriveSubmissionStatus(latestLogDate, today) : "attention";
+        row && isPlacementOperational(row.lifecycle_stage) ? deriveSubmissionStatus(latestLogDate, today) : "attention";
       const baseCompletionPercent =
-        row && row.is_active === true
+        row && isPlacementOperational(row.lifecycle_stage)
           ? submissionStatus === "submitted"
             ? 100
             : submissionStatus === "pending"
@@ -780,7 +819,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
               : 55
           : 0;
       const mortalityTotals =
-        row && row.is_active === true
+        row && isPlacementOperational(row.lifecycle_stage)
           ? mortalityTotalsByPlacement.get(row.id) ?? {
               femaleTotal: 0,
               maleTotal: 0,
@@ -798,7 +837,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
               maleLast7Days: 0,
             };
       const weightSummary =
-        row && row.is_active === true
+        row && isPlacementOperational(row.lifecycle_stage)
           ? latestWeightByPlacement.get(row.id) ?? emptyWeightSummary()
           : emptyWeightSummary();
       const latestFemaleWeightPercentExpected = calculateBenchmarkPercent(
@@ -820,7 +859,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         ),
       );
       const dailyFlags =
-        row && row.is_active === true
+        row && isPlacementOperational(row.lifecycle_stage)
           ? dailyFlagsByPlacement.get(row.id) ?? {
               maintenance: false,
               feedlines: false,
@@ -861,17 +900,14 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const flockIsInBarn = Boolean(
         row &&
           (flock?.is_in_barn === true ||
-            (barn.is_empty === false && barn.active_flock_id === row.flock_id && row.is_active === true)),
+            (barn.is_empty === false && barn.active_flock_id === row.flock_id && isPlacementOperational(row.lifecycle_stage))),
       );
-      const tileState = deriveTileState({
-        hasPlacement: !!row,
-        placementIsActive: row?.is_active === true,
-        flockIsInBarn,
-      });
+      const lifecycleStage = row?.lifecycle_stage ?? deriveLifecycleStageFallback(row, flockIsInBarn);
+      const tileState = deriveTileState(row ? lifecycleStage : null);
       const dashboardStatus =
         tileState === "live"
           ? deriveDashboardStatus({
-              isActive: row?.is_active === true,
+              isActive: lifecycleStage === "in_barn_growing" || lifecycleStage === "awaiting_arrival",
               openBarnIssueCount,
               openPlacementIssueCount,
               completedTodayLabel: dailyFlags.completedTodayLabel,
@@ -880,6 +916,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const completionPercent = tileState === "awaiting" ? 100 : baseCompletionPercent;
       const ageDays = daysRelativeToToday(placedDate);
       const canCheckoutByAge = ageDays >= checkoutAgeAvailability;
+      const scheduledLiveHaulEvents = row ? liveHaulEventsByPlacementId.get(row.id) ?? [] : [];
       const feedProjection = row
         ? buildTenDayFeedProjection({
             today,
@@ -900,7 +937,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
             breedMales: flock?.breed_males ?? null,
             breedById,
             breedSpecRows,
-            liveHaulDates: [row.lh1_date, row.lh2_date, row.lh3_date],
+            liveHaulEvents: scheduledLiveHaulEvents,
           })
         : {
             total: null,
@@ -917,6 +954,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
           (tileState === "empty" ? `Open ${barn.barn_code ?? "Barn"}` : `${flock?.flock_number ?? "TBD"}-${barn.barn_code ?? "Barn"}`),
         placementId: row?.id ?? "",
         flockId: row?.flock_id ?? "",
+        lifecycleStage,
         flockNumber: flock?.flock_number ?? null,
         farmGroupId: farm?.farm_group_id ?? "ungrouped",
         farmGroupName: farmGroup?.groupName ?? farm?.farm_group_name ?? "Ungrouped",
@@ -968,9 +1006,10 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         latestMaleWeightDate: weightSummary.male.logDate,
         breedFemales: flock?.breed_females ?? null,
         breedMales: flock?.breed_males ?? null,
-        lh1Date: row?.lh1_date ?? null,
-        lh2Date: row?.lh2_date ?? null,
-        lh3Date: row?.lh3_date ?? null,
+        liveHaulDates: scheduledLiveHaulEvents.map((event) => event.date),
+        lh1Date: scheduledLiveHaulEvents[0]?.date ?? row?.lh1_date ?? null,
+        lh2Date: scheduledLiveHaulEvents[1]?.date ?? row?.lh2_date ?? null,
+        lh3Date: scheduledLiveHaulEvents[2]?.date ?? row?.lh3_date ?? null,
         tileState,
         placementEditorAccess: {
           canOpen: false,
@@ -992,7 +1031,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         flockIsComplete: flock?.is_complete === true,
         flockIsSettled: flock?.is_settled === true,
         barnIsEmpty: barn.is_empty === true,
-        canMarkBarnEmpty: row?.is_active === true && flockIsInBarn && canCheckoutByAge,
+        canMarkBarnEmpty: lifecycleStage === "in_barn_growing" && flockIsInBarn && canCheckoutByAge,
         hasWeightData: !!(weightSummary.female.logDate || weightSummary.male.logDate),
       };
     }).sort((left, right) => {
@@ -1186,28 +1225,47 @@ function deriveNonLiveDashboardStatus(tileState: ActivePlacementRecord["tileStat
   return { label: "OFFLINE", tone: "neutral" as const };
 }
 
-function deriveTileState({
-  hasPlacement,
-  placementIsActive,
-  flockIsInBarn,
-}: {
-  hasPlacement: boolean;
-  placementIsActive: boolean;
-  flockIsInBarn: boolean;
-}): ActivePlacementRecord["tileState"] {
-  if (placementIsActive && flockIsInBarn) {
+function deriveTileState(lifecycleStage: PlacementLifecycleStage | null): ActivePlacementRecord["tileState"] {
+  if (lifecycleStage === "in_barn_growing") {
     return "live";
   }
 
-  if (placementIsActive) {
+  if (lifecycleStage === "awaiting_arrival") {
     return "awaiting";
   }
 
-  if (hasPlacement) {
+  if (lifecycleStage === "scheduled") {
     return "scheduled";
   }
 
   return "empty";
+}
+
+function isPlacementOperational(lifecycleStage: PlacementLifecycleStage | null | undefined) {
+  return lifecycleStage === "awaiting_arrival" || lifecycleStage === "in_barn_growing";
+}
+
+function deriveLifecycleStageFallback(
+  placement: PlacementRow | null,
+  flockIsInBarn: boolean,
+): PlacementLifecycleStage {
+  if (!placement) {
+    return "scheduled";
+  }
+
+  if (placement.date_removed) {
+    return "waiting_closeout";
+  }
+
+  if (placement.is_active === true && flockIsInBarn) {
+    return "in_barn_growing";
+  }
+
+  if (placement.is_active === true) {
+    return "awaiting_arrival";
+  }
+
+  return "scheduled";
 }
 
 function formatCompletionBadgeLabel(timestamp: string | null, today: string) {
@@ -1354,9 +1412,9 @@ function buildMortalityWindowBreakdown({
   const dates: string[] = [];
 
   if (mode === "first7" && placedDate) {
-    for (let index = 1; index <= 7; index += 1) {
+    for (let index = 0; index < 7; index += 1) {
       const candidate = addDays(placedDate, index);
-      if (candidate && candidate !== placedDate) {
+      if (candidate) {
         dates.push(candidate);
       }
     }
@@ -1548,6 +1606,12 @@ function applyLiveHaulReduction({
   };
 }
 
+type FeedProjectionLiveHaulEvent = {
+  date: string;
+  targetHead: number | null;
+  actualHead: number | null;
+};
+
 function buildTenDayFeedProjection({
   today,
   ageDays,
@@ -1559,7 +1623,7 @@ function buildTenDayFeedProjection({
   breedMales,
   breedById,
   breedSpecRows,
-  liveHaulDates,
+  liveHaulEvents,
 }: {
   today: string;
   ageDays: number;
@@ -1571,14 +1635,17 @@ function buildTenDayFeedProjection({
   breedMales: string | null;
   breedById: Map<string, BreedRow>;
   breedSpecRows: BreedSpecRow[];
-  liveHaulDates: Array<string | null>;
+  liveHaulEvents: FeedProjectionLiveHaulEvent[];
 }) {
-  const scheduledLiveHaulDates = liveHaulDates
-    .filter((value): value is string => Boolean(value))
-    .sort((left, right) => left.localeCompare(right));
+  const scheduledLiveHaulEvents = liveHaulEvents
+    .filter((value) => Boolean(value.date))
+    .slice()
+    .sort((left, right) => left.date.localeCompare(right.date));
+  const scheduledLiveHaulDates = scheduledLiveHaulEvents.map((event) => event.date);
   const liveHaulDatesInWindow = scheduledLiveHaulDates.filter((date) => {
     return date > today && date <= addDays(today, 10);
   });
+  const liveHaulEventByDate = new Map(scheduledLiveHaulEvents.map((event) => [event.date, event]));
   const liveHaulIndexByDate = new Map(scheduledLiveHaulDates.map((date, index) => [date, index]));
 
   let femalePopulation = currentFemaleCount;
@@ -1593,6 +1660,61 @@ function buildTenDayFeedProjection({
     liveHaulFraction: number | null;
     liveHaulLabel: string | null;
   }> = [];
+
+  for (const [liveHaulIndex, liveHaulEvent] of scheduledLiveHaulEvents.entries()) {
+    if (liveHaulEvent.date > today) {
+      break;
+    }
+
+    const isFinalLiveHaul = liveHaulIndex === scheduledLiveHaulDates.length - 1;
+    const explicitHeadRemoval = liveHaulEvent.targetHead ?? liveHaulEvent.actualHead ?? null;
+
+    if (explicitHeadRemoval !== null) {
+      const totalPopulation = femalePopulation + malePopulation;
+      const boundedRemoval = Math.min(totalPopulation, Math.max(0, explicitHeadRemoval));
+      const femaleShare = totalPopulation > 0 ? femalePopulation / totalPopulation : 0.5;
+      const maleShare = totalPopulation > 0 ? malePopulation / totalPopulation : 0.5;
+      const femaleRemoval = boundedRemoval * femaleShare;
+      const maleRemoval = boundedRemoval * maleShare;
+
+      if (firstLiveHaulFemaleRemoval === null && firstLiveHaulMaleRemoval === null) {
+        firstLiveHaulFemaleRemoval = femaleRemoval;
+        firstLiveHaulMaleRemoval = maleRemoval;
+      }
+
+      const reducedPopulation = applyLiveHaulReduction({
+        femalePopulation,
+        malePopulation,
+        femaleRemoval,
+        maleRemoval,
+      });
+      femalePopulation = reducedPopulation.femalePopulation;
+      malePopulation = reducedPopulation.malePopulation;
+    } else if (isFinalLiveHaul) {
+      femalePopulation = 0;
+      malePopulation = 0;
+    } else if (liveHaulIndex === 0) {
+      firstLiveHaulFemaleRemoval = femalePopulation / 3;
+      firstLiveHaulMaleRemoval = malePopulation / 3;
+      const reducedPopulation = applyLiveHaulReduction({
+        femalePopulation,
+        malePopulation,
+        femaleRemoval: firstLiveHaulFemaleRemoval,
+        maleRemoval: firstLiveHaulMaleRemoval,
+      });
+      femalePopulation = reducedPopulation.femalePopulation;
+      malePopulation = reducedPopulation.malePopulation;
+    } else {
+      const reducedPopulation = applyLiveHaulReduction({
+        femalePopulation,
+        malePopulation,
+        femaleRemoval: Math.min(femalePopulation, firstLiveHaulFemaleRemoval ?? 0),
+        maleRemoval: Math.min(malePopulation, firstLiveHaulMaleRemoval ?? 0),
+      });
+      femalePopulation = reducedPopulation.femalePopulation;
+      malePopulation = reducedPopulation.malePopulation;
+    }
+  }
 
   for (let dayOffset = 1; dayOffset <= 10; dayOffset += 1) {
     femalePopulation = Math.max(0, femalePopulation - projectedFemaleMortalityPerDay);
@@ -1619,11 +1741,18 @@ function buildTenDayFeedProjection({
     const liveHaulIndex = liveHaulIndexByDate.get(date);
     const appliesLiveHaul = liveHaulIndex !== undefined;
     const isFinalLiveHaul = appliesLiveHaul && liveHaulIndex === scheduledLiveHaulDates.length - 1;
+    const liveHaulEvent = liveHaulEventByDate.get(date) ?? null;
+    const explicitHeadRemoval = liveHaulEvent?.targetHead ?? liveHaulEvent?.actualHead ?? null;
     let liveHaulFraction: number | null = null;
     let liveHaulLabel: string | null = null;
 
     if (appliesLiveHaul) {
-      if (isFinalLiveHaul) {
+      if (explicitHeadRemoval !== null) {
+        const totalPopulation = femalePopulation + malePopulation;
+        const boundedRemoval = Math.min(totalPopulation, Math.max(0, explicitHeadRemoval));
+        liveHaulFraction = totalPopulation > 0 ? boundedRemoval / totalPopulation : null;
+        liveHaulLabel = `Planned live haul removes ${Math.round(boundedRemoval).toLocaleString()} birds before the next day.`;
+      } else if (isFinalLiveHaul) {
         liveHaulFraction = femalePopulation + malePopulation > 0 ? 1 : null;
         liveHaulLabel = "Final live haul clears remaining birds for the next day.";
       } else if (liveHaulIndex === 0) {
@@ -1648,7 +1777,28 @@ function buildTenDayFeedProjection({
     });
 
     if (appliesLiveHaul) {
-      if (isFinalLiveHaul) {
+      if (explicitHeadRemoval !== null) {
+        const totalPopulation = femalePopulation + malePopulation;
+        const boundedRemoval = Math.min(totalPopulation, Math.max(0, explicitHeadRemoval));
+        const femaleShare = totalPopulation > 0 ? femalePopulation / totalPopulation : 0.5;
+        const maleShare = totalPopulation > 0 ? malePopulation / totalPopulation : 0.5;
+        const femaleRemoval = boundedRemoval * femaleShare;
+        const maleRemoval = boundedRemoval * maleShare;
+
+        if (firstLiveHaulFemaleRemoval === null && firstLiveHaulMaleRemoval === null) {
+          firstLiveHaulFemaleRemoval = femaleRemoval;
+          firstLiveHaulMaleRemoval = maleRemoval;
+        }
+
+        const reducedPopulation = applyLiveHaulReduction({
+          femalePopulation,
+          malePopulation,
+          femaleRemoval,
+          maleRemoval,
+        });
+        femalePopulation = reducedPopulation.femalePopulation;
+        malePopulation = reducedPopulation.malePopulation;
+      } else if (isFinalLiveHaul) {
         femalePopulation = 0;
         malePopulation = 0;
       } else if (liveHaulIndex === 0) {

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { deleteScheduledPlacementAction, updatePlacementAction } from "@/app/admin/placements/new/actions";
+import { PlacementMonthPicker } from "@/app/admin/placements/new/placement-month-picker";
 import { SchedulePlacementForm } from "@/app/admin/placements/new/schedule-placement-form";
 import { SchedulerFilters } from "@/app/admin/placements/new/scheduler-filters";
 import { PageHeader } from "@/components/page-header";
@@ -191,7 +192,17 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
             <div className="placement-scheduler-calendar-heading">
               <p className="placement-scheduler-calendar-context">{calendarContextTitle}</p>
               <p className="placement-scheduler-calendar-meta">{calendarContextMeta}</p>
-              <h2>{calendar.title}</h2>
+              <div className="placement-scheduler-calendar-title-row">
+                <h2>{calendar.title}</h2>
+                <PlacementMonthPicker
+                  barnId={selectedBarn?.id ?? null}
+                  date={selectedDate ?? null}
+                  farmId={selectedFarm?.id ?? null}
+                  mode={mode}
+                  month={selectedMonth}
+                  placementId={selectedPlacementById?.id ?? null}
+                />
+              </div>
             </div>
             <Link className="button-ghost placement-scheduler-nav-button" href={buildHref({ month: calendar.nextMonth, date: null, placement: null })}>
               Next

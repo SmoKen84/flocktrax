@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { PageHeader } from "@/components/page-header";
 import { getFeedTicketFlockReportBundle, type FeedTicketAdminFilters } from "@/lib/feed-ticket-data";
 import { getPlatformReportOption } from "@/lib/platform-content";
@@ -7,6 +9,14 @@ import { FeedTicketReportActions } from "../feed-ticket-report-actions";
 type FeedTicketReportPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateMetadata({ searchParams }: FeedTicketReportPageProps): Promise<Metadata> {
+  const params = (await searchParams) ?? {};
+  const flockCode = firstParam(params.flockCode) || "Unknown Flock";
+  return {
+    title: `Feed Report | ${flockCode} | FlockTrax Admin`,
+  };
+}
 
 export default async function FeedTicketReportPage({ searchParams }: FeedTicketReportPageProps) {
   const params = (await searchParams) ?? {};

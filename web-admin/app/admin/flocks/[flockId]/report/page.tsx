@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Fragment } from "react";
 import { notFound } from "next/navigation";
 
@@ -13,6 +14,20 @@ type FlockHistoryReportPageProps = {
     mode?: string;
   }>;
 };
+
+export async function generateMetadata({ params, searchParams }: FlockHistoryReportPageProps): Promise<Metadata> {
+  const { flockId } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const report = await getFlockHistoryReportBundle(flockId);
+  const isMicroArchive = resolvedSearchParams?.mode === "micro";
+  const titlePlacementCode = report?.placements[0]?.placementCode || report?.flockCode || "Flock History";
+
+  return {
+    title: isMicroArchive
+      ? `Micro Archive | ${titlePlacementCode} | FlockTrax Admin`
+      : `Flock History Report | ${titlePlacementCode} | FlockTrax Admin`,
+  };
+}
 
 export default async function FlockHistoryReportPage({ params, searchParams }: FlockHistoryReportPageProps) {
   const { flockId } = await params;
