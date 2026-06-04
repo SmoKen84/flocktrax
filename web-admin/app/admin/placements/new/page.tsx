@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { deleteScheduledPlacementAction, updatePlacementAction } from "@/app/admin/placements/new/actions";
@@ -61,13 +62,26 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
       .filter((membership) => membership.scopeType === "farm_group")
       .map((membership) => membership.scopeId) ?? [],
   );
+  const primaryAccessibleFarmGroupId =
+    actingUser?.memberships.find((membership) => membership.scopeType === "farm_group")?.scopeId ??
+    (accessibleFarmGroupIds.size === 1 ? Array.from(accessibleFarmGroupIds)[0] : null);
   const visibleFarmsPool = canSeeAllFarms
     ? bundle.farms
     : bundle.farms.filter((farm) => accessibleFarmIds.has(farm.id) || (farm.farmGroupId && accessibleFarmGroupIds.has(farm.farmGroupId)));
+  const farmGroupOptions = Array.from(
+    new Map(
+      visibleFarmsPool
+        .filter((farm) => farm.farmGroupId)
+        .map((farm) => [farm.farmGroupId as string, farm.farmGroupName]),
+    ).entries(),
+  )
+    .map(([id, label]) => ({ id, label }))
+    .sort((left, right) => left.label.localeCompare(right.label));
   const selectedFarm = visibleFarmsPool.find((farm) => farm.id === selectedFarmParam) ?? null;
   const explicitFarmGroupScopeId =
     selectedFarmGroupParam ??
     selectedFarm?.farmGroupId ??
+    (mode === "placements" && primaryAccessibleFarmGroupId ? primaryAccessibleFarmGroupId : null) ??
     (selectedFarmParam === "all" && visibleFarmsPool.length > 0 && Array.from(new Set(visibleFarmsPool.map((farm) => farm.farmGroupId ?? "__ungrouped__"))).length === 1
       ? visibleFarmsPool[0]?.farmGroupId ?? "__ungrouped__"
       : null);
@@ -76,6 +90,10 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
       ? []
       : visibleFarmsPool.filter((farm) => (farm.farmGroupId ?? "__ungrouped__") === explicitFarmGroupScopeId);
   const canUseAllFarmsScope = scopedFarmGroupFarms.length > 0;
+  const farmOptions =
+    mode === "placements" && explicitFarmGroupScopeId
+      ? visibleFarmsPool.filter((farm) => (farm.farmGroupId ?? "__ungrouped__") === explicitFarmGroupScopeId)
+      : visibleFarmsPool;
   const wantsAllFarms =
     mode === "placements" && canUseAllFarmsScope && (!selectedFarmParam || selectedFarmParam === "all");
   const scopedFarms =
@@ -131,10 +149,16 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
     wantsAllFarms && scopedFarms[0] ? `${scopedFarms[0].farmGroupName} · All Farms` : "All Farms";
   const allFarmsSelectorLabel =
     canUseAllFarmsScope && scopedFarms[0] ? `All Farms (${scopedFarms[0].farmGroupName})` : "All Farms";
-  const calendarContextTitle =
+  const calendarContextTitle: ReactNode =
     mode === "placements"
-      ? wantsAllFarms
-        ? allFarmsContextLabel
+      ? wantsAllFarms && scopedFarms[0]
+        ? (
+            <>
+              <span>{scopedFarms[0].farmGroupName}</span>
+              <br />
+              <span>All Farms</span>
+            </>
+          )
         : selectedFarm?.farmName ?? "No farm selected"
       : selectedBarn?.barnCode ?? "No barn selected";
   const calendarContextMeta =
@@ -217,7 +241,8 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
               allowAllFarms={canUseAllFarmsScope}
               allFarmsLabel={canUseAllFarmsScope ? allFarmsSelectorLabel : "Choose a farm"}
               barns={visibleBarns.map((barn) => ({ id: barn.id, label: barn.barnCode }))}
-              farms={visibleFarmsPool.map((farm) => ({ id: farm.id, label: farm.farmName }))}
+              farmGroups={farmGroupOptions}
+              farms={farmOptions.map((farm) => ({ id: farm.id, label: farm.farmName }))}
               mode={mode}
               modeDescription={mode === "placements" ? farmViewText : barnViewText}
               selectedFarmGroupId={explicitFarmGroupScopeId ?? ""}

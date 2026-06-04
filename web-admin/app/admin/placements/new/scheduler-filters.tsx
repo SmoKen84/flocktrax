@@ -9,6 +9,7 @@ type FilterOption = {
 };
 
 type SchedulerFiltersProps = {
+  farmGroups: FilterOption[];
   farms: FilterOption[];
   barns: FilterOption[];
   allowAllFarms: boolean;
@@ -49,6 +50,7 @@ function buildSearch(params: {
 }
 
 export function SchedulerFilters({
+  farmGroups,
   farms,
   barns,
   allowAllFarms,
@@ -118,6 +120,40 @@ export function SchedulerFilters({
         </div>
 
         <div className="placement-scheduler-filter-cluster placement-scheduler-filter-cluster-right">
+          {mode === "placements" ? (
+            <label className="access-filter-field">
+              <span>Farm Group</span>
+              <select
+                defaultValue={selectedFarmGroupId}
+                disabled={isPending || farmGroups.length === 0}
+                name="farm_group"
+                onChange={(event) => {
+                  const nextFarmGroupId = event.currentTarget.value || null;
+                  startTransition(() => {
+                    router.push(
+                      buildSearch({
+                        mode,
+                        month: selectedMonth,
+                        farmGroup: nextFarmGroupId,
+                        farm: nextFarmGroupId && allowAllFarms ? "all" : null,
+                        barn: null,
+                      }),
+                    );
+                  });
+                }}
+              >
+                <option value="">
+                  {farmGroups.length === 0 ? "No farm groups available" : "Choose a farm group"}
+                </option>
+                {farmGroups.map((farmGroup) => (
+                  <option key={farmGroup.id} value={farmGroup.id}>
+                    {farmGroup.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
           <label className="access-filter-field">
             <span>Select Farm</span>
             <select
