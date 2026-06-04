@@ -759,22 +759,30 @@ function MortalityPopup({
           <div className="mortality-popup-stat mortality-popup-stat-compact">
             <span>Mortality</span>
             {mode === "first7" ? (
-              <div className="mortality-popup-metric-table">
-                <div className="mortality-popup-metric-head" />
-                <div className="mortality-popup-metric-head">Dead</div>
-                <div className="mortality-popup-metric-head">Mort %</div>
+              <div className="mortality-popup-metric-stack">
+                <div className="mortality-popup-metric-table mortality-popup-metric-table--head">
+                  <div className="mortality-popup-metric-head" />
+                  <div className="mortality-popup-metric-head">Dead</div>
+                  <div className="mortality-popup-metric-head">Mort %</div>
+                </div>
 
-                <div className="mortality-popup-metric-label">Roos:</div>
-                <div>{formatCount(maleMortalityTotal)}</div>
-                <div>{formatPercent(maleMortPercent)}</div>
+                <div className="mortality-popup-metric-table">
+                  <div className="mortality-popup-metric-label">Roos:</div>
+                  <div>{formatCount(maleMortalityTotal)}</div>
+                  <div>{formatPercent(maleMortPercent)}</div>
+                </div>
 
-                <div className="mortality-popup-metric-label">Hens:</div>
-                <div>{formatCount(femaleMortalityTotal)}</div>
-                <div>{formatPercent(femaleMortPercent)}</div>
+                <div className="mortality-popup-metric-table">
+                  <div className="mortality-popup-metric-label">Hens:</div>
+                  <div>{formatCount(femaleMortalityTotal)}</div>
+                  <div>{formatPercent(femaleMortPercent)}</div>
+                </div>
 
-                <div className="mortality-popup-metric-label mortality-popup-metric-total">Totals</div>
-                <div className="mortality-popup-metric-total">{formatCount(mortalityCountTotal)}</div>
-                <div className="mortality-popup-metric-total">{formatPercent(totalMortPercent)}</div>
+                <div className="mortality-popup-metric-table mortality-popup-metric-table--totals">
+                  <div className="mortality-popup-metric-label mortality-popup-metric-total">Totals:</div>
+                  <div className="mortality-popup-metric-total">{formatCount(mortalityCountTotal)}</div>
+                  <div className="mortality-popup-metric-total">{formatPercent(totalMortPercent)}</div>
+                </div>
               </div>
             ) : (
               <div className="mortality-popup-stat-lines">

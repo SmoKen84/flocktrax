@@ -4785,13 +4785,28 @@ tr:last-child td {
 
 .mortality-popup-metric-table {
   display: grid;
-  grid-template-columns: auto minmax(4ch, auto) minmax(4ch, auto) minmax(5ch, auto);
+  grid-template-columns: auto minmax(4ch, auto) minmax(5ch, auto);
   gap: 0.35rem 0.9rem;
   justify-content: end;
   align-items: baseline;
   color: #2d241b;
   font-size: 1rem;
   line-height: 1.2;
+}
+
+.mortality-popup-metric-stack {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.mortality-popup-metric-table--head {
+  margin-bottom: 0.15rem;
+}
+
+.mortality-popup-metric-table--totals {
+  margin-top: 0.15rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid rgba(184, 92, 56, 0.16);
 }
 
 .mortality-popup-metric-head {
