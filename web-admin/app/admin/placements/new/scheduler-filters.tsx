@@ -80,7 +80,16 @@ export function SchedulerFilters({
                         buildSearch({
                           mode: option.value,
                           month: selectedMonth,
-                          farm: selectedFarmId && selectedFarmId !== "all" ? selectedFarmId : null,
+                          farm:
+                            option.value === "placements"
+                              ? allowAllFarms
+                                ? "all"
+                                : selectedFarmId && selectedFarmId !== "all"
+                                  ? selectedFarmId
+                                  : null
+                              : selectedFarmId && selectedFarmId !== "all"
+                                ? selectedFarmId
+                                : null,
                           barn: option.value === "blocked" ? selectedBarnId || null : null,
                         }),
                       );
@@ -108,7 +117,8 @@ export function SchedulerFilters({
               disabled={isPending}
               name="farm"
               onChange={(event) => {
-                const nextFarmId = event.currentTarget.value || null;
+                const rawValue = event.currentTarget.value;
+                const nextFarmId = rawValue === "all" ? "all" : rawValue || null;
                 startTransition(() => {
                   router.push(
                     buildSearch({
@@ -121,7 +131,7 @@ export function SchedulerFilters({
                 });
               }}
             >
-              <option value="">
+              <option value={mode === "placements" && allowAllFarms ? "all" : ""}>
                 {farms.length === 0
                   ? "No farms available"
                   : mode === "placements" && allowAllFarms
