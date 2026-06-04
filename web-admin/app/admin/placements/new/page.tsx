@@ -62,15 +62,32 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
   const visibleFarmsPool = canSeeAllFarms
     ? bundle.farms
     : bundle.farms.filter((farm) => accessibleFarmIds.has(farm.id) || (farm.farmGroupId && accessibleFarmGroupIds.has(farm.farmGroupId)));
-
+  const visibleFarmGroupKeys = Array.from(new Set(visibleFarmsPool.map((farm) => farm.farmGroupId ?? "__ungrouped__")));
+  const canUseAllFarmsScope = visibleFarmsPool.length > 0 && visibleFarmGroupKeys.length === 1;
+  const wantsAllFarms =
+    mode === "placements" && canUseAllFarmsScope && (!selectedFarmParam || selectedFarmParam === "all");
   const selectedFarm = visibleFarmsPool.find((farm) => farm.id === selectedFarmParam) ?? null;
-  const visibleBarns = selectedFarm ? bundle.barnsByFarmId[selectedFarm.id] ?? [] : [];
+  const scopedFarms =
+    mode === "placements"
+      ? wantsAllFarms
+        ? visibleFarmsPool.filter((farm) => (farm.farmGroupId ?? "__ungrouped__") === visibleFarmGroupKeys[0])
+        : selectedFarm
+          ? [selectedFarm]
+          : []
+      : selectedFarm
+        ? [selectedFarm]
+        : [];
+  const visibleBarns = scopedFarms.flatMap((farm) => bundle.barnsByFarmId[farm.id] ?? []);
   const farmWindows = visibleBarns.flatMap((barn) => bundle.windowsByBarnId[barn.id] ?? []);
   const selectedPlacementById = farmWindows.find((window) => window.id === selectedPlacementParam) ?? null;
   const selectedBarn =
     visibleBarns.find((barn) => barn.id === selectedBarnParam) ??
     visibleBarns.find((barn) => barn.id === selectedPlacementById?.barnId) ??
     null;
+  const selectedFarmForEditor =
+    selectedFarm ??
+    (selectedPlacementById ? visibleFarmsPool.find((farm) => farm.id === selectedPlacementById.farmId) ?? null : null) ??
+    (selectedBarn ? scopedFarms.find((farm) => farm.id === selectedBarn.farmId) ?? null : null);
   const selectedDate =
     (clearedSelection ? null : selectedDateParam) ??
     selectedPlacementById?.startDate ??
@@ -99,7 +116,16 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
   const barnViewText =
     screenTextValues.get("calendar_barn_view") ||
     "Displays the blocked grow-out windows for the selected barn on one calendar.";
-  const calendarContextTitle = mode === "placements" ? selectedFarm?.farmName ?? "No farm selected" : selectedBarn?.barnCode ?? "No barn selected";
+  const allFarmsContextLabel =
+    wantsAllFarms && scopedFarms[0] ? `${scopedFarms[0].farmGroupName} · All Farms` : "All Farms";
+  const allFarmsSelectorLabel =
+    canUseAllFarmsScope && scopedFarms[0] ? `All Farms (${scopedFarms[0].farmGroupName})` : "All Farms";
+  const calendarContextTitle =
+    mode === "placements"
+      ? wantsAllFarms
+        ? allFarmsContextLabel
+        : selectedFarm?.farmName ?? "No farm selected"
+      : selectedBarn?.barnCode ?? "No barn selected";
   const calendarContextMeta =
     mode === "placements"
       ? `(${monthlyPlacementStarts.length} placement${monthlyPlacementStarts.length === 1 ? "" : "s"})`
@@ -117,7 +143,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
   } = {}) => {
     const query = new URLSearchParams();
     const nextMode = options.mode ?? mode;
-    const farm = options.farm === undefined ? selectedFarm?.id ?? null : options.farm;
+    const farm = options.farm === undefined ? (wantsAllFarms ? "all" : selectedFarm?.id ?? null) : options.farm;
     const barn = options.barn === undefined ? selectedBarn?.id ?? null : options.barn;
     const placement = options.placement === undefined ? selectedPlacementById?.id ?? null : options.placement;
     const date = options.date === undefined ? selectedDate || null : options.date;
@@ -174,12 +200,14 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
         <article className="card placement-scheduler-calendar-card">
           <div className="placement-scheduler-toolbar">
             <SchedulerFilters
+              allowAllFarms={canUseAllFarmsScope}
+              allFarmsLabel={canUseAllFarmsScope ? allFarmsSelectorLabel : "Choose a farm"}
               barns={visibleBarns.map((barn) => ({ id: barn.id, label: barn.barnCode }))}
               farms={visibleFarmsPool.map((farm) => ({ id: farm.id, label: farm.farmName }))}
               mode={mode}
               modeDescription={mode === "placements" ? farmViewText : barnViewText}
               selectedBarnId={selectedBarn?.id ?? ""}
-              selectedFarmId={selectedFarm?.id ?? ""}
+              selectedFarmId={wantsAllFarms ? "all" : selectedFarm?.id ?? ""}
               selectedMonth={selectedMonth}
               showBarnSelector={mode === "blocked"}
             />
@@ -197,7 +225,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                 <PlacementMonthPicker
                   barnId={selectedBarn?.id ?? null}
                   date={selectedDate ?? null}
-                  farmId={selectedFarm?.id ?? null}
+                  farmId={wantsAllFarms ? "all" : selectedFarm?.id ?? null}
                   mode={mode}
                   month={selectedMonth}
                   placementId={selectedPlacementById?.id ?? null}
@@ -362,7 +390,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
               {selectedPlacement ? (
                 <form action={updatePlacementAction} className="placement-scheduler-form" key={`farm-edit-${selectedPlacement.id}`}>
                   <input name="mode" type="hidden" value={mode} />
-                  <input name="farm_id" type="hidden" value={selectedFarm?.id ?? ""} />
+                  <input name="farm_id" type="hidden" value={selectedFarmForEditor?.id ?? selectedPlacement.farmId ?? ""} />
                   <input name="barn_id" type="hidden" value={selectedBarn?.id ?? ""} />
                   <input name="placement_id" type="hidden" value={selectedPlacement.id} />
                   <input name="flock_id" type="hidden" value={selectedPlacement.flockId} />
@@ -508,7 +536,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                     <div className="section-header">
                       <div>
                         <p className="eyebrow">Month Recap</p>
-                        <h3>{selectedFarm ? `${selectedFarm.farmName} barns` : "No farm selected"}</h3>
+                        <h3>{wantsAllFarms ? allFarmsContextLabel : selectedFarm ? `${selectedFarm.farmName} barns` : "No farm selected"}</h3>
                       </div>
                     </div>
                     <div className="placement-scheduler-recap-table">
@@ -537,7 +565,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                             </Link>
                           ))
                       ) : (
-                        <p className="meta-copy">No placement starts fall in this month for the selected farm.</p>
+                        <p className="meta-copy">No placement starts fall in this month for the selected scope.</p>
                       )}
                     </div>
                   </div>
@@ -547,7 +575,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
           ) : selectedPlacement && selectedPlacement.isFuture ? (
             <form action={updatePlacementAction} className="placement-scheduler-form" key={`future-edit-${selectedPlacement.id}`}>
               <input name="mode" type="hidden" value={mode} />
-              <input name="farm_id" type="hidden" value={selectedFarm?.id ?? ""} />
+              <input name="farm_id" type="hidden" value={selectedFarmForEditor?.id ?? selectedPlacement.farmId ?? ""} />
               <input name="barn_id" type="hidden" value={selectedBarn?.id ?? ""} />
               <input name="placement_id" type="hidden" value={selectedPlacement.id} />
               <input name="flock_id" type="hidden" value={selectedPlacement.flockId} />
@@ -662,7 +690,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
           ) : selectedPlacement ? (
             <form action={updatePlacementAction} className="placement-scheduler-form" key={`placement-edit-${selectedPlacement.id}`}>
               <input name="mode" type="hidden" value={mode} />
-              <input name="farm_id" type="hidden" value={selectedFarm?.id ?? ""} />
+              <input name="farm_id" type="hidden" value={selectedFarmForEditor?.id ?? selectedPlacement.farmId ?? ""} />
               <input name="barn_id" type="hidden" value={selectedBarn?.id ?? ""} />
               <input name="placement_id" type="hidden" value={selectedPlacement.id} />
               <input name="flock_id" type="hidden" value={selectedPlacement.flockId} />

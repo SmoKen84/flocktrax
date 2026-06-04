@@ -11,6 +11,8 @@ type FilterOption = {
 type SchedulerFiltersProps = {
   farms: FilterOption[];
   barns: FilterOption[];
+  allowAllFarms: boolean;
+  allFarmsLabel: string;
   mode: "blocked" | "placements";
   modeDescription: string;
   selectedFarmId: string;
@@ -43,6 +45,8 @@ function buildSearch(params: {
 export function SchedulerFilters({
   farms,
   barns,
+  allowAllFarms,
+  allFarmsLabel,
   mode,
   modeDescription,
   selectedFarmId,
@@ -76,7 +80,7 @@ export function SchedulerFilters({
                         buildSearch({
                           mode: option.value,
                           month: selectedMonth,
-                          farm: selectedFarmId || null,
+                          farm: selectedFarmId && selectedFarmId !== "all" ? selectedFarmId : null,
                           barn: option.value === "blocked" ? selectedBarnId || null : null,
                         }),
                       );
@@ -117,7 +121,13 @@ export function SchedulerFilters({
                 });
               }}
             >
-              <option value="">{farms.length === 0 ? "No farms available" : "Choose a farm"}</option>
+              <option value="">
+                {farms.length === 0
+                  ? "No farms available"
+                  : mode === "placements" && allowAllFarms
+                    ? allFarmsLabel
+                    : "Choose a farm"}
+              </option>
               {farms.map((farm) => (
                 <option key={farm.id} value={farm.id}>
                   {farm.label}
