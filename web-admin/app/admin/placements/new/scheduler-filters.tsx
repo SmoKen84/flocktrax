@@ -15,6 +15,7 @@ type SchedulerFiltersProps = {
   allFarmsLabel: string;
   mode: "blocked" | "placements";
   modeDescription: string;
+  selectedFarmGroupId: string;
   selectedFarmId: string;
   selectedBarnId: string;
   selectedMonth: string;
@@ -24,12 +25,17 @@ type SchedulerFiltersProps = {
 function buildSearch(params: {
   mode: "blocked" | "placements";
   month: string;
+  farmGroup?: string | null;
   farm?: string | null;
   barn?: string | null;
 }) {
   const query = new URLSearchParams();
   query.set("mode", params.mode);
   query.set("month", params.month);
+
+  if (params.farmGroup) {
+    query.set("farm_group", params.farmGroup);
+  }
 
   if (params.farm) {
     query.set("farm", params.farm);
@@ -49,6 +55,7 @@ export function SchedulerFilters({
   allFarmsLabel,
   mode,
   modeDescription,
+  selectedFarmGroupId,
   selectedFarmId,
   selectedBarnId,
   selectedMonth,
@@ -80,6 +87,7 @@ export function SchedulerFilters({
                         buildSearch({
                           mode: option.value,
                           month: selectedMonth,
+                          farmGroup: selectedFarmGroupId || null,
                           farm:
                             option.value === "placements"
                               ? allowAllFarms
@@ -124,6 +132,7 @@ export function SchedulerFilters({
                     buildSearch({
                       mode,
                       month: selectedMonth,
+                      farmGroup: nextFarmId === "all" ? selectedFarmGroupId || null : null,
                       farm: nextFarmId,
                       barn: null,
                     }),
@@ -160,6 +169,7 @@ export function SchedulerFilters({
                       buildSearch({
                       mode,
                       month: selectedMonth,
+                      farmGroup: selectedFarmGroupId || null,
                       farm: selectedFarmId || null,
                       barn: nextBarnId,
                     }),

@@ -12,6 +12,7 @@ import { getPlacementSchedulerBundle } from "@/lib/placement-scheduler-data";
 type NewPlacementPageProps = {
   searchParams?: Promise<{
     mode?: string | string[];
+    farm_group?: string | string[];
     farm?: string | string[];
     barn?: string | string[];
     placement?: string | string[];
@@ -26,6 +27,7 @@ type NewPlacementPageProps = {
 export default async function NewPlacementPage({ searchParams }: NewPlacementPageProps) {
   const params = searchParams ? await searchParams : undefined;
   const selectedModeParam = readParam(params?.mode);
+  const selectedFarmGroupParam = readParam(params?.farm_group);
   const selectedFarmParam = readParam(params?.farm);
   const selectedBarnParam = readParam(params?.barn);
   const selectedPlacementParam = readParam(params?.placement);
@@ -62,15 +64,24 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
   const visibleFarmsPool = canSeeAllFarms
     ? bundle.farms
     : bundle.farms.filter((farm) => accessibleFarmIds.has(farm.id) || (farm.farmGroupId && accessibleFarmGroupIds.has(farm.farmGroupId)));
-  const visibleFarmGroupKeys = Array.from(new Set(visibleFarmsPool.map((farm) => farm.farmGroupId ?? "__ungrouped__")));
-  const canUseAllFarmsScope = visibleFarmsPool.length > 0 && visibleFarmGroupKeys.length === 1;
+  const selectedFarm = visibleFarmsPool.find((farm) => farm.id === selectedFarmParam) ?? null;
+  const explicitFarmGroupScopeId =
+    selectedFarmGroupParam ??
+    selectedFarm?.farmGroupId ??
+    (selectedFarmParam === "all" && visibleFarmsPool.length > 0 && Array.from(new Set(visibleFarmsPool.map((farm) => farm.farmGroupId ?? "__ungrouped__"))).length === 1
+      ? visibleFarmsPool[0]?.farmGroupId ?? "__ungrouped__"
+      : null);
+  const scopedFarmGroupFarms =
+    explicitFarmGroupScopeId === null
+      ? []
+      : visibleFarmsPool.filter((farm) => (farm.farmGroupId ?? "__ungrouped__") === explicitFarmGroupScopeId);
+  const canUseAllFarmsScope = scopedFarmGroupFarms.length > 0;
   const wantsAllFarms =
     mode === "placements" && canUseAllFarmsScope && (!selectedFarmParam || selectedFarmParam === "all");
-  const selectedFarm = visibleFarmsPool.find((farm) => farm.id === selectedFarmParam) ?? null;
   const scopedFarms =
     mode === "placements"
       ? wantsAllFarms
-        ? visibleFarmsPool.filter((farm) => (farm.farmGroupId ?? "__ungrouped__") === visibleFarmGroupKeys[0])
+        ? scopedFarmGroupFarms
         : selectedFarm
           ? [selectedFarm]
           : []
@@ -135,6 +146,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
   const getNextPlaceDate = (startDate: string) => addDays(startDate, nextPlaceOffsetDays);
   const buildHref = (options: {
     mode?: "blocked" | "placements";
+    farmGroup?: string | null;
     farm?: string | null;
     barn?: string | null;
     placement?: string | null;
@@ -143,6 +155,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
   } = {}) => {
     const query = new URLSearchParams();
     const nextMode = options.mode ?? mode;
+    const farmGroup = options.farmGroup === undefined ? (wantsAllFarms ? explicitFarmGroupScopeId : selectedFarmForEditor?.farmGroupId ?? explicitFarmGroupScopeId) : options.farmGroup;
     const farm = options.farm === undefined ? (wantsAllFarms ? "all" : selectedFarm?.id ?? null) : options.farm;
     const barn = options.barn === undefined ? selectedBarn?.id ?? null : options.barn;
     const placement = options.placement === undefined ? selectedPlacementById?.id ?? null : options.placement;
@@ -150,6 +163,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
     const month = options.month === undefined ? selectedMonth : options.month;
 
     query.set("mode", nextMode);
+    if (farmGroup) query.set("farm_group", farmGroup);
     if (farm) query.set("farm", farm);
     if (barn) query.set("barn", barn);
     if (placement) query.set("placement", placement);
@@ -206,6 +220,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
               farms={visibleFarmsPool.map((farm) => ({ id: farm.id, label: farm.farmName }))}
               mode={mode}
               modeDescription={mode === "placements" ? farmViewText : barnViewText}
+              selectedFarmGroupId={explicitFarmGroupScopeId ?? ""}
               selectedBarnId={selectedBarn?.id ?? ""}
               selectedFarmId={wantsAllFarms ? "all" : selectedFarm?.id ?? ""}
               selectedMonth={selectedMonth}
@@ -225,6 +240,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                 <PlacementMonthPicker
                   barnId={selectedBarn?.id ?? null}
                   date={selectedDate ?? null}
+                  farmGroupId={explicitFarmGroupScopeId}
                   farmId={wantsAllFarms ? "all" : selectedFarm?.id ?? null}
                   mode={mode}
                   month={selectedMonth}

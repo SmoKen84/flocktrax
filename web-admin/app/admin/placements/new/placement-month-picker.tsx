@@ -7,6 +7,7 @@ type PlacementMonthPickerProps = {
   barnId?: string | null;
   date?: string | null;
   farmId?: string | null;
+  farmGroupId?: string | null;
   mode: "blocked" | "placements";
   month: string;
   placementId?: string | null;
@@ -20,6 +21,7 @@ export function PlacementMonthPicker({
   barnId,
   date,
   farmId,
+  farmGroupId,
   mode,
   month,
   placementId,
@@ -30,6 +32,7 @@ export function PlacementMonthPicker({
   const navigateToMonth = (nextMonth: string) => {
     const query = new URLSearchParams();
     query.set("mode", mode);
+    if (farmGroupId) query.set("farm_group", farmGroupId);
     if (farmId) query.set("farm", farmId);
     if (barnId) query.set("barn", barnId);
     if (date) query.set("date", date);
