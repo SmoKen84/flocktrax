@@ -12,6 +12,10 @@ Purpose:
 ### June 2026
 
 - `2026-06-04`
+  - [FlockTrax_Admin_Dashboard_And_Placement_Scheduler_Polish_Checkpoint_2026-06-04.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Dashboard_And_Placement_Scheduler_Polish_Checkpoint_2026-06-04.md)
+  - detailed checkpoint covering the placement scheduler farm-group selector and `All Farms` scope, the admin dashboard iPad/tile overflow fix, and the first-7 mortality popup summary layout cleanup with production deploys `GGtSdEqLi9VQdKDUrdQXpo4vDchZ`, `5v7D9oxfQW7jyvkgACvMDZ1f5bwT`, and `FPiYNBvdR6qRCKwazp1uT5n3oHp4`
+
+- `2026-06-04`
   - [FlockTrax_Admin_Release_5_4_Closeout_And_Lifecycle_Production_Checkpoint_2026-06-04.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Release_5_4_Closeout_And_Lifecycle_Production_Checkpoint_2026-06-04.md)
   - production release checkpoint covering commit `14af6b8`, hosted admin build marker `5.4`, Vercel deployment `dpl_FWFfcY4LiEUWiioTZJ1ZghRL6s19`, the live closeout/livehaul/lifecycle baseline, the day-1 mortality rule correction, and the deployed legacy mortality-upsert compatibility cleanup
 
