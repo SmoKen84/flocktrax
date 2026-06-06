@@ -152,6 +152,19 @@ function getPassiveTileActionLabel(placement: ActivePlacementRecord) {
   return placement.ageDays < 0 ? "Placed Ok" : "Schedule Live Haul";
 }
 
+function buildLivehaulSchedulerHref(placement: ActivePlacementRecord) {
+  const firstScheduledDate = placement.liveHaulDates[0] ?? null;
+  const targetMonth = (firstScheduledDate ?? placement.liveHaulSchedulerDate)?.slice(0, 7) ?? null;
+  const query = new URLSearchParams();
+  query.set("farm", placement.farmId);
+  query.set("barn", placement.barnId);
+  query.set("placement", placement.placementId);
+  if (targetMonth) {
+    query.set("month", targetMonth);
+  }
+  return `/admin/placements/livehaul?${query.toString()}`;
+}
+
 function formatIssueSummary(placement: ActivePlacementRecord) {
   const parts: string[] = [];
 
@@ -974,6 +987,7 @@ function PlacementTile({
   const hasOpenItems = placement.openBarnIssueCount > 0 || placement.openPlacementIssueCount > 0;
   const openActionItemsHref = buildActionItemsHref(placement, "open");
   const resolvedActionItemsHref = buildActionItemsHref(placement, "resolved");
+  const livehaulSchedulerHref = buildLivehaulSchedulerHref(placement);
   const issueBadgeTone = getIssueBadgeTone(placement);
   const shouldShowCompletionBadge = placement.tileState === "live" && Boolean(placement.completedTodayLabel);
   const shouldShowPendingBadge = placement.tileState === "live" && !hasOpenItems && !shouldShowCompletionBadge;
@@ -1216,14 +1230,12 @@ function PlacementTile({
             {isPending ? "Saving..." : operationalAction.label}
           </button>
         ) : lhDatesNeeded ? (
-          <button
+          <Link
             className="tile-action-button"
-            disabled={isPending || anotherTileIsEditing}
-            onClick={beginEdit}
-            type="button"
+            href={livehaulSchedulerHref}
           >
             LH Dates
-          </button>
+          </Link>
         ) : operationalAction ? (
           <button
             className="tile-action-button"
@@ -1234,16 +1246,16 @@ function PlacementTile({
             {isPending ? "Saving..." : operationalAction.label}
           </button>
         ) : canEditLhDates ? (
-          <button
+          <Link
             className="tile-action-button"
-            disabled={isPending || anotherTileIsEditing}
-            onClick={beginEdit}
-            type="button"
+            href={livehaulSchedulerHref}
           >
             LH Dates
-          </button>
+          </Link>
         ) : (
-          <div className="tile-action-button">{getPassiveTileActionLabel(placement)}</div>
+          <Link className="tile-action-button" href={livehaulSchedulerHref}>
+            {getPassiveTileActionLabel(placement)}
+          </Link>
         )}
         {isEditingLhDates ? (
           <button
@@ -1255,14 +1267,12 @@ function PlacementTile({
             Cancel
           </button>
         ) : prioritizeOperationalAction && canEditLhDates ? (
-          <button
+          <Link
             className="tile-action-button tile-action-button--secondary"
-            disabled={isPending || anotherTileIsEditing}
-            onClick={beginEdit}
-            type="button"
+            href={livehaulSchedulerHref}
           >
             LH Dates
-          </button>
+          </Link>
         ) : lhDatesNeeded && operationalAction ? (
           <button
             className="tile-action-button tile-action-button--secondary"
@@ -1273,14 +1283,12 @@ function PlacementTile({
             {operationalAction.label}
           </button>
         ) : operationalAction && canEditLhDates ? (
-          <button
+          <Link
             className="tile-action-button tile-action-button--secondary"
-            disabled={isPending || anotherTileIsEditing}
-            onClick={beginEdit}
-            type="button"
+            href={livehaulSchedulerHref}
           >
             LH Dates
-          </button>
+          </Link>
         ) : canShowHistoryReportLink(placement) ? (
           <Link
             className="tile-action-button"

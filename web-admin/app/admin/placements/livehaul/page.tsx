@@ -248,6 +248,7 @@ export default async function LivehaulSchedulerPage({ searchParams }: LivehaulSc
               <LivehaulCreateForm
                 barnCode={selectedBarn.barnCode}
                 barnId={selectedBarn.id}
+                existingSchedules={schedules}
                 farmId={selectedFarm?.id ?? ""}
                 month={selectedMonth}
                 placements={placements}

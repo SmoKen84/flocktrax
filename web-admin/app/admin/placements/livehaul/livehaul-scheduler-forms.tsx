@@ -20,6 +20,7 @@ export function LivehaulCreateForm({
   barnCode,
   farmId,
   barnId,
+  existingSchedules,
   month,
   returnHref,
   selectedDate,
@@ -29,6 +30,7 @@ export function LivehaulCreateForm({
   barnCode: string;
   farmId: string;
   barnId: string;
+  existingSchedules: LivehaulScheduleRow[];
   month: string;
   returnHref: string;
   selectedDate: string;
@@ -38,12 +40,43 @@ export function LivehaulCreateForm({
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(createLivehaulScheduleAction, INITIAL_ACTION_STATE);
   const [placementId, setPlacementId] = useState(selectedPlacementId);
-  const [targetSex, setTargetSex] = useState("male");
+  const [lhDate, setLhDate] = useState(selectedDate);
+  const [targetSex, setTargetSex] = useState("");
+  const [headTarget, setHeadTarget] = useState("");
   const selectedPlacement =
     placements.find((placement) => placement.id === placementId) ??
     placements.find((placement) => placement.id === selectedPlacementId) ??
     placements[0] ??
     null;
+  const nextSequenceValue = (() => {
+    if (!selectedPlacement) {
+      return "1";
+    }
+
+    const maxSequence = existingSchedules
+      .filter((row) => row.placementId === selectedPlacement.id)
+      .reduce<number>((max, row) => {
+        const value = row.sequenceNum ?? 0;
+        return Math.max(max, value);
+      }, 0);
+
+    return String(maxSequence + 1);
+  })();
+  const [sequenceNum, setSequenceNum] = useState(nextSequenceValue);
+
+  useEffect(() => {
+    setPlacementId(selectedPlacementId);
+  }, [selectedPlacementId]);
+
+  useEffect(() => {
+    setLhDate(selectedDate);
+  }, [selectedDate]);
+
+  useEffect(() => {
+    setSequenceNum(nextSequenceValue);
+    setTargetSex("");
+    setHeadTarget("");
+  }, [nextSequenceValue, placementId, selectedDate]);
 
   useEffect(() => {
     if (state.status === "success") {
@@ -81,14 +114,14 @@ export function LivehaulCreateForm({
           >
             {placements.map((placement) => (
               <option key={placement.id} value={placement.id}>
-                {`Flock ${placement.flockCode} | ${placement.placementCode} | ${formatStage(placement.lifecycleStage)}`}
+                {`Flock ${placement.placementCode} | ${formatStage(placement.lifecycleStage)}`}
               </option>
             ))}
           </select>
         </label>
         <label className="field">
           <span>Date</span>
-          <input name="lh_date" type="date" defaultValue={selectedDate} required />
+          <input name="lh_date" onChange={(event) => setLhDate(event.target.value)} type="date" value={lhDate} required />
         </label>
         {selectedPlacement ? (
           <div className="field-note field-note-wide">
@@ -97,7 +130,7 @@ export function LivehaulCreateForm({
         ) : null}
         <label className="field">
           <span>Sequence</span>
-          <input name="sequence_num" type="number" min="1" placeholder="4" />
+          <input name="sequence_num" onChange={(event) => setSequenceNum(event.target.value)} type="number" min="1" value={sequenceNum} />
         </label>
         <label className="field">
           <span>Target Sex</span>
@@ -109,7 +142,7 @@ export function LivehaulCreateForm({
         </label>
         <label className="field">
           <span>Target Head</span>
-          <input name="head_target" type="number" min="0" placeholder="3500" />
+          <input name="head_target" onChange={(event) => setHeadTarget(event.target.value)} type="number" min="0" value={headTarget} />
         </label>
         <label className="field">
           <span>Status</span>
@@ -125,10 +158,6 @@ export function LivehaulCreateForm({
         <span>Comment</span>
         <textarea name="comment" rows={3} placeholder="Optional planning note, change reason, or catch expectation." />
       </label>
-
-      <div className="field-note field-note-wide">
-        Default flow: first haul starts as Roo, middle hauls stay Open / Mixed, and a blank highest-sequence haul resolves to Hen when saved.
-      </div>
 
       <button className="button" disabled={isPending} type="submit">
         {isPending ? "Saving..." : "Add Livehaul"}

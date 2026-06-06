@@ -330,8 +330,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       supabase
         .from("app_settings")
         .select('group,name,value,updated_at')
-        .eq("name", "age_checkout_avail")
-        .limit(10),
+        .in("name", ["age_checkout_avail", "First_LH", "first_lh", "First-LH", "first-lh"]),
       supabase
         .from("breeds")
         .select("id,code,breed_name,sex,is_active")
@@ -395,6 +394,19 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     const breedRows = (breedsResult.data ?? []) as BreedRow[];
     const breedSpecRows = (breedSpecsResult.data ?? []) as BreedSpecRow[];
     const checkoutAgeAvailability = appSettingRows
+      .filter((row) => row.name === "age_checkout_avail")
+      .sort((left, right) => {
+        const leftRank = left.group === "Placements" ? 0 : left.group === null ? 1 : 2;
+        const rightRank = right.group === "Placements" ? 0 : right.group === null ? 1 : 2;
+        if (leftRank !== rightRank) {
+          return leftRank - rightRank;
+        }
+        return String(right.updated_at ?? "").localeCompare(String(left.updated_at ?? ""));
+      })
+      .map((row) => Number.parseInt(String(row.value ?? "").trim(), 10))
+      .find((value) => Number.isFinite(value) && value >= 0) ?? 0;
+    const firstLivehaulOffsetDays = appSettingRows
+      .filter((row) => ["first_lh", "first-lh"].includes(String(row.name ?? "").toLowerCase()))
       .sort((left, right) => {
         const leftRank = left.group === "Placements" ? 0 : left.group === null ? 1 : 2;
         const rightRank = right.group === "Placements" ? 0 : right.group === null ? 1 : 2;
@@ -1007,6 +1019,10 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         breedFemales: flock?.breed_females ?? null,
         breedMales: flock?.breed_males ?? null,
         liveHaulDates: scheduledLiveHaulEvents.map((event) => event.date),
+        liveHaulSchedulerDate:
+          scheduledLiveHaulEvents[0]?.date ??
+          (placedDate ? addDays(placedDate, firstLivehaulOffsetDays) : null) ??
+          null,
         lh1Date: scheduledLiveHaulEvents[0]?.date ?? row?.lh1_date ?? null,
         lh2Date: scheduledLiveHaulEvents[1]?.date ?? row?.lh2_date ?? null,
         lh3Date: scheduledLiveHaulEvents[2]?.date ?? row?.lh3_date ?? null,

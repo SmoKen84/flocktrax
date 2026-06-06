@@ -179,6 +179,7 @@ export type ActivePlacementRecord = {
   breedFemales: string | null;
   breedMales: string | null;
   liveHaulDates: string[];
+  liveHaulSchedulerDate: string | null;
   lh1Date: string | null;
   lh2Date: string | null;
   lh3Date: string | null;
