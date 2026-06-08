@@ -410,7 +410,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data: platformSettingRows, error: platformSettingsError } = await supabase
+    const { data: platformSettingRows, error: platformSettingsError } = await service
       .schema("platform")
       .from("settings")
       .select("name,value")

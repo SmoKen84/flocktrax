@@ -135,6 +135,32 @@ export function PlacementDayScreen({
   const canChangeFocusDate = settings?.allow_historical_entry !== false;
   const displayLogDate = formatDateByPattern(logDate, settings?.dow_date, logDate);
   const dailyTaskSlots = buildDailyTaskSlots(draft?.daily_tasks);
+  const earliestSelectableDate = draft?.placed_date ?? null;
+  const canStepDateBackward =
+    canChangeFocusDate &&
+    Boolean(
+      earliestSelectableDate
+        ? logDate > earliestSelectableDate
+        : true,
+    );
+  const canStepDateForward =
+    canChangeFocusDate &&
+    logDate < todayIsoDate();
+
+  function shiftFocusDate(days: number) {
+    if (!canChangeFocusDate || days === 0) return;
+
+    const nextDate = addDaysIso(logDate, days);
+    if (nextDate > todayIsoDate()) {
+      return;
+    }
+    if (earliestSelectableDate && nextDate < earliestSelectableDate) {
+      return;
+    }
+
+    onChangeDate(nextDate);
+    onLoadDate(nextDate);
+  }
 
   async function save() {
     if (!draft) return;
@@ -422,6 +448,13 @@ export function PlacementDayScreen({
           <Text style={styles.entryLabel}>Entry Date:</Text>
           <View style={styles.entryDateRow}>
             <Pressable
+              disabled={!canStepDateBackward}
+              onPress={() => shiftFocusDate(-1)}
+              style={[styles.dateStepButton, !canStepDateBackward && styles.buttonDisabled]}
+            >
+              <Text style={styles.dateStepButtonText}>‹</Text>
+            </Pressable>
+            <Pressable
               disabled={!canChangeFocusDate}
               onPress={() => setIsCalendarOpen(true)}
               style={[styles.entryDateInputButton, !canChangeFocusDate && styles.buttonDisabled]}
@@ -434,6 +467,13 @@ export function PlacementDayScreen({
               style={[styles.changeDateButton, !canChangeFocusDate && styles.buttonDisabled]}
             >
               <Text style={styles.changeDateButtonText}>Pick{"\n"}Date</Text>
+            </Pressable>
+            <Pressable
+              disabled={!canStepDateForward}
+              onPress={() => shiftFocusDate(1)}
+              style={[styles.dateStepButton, !canStepDateForward && styles.buttonDisabled]}
+            >
+              <Text style={styles.dateStepButtonText}>›</Text>
             </Pressable>
           </View>
 
@@ -1545,6 +1585,15 @@ function toIsoDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function addDaysIso(value: string, days: number) {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return toIsoDate(
+    new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+}
+
 function todayIsoDate() {
   return toIsoDate(new Date());
 }
@@ -1739,6 +1788,14 @@ const styles = StyleSheet.create({
   entryDateRow: {
     flexDirection: "row",
     gap: 10,
+    alignItems: "stretch",
+  },
+  dateStepButton: {
+    width: 44,
+    borderRadius: 16,
+    backgroundColor: "#EBD9BC",
+    alignItems: "center",
+    justifyContent: "center",
   },
   entryDateInputButton: {
     flex: 1,
@@ -1776,6 +1833,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     textTransform: "uppercase",
     lineHeight: 14,
+  },
+  dateStepButtonText: {
+    color: "#8D5A2B",
+    fontSize: 26,
+    fontWeight: "800",
+    lineHeight: 28,
   },
   reminderCard: {
     borderRadius: 18,
