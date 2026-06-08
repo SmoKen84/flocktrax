@@ -132,7 +132,7 @@ export function PlacementDayScreen({
     setCalendarCursor(getMonthStart(logDate));
   }, [logDate]);
 
-  const canChangeFocusDate = settings?.allow_historical_entry === true;
+  const canChangeFocusDate = settings?.allow_historical_entry !== false;
   const displayLogDate = formatDateByPattern(logDate, settings?.dow_date, logDate);
   const dailyTaskSlots = buildDailyTaskSlots(draft?.daily_tasks);
 
@@ -1464,7 +1464,7 @@ function validateDraft(
     return "Log date cannot be in the future.";
   }
 
-  if (settings?.allow_historical_entry !== true && logDate !== todayIsoDate()) {
+  if (settings?.allow_historical_entry === false && logDate !== todayIsoDate()) {
     return "Historical entry is disabled. Save is limited to today's date.";
   }
 

@@ -554,6 +554,7 @@ export function FeedTicketScreen({ canSave, item, loading, onBack, onSave }: Pro
                       compact
                       label="Off Farm Redirect"
                       checked={isOffFarmRedirect}
+                      smallBox
                       onPress={() => {
                         setPendingDrop((current) => ({
                           ...current,
@@ -1133,14 +1134,15 @@ type FeedTypeToggleProps = {
   label: string;
   checked: boolean;
   compact?: boolean;
+  smallBox?: boolean;
   onPress: () => void;
 };
 
-function FeedTypeToggle({ label, checked, compact = false, onPress }: FeedTypeToggleProps) {
+function FeedTypeToggle({ label, checked, compact = false, smallBox = false, onPress }: FeedTypeToggleProps) {
   return (
     <Pressable onPress={onPress} style={[styles.feedTypeToggle, compact && styles.feedTypeToggleCompact]}>
-      <View style={[styles.feedTypeBox, checked && styles.feedTypeBoxChecked]}>
-        {checked ? <Text style={styles.feedTypeX}>X</Text> : null}
+      <View style={[styles.feedTypeBox, compact && styles.feedTypeBoxCompact, smallBox && styles.feedTypeBoxSmall, checked && styles.feedTypeBoxChecked]}>
+        {checked ? <Text style={[styles.feedTypeX, compact && styles.feedTypeXCompact, smallBox && styles.feedTypeXSmall]}>X</Text> : null}
       </View>
       <Text style={[styles.feedTypeLabel, compact && styles.feedTypeLabelCompact]}>{label}</Text>
     </Pressable>
@@ -1529,6 +1531,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  feedTypeBoxCompact: {
+    width: 16,
+    height: 16,
+  },
+  feedTypeBoxSmall: {
+    width: 14,
+    height: 14,
+    borderWidth: 1.25,
+  },
   feedTypeBoxChecked: {
     backgroundColor: "#F6E2D7",
   },
@@ -1537,6 +1548,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
     lineHeight: 12,
+  },
+  feedTypeXCompact: {
+    fontSize: 11,
+    lineHeight: 11,
+  },
+  feedTypeXSmall: {
+    fontSize: 9,
+    lineHeight: 9,
   },
   feedTypeLabel: {
     color: "#61745E",
