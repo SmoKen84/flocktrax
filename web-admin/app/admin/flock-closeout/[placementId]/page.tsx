@@ -21,6 +21,8 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
     notFound();
   }
 
+  const forceOpenLivehaulHref = buildForceLivehaulHref(item);
+
   return (
     <>
       <PageHeader
@@ -44,6 +46,9 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
               target="_blank"
             >
               Save Digital Archive Summary
+            </Link>
+            <Link className="button-secondary" href={forceOpenLivehaulHref}>
+              Force Open Livehaul Scheduler
             </Link>
             <Link className="button-secondary" href="/admin/flock-closeout">
               Return To Queue
@@ -93,6 +98,11 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
               <span>No scheduled livehauls</span>
               <strong>This placement does not yet have livehaul schedule rows available for closeout work.</strong>
               <p>Schedule the livehaul dates first in Placements &gt; Livehaul, then return here to complete the actual closeout detail.</p>
+              <div className="closeout-action-links">
+                <Link className="button" href={forceOpenLivehaulHref}>
+                  Force Open Livehaul Scheduler
+                </Link>
+              </div>
             </div>
           </section>
         )}
@@ -125,4 +135,25 @@ function formatAge(placedDate: string | null, removedDate: string | null) {
   if (Number.isNaN(placed.getTime()) || Number.isNaN(removed.getTime())) return "--";
   const days = Math.max(0, Math.round((removed.getTime() - placed.getTime()) / 86400000));
   return `${days}d`;
+}
+
+function buildForceLivehaulHref(item: {
+  farmId: string;
+  barnId: string;
+  placementId: string;
+  removedDate: string | null;
+  projectedEndDate: string | null;
+  placedDate: string | null;
+}) {
+  const anchorDate = item.removedDate ?? item.projectedEndDate ?? item.placedDate;
+  const month = anchorDate ? anchorDate.slice(0, 7) : new Date().toISOString().slice(0, 7);
+  const query = new URLSearchParams();
+  query.set("farm", item.farmId);
+  query.set("barn", item.barnId);
+  query.set("placement", item.placementId);
+  query.set("month", month);
+  if (anchorDate) {
+    query.set("date", anchorDate);
+  }
+  return `/admin/placements/livehaul?${query.toString()}`;
 }

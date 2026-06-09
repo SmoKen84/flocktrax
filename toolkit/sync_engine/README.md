@@ -193,3 +193,71 @@ The next build step is to define:
 3. which FlockTrax tables/events produce sync payloads
 4. which fields map to which sheet labels
 5. whether updates are immediate or outbox-driven
+
+## Historical backfill from Sheets
+
+For one-off inspection prep or older-flock history repair, use:
+
+- `backfill_from_sheets.py`
+
+This script reads the Google Sheets placement tab and writes history into FlockTrax
+through the live mobile save RPCs:
+
+- `save_log_daily_mobile`
+- `save_log_mortality_mobile`
+- `save_log_weight_mobile`
+
+That means imported rows create the same `activity_log` audit trail as native mobile saves.
+
+### Default backfill behavior
+
+The safest mode is:
+
+- `fill_missing_or_blank`
+
+In that mode:
+
+- existing populated FlockTrax fields are preserved
+- blank/null FlockTrax fields are filled from Sheets
+- missing FlockTrax date rows are created from Sheets
+
+This is designed for historical hole-filling, not blind overwrite.
+
+### Weight import rule
+
+If the worksheet only carries one actual-weight column rather than male/female
+columns, the importer defaults that actual weight to:
+
+- `sex = 'male'`
+
+Female weight rows are only created when the worksheet actually contains
+female-specific weight data.
+
+### Dry run
+
+```powershell
+cd C:\dev\FlockTrax\toolkit\sync_engine
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\service-account.json"
+$env:SUPABASE_URL="https://your-project.supabase.co"
+$env:SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+python backfill_from_sheets.py --placements 311-W5,312-W2
+```
+
+### Apply run
+
+```powershell
+cd C:\dev\FlockTrax\toolkit\sync_engine
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\service-account.json"
+$env:SUPABASE_URL="https://your-project.supabase.co"
+$env:SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+python backfill_from_sheets.py --placements 311-W5,312-W2 --apply --write-placement-note
+```
+
+### Useful flags
+
+- `--mode fill_missing_or_blank`
+- `--mode sheet_authoritative`
+- `--datasets daily,mortality,weight`
+- `--weight-single-labels "AVG WEIGHT,ACTUAL WEIGHT,WEIGHT"`
+- `--weight-single-count-labels "SAMPLE,SAMPLE COUNT,COUNT WEIGHED"`
+- `--weight-single-note-labels "WEIGHT NOTES,NOTES,COMMENTS"`

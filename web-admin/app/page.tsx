@@ -12,11 +12,11 @@ const consoleLinks = [
   { label: "Action Items", href: "/admin/issues" },
   { label: "Feed Tickets", href: "/admin/feed-tickets" },
   { label: "Sync Engine", href: "/admin/sync/googleapis-sheets" },
-  { label: "Reports" },
+  { label: "Reports", href: "/admin/reports" },
 ];
 
 const placementLinks = [
-  { label: "Schedule", href: "/admin/placements/new" },
+  { label: "Schedule", href: "/admin/placements/new?mode=placements&farm=all" },
   { label: "Livehaul", href: "/admin/placements/livehaul" },
   { label: "Closeout", href: "/admin/flock-closeout" },
 ];
@@ -33,6 +33,7 @@ const utilityLinks = [
   { label: "About", href: "/admin/about" },
   { label: "Flocks", href: "/admin/flocks" },
   { label: "Activity Log", href: "/admin/activity-log" },
+  { label: "BinSentry Refs", href: "/admin/feed-bins/binsentry-refs" },
 ];
 
 function renderSidebarCopyright(value: string) {

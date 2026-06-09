@@ -28,6 +28,10 @@ export type FeedBinEditorRecord = {
   barnId: string;
   binNumber: string;
   capacity: string;
+  binSentryRef: string;
+  binSentryLastSyncAt: string;
+  binSentryLastInventoryLbs: string;
+  binSentrySyncNote: string;
 };
 
 export type FeedBinScreenBundle = {
@@ -66,6 +70,10 @@ type FeedBinRow = {
   barn_id: string | null;
   bin_num: number | null;
   capacity: number | null;
+  binsentry_bin_ref: string | null;
+  binsentry_last_sync_at: string | null;
+  binsentry_last_inventory_lbs: number | null;
+  binsentry_sync_note: string | null;
 };
 
 function normalize(value: string | null | undefined) {
@@ -131,7 +139,7 @@ export async function getFeedBinScreenBundle(): Promise<FeedBinScreenBundle> {
       .order("placement_key"),
     supabase
       .from("feedbins")
-      .select("id,farm_id,barn_id,bin_num,capacity")
+      .select("id,farm_id,barn_id,bin_num,capacity,binsentry_bin_ref,binsentry_last_sync_at,binsentry_last_inventory_lbs,binsentry_sync_note")
       .order("bin_num", { ascending: true }),
   ]);
 
@@ -185,6 +193,10 @@ export async function getFeedBinScreenBundle(): Promise<FeedBinScreenBundle> {
       barnId: row.barn_id,
       binNumber: formatNumeric(row.bin_num),
       capacity: formatNumeric(row.capacity),
+      binSentryRef: normalize(row.binsentry_bin_ref),
+      binSentryLastSyncAt: normalize(row.binsentry_last_sync_at),
+      binSentryLastInventoryLbs: formatNumeric(row.binsentry_last_inventory_lbs),
+      binSentrySyncNote: normalize(row.binsentry_sync_note),
     };
 
     acc[row.barn_id] ??= [];

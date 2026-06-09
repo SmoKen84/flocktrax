@@ -108,6 +108,13 @@ class SheetsClient:
             .execute()
         )
 
+    def get_range_values(self, spreadsheet_id: str, range_a1: str) -> list[list[object]]:
+        return self._values_get(spreadsheet_id, range_a1).get("values", [])
+
+    def get_tab_matrix(self, spreadsheet_id: str, tab_name: str, *, max_column: str = "AZ") -> list[list[object]]:
+        escaped_tab_name = tab_name.replace("'", "''")
+        return self.get_range_values(spreadsheet_id, f"'{escaped_tab_name}'!A:{max_column}")
+
     def _find_header_indexes(
         self,
         spreadsheet_id: str,

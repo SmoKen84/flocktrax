@@ -26,6 +26,28 @@ function addDays(dateString: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function diffDays(nextDate: string, previousDate: string) {
+  const next = new Date(`${nextDate}T00:00:00Z`);
+  const previous = new Date(`${previousDate}T00:00:00Z`);
+  return Math.round((next.getTime() - previous.getTime()) / 86400000);
+}
+
+function buildPlacementOverlapMessage(options: {
+  barnCode: string;
+  siblingStart: string;
+  siblingEnd: string;
+  flockNumber?: number | null;
+  placementKey?: string | null;
+}) {
+  const placementLabel = options.placementKey?.trim()
+    ? options.placementKey.trim()
+    : options.flockNumber
+      ? `flock ${options.flockNumber}`
+      : "another placement";
+
+  return `This change overlaps ${placementLabel} in barn ${options.barnCode} from ${options.siblingStart} to ${options.siblingEnd}.`;
+}
+
 async function getSchedulerGrowOutDaysDefault(admin: NonNullable<ReturnType<typeof createSupabaseAdminClient>>) {
   const [platformSettingsResult, appSettingsResult] = await Promise.all([
     admin.schema("platform").from("settings").select("name,value,is_active").limit(50),
@@ -250,7 +272,32 @@ export async function schedulePlacementAction(formData: FormData) {
   });
 
   if (overlap) {
-    redirect(buildLocation({ farm: farmId, barn: barnId, date: selectedDate, month: month || selectedDate.slice(0, 7), error: `Barn ${barnResult.data.barn_code} is already occupied on ${selectedDate}.` }));
+    const blockingFlock = flockById.get(overlap.flock_id);
+    const siblingStart =
+      coerce(overlap.active_start as unknown as FormDataEntryValue | null) ||
+      coerce(blockingFlock?.date_placed as unknown as FormDataEntryValue | null) ||
+      selectedDate;
+    const siblingEnd =
+      coerce(overlap.date_removed as unknown as FormDataEntryValue | null) ||
+      coerce(overlap.active_end as unknown as FormDataEntryValue | null) ||
+      coerce(blockingFlock?.max_date as unknown as FormDataEntryValue | null) ||
+      addDays(siblingStart, growOutDays);
+
+    redirect(
+      buildLocation({
+        farm: farmId,
+        barn: barnId,
+        date: selectedDate,
+        month: month || selectedDate.slice(0, 7),
+        error: buildPlacementOverlapMessage({
+          barnCode: barnResult.data.barn_code,
+          siblingStart,
+          siblingEnd,
+          flockNumber: blockingFlock?.flock_number ?? null,
+          placementKey: overlap.placement_key ?? null,
+        }),
+      }),
+    );
   }
 
   const flockNumber = requestedFlockNumber;
@@ -389,15 +436,23 @@ export async function updatePlacementAction(formData: FormData) {
 
   const flockNumber = coerceNullableNumber(formData.get("flock_number"));
   const datePlaced = coerceNullableDate(formData.get("date_placed"));
-  const maxDate = coerceNullableDate(formData.get("max_date"));
+  const submittedMaxDate = coerceNullableDate(formData.get("max_date"));
   const femaleCount = coerceNullableNumber(formData.get("start_cnt_females"));
   const maleCount = coerceNullableNumber(formData.get("start_cnt_males"));
   const breedFemales = coerceNullableDate(formData.get("breed_females"));
   const breedMales = coerceNullableDate(formData.get("breed_males"));
-  const lh1Date = coerceNullableDate(formData.get("lh1_date"));
-  const lh2Date = coerceNullableDate(formData.get("lh2_date"));
-  const lh3Date = coerceNullableDate(formData.get("lh3_date"));
+  const submittedLh1Date = coerceNullableDate(formData.get("lh1_date"));
+  const submittedLh2Date = coerceNullableDate(formData.get("lh2_date"));
+  const submittedLh3Date = coerceNullableDate(formData.get("lh3_date"));
   const dateRemoved = coerceNullableDate(formData.get("date_removed"));
+  const requestedLifecycleStage = coerceNullableDate(formData.get("placement_lifecycle_stage")) as
+    | "scheduled"
+    | "awaiting_arrival"
+    | "in_barn_growing"
+    | "waiting_closeout"
+    | "closeout_submitted"
+    | "archived"
+    | null;
 
   if (!farmId || !barnId || !placementId || !flockId || !datePlaced || !flockNumber) {
     redirect(
@@ -410,6 +465,75 @@ export async function updatePlacementAction(formData: FormData) {
         error: "Placement editor is missing its flock, placement, or required flock fields.",
       }),
     );
+  }
+
+  const [currentPlacementResult, currentFlockResult] = await Promise.all([
+    admin
+      .from("placements")
+      .select("id,active_start,active_end,date_removed,lifecycle_stage,lh1_date,lh2_date,lh3_date")
+      .eq("id", placementId)
+      .maybeSingle(),
+    admin
+      .from("flocks")
+      .select("id,date_placed,max_date,is_in_barn,is_complete")
+      .eq("id", flockId)
+      .maybeSingle(),
+  ]);
+
+  const currentPlacement = currentPlacementResult.data;
+  const currentFlock = currentFlockResult.data;
+
+  if (currentPlacementResult.error || !currentPlacement || currentFlockResult.error || !currentFlock) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || datePlaced,
+        month: month || datePlaced.slice(0, 7),
+        error:
+          currentPlacementResult.error?.message ??
+          currentFlockResult.error?.message ??
+          "The current placement could not be loaded for update.",
+      }),
+    );
+  }
+
+  const originalPlacedDate = currentFlock.date_placed ?? currentPlacement.active_start;
+  const originalMaxDate = currentFlock.max_date ?? currentPlacement.active_end;
+  const normalizedRole = String(actorRole?.key ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const canOverridePlacementLifecycleStage =
+    normalizedRole === "super_admin" || normalizedRole === "superadmin" || normalizedRole.includes("super");
+  const canShiftAwaitingArrivalDates =
+    currentPlacement.lifecycle_stage === "awaiting_arrival" &&
+    currentFlock.is_in_barn !== true &&
+    currentPlacement.date_removed == null &&
+    currentFlock.is_complete !== true;
+
+  let maxDate = submittedMaxDate;
+  let lh1Date = submittedLh1Date;
+  let lh2Date = submittedLh2Date;
+  let lh3Date = submittedLh3Date;
+
+  if (canShiftAwaitingArrivalDates && originalPlacedDate && datePlaced !== originalPlacedDate) {
+    const dateDelta = diffDays(datePlaced, originalPlacedDate);
+
+    if (originalMaxDate && (!submittedMaxDate || submittedMaxDate === originalMaxDate)) {
+      maxDate = addDays(originalMaxDate, dateDelta);
+    }
+
+    if (currentPlacement.lh1_date && (!submittedLh1Date || submittedLh1Date === currentPlacement.lh1_date)) {
+      lh1Date = addDays(currentPlacement.lh1_date, dateDelta);
+    }
+
+    if (currentPlacement.lh2_date && (!submittedLh2Date || submittedLh2Date === currentPlacement.lh2_date)) {
+      lh2Date = addDays(currentPlacement.lh2_date, dateDelta);
+    }
+
+    if (currentPlacement.lh3_date && (!submittedLh3Date || submittedLh3Date === currentPlacement.lh3_date)) {
+      lh3Date = addDays(currentPlacement.lh3_date, dateDelta);
+    }
   }
 
   if (maxDate && maxDate < datePlaced) {
@@ -454,7 +578,7 @@ export async function updatePlacementAction(formData: FormData) {
 
   const [duplicateFlockResult, placementsResult] = await Promise.all([
     admin.from("flocks").select("id", { head: true, count: "exact" }).eq("farm_id", farmId).eq("flock_number", flockNumber).neq("id", flockId),
-    admin.from("placements").select("id,flock_id,date_removed,active_start,active_end").eq("barn_id", barnId).neq("id", placementId),
+    admin.from("placements").select("id,flock_id,date_removed,placement_key,active_start,active_end").eq("barn_id", barnId).neq("id", placementId),
   ]);
 
   if (duplicateFlockResult.error || placementsResult.error) {
@@ -485,7 +609,7 @@ export async function updatePlacementAction(formData: FormData) {
 
   const siblingFlockIds = Array.from(new Set((placementsResult.data ?? []).map((row) => row.flock_id).filter(Boolean)));
   const siblingFlocksResult = siblingFlockIds.length
-    ? await admin.from("flocks").select("id,date_placed,max_date").in("id", siblingFlockIds)
+    ? await admin.from("flocks").select("id,date_placed,max_date,flock_number").in("id", siblingFlockIds)
     : { data: [], error: null };
 
   if (siblingFlocksResult.error) {
@@ -502,7 +626,7 @@ export async function updatePlacementAction(formData: FormData) {
   }
 
   const siblingFlockById = new Map(
-    ((siblingFlocksResult.data ?? []) as Array<{ id: string; date_placed: string | null; max_date: string | null }>).map((row) => [row.id, row]),
+    ((siblingFlocksResult.data ?? []) as Array<{ id: string; date_placed: string | null; max_date: string | null; flock_number: number | null }>).map((row) => [row.id, row]),
   );
   const desiredEnd = dateRemoved || maxDate || datePlaced;
   const overlap = (placementsResult.data ?? []).find((row) => {
@@ -521,6 +645,18 @@ export async function updatePlacementAction(formData: FormData) {
   });
 
   if (overlap) {
+    const siblingFlock = siblingFlockById.get(overlap.flock_id);
+    const siblingStart =
+      coerceNullableDate(siblingFlock?.date_placed as unknown as FormDataEntryValue | null) ||
+      coerceNullableDate(overlap.active_start as unknown as FormDataEntryValue | null) ||
+      datePlaced;
+    const siblingEnd =
+      coerceNullableDate(overlap.date_removed as unknown as FormDataEntryValue | null) ||
+      coerceNullableDate(siblingFlock?.max_date as unknown as FormDataEntryValue | null) ||
+      coerceNullableDate(overlap.active_end as unknown as FormDataEntryValue | null) ||
+      siblingStart;
+    const barnCodeResult = await admin.from("barns").select("barn_code").eq("id", barnId).maybeSingle();
+
     redirect(
       buildLocation({
         mode,
@@ -528,7 +664,13 @@ export async function updatePlacementAction(formData: FormData) {
         barn: barnId,
         date: selectedDate || datePlaced,
         month: month || datePlaced.slice(0, 7),
-        error: "This edit overlaps another placement already scheduled for the same barn.",
+        error: buildPlacementOverlapMessage({
+          barnCode: barnCodeResult.data?.barn_code ?? "this barn",
+          siblingStart,
+          siblingEnd,
+          flockNumber: siblingFlock?.flock_number ?? null,
+          placementKey: overlap.placement_key ?? null,
+        }),
       }),
     );
   }
@@ -563,6 +705,10 @@ export async function updatePlacementAction(formData: FormData) {
   const placementUpdateResult = await admin
     .from("placements")
     .update({
+      lifecycle_stage:
+        canOverridePlacementLifecycleStage && requestedLifecycleStage
+          ? requestedLifecycleStage
+          : currentPlacement.lifecycle_stage,
       date_removed: dateRemoved,
       lh1_date: lh1Date,
       lh2_date: lh2Date,
@@ -601,6 +747,10 @@ export async function updatePlacementAction(formData: FormData) {
       date_placed: datePlaced,
       max_date: maxDate,
       date_removed: dateRemoved,
+      lifecycle_stage:
+        canOverridePlacementLifecycleStage && requestedLifecycleStage
+          ? requestedLifecycleStage
+          : currentPlacement.lifecycle_stage,
       lh1_date: lh1Date,
       lh2_date: lh2Date,
       lh3_date: lh3Date,
@@ -701,7 +851,7 @@ export async function deleteScheduledPlacementAction(formData: FormData) {
   const todayIso = new Date().toISOString().slice(0, 10);
   const startDate = coerceNullableDate(placement.active_start as unknown as FormDataEntryValue | null) || flock.date_placed;
 
-  if (!startDate || startDate <= todayIso || placement.is_active || flock.is_active || flock.is_in_barn || placement.date_removed) {
+  if (!startDate || flock.is_in_barn || placement.date_removed) {
     redirect(
       buildLocation({
         mode,
@@ -710,7 +860,7 @@ export async function deleteScheduledPlacementAction(formData: FormData) {
         placement: placementId,
         date: selectedDate || startDate || null,
         month: month || startDate?.slice(0, 7) || null,
-        error: "Only future scheduled placements that have not gone live can be deleted here.",
+        error: "Only placements that have not gone in-barn and have not already been removed can be deleted here.",
       }),
     );
   }
@@ -819,6 +969,516 @@ export async function deleteScheduledPlacementAction(formData: FormData) {
       month: month || startDate.slice(0, 7),
       cleared: true,
       notice: `Deleted scheduled flock ${flock.flock_number ?? placement.placement_key ?? "placement"} so you can reschedule it cleanly.`,
+    }),
+  );
+}
+
+export async function juggleScheduledPlacementAction(formData: FormData) {
+  const { admin, actorId, actorName, actorRole } = await getAdminContext();
+  if (!canSchedulePlacements(actorRole)) {
+    redirect(buildLocation({ error: "Only authorized admin accounts can juggle scheduled placements." }));
+  }
+
+  if (!actorId) {
+    redirect(buildLocation({ error: "A signed-in user is required to juggle a scheduled placement." }));
+  }
+
+  const mode = coerce(formData.get("mode")) || "blocked";
+  const farmId = coerce(formData.get("farm_id"));
+  const barnId = coerce(formData.get("barn_id"));
+  const placementId = coerce(formData.get("placement_id"));
+  const flockId = coerce(formData.get("flock_id"));
+  const selectedDate = coerce(formData.get("selected_date"));
+  const month = coerce(formData.get("month"));
+  const targetPlacementId = coerce(formData.get("target_placement_id"));
+
+  if (!farmId || !barnId || !placementId || !flockId || !targetPlacementId) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId || null,
+        barn: barnId || null,
+        placement: placementId || null,
+        date: selectedDate || null,
+        month: month || null,
+        error: "Juggle requires both the canceled flock and the replacement flock selection.",
+      }),
+    );
+  }
+
+  const [
+    sourcePlacementResult,
+    sourceFlockResult,
+    targetPlacementResult,
+    sourceFeedDropCountResult,
+    sourceDailyCountResult,
+    sourceMortalityCountResult,
+    sourceWeightCountResult,
+  ] = await Promise.all([
+    admin
+      .from("placements")
+      .select("id,farm_id,barn_id,flock_id,is_active,lifecycle_stage,date_removed,active_start,active_end,placement_key")
+      .eq("id", placementId)
+      .maybeSingle(),
+    admin
+      .from("flocks")
+      .select("id,farm_id,flock_number,date_placed,max_date,is_active,is_in_barn,is_complete,is_settled")
+      .eq("id", flockId)
+      .maybeSingle(),
+    admin
+      .from("placements")
+      .select("id,farm_id,barn_id,flock_id,is_active,lifecycle_stage,date_removed,active_start,active_end,placement_key")
+      .eq("id", targetPlacementId)
+      .maybeSingle(),
+    admin.from("feed_drops").select("id", { head: true, count: "exact" }).eq("placement_id", placementId),
+    admin.from("log_daily").select("id", { head: true, count: "exact" }).eq("placement_id", placementId),
+    admin.from("log_mortality").select("id", { head: true, count: "exact" }).eq("placement_id", placementId),
+    admin.from("log_weight").select("id", { head: true, count: "exact" }).eq("placement_id", placementId),
+  ]);
+
+  const sourcePlacement = sourcePlacementResult.data;
+  const sourceFlock = sourceFlockResult.data;
+  const targetPlacement = targetPlacementResult.data;
+
+  if (sourcePlacementResult.error || !sourcePlacement || sourceFlockResult.error || !sourceFlock || targetPlacementResult.error || !targetPlacement) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || null,
+        month: month || null,
+        error:
+          sourcePlacementResult.error?.message ??
+          sourceFlockResult.error?.message ??
+          targetPlacementResult.error?.message ??
+          "The source or target placement could not be loaded for juggle.",
+      }),
+    );
+  }
+
+  if (sourcePlacement.farm_id !== farmId || sourcePlacement.barn_id !== barnId || sourcePlacement.flock_id !== flockId || targetPlacement.id === sourcePlacement.id) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || sourcePlacement.active_start || sourceFlock.date_placed || null,
+        month: month || sourcePlacement.active_start?.slice(0, 7) || sourceFlock.date_placed?.slice(0, 7) || null,
+        error: "The source or replacement flock selection is no longer valid.",
+      }),
+    );
+  }
+
+  if (sourceFlock.is_in_barn || sourcePlacement.date_removed) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || sourcePlacement.active_start || sourceFlock.date_placed || null,
+        month: month || sourcePlacement.active_start?.slice(0, 7) || sourceFlock.date_placed?.slice(0, 7) || null,
+        error: "Only not-in-barn scheduled flocks can be juggled to a replacement flock.",
+      }),
+    );
+  }
+
+  const sourceOperationalChildCount =
+    (sourceDailyCountResult.count ?? 0) + (sourceMortalityCountResult.count ?? 0) + (sourceWeightCountResult.count ?? 0);
+  if (sourceDailyCountResult.error || sourceMortalityCountResult.error || sourceWeightCountResult.error) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || sourcePlacement.active_start || sourceFlock.date_placed || null,
+        month: month || sourcePlacement.active_start?.slice(0, 7) || sourceFlock.date_placed?.slice(0, 7) || null,
+        error:
+          sourceDailyCountResult.error?.message ??
+          sourceMortalityCountResult.error?.message ??
+          sourceWeightCountResult.error?.message ??
+          "Source child record checks failed before juggle.",
+      }),
+    );
+  }
+
+  if (sourceOperationalChildCount > 0) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || sourcePlacement.active_start || sourceFlock.date_placed || null,
+        month: month || sourcePlacement.active_start?.slice(0, 7) || sourceFlock.date_placed?.slice(0, 7) || null,
+        error: "This flock cannot be juggled because it already has daily, mortality, or weight records.",
+      }),
+    );
+  }
+
+  const targetFlockId = targetPlacement.flock_id;
+  if (!targetFlockId) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || sourcePlacement.active_start || sourceFlock.date_placed || null,
+        month: month || sourcePlacement.active_start?.slice(0, 7) || sourceFlock.date_placed?.slice(0, 7) || null,
+        error: "The replacement flock is missing its flock reference.",
+      }),
+    );
+  }
+
+  const [
+    targetFlockResult,
+    targetBarnResult,
+    sourceBarnResult,
+    targetDailyCountResult,
+    targetMortalityCountResult,
+    targetWeightCountResult,
+    targetFeedDropCountResult,
+    targetSiblingPlacementsResult,
+    duplicateTargetFlockResult,
+  ] = await Promise.all([
+    admin
+      .from("flocks")
+      .select("id,farm_id,flock_number,date_placed,max_date,is_active,is_in_barn,is_complete,is_settled")
+      .eq("id", targetFlockId)
+      .maybeSingle(),
+    targetPlacement.barn_id
+      ? admin.from("barns").select("id,barn_code,farm_id").eq("id", targetPlacement.barn_id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    admin.from("barns").select("id,barn_code,farm_id").eq("id", barnId).maybeSingle(),
+    admin.from("log_daily").select("id", { head: true, count: "exact" }).eq("placement_id", targetPlacementId),
+    admin.from("log_mortality").select("id", { head: true, count: "exact" }).eq("placement_id", targetPlacementId),
+    admin.from("log_weight").select("id", { head: true, count: "exact" }).eq("placement_id", targetPlacementId),
+    admin.from("feed_drops").select("id", { head: true, count: "exact" }).eq("placement_id", targetPlacementId),
+    admin.from("placements").select("id,flock_id,date_removed,active_start,active_end").eq("barn_id", barnId).neq("id", placementId),
+    admin.from("flocks").select("id", { head: true, count: "exact" }).eq("farm_id", farmId).eq("flock_number", sourceFlock.flock_number ?? -1).neq("id", targetFlockId),
+  ]);
+
+  const targetFlock = targetFlockResult.data;
+  const sourceBarn = sourceBarnResult.data;
+
+  if (targetFlockResult.error || !targetFlock || sourceBarnResult.error || !sourceBarn) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || sourcePlacement.active_start || sourceFlock.date_placed || null,
+        month: month || sourcePlacement.active_start?.slice(0, 7) || sourceFlock.date_placed?.slice(0, 7) || null,
+        error:
+          targetFlockResult.error?.message ??
+          sourceBarnResult.error?.message ??
+          "The replacement flock context could not be loaded.",
+      }),
+    );
+  }
+
+  if (targetFlock.is_in_barn || targetFlock.is_complete || targetPlacement.date_removed) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || sourcePlacement.active_start || sourceFlock.date_placed || null,
+        month: month || sourcePlacement.active_start?.slice(0, 7) || sourceFlock.date_placed?.slice(0, 7) || null,
+        error: "The replacement flock must still be a scheduled or awaiting-arrival flock.",
+      }),
+    );
+  }
+
+  const targetOperationalChildCount =
+    (targetDailyCountResult.count ?? 0) + (targetMortalityCountResult.count ?? 0) + (targetWeightCountResult.count ?? 0);
+  if (
+    targetDailyCountResult.error ||
+    targetMortalityCountResult.error ||
+    targetWeightCountResult.error ||
+    targetFeedDropCountResult.error
+  ) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || sourcePlacement.active_start || sourceFlock.date_placed || null,
+        month: month || sourcePlacement.active_start?.slice(0, 7) || sourceFlock.date_placed?.slice(0, 7) || null,
+        error:
+          targetDailyCountResult.error?.message ??
+          targetMortalityCountResult.error?.message ??
+          targetWeightCountResult.error?.message ??
+          targetFeedDropCountResult.error?.message ??
+          "Replacement flock checks failed before juggle.",
+      }),
+    );
+  }
+
+  if (targetOperationalChildCount > 0 || (targetFeedDropCountResult.count ?? 0) > 0) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || sourcePlacement.active_start || sourceFlock.date_placed || null,
+        month: month || sourcePlacement.active_start?.slice(0, 7) || sourceFlock.date_placed?.slice(0, 7) || null,
+        error: "The replacement flock already has operational records, so it cannot safely take over this slot.",
+      }),
+    );
+  }
+
+  if ((duplicateTargetFlockResult.count ?? 0) > 0) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || sourcePlacement.active_start || sourceFlock.date_placed || null,
+        month: month || sourcePlacement.active_start?.slice(0, 7) || sourceFlock.date_placed?.slice(0, 7) || null,
+        error: `Replacement flock number ${targetFlock.flock_number ?? "unknown"} is already in use on the destination farm.`,
+      }),
+    );
+  }
+
+  const sourceStart = coerceNullableDate(sourcePlacement.active_start as unknown as FormDataEntryValue | null) || sourceFlock.date_placed;
+  const sourceEnd =
+    coerceNullableDate(sourcePlacement.active_end as unknown as FormDataEntryValue | null) ||
+    coerceNullableDate(sourceFlock.max_date as unknown as FormDataEntryValue | null) ||
+    sourceStart;
+  if (!sourceStart || !sourceEnd) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || null,
+        month: month || null,
+        error: "The canceled flock is missing its planned date range, so the slot cannot be transferred.",
+      }),
+    );
+  }
+
+  const siblingFlockIds = Array.from(
+    new Set(((targetSiblingPlacementsResult.data ?? []) as Array<{ flock_id: string }>).map((row) => row.flock_id).filter(Boolean)),
+  );
+  const siblingFlocksResult = siblingFlockIds.length
+    ? await admin.from("flocks").select("id,date_placed,max_date").in("id", siblingFlockIds)
+    : { data: [], error: null };
+
+  if (targetSiblingPlacementsResult.error || siblingFlocksResult.error) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || sourceStart,
+        month: month || sourceStart.slice(0, 7),
+        error: targetSiblingPlacementsResult.error?.message ?? siblingFlocksResult.error?.message ?? "Destination overlap checks failed.",
+      }),
+    );
+  }
+
+  const siblingFlockById = new Map(
+    ((siblingFlocksResult.data ?? []) as Array<{ id: string; date_placed: string | null; max_date: string | null }>).map((row) => [row.id, row]),
+  );
+  const overlap = ((targetSiblingPlacementsResult.data ?? []) as Array<{
+    id: string;
+    flock_id: string;
+    date_removed: string | null;
+    active_start: string | null;
+    active_end: string | null;
+  }>).find((row) => {
+    if (row.id === targetPlacementId) {
+      return false;
+    }
+
+    const siblingFlock = siblingFlockById.get(row.flock_id);
+    const siblingStart =
+      coerceNullableDate(siblingFlock?.date_placed as unknown as FormDataEntryValue | null) ||
+      coerceNullableDate(row.active_start as unknown as FormDataEntryValue | null);
+    const siblingEnd =
+      coerceNullableDate(row.date_removed as unknown as FormDataEntryValue | null) ||
+      coerceNullableDate(siblingFlock?.max_date as unknown as FormDataEntryValue | null) ||
+      coerceNullableDate(row.active_end as unknown as FormDataEntryValue | null);
+
+    if (!siblingStart || !siblingEnd) {
+      return false;
+    }
+
+    return sourceStart <= siblingEnd && sourceEnd >= siblingStart;
+  });
+
+  if (overlap) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || sourceStart,
+        month: month || sourceStart.slice(0, 7),
+        error: "The replacement flock cannot take over this barn slot because it would overlap another placement in the destination barn.",
+      }),
+    );
+  }
+
+  const targetPlacementKey = `${targetFlock.flock_number ?? targetPlacement.placement_key ?? "TBD"}-${sourceBarn.barn_code ?? "Barn"}`;
+  const sourceFeedDropCount = sourceFeedDropCountResult.count ?? 0;
+
+  const [
+    transferFeedDropsResult,
+    transferFeedOrdersResult,
+    targetPlacementUpdateResult,
+    targetFlockUpdateResult,
+  ] = await Promise.all([
+    admin
+      .from("feed_drops")
+      .update({
+        placement_id: targetPlacementId,
+        placement_code: targetPlacementKey,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("placement_id", placementId),
+    admin
+      .from("feed_order_commitments")
+      .update({
+        placement_id: targetPlacementId,
+        barn_id: barnId,
+      })
+      .eq("placement_id", placementId),
+    admin
+      .from("placements")
+      .update({
+        farm_id: farmId,
+        barn_id: barnId,
+        active_start: sourceStart,
+        active_end: sourceEnd,
+        date_removed: null,
+        placement_key: targetPlacementKey,
+        is_active: true,
+        lifecycle_stage: "awaiting_arrival",
+        updated_by: actorId,
+      })
+      .eq("id", targetPlacementId),
+    admin
+      .from("flocks")
+      .update({
+        farm_id: farmId,
+        date_placed: sourceStart,
+        max_date: sourceEnd,
+        is_active: true,
+        is_in_barn: false,
+        is_complete: false,
+        is_settled: false,
+        updated_by: actorId,
+      })
+      .eq("id", targetFlockId),
+  ]);
+
+  if (transferFeedDropsResult.error || transferFeedOrdersResult.error || targetPlacementUpdateResult.error || targetFlockUpdateResult.error) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || sourceStart,
+        month: month || sourceStart.slice(0, 7),
+        error:
+          transferFeedDropsResult.error?.message ??
+          transferFeedOrdersResult.error?.message ??
+          targetPlacementUpdateResult.error?.message ??
+          targetFlockUpdateResult.error?.message ??
+          "The replacement flock could not take over the canceled slot.",
+      }),
+    );
+  }
+
+  await Promise.all([
+    admin.from("activity_log").delete().eq("placement_id", placementId),
+    admin.from("activity_log").delete().eq("flock_id", flockId),
+    admin.schema("platform").from("sync_outbox").delete().eq("placement_id", placementId),
+  ]);
+
+  const sourcePlacementDeleteResult = await admin.from("placements").delete().eq("id", placementId);
+  if (sourcePlacementDeleteResult.error) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: targetPlacementId,
+        date: sourceStart,
+        month: month || sourceStart.slice(0, 7),
+        error: sourcePlacementDeleteResult.error.message,
+      }),
+    );
+  }
+
+  const sourceFlockDeleteResult = await admin.from("flocks").delete().eq("id", flockId);
+  if (sourceFlockDeleteResult.error) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: targetPlacementId,
+        date: sourceStart,
+        month: month || sourceStart.slice(0, 7),
+        error: sourceFlockDeleteResult.error.message,
+      }),
+    );
+  }
+
+  await writeActivityLog(admin, {
+    placementId: targetPlacementId,
+    entryType: "functCall",
+    actionKey: "juggleScheduledPlacementAction",
+    details: `Replacement flock ${targetFlock.flock_number ?? targetPlacementKey} took over canceled slot ${sourcePlacement.placement_key ?? placementId}.`,
+    source: "web-admin.placement_wizard",
+    actorUserId: actorId,
+    actorName,
+    farmId,
+    barnId,
+    flockId: targetFlockId,
+    meta: {
+      source_placement_id: placementId,
+      source_placement_key: sourcePlacement.placement_key,
+      source_flock_id: flockId,
+      target_placement_id: targetPlacementId,
+      target_flock_id: targetFlockId,
+      transferred_feed_drop_count: sourceFeedDropCount,
+      adopted_start_date: sourceStart,
+      adopted_end_date: sourceEnd,
+    },
+  });
+
+  revalidatePath("/admin/placements/new");
+  revalidatePath("/admin/flocks");
+  revalidatePath("/admin/overview");
+  revalidatePath("/admin/feed-tickets");
+  redirect(
+    buildLocation({
+      mode,
+      farm: farmId,
+      barn: barnId,
+      placement: targetPlacementId,
+      date: sourceStart,
+      month: month || sourceStart.slice(0, 7),
+      notice: `Moved replacement flock ${targetFlock.flock_number ?? targetPlacementKey} into barn ${sourceBarn.barn_code} and transferred ${sourceFeedDropCount} delivered feed drop${sourceFeedDropCount === 1 ? "" : "s"}.`,
     }),
   );
 }

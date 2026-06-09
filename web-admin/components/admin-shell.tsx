@@ -13,11 +13,11 @@ const consoleLinks = [
   { label: "Action Items", href: "/admin/issues" },
   { label: "Feed Tickets", href: "/admin/feed-tickets" },
   { label: "Sync Engine", href: "/admin/sync/googleapis-sheets/outbox" },
-  { label: "Reports" },
+  { label: "Reports", href: "/admin/reports" },
 ];
 
 const placementLinks = [
-  { label: "Schedule", href: "/admin/placements/new" },
+  { label: "Schedule", href: "/admin/placements/new?mode=placements&farm=all" },
   { label: "Livehaul", href: "/admin/placements/livehaul" },
   { label: "Closeout", href: "/admin/flock-closeout" },
 ];
@@ -34,6 +34,7 @@ const utilityLinks = [
   { label: "About", href: "/admin/about" },
   { label: "Flocks", href: "/admin/flocks" },
   { label: "Activity Log", href: "/admin/activity-log" },
+  { label: "BinSentry Refs", href: "/admin/feed-bins/binsentry-refs" },
 ];
 
 type AdminShellProps = {
@@ -116,7 +117,7 @@ export function AdminShell({ children, displayName, roleKey, roleLabel, scopeLab
 
   const renderNavItem = (item: { href?: string; label: string }) => {
     if (!item.href) {
-      const muted = item.label === "Rollups" || item.label === "Reports";
+      const muted = item.label === "Rollups";
       return (
         <p className="splash-sidebar-item" data-muted={muted} key={item.label}>
           {item.label}

@@ -1,3 +1,4 @@
+import type { PlacementLifecycleStage } from "@/lib/types";
 import { unstable_noStore as noStore } from "next/cache";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
@@ -22,6 +23,7 @@ export type PlacementSchedulerWindow = {
   flockId: string;
   placementCode: string;
   flockNumber: number | null;
+  lifecycleStage: PlacementLifecycleStage;
   startDate: string;
   endDate: string;
   actualEndDate: string | null;
@@ -99,6 +101,7 @@ type PlacementRow = {
   farm_id: string;
   barn_id: string;
   flock_id: string;
+  lifecycle_stage: PlacementLifecycleStage | null;
   date_removed: string | null;
   is_active: boolean | null;
   placement_key: string | null;
@@ -227,7 +230,7 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
       .order("date_placed", { ascending: false }),
     supabase
       .from("placements")
-      .select("id,farm_id,barn_id,flock_id,date_removed,is_active,placement_key,lh1_date,lh2_date,lh3_date,active_start,active_end")
+      .select("id,farm_id,barn_id,flock_id,lifecycle_stage,date_removed,is_active,placement_key,lh1_date,lh2_date,lh3_date,active_start,active_end")
       .order("created_at", { ascending: false }),
     supabase.schema("platform").from("settings").select("name,value,is_active").limit(50),
     supabase.from("app_settings").select("group,name,value"),
@@ -363,16 +366,17 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
     }
 
     const projectedEnd = normalize(row.date_removed) || normalize(flock?.max_date) || normalize(row.active_end) || addDays(startDate, growOutDays);
-    const isFuture = startDate > today;
-    const isActive = row.is_active !== false && !row.date_removed && startDate <= today;
-    const isComplete = !!row.date_removed || flock?.is_complete === true || (!isActive && projectedEnd < today);
     const flockIsInBarn = flock?.is_in_barn === true;
+    const isFuture = startDate > today;
+    const isActive = row.is_active !== false && !row.date_removed && flockIsInBarn;
+    const isComplete = !!row.date_removed || flock?.is_complete === true || (!isActive && projectedEnd < today);
     const window: PlacementSchedulerWindow = {
       id: row.id,
       barnId: row.barn_id,
       flockId: row.flock_id,
       placementCode: normalize(row.placement_key) || `${flock?.flock_number ?? "?"}`,
       flockNumber: flock?.flock_number ?? null,
+      lifecycleStage: row.lifecycle_stage ?? "scheduled",
       startDate,
       endDate: projectedEnd,
       actualEndDate: normalize(row.date_removed) || null,

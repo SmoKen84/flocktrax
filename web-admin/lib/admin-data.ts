@@ -125,6 +125,29 @@ type LivehaulScheduleDashboardRow = {
   head_actual: number | null;
 };
 
+type FeedInventorySnapshotRow = {
+  feed_bin_id: string | null;
+  barn_id: string | null;
+  inventory_lbs: number | null;
+  captured_at: string | null;
+};
+
+type FeedOrderCommitmentRow = {
+  placement_id: string | null;
+  barn_id: string | null;
+  ordered_lbs: number | null;
+  received_lbs: number | null;
+  expected_delivery_date: string | null;
+  status: string | null;
+};
+
+type FeedDeliveredDropRow = {
+  placement_code: string | null;
+  type: string | null;
+  drop_weight: number | null;
+  off_farm_redirect: boolean | null;
+};
+
 type DailyFlagRow = {
   placement_id: string;
   log_date: string | null;
@@ -260,6 +283,117 @@ async function fetchDashboardWeightSummary(
   }
 }
 
+async function fetchFeedInventorySnapshotsSafe(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  barnIds: string[],
+) {
+  if (!supabase || barnIds.length === 0) {
+    return {
+      rows: [] as FeedInventorySnapshotRow[],
+      available: false,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("feed_inventory_snapshots")
+    .select("feed_bin_id,barn_id,inventory_lbs,captured_at")
+    .in("barn_id", barnIds)
+    .order("captured_at", { ascending: false })
+    .limit(4000);
+
+  if (error) {
+    return {
+      rows: [] as FeedInventorySnapshotRow[],
+      available: false,
+    };
+  }
+
+  return {
+    rows: (data ?? []) as FeedInventorySnapshotRow[],
+    available: true,
+  };
+}
+
+async function fetchFeedOrderCommitmentsSafe(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  barnIds: string[],
+  placementIds: string[],
+) {
+  if (!supabase || (barnIds.length === 0 && placementIds.length === 0)) {
+    return {
+      rows: [] as FeedOrderCommitmentRow[],
+      available: false,
+    };
+  }
+
+  const [placementResult, barnResult] = await Promise.all([
+    placementIds.length > 0
+      ? supabase
+          .from("feed_order_commitments")
+          .select("placement_id,barn_id,ordered_lbs,received_lbs,expected_delivery_date,status")
+          .in("status", ["open", "partial"])
+          .in("placement_id", placementIds)
+          .order("expected_delivery_date", { ascending: true, nullsFirst: false })
+          .limit(2000)
+      : Promise.resolve({ data: [], error: null }),
+    barnIds.length > 0
+      ? supabase
+          .from("feed_order_commitments")
+          .select("placement_id,barn_id,ordered_lbs,received_lbs,expected_delivery_date,status")
+          .in("status", ["open", "partial"])
+          .in("barn_id", barnIds)
+          .is("placement_id", null)
+          .order("expected_delivery_date", { ascending: true, nullsFirst: false })
+          .limit(2000)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (placementResult.error || barnResult.error) {
+    return {
+      rows: [] as FeedOrderCommitmentRow[],
+      available: false,
+    };
+  }
+
+  return {
+    rows: [
+      ...((placementResult.data ?? []) as FeedOrderCommitmentRow[]),
+      ...((barnResult.data ?? []) as FeedOrderCommitmentRow[]),
+    ],
+    available: true,
+  };
+}
+
+async function fetchFeedDeliveredDropsSafe(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  placementCodes: string[],
+) {
+  if (!supabase || placementCodes.length === 0) {
+    return {
+      rows: [] as FeedDeliveredDropRow[],
+      available: false,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("feed_drops")
+    .select("placement_code,type,drop_weight,off_farm_redirect")
+    .in("placement_code", placementCodes)
+    .limit(12000);
+
+  if (error) {
+    return {
+      rows: [] as FeedDeliveredDropRow[],
+      available: false,
+    };
+  }
+
+  return {
+    rows: (data ?? []) as FeedDeliveredDropRow[],
+    available: true,
+  };
+}
+
 export async function getAdminData(): Promise<AdminDataBundle> {
   noStore();
 
@@ -393,6 +527,19 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     const appSettingRows = (appSettingsResult.data ?? []) as AppSettingRow[];
     const breedRows = (breedsResult.data ?? []) as BreedRow[];
     const breedSpecRows = (breedSpecsResult.data ?? []) as BreedSpecRow[];
+    const { rows: feedInventorySnapshotRows, available: feedInventoryAvailable } = await fetchFeedInventorySnapshotsSafe(
+      supabase,
+      barnRows.map((row) => row.id),
+    );
+    const { rows: feedOrderCommitmentRows, available: feedOrdersAvailable } = await fetchFeedOrderCommitmentsSafe(
+      supabase,
+      barnRows.map((row) => row.id),
+      placementRows.map((row) => row.id),
+    );
+    const { rows: feedDeliveredDropRows } = await fetchFeedDeliveredDropsSafe(
+      supabase,
+      placementRows.map((row) => row.placement_key).filter((value): value is string => Boolean(value)),
+    );
     const checkoutAgeAvailability = appSettingRows
       .filter((row) => row.name === "age_checkout_avail")
       .sort((left, right) => {
@@ -417,6 +564,18 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       })
       .map((row) => Number.parseInt(String(row.value ?? "").trim(), 10))
       .find((value) => Number.isFinite(value) && value >= 0) ?? 0;
+    const starterLbsPerChick = appSettingRows
+      .filter((row) => String(row.name ?? "").toLowerCase() === "starter_lbs_per_chick")
+      .sort((left, right) => {
+        const leftRank = left.group === "Placements" ? 0 : left.group === null ? 1 : 2;
+        const rightRank = right.group === "Placements" ? 0 : right.group === null ? 1 : 2;
+        if (leftRank !== rightRank) {
+          return leftRank - rightRank;
+        }
+        return String(right.updated_at ?? "").localeCompare(String(left.updated_at ?? ""));
+      })
+      .map((row) => Number.parseFloat(String(row.value ?? "").trim()))
+      .find((value) => Number.isFinite(value) && value > 0) ?? 2.5;
 
     const activePlacementsRaw = placementRows.filter((row) =>
       row.lifecycle_stage === "awaiting_arrival" || row.lifecycle_stage === "in_barn_growing"
@@ -577,6 +736,100 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     for (const [placementId, events] of liveHaulEventsByPlacementId.entries()) {
       events.sort((left, right) => left.date.localeCompare(right.date));
       liveHaulEventsByPlacementId.set(placementId, events);
+    }
+
+    const feedInventoryByBarnId = new Map<string, { pounds: number; snapshotAt: string | null }>();
+    const latestInventoryByKey = new Map<string, FeedInventorySnapshotRow>();
+
+    for (const row of feedInventorySnapshotRows) {
+      if (!row.barn_id || !row.captured_at) {
+        continue;
+      }
+
+      const snapshotKey = row.feed_bin_id ?? `barn:${row.barn_id}`;
+      if (!latestInventoryByKey.has(snapshotKey)) {
+        latestInventoryByKey.set(snapshotKey, row);
+      }
+    }
+
+    for (const row of latestInventoryByKey.values()) {
+      if (!row.barn_id) {
+        continue;
+      }
+
+      const bucket = feedInventoryByBarnId.get(row.barn_id) ?? { pounds: 0, snapshotAt: null };
+      bucket.pounds += Math.max(0, row.inventory_lbs ?? 0);
+      if (!bucket.snapshotAt || (row.captured_at && row.captured_at > bucket.snapshotAt)) {
+        bucket.snapshotAt = row.captured_at;
+      }
+      feedInventoryByBarnId.set(row.barn_id, bucket);
+    }
+
+    const feedOrderPlacementSpecificByPlacementId = new Map<
+      string,
+      { pounds: number; count: number; nextEta: string | null }
+    >();
+    const feedOrderBarnGenericByBarnId = new Map<string, { pounds: number; count: number; nextEta: string | null }>();
+    const deliveredFeedByPlacementCode = new Map<string, { starter: number; grower: number }>();
+
+    for (const row of feedOrderCommitmentRows) {
+      const orderedLbs = Math.max(0, row.ordered_lbs ?? 0);
+      const receivedLbs = Math.max(0, row.received_lbs ?? 0);
+      const remainingLbs = Math.max(0, orderedLbs - receivedLbs);
+      if (remainingLbs <= 0) {
+        continue;
+      }
+
+      if (row.placement_id) {
+        const bucket = feedOrderPlacementSpecificByPlacementId.get(row.placement_id) ?? {
+          pounds: 0,
+          count: 0,
+          nextEta: null,
+        };
+        bucket.pounds += remainingLbs;
+        bucket.count += 1;
+        if (row.expected_delivery_date && (!bucket.nextEta || row.expected_delivery_date < bucket.nextEta)) {
+          bucket.nextEta = row.expected_delivery_date;
+        }
+        feedOrderPlacementSpecificByPlacementId.set(row.placement_id, bucket);
+        continue;
+      }
+
+      if (row.barn_id) {
+        const bucket = feedOrderBarnGenericByBarnId.get(row.barn_id) ?? {
+          pounds: 0,
+          count: 0,
+          nextEta: null,
+        };
+        bucket.pounds += remainingLbs;
+        bucket.count += 1;
+        if (row.expected_delivery_date && (!bucket.nextEta || row.expected_delivery_date < bucket.nextEta)) {
+          bucket.nextEta = row.expected_delivery_date;
+        }
+        feedOrderBarnGenericByBarnId.set(row.barn_id, bucket);
+      }
+    }
+
+    for (const row of feedDeliveredDropRows) {
+      if (row.off_farm_redirect === true) {
+        continue;
+      }
+
+      const placementCode = String(row.placement_code ?? "").trim();
+      if (!placementCode) {
+        continue;
+      }
+
+      const bucket = deliveredFeedByPlacementCode.get(placementCode) ?? { starter: 0, grower: 0 };
+      const pounds =
+        typeof row.drop_weight === "number" && Number.isFinite(row.drop_weight) ? row.drop_weight : 0;
+      const feedType = String(row.type ?? "").trim().toLowerCase();
+      if (feedType === "starter") {
+        bucket.starter += pounds;
+      } else if (feedType === "grower") {
+        bucket.grower += pounds;
+      }
+      deliveredFeedByPlacementCode.set(placementCode, bucket);
     }
 
     for (const row of mortalityRows) {
@@ -958,6 +1211,49 @@ export async function getAdminData(): Promise<AdminDataBundle> {
             liveHaulDates: [],
             daily: [],
           };
+      const deliveredFeed =
+        row ? deliveredFeedByPlacementCode.get(row.placement_key) ?? { starter: 0, grower: 0 } : { starter: 0, grower: 0 };
+      const startedBirds = startedFemaleCount + startedMaleCount;
+      const starterTargetLbs = Math.max(0, Math.round(startedBirds * starterLbsPerChick));
+      const starterRemainingObligationLbs = Math.max(0, Math.round(starterTargetLbs - deliveredFeed.starter));
+      const typedProjection = splitFeedProjectionByType({
+        daily: feedProjection.daily,
+        starterRemainingObligationLbs,
+      });
+      const starterOrderableRemainingLbs = Math.round(Math.max(0, typedProjection.starterTotal ?? 0));
+      const feedInventory = feedInventoryByBarnId.get(barn.id) ?? null;
+      const feedOrdersForPlacement = row ? feedOrderPlacementSpecificByPlacementId.get(row.id) ?? null : null;
+      const feedOrdersForBarn = feedOrderBarnGenericByBarnId.get(barn.id) ?? null;
+      const feedInventoryOnHandLbs = feedInventoryAvailable
+        ? Math.round(Math.max(0, feedInventory?.pounds ?? 0))
+        : null;
+      const feedOnOrderLbs = feedOrdersAvailable
+        ? Math.round(
+            Math.max(0, feedOrdersForPlacement?.pounds ?? 0) +
+              Math.max(0, feedOrdersForBarn?.pounds ?? 0),
+          )
+        : null;
+      const feedOnOrderOpenCount = feedOrdersAvailable
+        ? (feedOrdersForPlacement?.count ?? 0) + (feedOrdersForBarn?.count ?? 0)
+        : 0;
+      const placementOrderEta = feedOrdersForPlacement?.nextEta ?? null;
+      const barnOrderEta = feedOrdersForBarn?.nextEta ?? null;
+      const feedOnOrderNextEta =
+        placementOrderEta && barnOrderEta
+          ? (placementOrderEta < barnOrderEta ? placementOrderEta : barnOrderEta)
+          : placementOrderEta ?? barnOrderEta ?? null;
+      const feedProjectedSupplyLbs =
+        feedProjection.total !== null && (feedInventoryOnHandLbs !== null || feedOnOrderLbs !== null)
+          ? (feedInventoryOnHandLbs ?? 0) + (feedOnOrderLbs ?? 0)
+          : null;
+      const feedProjectedNetPositionLbs =
+        feedProjection.total !== null && feedProjectedSupplyLbs !== null
+          ? feedProjectedSupplyLbs - feedProjection.total
+          : null;
+      const feedRecommendedOrderLbs =
+        feedProjection.total !== null && feedProjectedSupplyLbs !== null
+          ? Math.max(0, Math.round(feedProjection.total - feedProjectedSupplyLbs))
+          : null;
 
       return {
         id: row?.id ?? `barn-${barn.id}`,
@@ -1006,8 +1302,24 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         feedProjectionTenDayTotal: feedProjection.total,
         feedProjectionTenDayAverage: feedProjection.average,
         feedProjectionTenDayRange: feedProjection.range,
+        feedProjectionTenDayStarterTotal: typedProjection.starterTotal,
+        feedProjectionTenDayGrowerTotal: typedProjection.growerTotal,
         feedProjectionLiveHaulDates: feedProjection.liveHaulDates,
-        feedProjectionTenDayDaily: feedProjection.daily,
+        feedInventoryOnHandLbs,
+        feedInventorySnapshotAt: feedInventoryAvailable ? feedInventory?.snapshotAt ?? null : null,
+        feedOnOrderLbs,
+        feedOnOrderOpenCount,
+        feedOnOrderNextEta,
+        feedRecommendedOrderLbs,
+        feedProjectedSupplyLbs,
+        feedProjectedNetPositionLbs,
+        starterLbsPerChick,
+        starterTargetLbs,
+        starterDeliveredLbs: Math.round(deliveredFeed.starter),
+        growerDeliveredLbs: Math.round(deliveredFeed.grower),
+        starterRemainingObligationLbs,
+        starterOrderableRemainingLbs,
+        feedProjectionTenDayDaily: typedProjection.daily,
         latestFemaleWeight: weightSummary.female.avgWeight,
         latestMaleWeight: weightSummary.male.avgWeight,
         latestFemaleWeightPercentExpected,
@@ -1657,6 +1969,7 @@ function buildTenDayFeedProjection({
     .filter((value) => Boolean(value.date))
     .slice()
     .sort((left, right) => left.date.localeCompare(right.date));
+  const scheduledPlacementStarterMinimumLbs = ageDays < 0 ? 12000 : 0;
   const scheduledLiveHaulDates = scheduledLiveHaulEvents.map((event) => event.date);
   const liveHaulDatesInWindow = scheduledLiveHaulDates.filter((date) => {
     return date > today && date <= addDays(today, 10);
@@ -1733,11 +2046,12 @@ function buildTenDayFeedProjection({
   }
 
   for (let dayOffset = 1; dayOffset <= 10; dayOffset += 1) {
-    femalePopulation = Math.max(0, femalePopulation - projectedFemaleMortalityPerDay);
-    malePopulation = Math.max(0, malePopulation - projectedMaleMortalityPerDay);
-
     const date = addDays(today, dayOffset);
     const projectedAgeDays = ageDays + dayOffset;
+    if (projectedAgeDays > 0) {
+      femalePopulation = Math.max(0, femalePopulation - projectedFemaleMortalityPerDay);
+      malePopulation = Math.max(0, malePopulation - projectedMaleMortalityPerDay);
+    }
     const femaleFeedPerBird = resolveBreedDayFeedPerBird(
       breedFemales,
       projectedAgeDays,
@@ -1750,7 +2064,7 @@ function buildTenDayFeedProjection({
       breedById,
       breedSpecRows,
     );
-    const totalFeed =
+    let totalFeed =
       femaleFeedPerBird === null && maleFeedPerBird === null
         ? null
         : (femaleFeedPerBird ?? 0) * femalePopulation + (maleFeedPerBird ?? 0) * malePopulation;
@@ -1841,6 +2155,34 @@ function buildTenDayFeedProjection({
     }
   }
 
+  if (scheduledPlacementStarterMinimumLbs > 0) {
+    const arrivalWindowIndexes = daily
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ entry }) => entry.ageDays >= 0 && entry.totalFeed !== null);
+    const projectedArrivalWindowTotal = arrivalWindowIndexes.reduce(
+      (sum, { entry }) => sum + (entry.totalFeed ?? 0),
+      0,
+    );
+
+    if (
+      arrivalWindowIndexes.length > 0 &&
+      projectedArrivalWindowTotal > 0 &&
+      projectedArrivalWindowTotal < scheduledPlacementStarterMinimumLbs
+    ) {
+      const firstArrivalIndex = arrivalWindowIndexes[0]?.index ?? -1;
+      if (firstArrivalIndex >= 0) {
+        const delta = scheduledPlacementStarterMinimumLbs - projectedArrivalWindowTotal;
+        const firstArrivalEntry = daily[firstArrivalIndex];
+        if (firstArrivalEntry && firstArrivalEntry.totalFeed !== null) {
+          daily[firstArrivalIndex] = {
+            ...firstArrivalEntry,
+            totalFeed: firstArrivalEntry.totalFeed + delta,
+          };
+        }
+      }
+    }
+  }
+
   const feedValues = daily
     .map((entry) => entry.totalFeed)
     .filter((value): value is number => value !== null && Number.isFinite(value));
@@ -1856,6 +2198,55 @@ function buildTenDayFeedProjection({
     },
     liveHaulDates: liveHaulDatesInWindow,
     daily,
+  };
+}
+
+function splitFeedProjectionByType({
+  daily,
+  starterRemainingObligationLbs,
+}: {
+  daily: Array<{
+    date: string;
+    ageDays: number;
+    totalBirds: number;
+    totalFeed: number | null;
+    liveHaulFraction: number | null;
+    liveHaulLabel: string | null;
+  }>;
+  starterRemainingObligationLbs: number;
+}) {
+  const starterOrderingCutoffDay = 14;
+  let remainingStarter = Math.max(0, starterRemainingObligationLbs);
+  let starterTotal = 0;
+  let growerTotal = 0;
+
+  const typedDaily = daily.map((entry) => {
+    if (entry.totalFeed === null || !Number.isFinite(entry.totalFeed)) {
+      return {
+        ...entry,
+        starterFeed: null,
+        growerFeed: null,
+      };
+    }
+
+    const starterFeed =
+      entry.ageDays <= starterOrderingCutoffDay ? Math.min(entry.totalFeed, remainingStarter) : 0;
+    const growerFeed = Math.max(0, entry.totalFeed - starterFeed);
+    remainingStarter = Math.max(0, remainingStarter - starterFeed);
+    starterTotal += starterFeed;
+    growerTotal += growerFeed;
+
+    return {
+      ...entry,
+      starterFeed,
+      growerFeed,
+    };
+  });
+
+  return {
+    daily: typedDaily,
+    starterTotal: typedDaily.some((entry) => entry.starterFeed !== null) ? starterTotal : null,
+    growerTotal: typedDaily.some((entry) => entry.growerFeed !== null) ? growerTotal : null,
   };
 }
 

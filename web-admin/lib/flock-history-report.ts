@@ -164,8 +164,10 @@ export type FlockHistoryMortalityRow = {
 export type FlockHistoryPlacementSection = {
   placementId: string;
   placementCode: string;
+  farmId: string;
   farmName: string;
   farmGroupName: string;
+  barnId: string;
   barnCode: string;
   placedDate: string | null;
   projectedEndDate: string | null;
@@ -409,8 +411,10 @@ export async function getFlockHistoryReportBundle(flockId: string): Promise<Floc
       return {
         placementId: placement.id,
         placementCode: placement.placement_key ?? "Unlabeled Placement",
+        farmId: placement.farm_id,
         farmName: farm?.farm_name ?? "Unknown Farm",
         farmGroupName: farm?.farm_group_name ?? "Unknown Group",
+        barnId: placement.barn_id,
         barnCode: barn?.barn_code ?? "Barn",
         placedDate: flock.date_placed,
         projectedEndDate: flock.max_date ?? placement.active_end,

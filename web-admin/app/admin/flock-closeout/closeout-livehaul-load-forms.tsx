@@ -33,6 +33,8 @@ export function CloseoutLivehaulLoadsPanel({
   livehaul: CloseoutLivehaulRow;
 }) {
   const [showCreateRow, setShowCreateRow] = useState(false);
+  const totalNetWeight = livehaul.loads.reduce((sum, load) => sum + (load.liveWeight ?? 0), 0);
+  const breedVariancePercent = deriveVariancePercent(livehaul.breedWeightPercent);
 
   return (
     <section className="panel card closeout-loads-panel">
@@ -56,12 +58,16 @@ export function CloseoutLivehaulLoadsPanel({
             <strong>{livehaul.loadHeadCountTotal.toLocaleString()}</strong>
           </span>
           <span className="livehaul-summary-pill">
-            <span className="livehaul-summary-pill-label">Breed</span>
+            <span className="livehaul-summary-pill-label">Net Weight</span>
+            <strong>{formatWeight(totalNetWeight)}</strong>
+          </span>
+          <span className="livehaul-summary-pill">
+            <span className="livehaul-summary-pill-label">Bird Wt / Breed Target</span>
             <strong>{`${formatRatio(livehaul.breedActualAvgWeight)} | ${formatRatio(livehaul.breedExpectedAvgWeight)}`}</strong>
           </span>
           <span className="livehaul-summary-pill">
-            <span className="livehaul-summary-pill-label">% Target</span>
-            <strong>{formatPercent(livehaul.breedWeightPercent)}</strong>
+            <span className="livehaul-summary-pill-label">Bird Wt Var %</span>
+            <strong>{formatSignedPercent(breedVariancePercent)}</strong>
           </span>
         </div>
       </div>
@@ -472,6 +478,24 @@ function formatRatio(value: number | null) {
 function formatPercent(value: number | null) {
   if (value === null || Number.isNaN(value)) return "--";
   return `${value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+}
+
+function formatSignedPercent(value: number | null) {
+  if (value === null || Number.isNaN(value)) return "--";
+  const formatted = Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  if (value > 0) return `+${formatted}%`;
+  if (value < 0) return `-${formatted}%`;
+  return `${formatted}%`;
+}
+
+function formatWeight(value: number | null) {
+  if (value === null || Number.isNaN(value)) return "--";
+  return `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} lb`;
+}
+
+function deriveVariancePercent(percentOfTarget: number | null) {
+  if (percentOfTarget === null || Number.isNaN(percentOfTarget)) return null;
+  return percentOfTarget - 100;
 }
 
 function formatTargetSex(value: "male" | "female" | null) {

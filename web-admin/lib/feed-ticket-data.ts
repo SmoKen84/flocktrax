@@ -426,32 +426,184 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
 }
 
 export async function getFeedTicketFlockReportBundle(filters: FeedTicketAdminFilters = {}): Promise<FeedTicketFlockReportBundle> {
-  const bundle = await getFeedTicketAdminBundle({
-    ...filters,
-    listMode: "drop",
-  });
+  noStore();
 
-  const rows = bundle.rows
-    .filter((row) => normalize(row.placementCode).toLowerCase() === normalize(filters.flockCode).toLowerCase())
+  const admin = createSupabaseAdminClient();
+  if (!admin) {
+    throw new Error("Feed ticket data could not connect to Supabase.");
+  }
+
+  const normalizedFlockCode = normalize(filters.flockCode);
+  const normalizedDateFrom = normalize(filters.dateFrom);
+  const normalizedDateTo = normalize(filters.dateTo);
+  const includeStarter = filters.includeStarter === true;
+  const includeGrower = filters.includeGrower === true;
+  const shouldFilterType = includeStarter || includeGrower;
+
+  if (!normalizedFlockCode) {
+    return {
+      filters: {
+        flockCode: "",
+        dateFrom: normalizedDateFrom,
+        dateTo: normalizedDateTo,
+        includeStarter,
+        includeGrower,
+      },
+      rows: [],
+      generatedAt: new Date().toISOString(),
+      totals: {
+        netDropWeightLbs: 0,
+        starterNetLbs: 0,
+        growerNetLbs: 0,
+        byTicketType: [],
+        bySource: [],
+      },
+    };
+  }
+
+  const { data: dropRows, error: dropsError } = await admin
+    .from("feed_drops")
+    .select("id,feed_ticket_id,farm_id,barn_id,feed_bin_id,drop_weight,placement_code,type,comment,bin_code,off_farm_redirect")
+    .ilike("placement_code", `%${normalizedFlockCode}%`);
+
+  if (dropsError) {
+    throw new Error(dropsError.message);
+  }
+
+  const flockDrops = ((dropRows ?? []) as FeedDropRow[]).filter((drop) =>
+    normalize(drop.placement_code).toLowerCase() === normalizedFlockCode.toLowerCase(),
+  );
+
+  const ticketIds = Array.from(new Set(flockDrops.map((row) => row.feed_ticket_id).filter(Boolean)));
+  if (ticketIds.length === 0) {
+    return {
+      filters: {
+        flockCode: normalizedFlockCode,
+        dateFrom: normalizedDateFrom,
+        dateTo: normalizedDateTo,
+        includeStarter,
+        includeGrower,
+      },
+      rows: [],
+      generatedAt: new Date().toISOString(),
+      totals: {
+        netDropWeightLbs: 0,
+        starterNetLbs: 0,
+        growerNetLbs: 0,
+        byTicketType: [],
+        bySource: [],
+      },
+    };
+  }
+
+  let ticketsQuery = admin
+    .from("feed_tickets")
+    .select("id,ticket_num,delivery_date,created_at,feedmill,feed_weight,feed_name,ticket_type,source_type")
+    .in("id", ticketIds);
+
+  if (normalizedDateFrom) {
+    ticketsQuery = ticketsQuery.gte("delivery_date", normalizedDateFrom);
+  }
+  if (normalizedDateTo) {
+    ticketsQuery = ticketsQuery.lte("delivery_date", normalizedDateTo);
+  }
+
+  const { data: ticketRows, error: ticketsError } = await ticketsQuery;
+  if (ticketsError) {
+    throw new Error(ticketsError.message);
+  }
+
+  const tickets = (ticketRows ?? []) as FeedTicketRow[];
+  const ticketById = new Map(tickets.map((row) => [row.id, row]));
+  const filteredDrops = flockDrops.filter((drop) => ticketById.has(drop.feed_ticket_id));
+
+  const farmIds = Array.from(new Set(filteredDrops.map((row) => row.farm_id).filter(Boolean)));
+  const barnIds = Array.from(new Set(filteredDrops.map((row) => row.barn_id).filter(Boolean)));
+  const binIds = Array.from(new Set(filteredDrops.map((row) => row.feed_bin_id).filter(Boolean)));
+
+  const [farmsResult, barnsResult, binsResult] = await Promise.all([
+    farmIds.length
+      ? admin.from("farms").select("id,farm_name").in("id", farmIds)
+      : Promise.resolve({ data: [], error: null }),
+    barnIds.length
+      ? admin.from("barns").select("id,barn_code,sort_code").in("id", barnIds)
+      : Promise.resolve({ data: [], error: null }),
+    binIds.length
+      ? admin.from("feedbins").select("id,barn_id,bin_num").in("id", binIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (farmsResult.error || barnsResult.error || binsResult.error) {
+    throw new Error(
+      farmsResult.error?.message ??
+        barnsResult.error?.message ??
+        binsResult.error?.message ??
+        "Feed ticket reference lookup failed.",
+    );
+  }
+
+  const farmNameById = new Map((farmsResult.data ?? []).map((row) => [row.id, String(row.farm_name ?? "")]));
+  const barnRows = (barnsResult.data ?? []) as BarnRow[];
+  const barnCodeById = new Map(barnRows.map((row) => [row.id, String(row.barn_code ?? "")]));
+  const barnSortCodeById = new Map(barnRows.map((row) => [row.id, normalize(row.sort_code)]));
+  const binCodeById = new Map(
+    ((binsResult.data ?? []) as FeedBinRow[]).map((row) => [row.id, row.bin_num === null || row.bin_num === undefined ? "" : String(row.bin_num)]),
+  );
+
+  const rows = filteredDrops
+    .map((drop) => {
+      const ticket = ticketById.get(drop.feed_ticket_id);
+      if (!ticket) {
+        return null;
+      }
+
+      const feedType = normalize(drop.type);
+      if (shouldFilterType) {
+        const isStarter = feedType.toLowerCase() === "starter";
+        const isGrower = feedType.toLowerCase() === "grower";
+        if (!((includeStarter && isStarter) || (includeGrower && isGrower))) {
+          return null;
+        }
+      }
+
+      return {
+        id: drop.id,
+        ticketId: ticket.id,
+        deliveryDate: ticket.delivery_date ?? null,
+        ticketNumber: ticket.ticket_num ?? null,
+        ticketType: ticket.ticket_type ?? null,
+        source: ticket.feedmill ?? ticket.source_type ?? ticket.feed_name ?? null,
+        grossWeightLbs: typeof ticket.feed_weight === "number" ? ticket.feed_weight : null,
+        farmName: farmNameById.get(drop.farm_id ?? "") ?? null,
+        barnCode: barnCodeById.get(drop.barn_id ?? "") ?? null,
+        binCode: binCodeById.get(drop.feed_bin_id ?? "") ?? drop.bin_code ?? null,
+        placementCode: drop.placement_code ?? null,
+        feedType: feedType || null,
+        dropWeightLbs: typeof drop.drop_weight === "number" ? drop.drop_weight : null,
+        comment: normalize(drop.comment) || null,
+        offFarmRedirect: drop.off_farm_redirect === true,
+        barnSortCode: barnSortCodeById.get(drop.barn_id ?? "") || null,
+      } satisfies FeedTicketAdminRowWithSort;
+    })
+    .filter((row): row is FeedTicketAdminRowWithSort => row !== null)
     .sort((a, b) => {
       const aDate = a.deliveryDate ?? "";
       const bDate = b.deliveryDate ?? "";
       if (aDate !== bDate) {
         return aDate.localeCompare(bDate);
       }
-
       return (a.ticketNumber ?? "").localeCompare(b.ticketNumber ?? "", undefined, { numeric: true });
     });
 
   return {
     filters: {
-      flockCode: normalize(filters.flockCode),
-      dateFrom: normalize(filters.dateFrom),
-      dateTo: normalize(filters.dateTo),
-      includeStarter: filters.includeStarter === true,
-      includeGrower: filters.includeGrower === true,
+      flockCode: normalizedFlockCode,
+      dateFrom: normalizedDateFrom,
+      dateTo: normalizedDateTo,
+      includeStarter,
+      includeGrower,
     },
-    rows,
+    rows: rows.map(({ barnSortCode: _barnSortCode, ...row }) => row),
     generatedAt: new Date().toISOString(),
     totals: {
       netDropWeightLbs: rows.reduce((sum, row) => sum + (row.dropWeightLbs ?? 0), 0),

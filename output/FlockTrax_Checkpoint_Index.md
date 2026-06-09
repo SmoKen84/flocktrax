@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-06-04`
+Updated: `2026-06-08`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,34 @@ Purpose:
 ## Chronological Index
 
 ### June 2026
+
+- `2026-06-08`
+  - [FlockTrax_Feed_Order_And_Sheets_Backfill_Consolidated_Checkpoint_2026-06-08.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Order_And_Sheets_Backfill_Consolidated_Checkpoint_2026-06-08.md)
+  - consolidated resume checkpoint covering the current feed prediction / starter-grower ordering baseline, BinSentry inventory foundation, reusable Sheets historical backfill importer, five-flock reverse-sync import, and the required outbox cleanup rule for future historical imports
+
+- `2026-06-08`
+  - [FlockTrax_Sheets_Historical_Backfill_And_Outbox_Cleanup_Checkpoint_2026-06-08.md](C:\dev\FlockTrax\output\FlockTrax_Sheets_Historical_Backfill_And_Outbox_Cleanup_Checkpoint_2026-06-08.md)
+  - operational checkpoint covering the reusable Google Sheets historical backfill importer, applied reverse-sync for `274-W6`, `286-W8`, `280-W1`, `278-W7`, and `272-W2`, the audited direct-write fallback for `created_by` constraints, and cleanup of all generated pending/rejected Sheets outbox rows
+
+- `2026-06-07`
+  - [FlockTrax_Scheduled_Flock_Juggle_And_Replacement_Transfer_Checkpoint_2026-06-07.md](C:\dev\FlockTrax\output\FlockTrax_Scheduled_Flock_Juggle_And_Replacement_Transfer_Checkpoint_2026-06-07.md)
+  - operational checkpoint covering the direct `310-W5 -> 311-W5` replacement transfer, transferred delivered feed, corrected barn pointers, removed canceled flock `310`, and the still-unfinished scheduler-side reusable juggle UI
+
+- `2026-06-07`
+  - [FlockTrax_Feed_Order_Projection_First_Pass_Checkpoint_2026-06-07.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Order_Projection_First_Pass_Checkpoint_2026-06-07.md)
+  - implementation checkpoint covering the first-pass starter/grower projection split, day-14 starter cutoff, incoming-flock 12,000 lb minimum, scheduled-flock arrival handling, and the current report/dashboard surface area for feed-order validation
+
+- `2026-06-07`
+  - [FlockTrax_Feed_Type_And_BinSentry_Order_Logic_Spec_2026-06-07.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Type_And_BinSentry_Order_Logic_Spec_2026-06-07.md)
+  - design/spec checkpoint covering starter vs grower ordering rules, bin-level current feed type, type-aware inventory and order commitments, and the recommended FlockTrax-first architecture for BinSentry-backed feed ordering
+
+- `2026-06-06`
+  - [FlockTrax_BinSentry_Live_Inventory_Sync_And_Feed_Bin_Editor_Checkpoint_2026-06-06.md](C:\dev\FlockTrax\output\FlockTrax_BinSentry_Live_Inventory_Sync_And_Feed_Bin_Editor_Checkpoint_2026-06-06.md)
+  - detailed checkpoint covering live BinSentry credential login, paginated bin-ref discovery for all 22 bins, corrected kg-to-lb inventory sync, verified dashboard popup inventory, and the current feed-bin editor restructuring state
+
+- `2026-06-06`
+  - [FlockTrax_Feed_Order_Prediction_And_BinSentry_Foundation_Checkpoint_2026-06-06.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Order_Prediction_And_BinSentry_Foundation_Checkpoint_2026-06-06.md)
+  - implementation checkpoint covering the feed-ordering foundation tables, placement-level inventory/on-order/recommended-order popup fields, feed-bin BinSentry mapping columns, and the first local BinSentry sync baseline
 
 - `2026-06-04`
   - [FlockTrax_Admin_Dashboard_And_Placement_Scheduler_Polish_Checkpoint_2026-06-04.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Dashboard_And_Placement_Scheduler_Polish_Checkpoint_2026-06-04.md)
@@ -287,6 +315,18 @@ Purpose:
 
 # Latest Checkpoint
 
+- `2026-06-07`
+  - [FlockTrax_Feed_Type_And_BinSentry_Order_Logic_Spec_2026-06-07.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Type_And_BinSentry_Order_Logic_Spec_2026-06-07.md)
+  - current best design reference for starter/grower-aware feed ordering, explicit bin feed type, and the next schema/business-rule phase on top of the live BinSentry inventory foundation
+
+- `2026-06-06`
+  - [FlockTrax_BinSentry_Live_Inventory_Sync_And_Feed_Bin_Editor_Checkpoint_2026-06-06.md](C:\dev\FlockTrax\output\FlockTrax_BinSentry_Live_Inventory_Sync_And_Feed_Bin_Editor_Checkpoint_2026-06-06.md)
+  - current best resume point for the live BinSentry sync proof, all-bin ref mapping, corrected inventory conversion, verified dashboard popup inventory, and the current feed-bin editor layout work
+
+- `2026-06-06`
+  - [FlockTrax_Feed_Order_Prediction_And_BinSentry_Foundation_Checkpoint_2026-06-06.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Order_Prediction_And_BinSentry_Foundation_Checkpoint_2026-06-06.md)
+  - current best resume point for the first feed-ordering foundation, new inventory/on-order/recommended-order popup logic, and the local BinSentry mapping/sync baseline
+
 - `2026-06-02`
   - [FlockTrax_Closeout_Report_Livehaul_Target_Sex_And_Archive_Recovery_Checkpoint_2026-06-02.md](C:\dev\FlockTrax\output\FlockTrax_Closeout_Report_Livehaul_Target_Sex_And_Archive_Recovery_Checkpoint_2026-06-02.md)
   - current best resume point for the new printable closeout report, `All Barns` scheduler behavior, `282-W5` archive recovery, and sex-targeted livehaul breed comparison
@@ -348,6 +388,27 @@ Reason:
 - it records the exact Android EAS build id and the remaining Google Play service-account blocker preventing submission
 
 If the topic is BinSentry forecasting or feed-projection planning, load first:
+
+- [FlockTrax_Feed_Type_And_BinSentry_Order_Logic_Spec_2026-06-07.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Type_And_BinSentry_Order_Logic_Spec_2026-06-07.md)
+
+Reason:
+- it is the current design reference for turning the total-feed model into starter/grower-aware ordering
+- it defines the schema additions, backfill strategy, source-of-truth split, and phased implementation plan
+- it should be paired with the June 6 live BinSentry execution checkpoint before implementation work continues
+
+- [FlockTrax_BinSentry_Live_Inventory_Sync_And_Feed_Bin_Editor_Checkpoint_2026-06-06.md](C:\dev\FlockTrax\output\FlockTrax_BinSentry_Live_Inventory_Sync_And_Feed_Bin_Editor_Checkpoint_2026-06-06.md)
+
+Reason:
+- it is now the best resume point for this branch
+- it captures the live BinSentry proof, corrected inventory conversion, all 22 mapped refs, and the current feed-bin editor/UI state
+- it records that the dashboard popup appears to reflect correct live inventory after sync
+
+- [FlockTrax_Feed_Order_Prediction_And_BinSentry_Foundation_Checkpoint_2026-06-06.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Order_Prediction_And_BinSentry_Foundation_Checkpoint_2026-06-06.md)
+
+Reason:
+- use this one second for the earlier same-day implementation baseline
+- it captures the first implemented feed-ordering foundation, the new inventory/on-order/recommended-order popup logic, and the initial local BinSentry mapping/sync path
+- it explicitly records the Supabase migration baseline that the later live-sync checkpoint builds on
 
 - [FlockTrax_BinSentry_Forecast_Planning_Checkpoint_2026-05-25.md](C:\dev\FlockTrax\output\FlockTrax_BinSentry_Forecast_Planning_Checkpoint_2026-05-25.md)
 

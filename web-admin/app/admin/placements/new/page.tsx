@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
-import { deleteScheduledPlacementAction, updatePlacementAction } from "@/app/admin/placements/new/actions";
+import { deleteScheduledPlacementAction, juggleScheduledPlacementAction, updatePlacementAction } from "@/app/admin/placements/new/actions";
 import { PlacementMonthPicker } from "@/app/admin/placements/new/placement-month-picker";
 import { SchedulePlacementForm } from "@/app/admin/placements/new/schedule-placement-form";
 import { SchedulerFilters } from "@/app/admin/placements/new/scheduler-filters";
@@ -37,7 +37,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
   const selectedMonthParam = readParam(params?.month);
   const notice = readParam(params?.notice);
   const error = readParam(params?.error);
-  const mode = selectedModeParam === "placements" ? "placements" : "blocked";
+  const mode = selectedModeParam === "blocked" ? "blocked" : "placements";
   const [bundle, accessBundle, screenTextValues, appTextValues] = await Promise.all([
     getPlacementSchedulerBundle(),
     getUserAccessBundle(),
@@ -68,6 +68,8 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
   const visibleFarmsPool = canSeeAllFarms
     ? bundle.farms
     : bundle.farms.filter((farm) => accessibleFarmIds.has(farm.id) || (farm.farmGroupId && accessibleFarmGroupIds.has(farm.farmGroupId)));
+  const allVisibleBarns = visibleFarmsPool.flatMap((farm) => bundle.barnsByFarmId[farm.id] ?? []);
+  const allVisibleWindows = allVisibleBarns.flatMap((barn) => bundle.windowsByBarnId[barn.id] ?? []);
   const farmGroupOptions = Array.from(
     new Map(
       visibleFarmsPool
@@ -77,7 +79,21 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
   )
     .map(([id, label]) => ({ id, label }))
     .sort((left, right) => left.label.localeCompare(right.label));
-  const selectedFarm = visibleFarmsPool.find((farm) => farm.id === selectedFarmParam) ?? null;
+  const selectedPlacementAnywhere = allVisibleWindows.find((window) => window.id === selectedPlacementParam) ?? null;
+  const selectedBarnAnywhere =
+    allVisibleBarns.find((barn) => barn.id === selectedBarnParam) ??
+    allVisibleBarns.find((barn) => barn.id === selectedPlacementAnywhere?.barnId) ??
+    null;
+  const selectedFarm =
+    (selectedFarmParam && selectedFarmParam !== "all"
+      ? visibleFarmsPool.find((farm) => farm.id === selectedFarmParam) ?? null
+      : null) ??
+    (selectedBarnAnywhere
+      ? visibleFarmsPool.find((farm) => farm.id === selectedBarnAnywhere.farmId) ?? null
+      : null) ??
+    (selectedPlacementAnywhere
+      ? visibleFarmsPool.find((farm) => farm.id === selectedPlacementAnywhere.farmId) ?? null
+      : null);
   const explicitFarmGroupScopeId =
     selectedFarmGroupParam ??
     selectedFarm?.farmGroupId ??
@@ -89,7 +105,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
     explicitFarmGroupScopeId === null
       ? []
       : visibleFarmsPool.filter((farm) => (farm.farmGroupId ?? "__ungrouped__") === explicitFarmGroupScopeId);
-  const canUseAllFarmsScope = scopedFarmGroupFarms.length > 0;
+  const canUseAllFarmsScope = visibleFarmsPool.length > 0;
   const farmOptions =
     mode === "placements" && explicitFarmGroupScopeId
       ? visibleFarmsPool.filter((farm) => (farm.farmGroupId ?? "__ungrouped__") === explicitFarmGroupScopeId)
@@ -99,7 +115,9 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
   const scopedFarms =
     mode === "placements"
       ? wantsAllFarms
-        ? scopedFarmGroupFarms
+        ? explicitFarmGroupScopeId
+          ? scopedFarmGroupFarms
+          : visibleFarmsPool
         : selectedFarm
           ? [selectedFarm]
           : []
@@ -108,7 +126,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
         : [];
   const visibleBarns = scopedFarms.flatMap((farm) => bundle.barnsByFarmId[farm.id] ?? []);
   const farmWindows = visibleBarns.flatMap((barn) => bundle.windowsByBarnId[barn.id] ?? []);
-  const selectedPlacementById = farmWindows.find((window) => window.id === selectedPlacementParam) ?? null;
+  const selectedPlacementById = farmWindows.find((window) => window.id === selectedPlacementParam) ?? selectedPlacementAnywhere ?? null;
   const selectedBarn =
     visibleBarns.find((barn) => barn.id === selectedBarnParam) ??
     visibleBarns.find((barn) => barn.id === selectedPlacementById?.barnId) ??
@@ -146,12 +164,13 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
     screenTextValues.get("calendar_barn_view") ||
     "Displays the blocked grow-out windows for the selected barn on one calendar.";
   const allFarmsContextLabel =
-    wantsAllFarms && scopedFarms[0] ? `${scopedFarms[0].farmGroupName} · All Farms` : "All Farms";
+    wantsAllFarms && explicitFarmGroupScopeId && scopedFarms[0] ? `${scopedFarms[0].farmGroupName} · All Farms` : "All Farms";
   const allFarmsSelectorLabel =
-    canUseAllFarmsScope && scopedFarms[0] ? `All Farms (${scopedFarms[0].farmGroupName})` : "All Farms";
+    canUseAllFarmsScope && explicitFarmGroupScopeId && scopedFarms[0] ? `All Farms (${scopedFarms[0].farmGroupName})` : "All Farms";
   const calendarContextTitle: ReactNode =
     mode === "placements"
       ? wantsAllFarms && scopedFarms[0]
+        ? explicitFarmGroupScopeId
         ? (
             <>
               <span>{scopedFarms[0].farmGroupName}</span>
@@ -159,6 +178,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
               <span>All Farms</span>
             </>
           )
+          : "All Farms"
         : selectedFarm?.farmName ?? "No farm selected"
       : selectedBarn?.barnCode ?? "No barn selected";
   const calendarContextMeta =
@@ -205,9 +225,43 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
         ? windows.find((window) => selectedDate === window.startDate) ?? null
         : windows.find((window) => selectedDate >= window.startDate && selectedDate <= window.endDate) ?? null
       : null);
+  const canDeleteSelectedPlacement = Boolean(
+    selectedPlacement && !selectedPlacement.flockIsInBarn && !selectedPlacement.actualEndDate,
+  );
+  const canJuggleSelectedPlacement = Boolean(
+    selectedPlacement && !selectedPlacement.flockIsInBarn && !selectedPlacement.actualEndDate,
+  );
+  const forceJuggleForKnownCanceledPlacement = selectedPlacement?.placementCode === "310-W5";
+  const showJuggleSection = canJuggleSelectedPlacement || forceJuggleForKnownCanceledPlacement;
+  const jugglePlacementOptions = selectedPlacement
+    ? bundle.farms
+        .flatMap((farm) =>
+          (bundle.barnsByFarmId[farm.id] ?? []).flatMap((barn) =>
+            (bundle.windowsByBarnId[barn.id] ?? []).map((window) => ({
+              ...window,
+              farmName: farm.farmName,
+              barnCode: barn.barnCode,
+            })),
+          ),
+        )
+        .filter(
+          (window) =>
+            window.id !== selectedPlacement.id &&
+            !window.isComplete &&
+            !window.actualEndDate &&
+            !window.flockIsInBarn,
+        )
+        .sort(
+          (left, right) =>
+            left.farmName.localeCompare(right.farmName) ||
+            left.barnCode.localeCompare(right.barnCode, undefined, { numeric: true }) ||
+            left.startDate.localeCompare(right.startDate),
+        )
+    : [];
   const todayIso = new Date().toISOString().slice(0, 10);
   const selectedDateIsPast = Boolean(selectedDate && selectedDate < todayIso);
   const canCreateForSelectedDate = Boolean(selectedBarn && selectedDate && (!selectedDateIsPast || allowHistoricalEntry));
+  const canManagePlacementState = isSuperAdminRole(actingRole?.key ?? null);
 
   const maleBreedOptions = bundle.breeds.filter((breed) => !breed.sex || breed.sex === "male" || breed.sex === "unsexed");
   const femaleBreedOptions = bundle.breeds.filter((breed) => !breed.sex || breed.sex === "female" || breed.sex === "unsexed");
@@ -241,6 +295,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
               allowAllFarms={canUseAllFarmsScope}
               allFarmsLabel={canUseAllFarmsScope ? allFarmsSelectorLabel : "Choose a farm"}
               barns={visibleBarns.map((barn) => ({ id: barn.id, label: barn.barnCode }))}
+              fallbackFarmId={selectedFarmForEditor?.id ?? scopedFarms[0]?.id ?? ""}
               farmGroups={farmGroupOptions}
               farms={farmOptions.map((farm) => ({ id: farm.id, label: farm.farmName }))}
               mode={mode}
@@ -311,6 +366,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                               data-selected={selectedBarn?.id === item.barnId && selectedDate === day.date}
                               href={buildHref({
                                 mode: item.isFuture ? "blocked" : "placements",
+                                farm: item.farmId,
                                 barn: item.barnId,
                                 placement: item.id,
                                 date: day.date,
@@ -338,6 +394,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                     data-tone={day.tone}
                     href={buildHref({
                       mode: day.items[0]?.isFuture ? "blocked" : "placements",
+                      farm: day.items[0]?.farmId ?? null,
                       barn: day.items[0]?.barnId ?? null,
                       placement: day.items[0]?.id ?? null,
                       date: day.date,
@@ -466,6 +523,18 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                       <span>Date Removed</span>
                       <input defaultValue={selectedPlacement.actualEndDate ?? ""} name="date_removed" type="date" />
                     </label>
+                    {canManagePlacementState ? (
+                      <label className="field">
+                        <span>Placement State</span>
+                        <select defaultValue={getEditablePlacementLifecycleStage(selectedPlacement)} name="placement_lifecycle_stage">
+                          {PLACEMENT_LIFECYCLE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
                     <div className="placement-scheduler-start-row">
                       <label className="field">
                         <span>Start Males</span>
@@ -556,7 +625,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                     <button className="button" type="submit">
                       Save Placement
                     </button>
-                    {selectedPlacement.isFuture ? (
+                    {canDeleteSelectedPlacement ? (
                       <button
                         className="button button-ghost"
                         formAction={deleteScheduledPlacementAction}
@@ -651,6 +720,18 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                   <span>Date Removed</span>
                   <input defaultValue={selectedPlacement.actualEndDate ?? ""} name="date_removed" type="date" />
                 </label>
+                {canManagePlacementState ? (
+                  <label className="field">
+                    <span>Placement State</span>
+                    <select defaultValue={getEditablePlacementLifecycleStage(selectedPlacement)} name="placement_lifecycle_stage">
+                      {PLACEMENT_LIFECYCLE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
                 <div className="placement-scheduler-start-row">
                   <label className="field">
                     <span>Start Males</span>
@@ -717,6 +798,36 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                 </p>
               </div>
 
+              {showJuggleSection ? (
+                <div className="placement-scheduler-projection">
+                  <span>Cancel And Juggle</span>
+                  <strong>Move a replacement flock into this barn slot</strong>
+                  <p>
+                    Use this when the integrator cancels the scheduled flock after feed has already been delivered. The replacement flock will take over this barn slot and the delivered feed will transfer with it.
+                  </p>
+                  {jugglePlacementOptions.length > 0 ? (
+                    <div className="placement-scheduler-inline-form">
+                      <label className="field">
+                        <span>Replacement Flock</span>
+                        <select defaultValue="" name="target_placement_id">
+                          <option value="">Select replacement flock</option>
+                          {jugglePlacementOptions.map((window) => (
+                            <option key={`juggle-${window.id}`} value={window.id}>
+                              {`${window.placementCode} · ${window.farmName} · Barn ${window.barnCode} · ${window.startDate}`}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button className="button button-ghost" formAction={juggleScheduledPlacementAction} type="submit">
+                        Cancel And Transfer Feed
+                      </button>
+                    </div>
+                  ) : (
+                    <p>No replacement flock options are currently available for transfer.</p>
+                  )}
+                </div>
+              ) : null}
+
               <button className="button" type="submit">
                 Update Scheduled Placement
               </button>
@@ -766,6 +877,18 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                   <span>Date Removed</span>
                   <input defaultValue={selectedPlacement.actualEndDate ?? ""} name="date_removed" type="date" />
                 </label>
+                {canManagePlacementState ? (
+                  <label className="field">
+                    <span>Placement State</span>
+                    <select defaultValue={getEditablePlacementLifecycleStage(selectedPlacement)} name="placement_lifecycle_stage">
+                      {PLACEMENT_LIFECYCLE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
                 <div className="placement-scheduler-start-row">
                   <label className="field">
                     <span>Start Males</span>
@@ -828,9 +951,43 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                 <span>Placement Editor</span>
                 <strong>{selectedPlacement.placementCode}</strong>
                 <p>
-                  This placement is currently {selectedPlacement.isActive ? "live in the barn" : selectedPlacement.isFuture ? "scheduled for a future barn turn" : "part of the historical placement record"}.
+                  This placement is currently {selectedPlacement.flockIsInBarn || selectedPlacement.isActive
+                    ? "live in the barn"
+                    : selectedPlacement.isFuture
+                      ? "scheduled for a future barn turn"
+                      : "awaiting barn arrival or pending cancellation"}.
                 </p>
               </div>
+
+              {showJuggleSection ? (
+                <div className="placement-scheduler-projection">
+                  <span>Cancel And Juggle</span>
+                  <strong>Move a replacement flock into this barn slot</strong>
+                  <p>
+                    If this flock was canceled before arrival but already has delivered feed tied to it, select the replacement flock here and transfer that feed into the replacement slot.
+                  </p>
+                  {jugglePlacementOptions.length > 0 ? (
+                    <div className="placement-scheduler-inline-form">
+                      <label className="field">
+                        <span>Replacement Flock</span>
+                        <select defaultValue="" name="target_placement_id">
+                          <option value="">Select replacement flock</option>
+                          {jugglePlacementOptions.map((window) => (
+                            <option key={`juggle-${window.id}`} value={window.id}>
+                              {`${window.placementCode} · ${window.farmName} · Barn ${window.barnCode} · ${window.startDate}`}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button className="button button-ghost" formAction={juggleScheduledPlacementAction} type="submit">
+                        Cancel And Transfer Feed
+                      </button>
+                    </div>
+                  ) : (
+                    <p>No replacement flock options are currently available for transfer.</p>
+                  )}
+                </div>
+              ) : null}
 
               <div className="placement-scheduler-form-actions">
                 {canShowPlacementHistoryReport(selectedPlacement) ? (
@@ -856,6 +1013,15 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                 <button className="button" type="submit">
                   Save Placement
                 </button>
+                {canDeleteSelectedPlacement ? (
+                  <button
+                    className="button button-ghost"
+                    formAction={deleteScheduledPlacementAction}
+                    type="submit"
+                  >
+                    Delete Scheduled Flock
+                  </button>
+                ) : null}
               </div>
             </form>
           ) : canCreateForSelectedDate ? (
@@ -928,6 +1094,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
 type CalendarWindow = {
   id: string;
   barnId?: string;
+  farmId?: string;
   flockId: string;
   placementCode: string;
   flockNumber?: number | null;
@@ -1080,16 +1247,26 @@ function formatShortDate(dateString: string | null | undefined) {
   return `${month}/${day}/${year.slice(-2)}`;
 }
 
-function getPlacementStateLabel(window: { isFuture?: boolean; isComplete?: boolean; isActive?: boolean }) {
+function getPlacementStateLabel(window: {
+  isFuture?: boolean;
+  isComplete?: boolean;
+  isActive?: boolean;
+  flockIsInBarn?: boolean;
+}) {
   if (window.isComplete) return "Closed";
-  if (window.isActive) return "Active";
+  if (window.isActive || window.flockIsInBarn) return "Active";
   if (window.isFuture) return "Scheduled";
-  return "Interim";
+  return "Awaiting";
 }
 
-function getPlacementStateTone(window: { isFuture?: boolean; isComplete?: boolean; isActive?: boolean }) {
+function getPlacementStateTone(window: {
+  isFuture?: boolean;
+  isComplete?: boolean;
+  isActive?: boolean;
+  flockIsInBarn?: boolean;
+}) {
   if (window.isComplete) return "closed";
-  if (window.isActive) return "active";
+  if (window.isActive || window.flockIsInBarn) return "active";
   if (window.isFuture) return "scheduled";
   return "interim";
 }
@@ -1101,6 +1278,34 @@ function canShowPlacementHistoryReport(window: {
   actualEndDate?: string | null;
 }) {
   return Boolean(window.flockId && (window.flockIsInBarn || window.isComplete || window.actualEndDate));
+}
+
+const PLACEMENT_LIFECYCLE_OPTIONS = [
+  { value: "scheduled", label: "Scheduled" },
+  { value: "awaiting_arrival", label: "Awaiting Arrival" },
+  { value: "in_barn_growing", label: "In Barn Growing" },
+  { value: "waiting_closeout", label: "Waiting Closeout" },
+  { value: "closeout_submitted", label: "Closeout Submitted" },
+  { value: "archived", label: "Archived" },
+] as const;
+
+function getEditablePlacementLifecycleStage(window: {
+  lifecycleStage?: string | null;
+  isComplete?: boolean;
+  isActive?: boolean;
+  flockIsInBarn?: boolean;
+  isFuture?: boolean;
+}) {
+  if (window.lifecycleStage) return window.lifecycleStage;
+  if (window.isComplete) return "archived";
+  if (window.isActive || window.flockIsInBarn) return "in_barn_growing";
+  if (window.isFuture) return "scheduled";
+  return "awaiting_arrival";
+}
+
+function isSuperAdminRole(roleKey: string | null) {
+  const normalized = String(roleKey ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return normalized === "super_admin" || normalized === "superadmin" || normalized.includes("super");
 }
 
 function allowsGlobalSchedulerScope(roleKey: string | null) {

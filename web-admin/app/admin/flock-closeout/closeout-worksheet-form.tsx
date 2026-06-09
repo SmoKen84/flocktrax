@@ -25,6 +25,11 @@ export function CloseoutWorksheetForm({ item }: { item: CloseoutQueueItem }) {
     return null;
   }
 
+  const processedHeadVariancePercent = deriveHeadVariancePercent(
+    closeout.processedHeadFinal ?? closeout.derived.processedHead,
+    item.finalHeadCount,
+  );
+
   return (
     <section className="panel card closeout-worksheet-card">
       <div className="closeout-worksheet-header">
@@ -58,7 +63,9 @@ export function CloseoutWorksheetForm({ item }: { item: CloseoutQueueItem }) {
           <label className="field">
             <span className="field-label">Processed Head</span>
             <input defaultValue={toFormValue(closeout.processedHeadFinal)} name="processed_head_final" type="number" />
-            <span className="field-hint">{`Derived now: ${formatCount(closeout.derived.processedHead)}`}</span>
+            <span className="field-hint">
+              {`Derived now: ${formatCount(closeout.derived.processedHead)} | Mort calc: ${formatCount(item.finalHeadCount)} | Var: ${formatSignedPercent(processedHeadVariancePercent)}`}
+            </span>
           </label>
 
           <label className="field">
@@ -87,8 +94,6 @@ export function CloseoutWorksheetForm({ item }: { item: CloseoutQueueItem }) {
                 className="closeout-stat-icon-button"
                 href={buildFeedReportHref({
                   flockCode: item.placementCode,
-                  dateFrom: item.placedDate,
-                  dateTo: item.removedDate,
                 })}
                 rel="noreferrer"
                 target="_blank"
@@ -358,22 +363,38 @@ function formatPercent(value: number | null) {
   return value === null ? "--" : `${value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }
 
+function formatSignedPercent(value: number | null) {
+  if (value === null || Number.isNaN(value)) return "--";
+  const formatted = Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  if (value > 0) return `+${formatted}%`;
+  if (value < 0) return `-${formatted}%`;
+  return `${formatted}%`;
+}
+
+function deriveHeadVariancePercent(actualHead: number | null, expectedHead: number | null) {
+  if (
+    actualHead === null ||
+    expectedHead === null ||
+    Number.isNaN(actualHead) ||
+    Number.isNaN(expectedHead) ||
+    expectedHead <= 0
+  ) {
+    return null;
+  }
+
+  return ((actualHead - expectedHead) / expectedHead) * 100;
+}
+
 function toFormValue(value: number | null) {
   return value === null || Number.isNaN(value) ? "" : String(value);
 }
 
 function buildFeedReportHref({
   flockCode,
-  dateFrom,
-  dateTo,
 }: {
   flockCode: string;
-  dateFrom: string | null;
-  dateTo: string | null;
 }) {
   const params = new URLSearchParams();
   params.set("flockCode", flockCode);
-  if (dateFrom) params.set("dateFrom", dateFrom);
-  if (dateTo) params.set("dateTo", dateTo);
   return `/admin/feed-tickets/report?${params.toString()}`;
 }

@@ -38,8 +38,6 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
   const [feedReport, flockHistory] = await Promise.all([
     getFeedTicketFlockReportBundle({
       flockCode: item.placementCode,
-      dateFrom: item.placedDate ?? undefined,
-      dateTo: item.removedDate ?? undefined,
     }),
     getFlockHistoryReportBundle(item.flockId),
   ]);

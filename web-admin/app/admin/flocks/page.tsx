@@ -34,8 +34,15 @@ export default async function FlocksPage({ searchParams }: FlocksPageProps) {
     screenText.get("archive_flocks_filter") ||
     "Filter by flock, integrator, or placed date to narrow the archive before opening the archived flock detail.";
 
-  const archivedFlocks = data.flocks.filter((flock) => flock.status === "complete");
-  const filteredFlocks = archivedFlocks.filter((flock) => {
+  const visibleFlocks = data.flocks.slice().sort((left, right) => {
+    const leftDate = left.placedDate || "";
+    const rightDate = right.placedDate || "";
+    return (
+      rightDate.localeCompare(leftDate) ||
+      (left.placementCode ?? left.flockCode).localeCompare(right.placementCode ?? right.flockCode)
+    );
+  });
+  const filteredFlocks = visibleFlocks.filter((flock) => {
     const flockNeedle = normalize(filters.flock);
     const integratorNeedle = normalize(filters.integrator);
     const placedNeedle = normalize(filters.placed);
@@ -66,13 +73,13 @@ export default async function FlocksPage({ searchParams }: FlocksPageProps) {
 
   return (
     <>
-      <PageHeader eyebrow="Archives" title={heroTitle} body={heroBody} />
+      <PageHeader eyebrow="Flocks" title={heroTitle} body={heroBody} />
 
       <section className="panel table-card">
         <div className="flock-archive-shell-top">
           <div className="flock-archive-shell-header">
             <div>
-              <p className="eyebrow">Archived Flocks</p>
+              <p className="eyebrow">Flock Lookup</p>
               <p className="hero-body flock-archive-shell-body">{filterBody}</p>
             </div>
           </div>
@@ -121,7 +128,7 @@ export default async function FlocksPage({ searchParams }: FlocksPageProps) {
                     <td>
                       <Link className="flock-archive-link" href={`/admin/flocks/${flock.id}`}>
                         <p className="table-title">{flock.placementCode ?? `Flock ${flock.flockCode}`}</p>
-                        <p className="table-subtitle">Open archived flock detail and placement context</p>
+                        <p className="table-subtitle">Open flock detail, placement context, and retroactive livehaul tools</p>
                       </Link>
                     </td>
                     <td>{flock.integrator}</td>
@@ -129,7 +136,7 @@ export default async function FlocksPage({ searchParams }: FlocksPageProps) {
                     <td>{formatArchiveDate(flock.estimatedFirstCatch)}</td>
                     <td>{(flock.femaleCount + flock.maleCount).toLocaleString()}</td>
                     <td>
-                      <span className="status-pill" data-tone="danger">
+                      <span className="status-pill" data-tone={resolveStatusTone(flock.status)}>
                         {formatStatusLabel(flock.status)}
                       </span>
                     </td>
@@ -138,7 +145,7 @@ export default async function FlocksPage({ searchParams }: FlocksPageProps) {
               ) : (
                 <tr>
                   <td colSpan={6}>
-                    <p className="table-subtitle">No archived flocks matched the current filter set.</p>
+                    <p className="table-subtitle">No flocks matched the current filter set.</p>
                   </td>
                 </tr>
               )}
@@ -226,4 +233,10 @@ function formatArchiveDate(value: string) {
 
 function formatStatusLabel(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function resolveStatusTone(value: string) {
+  if (value === "complete") return "danger";
+  if (value === "active") return "good";
+  return "warn";
 }

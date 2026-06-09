@@ -35,8 +35,6 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
   const closeout = item.closeout;
   const feedReport = await getFeedTicketFlockReportBundle({
     flockCode: item.placementCode,
-    dateFrom: item.placedDate ?? undefined,
-    dateTo: item.removedDate ?? undefined,
   });
 
   return (

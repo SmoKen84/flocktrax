@@ -12,6 +12,7 @@ type SchedulerFiltersProps = {
   farmGroups: FilterOption[];
   farms: FilterOption[];
   barns: FilterOption[];
+  fallbackFarmId: string;
   allowAllFarms: boolean;
   allFarmsLabel: string;
   mode: "blocked" | "placements";
@@ -53,6 +54,7 @@ export function SchedulerFilters({
   farmGroups,
   farms,
   barns,
+  fallbackFarmId,
   allowAllFarms,
   allFarmsLabel,
   mode,
@@ -99,7 +101,7 @@ export function SchedulerFilters({
                                   : null
                               : selectedFarmId && selectedFarmId !== "all"
                                 ? selectedFarmId
-                                : null,
+                                : fallbackFarmId || null,
                           barn: option.value === "blocked" ? selectedBarnId || null : null,
                         }),
                       );

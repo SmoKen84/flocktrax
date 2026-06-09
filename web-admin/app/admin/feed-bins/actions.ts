@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getUserAccessBundle, resolveRoleTemplate } from "@/lib/access-control";
+import { syncBinSentryInventoryForBarn } from "@/lib/binsentry";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 
 function coerce(value: FormDataEntryValue | null) {
@@ -199,6 +200,7 @@ export async function updateFeedBinAction(formData: FormData) {
     .update({
       bin_num: coerceNullableNumber(formData.get("bin_num")),
       capacity: coerceNullableNumber(formData.get("capacity")),
+      binsentry_bin_ref: coerce(formData.get("binsentry_bin_ref")) || null,
     })
     .eq("id", feedBinId);
 
@@ -208,6 +210,30 @@ export async function updateFeedBinAction(formData: FormData) {
 
   revalidateFeedBins(coerce(formData.get("route_base")) || "/admin/feed-bins");
   bounce(formData, { notice: "Feed bin updated." });
+}
+
+export async function syncFeedBinInventoryAction(formData: FormData) {
+  const { actorRole } = await getAdminContext(formData);
+  if (!canEditFeedBins(actorRole)) {
+    bounce(formData, { error: "Only authorized admin accounts can sync feed bin inventory." });
+    unreachable("Actor cannot sync feed bin inventory");
+  }
+
+  const barnId = coerce(formData.get("selected_barn_id"));
+  if (!barnId) {
+    bounce(formData, { error: "Select a barn before syncing BinSentry inventory." });
+    unreachable("Missing barn id");
+  }
+
+  const result = await syncBinSentryInventoryForBarn(barnId);
+  revalidateFeedBins(coerce(formData.get("route_base")) || "/admin/feed-bins");
+  revalidatePath("/admin/overview");
+
+  if (!result.ok) {
+    bounce(formData, { error: result.message });
+  }
+
+  bounce(formData, { notice: result.message });
 }
 
 export async function deleteFeedBinAction(formData: FormData) {

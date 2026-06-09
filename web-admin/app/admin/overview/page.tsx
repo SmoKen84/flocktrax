@@ -23,7 +23,7 @@ export default async function OverviewPage() {
             <FlockTraxWordmark compact product="Admin" tone="accent" />
           </div>
           <div className="hero-actions">
-            <Link className="button" href="/admin/placements/new">
+            <Link className="button" href="/admin/placements/new?mode=placements&farm=all">
               Placements
             </Link>
             <Link className="button-secondary" href="/admin/farms">
