@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-06-08`
+Updated: `2026-06-09`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### June 2026
+
+- `2026-06-09`
+  - [FlockTrax_Admin_Release_5_5_Feed_Ordering_Reports_And_Scheduler_Production_Checkpoint_2026-06-09.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Release_5_5_Feed_Ordering_Reports_And_Scheduler_Production_Checkpoint_2026-06-09.md)
+  - production release checkpoint covering commit `536ce94`, hosted admin build marker `5.5`, Vercel deployment `dpl_7LyMJxUEgT84SYTG18x5gvbotqtJ`, the feed-ordering/BinSentry database foundation, reports hub, scheduler fixes, closeout/feed-report corrections, and the reusable Sheets historical backfill baseline
 
 - `2026-06-08`
   - [FlockTrax_Feed_Order_And_Sheets_Backfill_Consolidated_Checkpoint_2026-06-08.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Order_And_Sheets_Backfill_Consolidated_Checkpoint_2026-06-08.md)
@@ -315,6 +319,10 @@ Purpose:
 
 # Latest Checkpoint
 
+- `2026-06-09`
+  - [FlockTrax_Admin_Release_5_5_Feed_Ordering_Reports_And_Scheduler_Production_Checkpoint_2026-06-09.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Release_5_5_Feed_Ordering_Reports_And_Scheduler_Production_Checkpoint_2026-06-09.md)
+  - current best single resume point for the live `5.5` admin baseline, production deployment, feed-ordering/BinSentry foundation, reports hub, scheduler/juggle fixes, closeout/report corrections, and Sheets historical backfill tooling
+
 - `2026-06-07`
   - [FlockTrax_Feed_Type_And_BinSentry_Order_Logic_Spec_2026-06-07.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Type_And_BinSentry_Order_Logic_Spec_2026-06-07.md)
   - current best design reference for starter/grower-aware feed ordering, explicit bin feed type, and the next schema/business-rule phase on top of the live BinSentry inventory foundation
@@ -446,12 +454,18 @@ Reason:
 
 If only one execution-state checkpoint should be loaded first right now, use:
 
-- [FlockTrax_Admin_Release_5_4_Closeout_And_Lifecycle_Production_Checkpoint_2026-06-04.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Release_5_4_Closeout_And_Lifecycle_Production_Checkpoint_2026-06-04.md)
+- [FlockTrax_Admin_Release_5_5_Feed_Ordering_Reports_And_Scheduler_Production_Checkpoint_2026-06-09.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Release_5_5_Feed_Ordering_Reports_And_Scheduler_Production_Checkpoint_2026-06-09.md)
 
 Reason:
 - it is the newest checkpoint
-- it captures the exact pushed commit, Vercel deployment id, live `flocktrax.com` alias state, and hosted admin build marker `5.4`
-- it records the now-live closeout, livehaul, lifecycle, archive-summary, and day-1 mortality-rule baseline in one place
+- it captures the exact pushed commit, Vercel deployment id, live `flocktrax.com` alias state, and hosted admin build marker `5.5`
+- it ties together the feed-ordering/BinSentry baseline, reports hub, scheduler fixes, closeout/report corrections, and historical Sheets backfill tooling in one production checkpoint
+
+- [FlockTrax_Admin_Release_5_4_Closeout_And_Lifecycle_Production_Checkpoint_2026-06-04.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Release_5_4_Closeout_And_Lifecycle_Production_Checkpoint_2026-06-04.md)
+
+Reason:
+- use this one second for the earlier `5.4` closeout/lifecycle production baseline
+- it records the original live closeout, livehaul, lifecycle, archive-summary, and day-1 mortality-rule release before the later June 9 feed-ordering/reporting expansion
 
 - [FlockTrax_Closeout_Worksheet_And_Report_Links_Detailed_Checkpoint_2026-06-02.md](C:\dev\FlockTrax\output\FlockTrax_Closeout_Worksheet_And_Report_Links_Detailed_Checkpoint_2026-06-02.md)
 
