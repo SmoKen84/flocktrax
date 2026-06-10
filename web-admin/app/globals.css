@@ -10573,6 +10573,11 @@ tr:last-child td {
     page-break-after: always;
   }
 
+  .closeout-report-section--feed {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+
   .closeout-report-section--feed,
   .closeout-report-feed-stack,
   .closeout-report-feed-summary-strip,
