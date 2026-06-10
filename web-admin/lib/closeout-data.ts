@@ -617,7 +617,7 @@ export async function getCloseoutQueueData(filters: CloseoutQueueFilters = {}): 
       const derivedProcessedHead = deriveProcessedHeadCount(livehauls, closeout?.processed_head_final ?? null);
       const livehaulHeadCount = livehauls.reduce((sum, livehaul) => sum + livehaul.loadHeadCountTotal, 0);
       const derivedLiveWeight = deriveLiveWeightTotal(livehauls, closeout?.live_weight_final ?? null);
-      const processedHeadFinal = closeout?.processed_head_final ?? derivedProcessedHead;
+      const processedHeadFinal = derivedProcessedHead;
       const liveWeightFinal = closeout?.live_weight_final ?? derivedLiveWeight;
       const averageHeadWeight =
         processedHeadFinal && processedHeadFinal > 0 && liveWeightFinal !== null ? liveWeightFinal / processedHeadFinal : null;
@@ -789,11 +789,11 @@ function buildIssuesOrFilter(placementIds: string[], barnIds: string[]) {
 }
 
 function deriveProcessedHeadCount(livehauls: CloseoutLivehaulRow[], persistedValue: number | null) {
-  if (persistedValue !== null) return persistedValue;
   const loadTotal = livehauls.reduce((sum, row) => sum + row.loadHeadCountTotal, 0);
   if (loadTotal > 0) return loadTotal;
   const actualTotal = livehauls.reduce((sum, row) => sum + (row.headActual ?? 0), 0);
-  return actualTotal > 0 ? actualTotal : null;
+  if (actualTotal > 0) return actualTotal;
+  return persistedValue !== null ? persistedValue : null;
 }
 
 function deriveLiveWeightTotal(livehauls: CloseoutLivehaulRow[], persistedValue: number | null) {

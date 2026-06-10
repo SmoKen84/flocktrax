@@ -10518,6 +10518,10 @@ tr:last-child td {
     display: none !important;
   }
 
+  .closeout-report-page > .hero-panel {
+    display: none !important;
+  }
+
   .feed-ticket-print-page {
     break-after: auto !important;
     page-break-after: auto !important;
@@ -10553,6 +10557,32 @@ tr:last-child td {
   .closeout-report-livehaul-head {
     break-after: avoid;
     page-break-after: avoid;
+  }
+
+  .closeout-report-page {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .closeout-report-shell {
+    padding-top: 0 !important;
+  }
+
+  .closeout-report-section--header {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .closeout-report-section--feed,
+  .closeout-report-feed-stack,
+  .closeout-report-feed-summary-strip,
+  .closeout-report-feed-breakdown-grid {
+    break-before: auto !important;
+    page-break-before: auto !important;
+    break-after: auto !important;
+    page-break-after: auto !important;
+    break-inside: auto !important;
+    page-break-inside: auto !important;
   }
 
   .feed-ticket-print-title-row {

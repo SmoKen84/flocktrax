@@ -38,7 +38,7 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
   });
 
   return (
-    <>
+    <div className="closeout-report-page">
       <PageHeader
         eyebrow="Flock Closeout Report"
         title={
@@ -76,7 +76,7 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
           </span>
         </div>
 
-        <section className="closeout-report-section">
+        <section className="closeout-report-section closeout-report-section--header">
           <div className="closeout-report-section-header">
             <div>
               <p className="eyebrow">Closeout Header</p>
@@ -142,7 +142,7 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
           ) : null}
         </section>
 
-        <section className="closeout-report-section">
+        <section className="closeout-report-section closeout-report-section--livehaul">
           <div className="closeout-report-section-header">
             <div>
               <p className="eyebrow">Livehaul Detail</p>
@@ -258,7 +258,7 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
           )}
         </section>
 
-        <section className="closeout-report-section">
+        <section className="closeout-report-section closeout-report-section--feed">
           <div className="closeout-report-section-header">
             <div>
               <p className="eyebrow">Feed Report</p>
@@ -357,7 +357,7 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
           </div>
         </section>
       </section>
-    </>
+    </div>
   );
 }
 
