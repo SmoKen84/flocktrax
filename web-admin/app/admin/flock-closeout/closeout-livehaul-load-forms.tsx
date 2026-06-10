@@ -46,6 +46,9 @@ export function CloseoutLivehaulLoadsPanel({
             <span>{formatLivehaulDay(livehaul.lhDate)}</span>
           </h3>
           <p className="table-subtitle">{`LH${livehaul.sequenceNum ?? "--"} | ${formatStatus(livehaul.status)} | ${formatTargetSex(livehaul.targetSex)} | Target ${formatCount(livehaul.headTarget)} | Actual ${formatCount(livehaul.headActual)}`}</p>
+          {livehaul.breedAgeDays !== null ? (
+            <p className="table-subtitle">{`Bird age on scheduled livehaul date: ${livehaul.breedAgeDays}d`}</p>
+          ) : null}
           <CloseoutLivehaulStatusControl item={item} livehaul={livehaul} />
         </div>
         <div className="closeout-livehaul-summary">
