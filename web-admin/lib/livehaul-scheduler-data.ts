@@ -38,6 +38,7 @@ export type LivehaulScheduleRow = {
   flockId: string;
   placementCode: string;
   flockCode: string;
+  startDate: string | null;
   barnCode: string;
   farmName: string;
   lhDate: string;
@@ -329,6 +330,7 @@ export async function getLivehaulSchedulerBundle(options?: {
       flockId: row.flock_id,
       placementCode: placement?.placement_key ?? "Placement",
       flockCode: flock?.flock_number?.toString() ?? "Unknown",
+      startDate: placement?.active_start ?? flock?.date_placed ?? null,
       barnCode: barn?.barn_code ?? "Barn",
       farmName: farm?.farm_name ?? "Unnamed Farm",
       lhDate: row.lh_date,

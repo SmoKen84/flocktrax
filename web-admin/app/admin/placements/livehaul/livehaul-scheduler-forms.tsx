@@ -63,6 +63,8 @@ export function LivehaulCreateForm({
     return String(maxSequence + 1);
   })();
   const [sequenceNum, setSequenceNum] = useState(nextSequenceValue);
+  const selectedPlacementAgeOnLivehaul =
+    selectedPlacement ? deriveBirdAgeOnDate(selectedPlacement.startDate, lhDate) : null;
 
   useEffect(() => {
     setPlacementId(selectedPlacementId);
@@ -125,7 +127,7 @@ export function LivehaulCreateForm({
         </label>
         {selectedPlacement ? (
           <div className="field-note field-note-wide">
-            {`Selected: flock ${selectedPlacement.flockCode}, placement ${selectedPlacement.placementCode}, ${formatStage(selectedPlacement.lifecycleStage)}`}
+            {`Selected: flock ${selectedPlacement.flockCode}, placement ${selectedPlacement.placementCode}, ${formatStage(selectedPlacement.lifecycleStage)}${selectedPlacementAgeOnLivehaul !== null ? `, age ${selectedPlacementAgeOnLivehaul}d on livehaul date` : ""}`}
           </div>
         ) : null}
         <label className="field">
@@ -170,6 +172,7 @@ export function LivehaulScheduleEditor({ returnHref, month, row }: { returnHref:
   const router = useRouter();
   const [updateState, updateAction, updatePending] = useActionState(updateLivehaulScheduleAction, INITIAL_ACTION_STATE);
   const [deleteState, deleteAction, deletePending] = useActionState(deleteLivehaulScheduleAction, INITIAL_ACTION_STATE);
+  const scheduledAgeDays = deriveBirdAgeOnDate(row.startDate, row.lhDate);
 
   useEffect(() => {
     if (updateState.status === "success" || deleteState.status === "success") {
@@ -224,6 +227,10 @@ export function LivehaulScheduleEditor({ returnHref, month, row }: { returnHref:
           <div className="placement-scheduler-identity-card placement-scheduler-identity-card-date">
             <span>Status</span>
             <strong>{formatStatus(row.status)}</strong>
+          </div>
+          <div className="placement-scheduler-identity-card placement-scheduler-identity-card-date">
+            <span>Age On LH Date</span>
+            <strong>{scheduledAgeDays !== null ? `${scheduledAgeDays}d` : "--"}</strong>
           </div>
         </div>
 
@@ -330,5 +337,13 @@ function formatTimestamp(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("en-US", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function deriveBirdAgeOnDate(startDate: string | null, livehaulDate: string | null) {
+  if (!startDate || !livehaulDate) return null;
+  const start = new Date(`${startDate}T00:00:00`);
+  const livehaul = new Date(`${livehaulDate}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(livehaul.getTime())) return null;
+  return Math.max(0, Math.round((livehaul.getTime() - start.getTime()) / 86400000));
 }
 
