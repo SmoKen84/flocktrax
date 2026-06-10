@@ -471,3 +471,9 @@ entrypoint = "./functions/adalo-dashboard-cache-fill/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/adalo-placement-day-cache-fill/index.ts"
+
+
+[functions."binsentry-sync-all"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/binsentry-sync-all/index.ts"
