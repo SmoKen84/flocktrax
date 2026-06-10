@@ -731,6 +731,7 @@ function formatTimestamp(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("en-US", {
+    timeZone: "America/Chicago",
     month: "2-digit",
     day: "2-digit",
     year: "numeric",

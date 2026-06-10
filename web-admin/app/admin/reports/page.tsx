@@ -20,14 +20,24 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
   const params = (await searchParams) ?? {};
   const categoryKey = firstParam(params.category) ?? "feed_reports";
   const reportKey = firstParam(params.report) ?? "ten_day_feed_requirements";
+  const farmGroupId = firstParam(params.farmGroupId) ?? "";
   const farmId = firstParam(params.farmId) ?? "";
   const barnId = firstParam(params.barnId) ?? "";
   const flockCode = firstParam(params.flockCode) ?? "";
 
   const adminData = await getAdminData();
+  const activeFarmGroups = dedupeBy(
+    adminData.activePlacements.map((placement) => ({
+      id: placement.farmGroupId,
+      name: placement.farmGroupName,
+    })),
+    (entry) => entry.id,
+  ).sort((left, right) => left.name.localeCompare(right.name));
+
   const activeFarms = dedupeBy(
     adminData.activePlacements.map((placement) => ({
       id: placement.farmId,
+      farmGroupId: placement.farmGroupId,
       name: placement.farmName,
     })),
     (entry) => entry.id,
@@ -36,6 +46,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
   const activeBarns = dedupeBy(
     adminData.activePlacements.map((placement) => ({
       id: placement.barnId,
+      farmGroupId: placement.farmGroupId,
       farmId: placement.farmId,
       label: `${placement.barnCode} · ${placement.farmName}`,
     })),
@@ -45,6 +56,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
   const activeFlocks = dedupeBy(
     adminData.activePlacements.map((placement) => ({
       id: placement.placementId || placement.id,
+      farmGroupId: placement.farmGroupId,
       farmId: placement.farmId,
       barnId: placement.barnId,
       value: placement.placementCode,
@@ -86,6 +98,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
               const categoryHref = buildReportsHubHref({
                 category: category.key,
                 report: category.reports[0]?.key ?? "",
+                farmGroupId,
                 farmId,
                 barnId,
                 flockCode,
@@ -120,6 +133,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                 const href = buildReportsHubHref({
                   category: selectedCategory.key,
                   report: report.key,
+                  farmGroupId,
                   farmId,
                   barnId,
                   flockCode,
@@ -153,8 +167,10 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                 barns={activeBarns}
                 categoryKey={selectedCategory.key}
                 currentBarnId={barnId}
+                currentFarmGroupId={farmGroupId}
                 currentFarmId={farmId}
                 currentFlockCode={flockCode}
+                farmGroups={activeFarmGroups}
                 farms={activeFarms}
                 flocks={activeFlocks}
                 reportKey={selectedReport.key}
@@ -178,12 +194,14 @@ function firstParam(value: string | string[] | undefined) {
 function buildReportsHubHref({
   category,
   report,
+  farmGroupId,
   farmId,
   barnId,
   flockCode,
 }: {
   category: string;
   report: string;
+  farmGroupId?: string;
   farmId?: string;
   barnId?: string;
   flockCode?: string;
@@ -191,6 +209,7 @@ function buildReportsHubHref({
   const params = new URLSearchParams();
   if (category) params.set("category", category);
   if (report) params.set("report", report);
+  if (farmGroupId) params.set("farmGroupId", farmGroupId);
   if (farmId) params.set("farmId", farmId);
   if (barnId) params.set("barnId", barnId);
   if (flockCode) params.set("flockCode", flockCode);

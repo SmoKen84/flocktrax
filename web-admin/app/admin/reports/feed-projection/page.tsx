@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { FeedProjectionReportTable } from "@/app/admin/reports/feed-projection/feed-projection-report-table";
 import { PageHeader } from "@/components/page-header";
 import { getAdminData } from "@/lib/admin-data";
 import type { ActivePlacementRecord } from "@/lib/types";
@@ -15,6 +16,7 @@ type FeedProjectionReportPageProps = {
 
 export default async function FeedProjectionReportPage({ searchParams }: FeedProjectionReportPageProps) {
   const params = (await searchParams) ?? {};
+  const farmGroupId = firstParam(params.farmGroupId);
   const farmId = firstParam(params.farmId);
   const barnId = firstParam(params.barnId);
   const flockCode = firstParam(params.flockCode)?.toLowerCase() ?? null;
@@ -24,8 +26,8 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
   const windowEnd = windowDates[windowDates.length - 1] ?? today;
 
   const rows = adminData.activePlacements
-    .filter((placement) => shouldIncludePlacement(placement, today, windowEnd))
     .filter((placement) => {
+      if (farmGroupId && placement.farmGroupId !== farmGroupId) return false;
       if (farmId && placement.farmId !== farmId) return false;
       if (barnId && placement.barnId !== barnId) return false;
       if (flockCode) {
@@ -51,9 +53,17 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
       <PageHeader
         eyebrow="Reports"
         title="10 Day Feed Projection"
-        body="Matrix view of projected daily feed demand for live barns plus scheduled placements that come on board inside the next 10 days."
+        body="Matrix view of projected daily feed demand, on-hand inventory, and open orders across all barns."
         actions={
-          <Link className="button-secondary" href={buildReportsHubHref({ farmId: farmId ?? "", barnId: barnId ?? "", flockCode: flockCode ?? "" })}>
+          <Link
+            className="button-secondary"
+            href={buildReportsHubHref({
+              farmGroupId: farmGroupId ?? "",
+              farmId: farmId ?? "",
+              barnId: barnId ?? "",
+              flockCode: flockCode ?? "",
+            })}
+          >
             <span aria-hidden="true">←</span>
             <span>Back to Reports</span>
           </Link>
@@ -63,9 +73,9 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
       <section className="panel card feed-projection-report-shell">
         <div className="feed-projection-report-summary-grid">
           <article className="feed-projection-report-summary-card">
-            <span>Placements In Scope</span>
+            <span>Barns In Scope</span>
             <strong>{formatWhole(rows.length)}</strong>
-            <small>Live, awaiting, and qualifying scheduled placements</small>
+            <small>All barns, including inventory-only and future-assigned barns</small>
           </article>
           <article className="feed-projection-report-summary-card">
             <span>10 Day Requirement</span>
@@ -108,69 +118,12 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
           ))}
         </div>
 
-        <div className="feed-projection-report-table-wrap">
-          <table className="feed-projection-report-table">
-            <thead>
-              <tr>
-                <th>Farm</th>
-                <th>Barn</th>
-                <th>Placement</th>
-                <th>Status</th>
-                <th>Birds</th>
-                <th className="feed-projection-report-number-col">Starter 10D</th>
-                <th className="feed-projection-report-number-col">Grower 10D</th>
-                {windowDates.map((date) => (
-                  <th className="feed-projection-report-number-col" key={date}>
-                    {formatMonthDay(date)}
-                  </th>
-                ))}
-                <th className="feed-projection-report-number-col">10 Day Total</th>
-                <th className="feed-projection-report-number-col">On Hand</th>
-                <th className="feed-projection-report-number-col">On Order</th>
-                <th className="feed-projection-report-number-col">Recommended</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length > 0 ? (
-                rows.map((row) => (
-                  <tr key={row.id}>
-                    <td>{row.farmName}</td>
-                    <td>{row.barnCode}</td>
-                    <td>
-                      <div className="feed-projection-report-placement-cell">
-                        <strong>{row.placementCode}</strong>
-                        <span>{row.placedDateLabel}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="feed-projection-report-status-pill" data-state={row.statusTone}>
-                        {row.statusLabel}
-                      </span>
-                    </td>
-                    <td className="feed-projection-report-number-col">{formatWhole(row.headCount)}</td>
-                    <td className="feed-projection-report-number-col">{formatWeight(row.starterTotalLbs)}</td>
-                    <td className="feed-projection-report-number-col">{formatWeight(row.growerTotalLbs)}</td>
-                    {row.daily.map((day) => (
-                      <td className="feed-projection-report-number-col" key={`${row.id}-${day.date}`}>
-                        {day.pounds === null ? "--" : formatWeight(day.pounds)}
-                      </td>
-                    ))}
-                    <td className="feed-projection-report-number-col">{formatWeight(row.totalLbs)}</td>
-                    <td className="feed-projection-report-number-col">{formatWeight(row.onHandLbs)}</td>
-                    <td className="feed-projection-report-number-col">{formatWeight(row.onOrderLbs)}</td>
-                    <td className="feed-projection-report-number-col">{formatWeight(row.recommendedOrderLbs)}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td className="feed-projection-report-empty" colSpan={21}>
-                    No live or qualifying scheduled placements were found for the next 10 day window.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <FeedProjectionReportTable
+          rows={rows}
+          windowDates={windowDates}
+          emptyColSpanExpanded={12 + windowDates.length}
+          emptyColSpanCollapsed={12}
+        />
       </section>
     </>
   );
@@ -182,18 +135,6 @@ function firstParam(value: string | string[] | undefined) {
   }
 
   return value ?? null;
-}
-
-function shouldIncludePlacement(placement: ActivePlacementRecord, today: string, windowEnd: string) {
-  if (placement.tileState === "live") {
-    return true;
-  }
-
-  if (placement.tileState !== "scheduled" && placement.tileState !== "awaiting") {
-    return false;
-  }
-
-  return Boolean(placement.placedDate && placement.placedDate > today && placement.placedDate <= windowEnd);
 }
 
 function toReportRow(placement: ActivePlacementRecord, windowDates: string[]) {
@@ -278,6 +219,7 @@ function formatMonthDay(value: string) {
 function formatTimestamp(value: Date) {
   if (Number.isNaN(value.getTime())) return "--";
   return value.toLocaleString("en-US", {
+    timeZone: "America/Chicago",
     month: "2-digit",
     day: "2-digit",
     year: "numeric",
@@ -297,10 +239,12 @@ function formatWeight(value: number | null | undefined) {
 }
 
 function buildReportsHubHref({
+  farmGroupId,
   farmId,
   barnId,
   flockCode,
 }: {
+  farmGroupId?: string;
   farmId?: string;
   barnId?: string;
   flockCode?: string;
@@ -309,6 +253,7 @@ function buildReportsHubHref({
     category: "feed_reports",
     report: "ten_day_feed_requirements",
   });
+  if (farmGroupId) params.set("farmGroupId", farmGroupId);
   if (farmId) params.set("farmId", farmId);
   if (barnId) params.set("barnId", barnId);
   if (flockCode) params.set("flockCode", flockCode);
