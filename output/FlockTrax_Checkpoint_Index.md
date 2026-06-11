@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-06-09`
+Updated: `2026-06-10`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### June 2026
+
+- `2026-06-10`
+  - [FlockTrax_Web_Admin_Closeout_Livehaul_Bird_Age_Checkpoint_2026-06-10.md](C:\dev\FlockTrax\output\FlockTrax_Web_Admin_Closeout_Livehaul_Bird_Age_Checkpoint_2026-06-10.md)
+  - clean-state recovery checkpoint covering pushed `main` commit `3188df6`, the local tag `checkpoint-web-admin-2026-06-10-3188df6`, and the current closeout livehaul detail baseline that now shows bird age on the scheduled livehaul date
 
 - `2026-06-09`
   - [FlockTrax_Admin_Release_5_5_Feed_Ordering_Reports_And_Scheduler_Production_Checkpoint_2026-06-09.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Release_5_5_Feed_Ordering_Reports_And_Scheduler_Production_Checkpoint_2026-06-09.md)
