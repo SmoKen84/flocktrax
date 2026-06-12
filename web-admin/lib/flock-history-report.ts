@@ -51,10 +51,6 @@ type DailyLogRow = {
   outside_temp_low: number | null;
   outside_temp_high: number | null;
   water_meter_reading: number | null;
-  maintenance_flag: boolean | null;
-  feedlines_flag: boolean | null;
-  nipple_lines_flag: boolean | null;
-  bird_health_alert: boolean | null;
   min_vent: string | null;
   is_oda_open: boolean | null;
   oda_exception: string | null;
@@ -127,10 +123,6 @@ export type FlockHistoryDailyRow = {
   outsideTempLow: number | null;
   outsideTempHigh: number | null;
   waterMeterReading: number | null;
-  maintenanceFlag: boolean;
-  feedlinesFlag: boolean;
-  nippleLinesFlag: boolean;
-  birdHealthAlert: boolean;
   minVent: string | null;
   isOdaOpen: boolean;
   odaException: string | null;
@@ -294,10 +286,10 @@ export async function getFlockHistoryReportBundle(flockId: string): Promise<Floc
       ? admin.from("barns").select("id,barn_code,sort_code").in("id", barnIds)
       : Promise.resolve({ data: [], error: null }),
     placementIds.length > 0
-      ? admin
+        ? admin
           .from("log_daily")
           .select(
-            "placement_id,log_date,age_days,am_temp,set_temp,rel_humidity,outside_temp_current,outside_temp_low,outside_temp_high,water_meter_reading,maintenance_flag,feedlines_flag,nipple_lines_flag,bird_health_alert,min_vent,is_oda_open,oda_exception,naoh,comment,is_active",
+            "placement_id,log_date,age_days,am_temp,set_temp,rel_humidity,outside_temp_current,outside_temp_low,outside_temp_high,water_meter_reading,min_vent,is_oda_open,oda_exception,naoh,comment,is_active",
           )
           .in("placement_id", placementIds)
           .order("log_date", { ascending: true })
@@ -371,10 +363,6 @@ export async function getFlockHistoryReportBundle(flockId: string): Promise<Floc
           outsideTempLow: row.outside_temp_low,
           outsideTempHigh: row.outside_temp_high,
           waterMeterReading: row.water_meter_reading,
-          maintenanceFlag: row.maintenance_flag === true,
-          feedlinesFlag: row.feedlines_flag === true,
-          nippleLinesFlag: row.nipple_lines_flag === true,
-          birdHealthAlert: row.bird_health_alert === true,
           minVent: row.min_vent,
           isOdaOpen: row.is_oda_open === true,
           odaException: row.oda_exception,

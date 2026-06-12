@@ -1,7 +1,11 @@
 import { unstable_noStore as noStore } from "next/cache";
 
 import { getUserAccessBundle } from "@/lib/access-control";
-import type { ActivePlacementRecord, PlacementEditorAccessRecord } from "@/lib/types";
+import type {
+  ActivePlacementRecord,
+  PlacementEditorAccessRecord,
+  PlacementLogEditorAccessRecord,
+} from "@/lib/types";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 
 type ActorPlacementAccess = {
@@ -131,6 +135,25 @@ function canEditPlacementFields(actor: ActorPlacementAccess) {
   return hasPermission(actor, ["placements", "placement_wizard"], ["update", "create"]);
 }
 
+function canUseCloseoutLogEditor(actor: ActorPlacementAccess) {
+  if (
+    actor.roleCodes.some((roleCode) => {
+      const normalized = normalizeKey(roleCode);
+      return (
+        normalized.includes("super") ||
+        normalized === "admin" ||
+        normalized.includes("integrator") ||
+        normalized.includes("grower") ||
+        normalized.includes("manager")
+      );
+    })
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 function hasScopeAccess(actor: ActorPlacementAccess, placement: Pick<ActivePlacementRecord, "farmGroupId" | "farmId">) {
   if (actor.bypassScope || actor.isSuperUser) {
     return true;
@@ -211,6 +234,73 @@ export function buildPlacementEditorAccess(
     canView: true,
     canEditFlockFields: true,
     canEditPlacementFields: true,
+    message: null,
+  };
+}
+
+export function buildPlacementLogEditorAccess(
+  actor: ActorPlacementAccess,
+  placement: Pick<ActivePlacementRecord, "placementId" | "tileState" | "lifecycleStage" | "farmGroupId" | "farmId">,
+): PlacementLogEditorAccessRecord {
+  if (!placement.placementId || placement.tileState === "empty") {
+    return {
+      canOpen: false,
+      canView: false,
+      message: "This barn tile does not have a placement record attached to edit.",
+    };
+  }
+
+  if (!actor.actorId) {
+    return {
+      canOpen: false,
+      canView: false,
+      message: "You must be signed in to open the placement log editor.",
+    };
+  }
+
+  if (!actor.hasDashboardView) {
+    return {
+      canOpen: false,
+      canView: false,
+      message: "Your account does not have permission to view placement details from the dashboard.",
+    };
+  }
+
+  if (!hasScopeAccess(actor, placement)) {
+    return {
+      canOpen: false,
+      canView: false,
+      message: "Your account does not have viewing access for this placement.",
+    };
+  }
+
+  if (placement.lifecycleStage === "scheduled") {
+    return {
+      canOpen: false,
+      canView: true,
+      message: "The placement log editor opens only after the placement has entered active operations.",
+    };
+  }
+
+  if (placement.lifecycleStage === "archived") {
+    return {
+      canOpen: false,
+      canView: true,
+      message: "Archived placements are locked and can no longer be corrected from the matrix editor.",
+    };
+  }
+
+  if (!canUseCloseoutLogEditor(actor)) {
+    return {
+      canOpen: false,
+      canView: true,
+      message: "Only Farm Manager or higher roles can use the closeout log editor.",
+    };
+  }
+
+  return {
+    canOpen: true,
+    canView: true,
     message: null,
   };
 }
@@ -357,5 +447,6 @@ export async function applyPlacementEditorAccess(placements: ActivePlacementReco
   return placements.map((placement) => ({
     ...placement,
     placementEditorAccess: buildPlacementEditorAccess(actor, placement),
+    closeoutLogEditorAccess: buildPlacementLogEditorAccess(actor, placement),
   }));
 }

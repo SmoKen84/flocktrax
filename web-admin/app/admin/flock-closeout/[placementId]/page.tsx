@@ -47,6 +47,9 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
             >
               Save Digital Archive Summary
             </Link>
+            <Link className="button-secondary" href={`/admin/placements/${item.placementId}/logs`}>
+              Log Matrix Editor
+            </Link>
             <Link className="button-secondary" href={forceOpenLivehaulHref}>
               Force Open Livehaul Scheduler
             </Link>

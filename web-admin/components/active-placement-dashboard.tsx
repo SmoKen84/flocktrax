@@ -15,6 +15,7 @@ import {
   type LhDateActionResult,
 } from "@/app/admin/overview/actions";
 import feedBinIcon from "@/screens/FeedBin.png";
+import logEditorIcon from "@/screens/logeditoricon.png";
 import type { ActivePlacementRecord, BreedOptionRecord, FarmGroupRecord, FarmRecord } from "@/lib/types";
 
 type ActivePlacementDashboardProps = {
@@ -1190,7 +1191,19 @@ function PlacementTile({
       <div className="placement-tile-header">
         <div>
           <p className="placement-tile-barn">{placement.barnCode}</p>
-          <h3 className="placement-tile-farm">{placement.farmName}</h3>
+          <div className="placement-tile-title-row">
+            <h3 className="placement-tile-farm">{placement.farmName}</h3>
+            {placement.closeoutLogEditorAccess?.canOpen ? (
+              <Link
+                aria-label={`Open placement log matrix for ${placement.placementCode}`}
+                className="placement-tile-tool-link"
+                href={`/admin/placements/${placement.placementId}/logs`}
+                title="Open placement log matrix"
+              >
+                <Image alt="" className="placement-tile-tool-icon" src={logEditorIcon} />
+              </Link>
+            ) : null}
+          </div>
           <p className="placement-kicker">{placement.farmGroupName}</p>
         </div>
         <div className="placement-tile-pill-stack">

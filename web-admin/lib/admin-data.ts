@@ -153,10 +153,6 @@ type DailyFlagRow = {
   log_date: string | null;
   updated_at: string | null;
   created_at: string | null;
-  maintenance_flag: boolean | null;
-  feedlines_flag: boolean | null;
-  nipple_lines_flag: boolean | null;
-  bird_health_alert: boolean | null;
   is_active: boolean | null;
 };
 
@@ -453,7 +449,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         .order("log_date", { ascending: false }),
       supabase
         .from("log_daily")
-        .select("placement_id,log_date,updated_at,created_at,maintenance_flag,feedlines_flag,nipple_lines_flag,bird_health_alert,is_active"),
+        .select("placement_id,log_date,updated_at,created_at,is_active"),
       supabase
         .from("log_mortality")
         .select("placement_id,log_date,dead_female,dead_male,cull_female,cull_male,is_active"),
@@ -701,10 +697,6 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     const dailyFlagsByPlacement = new Map<
       string,
       {
-        maintenance: boolean;
-        feedlines: boolean;
-        nippleLines: boolean;
-        birdHealthAlert: boolean;
         latestLogDate: string | null;
         completedTodayLabel: string | null;
       }
@@ -975,18 +967,10 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       }
 
       const bucket = dailyFlagsByPlacement.get(row.placement_id) ?? {
-        maintenance: false,
-        feedlines: false,
-        nippleLines: false,
-        birdHealthAlert: false,
         latestLogDate: null,
         completedTodayLabel: null,
       };
 
-      bucket.maintenance = bucket.maintenance || row.maintenance_flag === true;
-      bucket.feedlines = bucket.feedlines || row.feedlines_flag === true;
-      bucket.nippleLines = bucket.nippleLines || row.nipple_lines_flag === true;
-      bucket.birdHealthAlert = bucket.birdHealthAlert || row.bird_health_alert === true;
       if (row.log_date && (!bucket.latestLogDate || row.log_date > bucket.latestLogDate)) {
         bucket.latestLogDate = row.log_date;
       }
@@ -1126,18 +1110,10 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const dailyFlags =
         row && isPlacementOperational(row.lifecycle_stage)
           ? dailyFlagsByPlacement.get(row.id) ?? {
-              maintenance: false,
-              feedlines: false,
-              nippleLines: false,
-              birdHealthAlert: false,
               latestLogDate: null,
               completedTodayLabel: null,
             }
           : {
-              maintenance: false,
-              feedlines: false,
-              nippleLines: false,
-              birdHealthAlert: false,
               latestLogDate: null,
               completedTodayLabel: null,
             };

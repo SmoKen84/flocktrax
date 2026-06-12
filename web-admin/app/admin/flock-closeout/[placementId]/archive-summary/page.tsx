@@ -35,6 +35,10 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
   }
 
   const closeout = item.closeout;
+  const processedHeadVariancePercent = deriveHeadVariancePercent(
+    closeout.processedHeadFinal ?? closeout.derived.processedHead,
+    item.finalHeadCount,
+  );
   const [feedReport, flockHistory] = await Promise.all([
     getFeedTicketFlockReportBundle({
       flockCode: item.placementCode,
@@ -99,7 +103,9 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
               <article className="closeout-report-metric-card">
                 <span>Processed Head</span>
                 <strong>{formatWholeNullable(closeout.processedHeadFinal)}</strong>
-                <small>{`Derived ${formatWholeNullable(closeout.derived.processedHead)}`}</small>
+                <small>
+                  {`Derived now: ${formatWholeNullable(closeout.derived.processedHead)} | Mort calc: ${formatWholeNullable(item.finalHeadCount)} | Var: ${formatSignedPercent(processedHeadVariancePercent)}`}
+                </small>
               </article>
               <article className="closeout-report-metric-card">
                 <span>Live Weight</span>
@@ -326,7 +332,7 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
             )}
           </section>
 
-          <section className="closeout-report-section">
+          <section className="closeout-report-section closeout-report-section--feed">
             <div className="closeout-report-section-header">
               <div>
                 <p className="eyebrow">Feed Report</p>
@@ -786,6 +792,28 @@ function formatRatio(value: number | null | undefined) {
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "--";
   return `${value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+}
+
+function formatSignedPercent(value: number | null) {
+  if (value === null || !Number.isFinite(value)) return "--";
+  const formatted = Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  if (value > 0) return `+${formatted}%`;
+  if (value < 0) return `-${formatted}%`;
+  return `${formatted}%`;
+}
+
+function deriveHeadVariancePercent(actualHead: number | null, expectedHead: number | null) {
+  if (
+    actualHead === null ||
+    expectedHead === null ||
+    !Number.isFinite(actualHead) ||
+    !Number.isFinite(expectedHead) ||
+    expectedHead <= 0
+  ) {
+    return null;
+  }
+
+  return ((actualHead - expectedHead) / expectedHead) * 100;
 }
 
 function formatNumber(value: number | null | undefined) {

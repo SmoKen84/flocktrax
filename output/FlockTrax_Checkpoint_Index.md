@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-06-10`
+Updated: `2026-06-11`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### June 2026
+
+- `2026-06-11`
+  - [FlockTrax_Web_Admin_Closeout_Report_And_Log_Editor_Backout_Checkpoint_2026-06-11.md](C:\dev\FlockTrax\output\FlockTrax_Web_Admin_Closeout_Report_And_Log_Editor_Backout_Checkpoint_2026-06-11.md)
+  - detailed local working-tree checkpoint covering the full backout of the single-date admin `log_*` editor, preservation of the log-editor icon assets for future reuse, and the remaining in-flight closeout report/archive-summary processed-head variance plus feed-report page-break tweaks
 
 - `2026-06-10`
   - [FlockTrax_Web_Admin_Closeout_Livehaul_Bird_Age_Checkpoint_2026-06-10.md](C:\dev\FlockTrax\output\FlockTrax_Web_Admin_Closeout_Livehaul_Bird_Age_Checkpoint_2026-06-10.md)

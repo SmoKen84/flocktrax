@@ -36,6 +36,7 @@ export default async function FeedTicketReportPage({ searchParams }: FeedTicketR
   const reportTitle = reportOption?.title || "Feed Drops by Flock";
   const reportBody =
     reportOption?.subtitle || `Print-ready feed drop history for flock ${flockCode}.`;
+  const reportDateRange = formatReportDateRange(report.rows);
 
   return (
     <>
@@ -55,7 +56,7 @@ export default async function FeedTicketReportPage({ searchParams }: FeedTicketR
             </div>
             <div>
               <span>Date Range</span>
-              <strong>{report.filters.dateFrom || "Beginning"} to {report.filters.dateTo || "Today"}</strong>
+              <strong>{reportDateRange}</strong>
             </div>
             <div>
               <span>Generated</span>
@@ -183,6 +184,18 @@ function formatTimestamp(value: string) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function formatReportDateRange(rows: Array<{ deliveryDate: string | null }>) {
+  const datedRows = rows.filter(
+    (row): row is { deliveryDate: string } => typeof row.deliveryDate === "string" && row.deliveryDate.length > 0,
+  );
+
+  if (datedRows.length === 0) return "--";
+
+  const firstDate = datedRows[0].deliveryDate;
+  const lastDate = datedRows[datedRows.length - 1].deliveryDate;
+  return `${formatDate(firstDate)} to ${formatDate(lastDate)}`;
 }
 
 function formatWeightCompact(value: number | null | undefined) {

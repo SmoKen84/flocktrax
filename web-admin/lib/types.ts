@@ -74,6 +74,12 @@ export type PlacementEditorAccessRecord = {
   message: string | null;
 };
 
+export type PlacementLogEditorAccessRecord = {
+  canOpen: boolean;
+  canView: boolean;
+  message: string | null;
+};
+
 export type BreedOptionRecord = {
   id: string;
   label: string;
@@ -203,6 +209,7 @@ export type ActivePlacementRecord = {
   lh3Date: string | null;
   tileState: "live" | "awaiting" | "scheduled" | "empty";
   placementEditorAccess: PlacementEditorAccessRecord;
+  closeoutLogEditorAccess?: PlacementLogEditorAccessRecord;
   nextPlacement: {
     placementCode: string;
     flockCode: string;
