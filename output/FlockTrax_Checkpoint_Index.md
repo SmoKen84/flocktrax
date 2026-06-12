@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-06-11`
+Updated: `2026-06-12`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### June 2026
+
+- `2026-06-12`
+  - [FlockTrax_Admin_Release_5_6_Log_Matrix_And_Closeout_Production_Checkpoint_2026-06-12.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Release_5_6_Log_Matrix_And_Closeout_Production_Checkpoint_2026-06-12.md)
+  - production release checkpoint covering deployed commit `05d982b`, hosted admin build marker `5.6`, Vercel deployment `dpl_DrihoboLnJmJxK2SXzWaEC2zoFP7`, the new placement log matrix editor, matrix usability refinements, legacy daily-boolean cleanup, closeout reporting refinements, and the feed audit report date-range fix
 
 - `2026-06-11`
   - [FlockTrax_Web_Admin_Closeout_Report_And_Log_Editor_Backout_Checkpoint_2026-06-11.md](C:\dev\FlockTrax\output\FlockTrax_Web_Admin_Closeout_Report_And_Log_Editor_Backout_Checkpoint_2026-06-11.md)
