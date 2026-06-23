@@ -12,7 +12,10 @@ const reportCategories = [
   {
     key: "feed_reports",
     label: "Feed Reports",
-    reports: [{ key: "ten_day_feed_requirements", label: "10-Day Feed Requirements" }],
+    reports: [
+      { key: "ten_day_feed_requirements", label: "10-Day Feed Requirements" },
+      { key: "custom_feed_projection", label: "Feed Projection (Custom Days)" },
+    ],
   },
 ];
 
@@ -24,6 +27,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
   const farmId = firstParam(params.farmId) ?? "";
   const barnId = firstParam(params.barnId) ?? "";
   const flockCode = firstParam(params.flockCode) ?? "";
+  const days = firstParam(params.days) ?? "14";
 
   const adminData = await getAdminData();
   const activeFarmGroups = dedupeBy(
@@ -162,11 +166,12 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
               </div>
             </div>
 
-            {selectedReport?.key === "ten_day_feed_requirements" ? (
+            {selectedReport?.key === "ten_day_feed_requirements" || selectedReport?.key === "custom_feed_projection" ? (
               <ReportsFilterPanel
                 barns={activeBarns}
                 categoryKey={selectedCategory.key}
                 currentBarnId={barnId}
+                currentDays={days}
                 currentFarmGroupId={farmGroupId}
                 currentFarmId={farmId}
                 currentFlockCode={flockCode}

@@ -32,6 +32,12 @@ export type FeedBinEditorRecord = {
   binSentryLastSyncAt: string;
   binSentryLastInventoryLbs: string;
   binSentrySyncNote: string;
+  accessibleFeedType: string;
+  accessibleFeedLbs: string;
+  queuedFeedType: string;
+  queuedFeedLbs: string;
+  feedStateEffectiveAt: string;
+  feedStateSource: string;
 };
 
 export type FeedBinScreenBundle = {
@@ -74,6 +80,12 @@ type FeedBinRow = {
   binsentry_last_sync_at: string | null;
   binsentry_last_inventory_lbs: number | null;
   binsentry_sync_note: string | null;
+  accessible_feed_type?: string | null;
+  accessible_feed_lbs?: number | null;
+  queued_feed_type?: string | null;
+  queued_feed_lbs?: number | null;
+  feed_state_effective_at?: string | null;
+  feed_state_source?: string | null;
 };
 
 function normalize(value: string | null | undefined) {
@@ -82,6 +94,28 @@ function normalize(value: string | null | undefined) {
 
 function formatNumeric(value: number | null | undefined) {
   return value === null || value === undefined ? "" : String(value);
+}
+
+async function fetchFeedBinRows(
+  supabase: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
+) {
+  const extendedResult = await supabase
+    .from("feedbins")
+    .select(
+      "id,farm_id,barn_id,bin_num,capacity,binsentry_bin_ref,binsentry_last_sync_at,binsentry_last_inventory_lbs,binsentry_sync_note,accessible_feed_type,accessible_feed_lbs,queued_feed_type,queued_feed_lbs,feed_state_effective_at,feed_state_source",
+    )
+    .order("bin_num", { ascending: true });
+
+  if (!extendedResult.error) {
+    return (extendedResult.data ?? []) as FeedBinRow[];
+  }
+
+  const fallbackResult = await supabase
+    .from("feedbins")
+    .select("id,farm_id,barn_id,bin_num,capacity,binsentry_bin_ref,binsentry_last_sync_at,binsentry_last_inventory_lbs,binsentry_sync_note")
+    .order("bin_num", { ascending: true });
+
+  return (fallbackResult.data ?? []) as FeedBinRow[];
 }
 
 function parseCapacity(standardHead: string | null, squareFeet: number | null) {
@@ -137,10 +171,7 @@ export async function getFeedBinScreenBundle(): Promise<FeedBinScreenBundle> {
       .select("barn_id,placement_key,is_active")
       .eq("is_active", true)
       .order("placement_key"),
-    supabase
-      .from("feedbins")
-      .select("id,farm_id,barn_id,bin_num,capacity,binsentry_bin_ref,binsentry_last_sync_at,binsentry_last_inventory_lbs,binsentry_sync_note")
-      .order("bin_num", { ascending: true }),
+    fetchFeedBinRows(supabase),
   ]);
 
   const farmRows = (farmsResult.data ?? []) as FarmRow[];
@@ -149,7 +180,7 @@ export async function getFeedBinScreenBundle(): Promise<FeedBinScreenBundle> {
     return farmCompare !== 0 ? farmCompare : compareBarnRows(left, right);
   });
   const placementRows = (placementsResult.data ?? []) as PlacementRow[];
-  const binRows = (binsResult.data ?? []) as FeedBinRow[];
+  const binRows = binsResult as FeedBinRow[];
 
   const barnCountByFarmId = countBy(barnRows, (row) => row.farm_id);
   const binCountByFarmId = countBy(
@@ -197,6 +228,12 @@ export async function getFeedBinScreenBundle(): Promise<FeedBinScreenBundle> {
       binSentryLastSyncAt: normalize(row.binsentry_last_sync_at),
       binSentryLastInventoryLbs: formatNumeric(row.binsentry_last_inventory_lbs),
       binSentrySyncNote: normalize(row.binsentry_sync_note),
+      accessibleFeedType: normalize(row.accessible_feed_type),
+      accessibleFeedLbs: formatNumeric(row.accessible_feed_lbs),
+      queuedFeedType: normalize(row.queued_feed_type),
+      queuedFeedLbs: formatNumeric(row.queued_feed_lbs),
+      feedStateEffectiveAt: normalize(row.feed_state_effective_at),
+      feedStateSource: normalize(row.feed_state_source),
     };
 
     acc[row.barn_id] ??= [];

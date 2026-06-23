@@ -21,6 +21,11 @@ function coerceNullableNumber(value: FormDataEntryValue | null) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function coerceFeedType(value: FormDataEntryValue | null) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return normalized === "starter" || normalized === "grower" ? normalized : null;
+}
+
 function buildSelectionLocation(
   routeBase: string,
   options: {
@@ -201,6 +206,12 @@ export async function updateFeedBinAction(formData: FormData) {
       bin_num: coerceNullableNumber(formData.get("bin_num")),
       capacity: coerceNullableNumber(formData.get("capacity")),
       binsentry_bin_ref: coerce(formData.get("binsentry_bin_ref")) || null,
+      accessible_feed_type: coerceFeedType(formData.get("accessible_feed_type")),
+      accessible_feed_lbs: coerceNullableNumber(formData.get("accessible_feed_lbs")),
+      queued_feed_type: coerceFeedType(formData.get("queued_feed_type")),
+      queued_feed_lbs: coerceNullableNumber(formData.get("queued_feed_lbs")),
+      feed_state_effective_at: coerce(formData.get("feed_state_effective_at")) || null,
+      feed_state_source: coerce(formData.get("feed_state_source")) || null,
     })
     .eq("id", feedBinId);
 

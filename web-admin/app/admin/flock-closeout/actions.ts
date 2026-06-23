@@ -1,8 +1,14 @@
 "use server";
 
+import { createHash } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import {
+  CLOSEOUT_SHEET_SNAPSHOT_DOCUMENT_ROLE,
+  DOCUMENT_ARCHIVE_BUCKET,
+  MISC_DOCUMENT_ROLE,
+} from "@/lib/document-archive";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type CloseoutFormState = {
@@ -15,6 +21,46 @@ export type CloseoutLivehaulStatusFormState = {
   status: "idle" | "success" | "error";
   message: string;
 };
+
+export type CloseoutDocumentActionState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
+type ActivePlacementRecalcRow = {
+  id: string;
+  placement_key: string | null;
+  lifecycle_stage: string | null;
+};
+
+type CloseoutRecalcRow = {
+  placement_id: string;
+  processed_head_final: number | null;
+  live_weight_final: number | null;
+  feed_remaining_credit_lbs: number | null;
+  submitted_at: string | null;
+  settlement_received_at: string | null;
+};
+
+type FeedDropRecalcRow = {
+  placement_code: string | null;
+  drop_weight: number | null;
+  type: string | null;
+};
+
+type PlacementArchiveRow = {
+  id: string;
+  placement_key: string | null;
+};
+
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/heic",
+  "image/heif",
+]);
 
 function coerce(value: FormDataEntryValue | null) {
   return String(value ?? "").trim();
@@ -45,6 +91,489 @@ async function getActor() {
     data: { user },
   } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
   return user;
+}
+
+function sanitizePathPart(value: string) {
+  return value
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function extensionForUpload(file: File) {
+  const fileName = file.name.trim();
+  const dotIndex = fileName.lastIndexOf(".");
+  if (dotIndex > -1 && dotIndex < fileName.length - 1) {
+    return sanitizePathPart(fileName.slice(dotIndex + 1)).toLowerCase();
+  }
+
+  switch (file.type) {
+    case "application/pdf":
+      return "pdf";
+    case "image/jpeg":
+      return "jpg";
+    case "image/png":
+      return "png";
+    case "image/heic":
+      return "heic";
+    case "image/heif":
+      return "heif";
+    default:
+      return "bin";
+  }
+}
+
+function buildCloseoutStoragePath(placement: PlacementArchiveRow, file: File) {
+  const placementLabel = sanitizePathPart(placement.placement_key?.trim() || placement.id);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const extension = extensionForUpload(file);
+
+  return `closeout-summaries/${placement.id}/${timestamp}-${placementLabel}.${extension}`;
+}
+
+function deriveProcessedHeadCountFromLivehaul(
+  scheduleRows: Array<{ livehaul_id: string; head_actual: number | null }>,
+  loadRows: Array<{ livehaul_id: string; head_count: number | null }>,
+  persistedValue: number | null,
+) {
+  const loadHeadByLivehaulId = new Map<string, number>();
+  for (const row of loadRows) {
+    loadHeadByLivehaulId.set(row.livehaul_id, (loadHeadByLivehaulId.get(row.livehaul_id) ?? 0) + (row.head_count ?? 0));
+  }
+
+  const loadTotal = Array.from(loadHeadByLivehaulId.values()).reduce((sum, value) => sum + value, 0);
+  if (loadTotal > 0) {
+    return loadTotal;
+  }
+
+  const actualTotal = scheduleRows.reduce((sum, row) => sum + (row.head_actual ?? 0), 0);
+  if (actualTotal > 0) {
+    return actualTotal;
+  }
+
+  return persistedValue;
+}
+
+function deriveLiveWeightFromLivehaul(
+  loadRows: Array<{ live_weight: number | null }>,
+  persistedValue: number | null,
+) {
+  if (persistedValue !== null && Number.isFinite(persistedValue)) {
+    return persistedValue;
+  }
+
+  const total = loadRows.reduce((sum, row) => sum + (row.live_weight ?? 0), 0);
+  return total > 0 ? total : null;
+}
+
+export async function recalculateQueueCloseoutTotalsAction(formData: FormData) {
+  const admin = createSupabaseAdminClient();
+  const actor = await getActor();
+
+  if (!admin || !actor) {
+    throw new Error("A signed-in admin user is required to recalculate closeout totals.");
+  }
+
+  const page = coerce(formData.get("page"));
+
+  const { data: placementRows, error: placementError } = await admin
+    .from("placements")
+    .select("id,placement_key,lifecycle_stage")
+    .in("lifecycle_stage", ["waiting_closeout", "closeout_submitted"]);
+
+  if (placementError) {
+    throw new Error(placementError.message);
+  }
+
+  const activePlacements = (placementRows ?? []) as ActivePlacementRecalcRow[];
+  const placementIds = activePlacements.map((row) => row.id).filter(Boolean);
+  const placementCodes = activePlacements.map((row) => coerce(row.placement_key)).filter(Boolean);
+
+  if (placementIds.length === 0) {
+    revalidatePath("/admin/flock-closeout");
+    redirect(page ? `/admin/flock-closeout?page=${page}` : "/admin/flock-closeout");
+  }
+
+  const [closeoutResult, feedDropResult, livehaulScheduleResult, livehaulLoadResult] = await Promise.all([
+    admin
+      .from("placement_closeouts")
+      .select("placement_id,processed_head_final,live_weight_final,feed_remaining_credit_lbs,submitted_at,settlement_received_at")
+      .in("placement_id", placementIds),
+    admin.from("feed_drops").select("placement_code,drop_weight,type").in("placement_code", placementCodes),
+    admin.from("livehaul_schedule").select("livehaul_id,placement_id,head_actual").in("placement_id", placementIds),
+    admin.from("livehaul_loads").select("livehaul_id,head_count,live_weight"),
+  ]);
+
+  if (closeoutResult.error) throw new Error(closeoutResult.error.message);
+  if (feedDropResult.error) throw new Error(feedDropResult.error.message);
+  if (livehaulScheduleResult.error) throw new Error(livehaulScheduleResult.error.message);
+  if (livehaulLoadResult.error) throw new Error(livehaulLoadResult.error.message);
+
+  const closeoutByPlacementId = new Map(
+    ((closeoutResult.data ?? []) as CloseoutRecalcRow[]).map((row) => [row.placement_id, row]),
+  );
+
+  const feedTotalsByPlacementCode = new Map<string, { delivered: number; starter: number; grower: number }>();
+  for (const row of ((feedDropResult.data ?? []) as FeedDropRecalcRow[])) {
+    const placementCode = coerce(row.placement_code);
+    if (!placementCode) continue;
+    const bucket = feedTotalsByPlacementCode.get(placementCode) ?? { delivered: 0, starter: 0, grower: 0 };
+    const pounds = Number(row.drop_weight) || 0;
+    bucket.delivered += pounds;
+    const type = coerce(row.type).toLowerCase();
+    if (type === "starter") bucket.starter += pounds;
+    if (type === "grower") bucket.grower += pounds;
+    feedTotalsByPlacementCode.set(placementCode, bucket);
+  }
+
+  const livehaulRows = ((livehaulScheduleResult.data ?? []) as Array<{ livehaul_id: string; placement_id: string; head_actual: number | null }>);
+  const activeLivehaulIds = new Set(livehaulRows.map((row) => row.livehaul_id));
+  const livehaulLoadsById = new Map<string, Array<{ livehaul_id: string; head_count: number | null; live_weight: number | null }>>();
+  for (const row of ((livehaulLoadResult.data ?? []) as Array<{ livehaul_id: string; head_count: number | null; live_weight: number | null }>)) {
+    if (!activeLivehaulIds.has(row.livehaul_id)) continue;
+    const bucket = livehaulLoadsById.get(row.livehaul_id) ?? [];
+    bucket.push(row);
+    livehaulLoadsById.set(row.livehaul_id, bucket);
+  }
+
+  for (const placement of activePlacements) {
+    const placementCode = coerce(placement.placement_key);
+    const closeout = closeoutByPlacementId.get(placement.id);
+    if (!closeout || !placementCode) continue;
+
+    const feedTotals = feedTotalsByPlacementCode.get(placementCode) ?? { delivered: 0, starter: 0, grower: 0 };
+    const scheduleRows = livehaulRows.filter((row) => row.placement_id === placement.id);
+    const loadRows = scheduleRows.flatMap((row) => livehaulLoadsById.get(row.livehaul_id) ?? []);
+    const processedHeadFinal = deriveProcessedHeadCountFromLivehaul(scheduleRows, loadRows, closeout.processed_head_final);
+    const liveWeightFinal = deriveLiveWeightFromLivehaul(loadRows, closeout.live_weight_final);
+    const remainingCredit = closeout.feed_remaining_credit_lbs ?? 0;
+    const feedConsumedTotalLbs = Math.max(0, feedTotals.delivered - remainingCredit);
+
+    const { error: updateError } = await admin
+      .from("placement_closeouts")
+      .update({
+        feed_delivered_total_lbs: feedTotals.delivered,
+        feed_consumed_total_lbs: feedConsumedTotalLbs,
+        starter_consumed_lbs: feedTotals.starter,
+        grower_consumed_lbs: feedTotals.grower,
+        feed_per_head_lbs:
+          processedHeadFinal !== null && processedHeadFinal > 0 ? feedConsumedTotalLbs / processedHeadFinal : null,
+        starter_per_head_lbs:
+          processedHeadFinal !== null && processedHeadFinal > 0 ? feedTotals.starter / processedHeadFinal : null,
+        grower_per_head_lbs:
+          processedHeadFinal !== null && processedHeadFinal > 0 ? feedTotals.grower / processedHeadFinal : null,
+        feed_conversion:
+          liveWeightFinal !== null && liveWeightFinal > 0 ? feedConsumedTotalLbs / liveWeightFinal : null,
+        updated_by: actor.id,
+      })
+      .eq("placement_id", placement.id);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+  }
+
+  revalidatePath("/admin/flock-closeout");
+  for (const placementId of placementIds) {
+    revalidatePath(`/admin/flock-closeout/${placementId}`);
+  }
+  redirect(page ? `/admin/flock-closeout?page=${page}` : "/admin/flock-closeout");
+}
+
+export async function uploadCloseoutSummarySnapshotAction(
+  _prevState: CloseoutDocumentActionState,
+  formData: FormData,
+): Promise<CloseoutDocumentActionState> {
+  const admin = createSupabaseAdminClient();
+  const actor = await getActor();
+
+  if (!admin || !actor) {
+    return {
+      status: "error",
+      message: "A signed-in admin user is required to archive closeout summaries.",
+    };
+  }
+
+  const placementId = coerce(formData.get("placement_id"));
+  const sourceKind = coerce(formData.get("source_kind")) || "manual_upload";
+  const notes = coerceNullableText(formData.get("notes"));
+  const fileValue = formData.get("document");
+
+  if (!placementId) {
+    return { status: "error", message: "Placement id is required." };
+  }
+
+  if (!(fileValue instanceof File) || fileValue.size === 0) {
+    return { status: "error", message: "Choose a PDF or image file to archive." };
+  }
+
+  if (!ALLOWED_MIME_TYPES.has(fileValue.type)) {
+    return { status: "error", message: "Only PDF, JPG, PNG, HEIC, and HEIF originals are allowed." };
+  }
+
+  if (fileValue.size > MAX_UPLOAD_BYTES) {
+    return { status: "error", message: "The selected file is larger than the 20 MB archive limit." };
+  }
+
+  const { data: placementRow, error: placementError } = await admin
+    .from("placements")
+    .select("id,placement_key")
+    .eq("id", placementId)
+    .maybeSingle();
+
+  if (placementError || !placementRow) {
+    return { status: "error", message: placementError?.message ?? "The selected placement could not be found." };
+  }
+
+  const storagePath = buildCloseoutStoragePath(placementRow, fileValue);
+  const bytes = new Uint8Array(await fileValue.arrayBuffer());
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+
+  const { error: uploadError } = await admin.storage
+    .from(DOCUMENT_ARCHIVE_BUCKET)
+    .upload(storagePath, bytes, {
+      contentType: fileValue.type || "application/octet-stream",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    return { status: "error", message: uploadError.message };
+  }
+
+  const timestamp = new Date().toISOString();
+
+  const { error: retireError } = await admin
+    .from("document_archives")
+    .update({
+      is_current: false,
+      replaced_at: timestamp,
+      replaced_by: actor.id,
+    })
+    .eq("placement_closeout_id", placementId)
+    .eq("document_role", CLOSEOUT_SHEET_SNAPSHOT_DOCUMENT_ROLE)
+    .eq("is_current", true);
+
+  if (retireError) {
+    await admin.storage.from(DOCUMENT_ARCHIVE_BUCKET).remove([storagePath]);
+    return { status: "error", message: retireError.message };
+  }
+
+  const { error: insertError } = await admin.from("document_archives").insert({
+    document_role: CLOSEOUT_SHEET_SNAPSHOT_DOCUMENT_ROLE,
+    placement_closeout_id: placementId,
+    storage_bucket: DOCUMENT_ARCHIVE_BUCKET,
+    storage_path: storagePath,
+    original_filename: fileValue.name.trim() || "closeout-summary",
+    mime_type: fileValue.type || null,
+    byte_size: fileValue.size,
+    sha256,
+    source_kind: sourceKind,
+    notes,
+    is_current: true,
+    created_by: actor.id,
+  });
+
+  if (insertError) {
+    await admin.storage.from(DOCUMENT_ARCHIVE_BUCKET).remove([storagePath]);
+    return { status: "error", message: insertError.message };
+  }
+
+  revalidatePath("/admin/flock-closeout");
+  revalidatePath(`/admin/flock-closeout/${placementId}`);
+  return { status: "success", message: "Closeout summary archived." };
+}
+
+export async function uploadPlacementMiscDocumentAction(
+  _prevState: CloseoutDocumentActionState,
+  formData: FormData,
+): Promise<CloseoutDocumentActionState> {
+  const admin = createSupabaseAdminClient();
+  const actor = await getActor();
+
+  if (!admin || !actor) {
+    return {
+      status: "error",
+      message: "A signed-in admin user is required to archive supporting documents.",
+    };
+  }
+
+  const placementId = coerce(formData.get("placement_id"));
+  const sourceKind = coerce(formData.get("source_kind")) || "manual_upload";
+  const title = coerce(formData.get("title"));
+  const notes = coerceNullableText(formData.get("notes"));
+  const fileValue = formData.get("document");
+
+  if (!placementId) {
+    return { status: "error", message: "Placement id is required." };
+  }
+
+  if (!title) {
+    return { status: "error", message: "Document title is required." };
+  }
+
+  if (!(fileValue instanceof File) || fileValue.size === 0) {
+    return { status: "error", message: "Choose a PDF or image file to archive." };
+  }
+
+  if (!ALLOWED_MIME_TYPES.has(fileValue.type)) {
+    return { status: "error", message: "Only PDF, JPG, PNG, HEIC, and HEIF originals are allowed." };
+  }
+
+  if (fileValue.size > MAX_UPLOAD_BYTES) {
+    return { status: "error", message: "The selected file is larger than the 20 MB archive limit." };
+  }
+
+  const { data: placementRow, error: placementError } = await admin
+    .from("placements")
+    .select("id,placement_key")
+    .eq("id", placementId)
+    .maybeSingle();
+
+  if (placementError || !placementRow) {
+    return { status: "error", message: placementError?.message ?? "The selected placement could not be found." };
+  }
+
+  const storagePath = `placements/misc/${placementId}/${new Date().toISOString().replace(/[:.]/g, "-")}-${sanitizePathPart(title)}.${extensionForUpload(fileValue)}`;
+  const bytes = new Uint8Array(await fileValue.arrayBuffer());
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+
+  const { error: uploadError } = await admin.storage
+    .from(DOCUMENT_ARCHIVE_BUCKET)
+    .upload(storagePath, bytes, {
+      contentType: fileValue.type || "application/octet-stream",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    return { status: "error", message: uploadError.message };
+  }
+
+  const storedNotes = [title, notes].filter(Boolean).join("\n");
+
+  const { error: insertError } = await admin.from("document_archives").insert({
+    document_role: MISC_DOCUMENT_ROLE,
+    placement_id: placementId,
+    storage_bucket: DOCUMENT_ARCHIVE_BUCKET,
+    storage_path: storagePath,
+    original_filename: fileValue.name.trim() || "supporting-document",
+    mime_type: fileValue.type || null,
+    byte_size: fileValue.size,
+    sha256,
+    source_kind: sourceKind,
+    notes: storedNotes,
+    is_current: true,
+    created_by: actor.id,
+  });
+
+  if (insertError) {
+    await admin.storage.from(DOCUMENT_ARCHIVE_BUCKET).remove([storagePath]);
+    return { status: "error", message: insertError.message };
+  }
+
+  revalidatePath("/admin/flock-closeout");
+  revalidatePath(`/admin/flock-closeout/${placementId}`);
+  return { status: "success", message: "Supporting document archived." };
+}
+
+export async function recalculatePlacementCloseoutTotalsAction(formData: FormData) {
+  const admin = createSupabaseAdminClient();
+  const actor = await getActor();
+
+  if (!admin || !actor) {
+    throw new Error("A signed-in admin user is required to recalculate closeout totals.");
+  }
+
+  const placementId = coerce(formData.get("placement_id"));
+  if (!placementId) {
+    throw new Error("Placement context was incomplete for closeout recalculation.");
+  }
+
+  const { data: placementRow, error: placementError } = await admin
+    .from("placements")
+    .select("id,placement_key")
+    .eq("id", placementId)
+    .maybeSingle();
+
+  if (placementError) {
+    throw new Error(placementError.message);
+  }
+
+  const placementCode = coerce(placementRow?.placement_key ?? null);
+  if (!placementRow || !placementCode) {
+    throw new Error("Placement could not be resolved for closeout recalculation.");
+  }
+
+  const [closeoutResult, feedDropResult, livehaulScheduleResult, livehaulLoadResult] = await Promise.all([
+    admin
+      .from("placement_closeouts")
+      .select("placement_id,processed_head_final,live_weight_final,feed_remaining_credit_lbs")
+      .eq("placement_id", placementId)
+      .maybeSingle(),
+    admin.from("feed_drops").select("placement_code,drop_weight,type").eq("placement_code", placementCode),
+    admin.from("livehaul_schedule").select("livehaul_id,placement_id,head_actual").eq("placement_id", placementId),
+    admin.from("livehaul_loads").select("livehaul_id,head_count,live_weight"),
+  ]);
+
+  if (closeoutResult.error) throw new Error(closeoutResult.error.message);
+  if (feedDropResult.error) throw new Error(feedDropResult.error.message);
+  if (livehaulScheduleResult.error) throw new Error(livehaulScheduleResult.error.message);
+  if (livehaulLoadResult.error) throw new Error(livehaulLoadResult.error.message);
+
+  const closeout = closeoutResult.data as CloseoutRecalcRow | null;
+  if (!closeout) {
+    throw new Error("No closeout row exists yet for this placement.");
+  }
+
+  const feedDrops = (feedDropResult.data ?? []) as FeedDropRecalcRow[];
+  const feedTotals = feedDrops.reduce(
+    (sum, row) => {
+      const pounds = Number(row.drop_weight) || 0;
+      sum.delivered += pounds;
+      const type = coerce(row.type).toLowerCase();
+      if (type === "starter") sum.starter += pounds;
+      if (type === "grower") sum.grower += pounds;
+      return sum;
+    },
+    { delivered: 0, starter: 0, grower: 0 },
+  );
+
+  const scheduleRows = (livehaulScheduleResult.data ?? []) as Array<{ livehaul_id: string; placement_id: string; head_actual: number | null }>;
+  const activeLivehaulIds = new Set(scheduleRows.map((row) => row.livehaul_id));
+  const loadRows = ((livehaulLoadResult.data ?? []) as Array<{ livehaul_id: string; head_count: number | null; live_weight: number | null }>)
+    .filter((row) => activeLivehaulIds.has(row.livehaul_id));
+
+  const processedHeadFinal = deriveProcessedHeadCountFromLivehaul(scheduleRows, loadRows, closeout.processed_head_final);
+  const liveWeightFinal = deriveLiveWeightFromLivehaul(loadRows, closeout.live_weight_final);
+  const remainingCredit = closeout.feed_remaining_credit_lbs ?? 0;
+  const feedConsumedTotalLbs = Math.max(0, feedTotals.delivered - remainingCredit);
+
+  const { error: updateError } = await admin
+    .from("placement_closeouts")
+    .update({
+      feed_delivered_total_lbs: feedTotals.delivered,
+      feed_consumed_total_lbs: feedConsumedTotalLbs,
+      starter_consumed_lbs: feedTotals.starter,
+      grower_consumed_lbs: feedTotals.grower,
+      feed_per_head_lbs:
+        processedHeadFinal !== null && processedHeadFinal > 0 ? feedConsumedTotalLbs / processedHeadFinal : null,
+      starter_per_head_lbs:
+        processedHeadFinal !== null && processedHeadFinal > 0 ? feedTotals.starter / processedHeadFinal : null,
+      grower_per_head_lbs:
+        processedHeadFinal !== null && processedHeadFinal > 0 ? feedTotals.grower / processedHeadFinal : null,
+      feed_conversion:
+        liveWeightFinal !== null && liveWeightFinal > 0 ? feedConsumedTotalLbs / liveWeightFinal : null,
+      updated_by: actor.id,
+    })
+    .eq("placement_id", placementId);
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+
+  revalidatePath("/admin/flock-closeout");
+  revalidatePath(`/admin/flock-closeout/${placementId}`);
+  redirect(`/admin/flock-closeout/${placementId}`);
 }
 
 export async function saveCloseoutLivehaulStatusAction(

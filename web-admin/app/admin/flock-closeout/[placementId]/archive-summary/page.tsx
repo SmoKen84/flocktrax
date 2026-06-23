@@ -158,7 +158,7 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
             ) : null}
           </section>
 
-          <section className="closeout-report-section">
+          <section className="closeout-report-section digital-archive-report-break">
             <div className="closeout-report-section-header">
               <div>
                 <p className="eyebrow">First 7 Days</p>
@@ -216,7 +216,7 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
             </div>
           </section>
 
-          <section className="closeout-report-section">
+          <section className="closeout-report-section digital-archive-report-break">
             <div className="closeout-report-section-header">
               <div>
                 <p className="eyebrow">Livehaul Detail</p>
@@ -332,7 +332,7 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
             )}
           </section>
 
-          <section className="closeout-report-section closeout-report-section--feed">
+          <section className="closeout-report-section closeout-report-section--feed digital-archive-report-break">
             <div className="closeout-report-section-header">
               <div>
                 <p className="eyebrow">Feed Report</p>
@@ -432,7 +432,7 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
           </section>
         </section>
 
-        <section className="panel card flock-history-report-shell">
+        <section className="panel card flock-history-report-shell digital-archive-report-break">
           <div className="flock-history-report-summary-grid">
             <div className="flock-history-report-summary-card flock-history-report-summary-card--compact">
               <span>Flock</span>

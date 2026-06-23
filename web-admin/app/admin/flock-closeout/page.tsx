@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { recalculateQueueCloseoutTotalsAction } from "@/app/admin/flock-closeout/actions";
 import { PageHeader } from "@/components/page-header";
 import { getCloseoutQueueData } from "@/lib/closeout-data";
 
@@ -68,6 +69,12 @@ export default async function FlockCloseoutPage({ searchParams }: FlockCloseoutP
             <div className="closeout-queue-pager">
               <span className="closeout-queue-pager-meta">{`Page ${currentPage} of ${totalPages}`}</span>
               <div className="closeout-queue-pager-actions">
+                <form action={recalculateQueueCloseoutTotalsAction}>
+                  <input name="page" type="hidden" value={String(currentPage)} />
+                  <button className="button-secondary closeout-queue-pager-button" type="submit">
+                    Recalculate Closeout Totals
+                  </button>
+                </form>
                 <Link className="button-secondary closeout-queue-pager-button" href={buildPageHref(currentPage)}>
                   Refresh
                 </Link>
@@ -90,6 +97,12 @@ export default async function FlockCloseoutPage({ searchParams }: FlockCloseoutP
           ) : (
             <div className="closeout-queue-pager closeout-queue-pager--solo">
               <div className="closeout-queue-pager-actions">
+                <form action={recalculateQueueCloseoutTotalsAction}>
+                  <input name="page" type="hidden" value={String(currentPage)} />
+                  <button className="button-secondary closeout-queue-pager-button" type="submit">
+                    Recalculate Closeout Totals
+                  </button>
+                </form>
                 <Link className="button-secondary closeout-queue-pager-button" href={buildPageHref(currentPage)}>
                   Refresh
                 </Link>

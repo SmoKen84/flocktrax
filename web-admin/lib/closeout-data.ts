@@ -355,6 +355,7 @@ export async function getCloseoutQueueData(filters: CloseoutQueueFilters = {}): 
   if (mortalityResult.error) throw new Error(`Closeout mortality failed to load: ${mortalityResult.error.message}`);
 
   const allPlacementIds = unique(placementRows.map((row) => row.id));
+  const allPlacementCodes = unique(placementRows.map((row) => row.placement_key));
 
   const selectedPlacementIds = unique(
     normalize(filters.placement)
@@ -391,11 +392,11 @@ export async function getCloseoutQueueData(filters: CloseoutQueueFilters = {}): 
           )
           .in("placement_id", allPlacementIds)
       : Promise.resolve({ data: [], error: null }),
-    selectedPlacementCodes.length > 0
+    allPlacementCodes.length > 0
       ? admin
           .from("feed_drops")
           .select("placement_code,drop_weight,type")
-          .in("placement_code", selectedPlacementCodes)
+          .in("placement_code", allPlacementCodes)
       : Promise.resolve({ data: [], error: null }),
     selectedPlacementIds.length > 0
       ? admin.from("breeds").select("id,breed_name,sex").eq("is_active", true)
@@ -587,10 +588,6 @@ export async function getCloseoutQueueData(filters: CloseoutQueueFilters = {}): 
       );
       const feedTotals = feedTotalsByPlacementCode.get(row.placement_key) ?? { delivered: 0, starter: 0, grower: 0 };
       const baseLivehauls = livehaulsByPlacementId.get(row.id) ?? [];
-      const remainingCredit = closeout?.feed_remaining_credit_lbs ?? null;
-      const starterConsumed = closeout?.starter_consumed_lbs ?? feedTotals.starter;
-      const growerConsumed = closeout?.grower_consumed_lbs ?? feedTotals.grower;
-      const feedConsumed = closeout?.feed_consumed_total_lbs ?? feedTotals.delivered;
       const livehauls = baseLivehauls.map((livehaul) => {
         const ageDays = calculateAgeDays(flock?.date_placed ?? row.active_start, livehaul.actualDate ?? livehaul.lhDate);
         const expectedAvgWeight = resolveCombinedBreedTargetWeight({
@@ -619,6 +616,13 @@ export async function getCloseoutQueueData(filters: CloseoutQueueFilters = {}): 
       const derivedLiveWeight = deriveLiveWeightTotal(livehauls, closeout?.live_weight_final ?? null);
       const processedHeadFinal = derivedProcessedHead;
       const liveWeightFinal = closeout?.live_weight_final ?? derivedLiveWeight;
+      const feedMetrics = deriveCloseoutFeedMetrics({
+        closeout,
+        feedTotals,
+        processedHeadFinal,
+        liveWeightFinal,
+        lifecycleStage: row.lifecycle_stage,
+      });
       const averageHeadWeight =
         processedHeadFinal && processedHeadFinal > 0 && liveWeightFinal !== null ? liveWeightFinal / processedHeadFinal : null;
       const removedAgeDays = calculateAgeDays(flock?.date_placed ?? row.active_start, row.date_removed);
@@ -668,23 +672,15 @@ export async function getCloseoutQueueData(filters: CloseoutQueueFilters = {}): 
           processedHeadFinal,
           liveWeightFinal,
           averageHeadWeight,
-          feedDeliveredTotalLbs: closeout?.feed_delivered_total_lbs ?? feedTotals.delivered,
-          feedRemainingCreditLbs: remainingCredit,
-          feedConsumedTotalLbs: feedConsumed,
-          starterConsumedLbs: starterConsumed,
-          growerConsumedLbs: growerConsumed,
-          feedPerHeadLbs:
-            closeout?.feed_per_head_lbs ??
-            (processedHeadFinal && processedHeadFinal > 0 ? feedConsumed / processedHeadFinal : null),
-          starterPerHeadLbs:
-            closeout?.starter_per_head_lbs ??
-            (processedHeadFinal && processedHeadFinal > 0 ? starterConsumed / processedHeadFinal : null),
-          growerPerHeadLbs:
-            closeout?.grower_per_head_lbs ??
-            (processedHeadFinal && processedHeadFinal > 0 ? growerConsumed / processedHeadFinal : null),
-          feedConversion:
-            closeout?.feed_conversion ??
-            (liveWeightFinal && liveWeightFinal > 0 ? feedConsumed / liveWeightFinal : null),
+          feedDeliveredTotalLbs: feedMetrics.feedDeliveredTotalLbs,
+          feedRemainingCreditLbs: feedMetrics.feedRemainingCreditLbs,
+          feedConsumedTotalLbs: feedMetrics.feedConsumedTotalLbs,
+          starterConsumedLbs: feedMetrics.starterConsumedLbs,
+          growerConsumedLbs: feedMetrics.growerConsumedLbs,
+          feedPerHeadLbs: feedMetrics.feedPerHeadLbs,
+          starterPerHeadLbs: feedMetrics.starterPerHeadLbs,
+          growerPerHeadLbs: feedMetrics.growerPerHeadLbs,
+          feedConversion: feedMetrics.feedConversion,
           breedExpectedAvgWeight: weightedBreedComparison.expectedAvgWeight,
           breedActualAvgWeight: weightedBreedComparison.actualAvgWeight,
           breedWeightPercent: weightedBreedComparison.percentOfTarget,
@@ -920,6 +916,68 @@ function deriveCloseoutQueueTasks(options: {
     submitted: closeout?.submitted_at !== null,
     settlementReceived: closeout?.settlement_received_at !== null,
     closeoutDone: closeout?.closeout_completed_at !== null,
+  };
+}
+
+function deriveCloseoutFeedMetrics(options: {
+  closeout: PlacementCloseoutRecordRow | null;
+  feedTotals: {
+    delivered: number;
+    starter: number;
+    grower: number;
+  };
+  processedHeadFinal: number | null;
+  liveWeightFinal: number | null;
+  lifecycleStage: PlacementLifecycleStage;
+}) {
+  const { closeout, feedTotals, processedHeadFinal, liveWeightFinal, lifecycleStage } = options;
+  const isArchivedSnapshot =
+    closeout?.status === "archived" || closeout?.archived_at !== null || lifecycleStage === "archived";
+
+  if (isArchivedSnapshot) {
+    const feedDeliveredTotalLbs = closeout?.feed_delivered_total_lbs ?? feedTotals.delivered;
+    const feedRemainingCreditLbs = closeout?.feed_remaining_credit_lbs ?? null;
+    const starterConsumedLbs = closeout?.starter_consumed_lbs ?? feedTotals.starter;
+    const growerConsumedLbs = closeout?.grower_consumed_lbs ?? feedTotals.grower;
+    const feedConsumedTotalLbs = closeout?.feed_consumed_total_lbs ?? feedDeliveredTotalLbs;
+
+    return {
+      feedDeliveredTotalLbs,
+      feedRemainingCreditLbs,
+      feedConsumedTotalLbs,
+      starterConsumedLbs,
+      growerConsumedLbs,
+      feedPerHeadLbs:
+        closeout?.feed_per_head_lbs ??
+        (processedHeadFinal && processedHeadFinal > 0 ? feedConsumedTotalLbs / processedHeadFinal : null),
+      starterPerHeadLbs:
+        closeout?.starter_per_head_lbs ??
+        (processedHeadFinal && processedHeadFinal > 0 ? starterConsumedLbs / processedHeadFinal : null),
+      growerPerHeadLbs:
+        closeout?.grower_per_head_lbs ??
+        (processedHeadFinal && processedHeadFinal > 0 ? growerConsumedLbs / processedHeadFinal : null),
+      feedConversion:
+        closeout?.feed_conversion ??
+        (liveWeightFinal && liveWeightFinal > 0 ? feedConsumedTotalLbs / liveWeightFinal : null),
+    };
+  }
+
+  const feedDeliveredTotalLbs = feedTotals.delivered;
+  const feedRemainingCreditLbs = closeout?.feed_remaining_credit_lbs ?? null;
+  const starterConsumedLbs = feedTotals.starter;
+  const growerConsumedLbs = feedTotals.grower;
+  const feedConsumedTotalLbs = Math.max(0, feedDeliveredTotalLbs - (feedRemainingCreditLbs ?? 0));
+
+  return {
+    feedDeliveredTotalLbs,
+    feedRemainingCreditLbs,
+    feedConsumedTotalLbs,
+    starterConsumedLbs,
+    growerConsumedLbs,
+    feedPerHeadLbs: processedHeadFinal && processedHeadFinal > 0 ? feedConsumedTotalLbs / processedHeadFinal : null,
+    starterPerHeadLbs: processedHeadFinal && processedHeadFinal > 0 ? starterConsumedLbs / processedHeadFinal : null,
+    growerPerHeadLbs: processedHeadFinal && processedHeadFinal > 0 ? growerConsumedLbs / processedHeadFinal : null,
+    feedConversion: liveWeightFinal && liveWeightFinal > 0 ? feedConsumedTotalLbs / liveWeightFinal : null,
   };
 }
 

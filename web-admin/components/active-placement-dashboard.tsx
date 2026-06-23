@@ -14,6 +14,7 @@ import {
   savePlacementLhDatesAction,
   type LhDateActionResult,
 } from "@/app/admin/overview/actions";
+import { PlacementHatchTicketPanel } from "@/app/admin/placements/[placementId]/logs/placement-hatch-ticket-panel";
 import feedBinIcon from "@/screens/FeedBin.png";
 import logEditorIcon from "@/screens/logeditoricon.png";
 import type { ActivePlacementRecord, BreedOptionRecord, FarmGroupRecord, FarmRecord } from "@/lib/types";
@@ -459,6 +460,15 @@ function PlacementEditorPopup({
                 <small>{lifecycle.detail}</small>
               </div>
             </div>
+
+            {placement.placementId ? (
+              <PlacementHatchTicketPanel
+                placementCode={placement.placementCode}
+                placementId={placement.placementId}
+                summary={placement.hatchTicketDocument ?? null}
+              />
+            ) : null}
+
             <p className="dashboard-placement-editor-system-state">{lifecycle.systemState}</p>
 
             <div className="placement-scheduler-form dashboard-placement-editor-form">
@@ -873,6 +883,10 @@ function FeedProjectionPopup({
     placement.feedInventorySnapshotAt
       ? `Inventory snapshot recorded ${formatShortDate(placement.feedInventorySnapshotAt.slice(0, 10))}.`
       : "Inventory snapshot pending BinSentry sync.";
+  const inventoryTypeSplitLabel =
+    placement.feedInventoryStarterAccessibleLbs === null && placement.feedInventoryGrowerAccessibleLbs === null
+      ? "Layered feed state not assigned yet."
+      : `Accessible starter ${formatFeedAmount(placement.feedInventoryStarterAccessibleLbs)} Â· accessible grower ${formatFeedAmount(placement.feedInventoryGrowerAccessibleLbs)} Â· queued starter ${formatFeedAmount(placement.feedInventoryStarterQueuedLbs)} Â· queued grower ${formatFeedAmount(placement.feedInventoryGrowerQueuedLbs)}`;
   const onOrderStatusLabel =
     placement.feedOnOrderLbs === null
       ? "Open feed orders are not connected yet."
@@ -881,12 +895,22 @@ function FeedProjectionPopup({
             placement.feedOnOrderNextEta ? ` · next ETA ${formatShortDate(placement.feedOnOrderNextEta)}` : ""
           }`
         : "No open feed orders recorded.";
+  const onOrderTypeSplitLabel =
+    placement.feedOnOrderStarterLbs === null && placement.feedOnOrderGrowerLbs === null
+      ? "Typed open-order split pending."
+      : `Starter ${formatFeedAmount(placement.feedOnOrderStarterLbs)} Â· Grower ${formatFeedAmount(placement.feedOnOrderGrowerLbs)}`;
   const recommendedOrderLabel =
     placement.feedRecommendedOrderLbs === null
       ? "Pending inventory / on-order inputs."
       : placement.feedRecommendedOrderLbs > 0
         ? "Recommended new feed to order now."
         : "Current supply covers the next 10 days.";
+  const recommendedOrderSplitLabel =
+    placement.starterRecommendedOrderLbs === null && placement.growerRecommendedOrderLbs === null
+      ? placement.feedOrderingMode === "legacy"
+        ? "Using the legacy total-pound fallback until layered feed state is assigned."
+        : "Starter/grower recommendation split pending."
+      : `Starter ${formatFeedAmount(placement.starterRecommendedOrderLbs)} Â· Grower ${formatFeedAmount(placement.growerRecommendedOrderLbs)}`;
   const requirementTypeSplitLabel =
     placement.feedProjectionTenDayStarterTotal === null && placement.feedProjectionTenDayGrowerTotal === null
       ? "Type split pending."
@@ -971,12 +995,24 @@ function FeedProjectionPopup({
           <strong>{inventoryStatusLabel}</strong>
         </div>
         <div className="mortality-popup-stat feed-projection-popup-note">
+          <span>Inventory Split</span>
+          <strong>{inventoryTypeSplitLabel}</strong>
+        </div>
+        <div className="mortality-popup-stat feed-projection-popup-note">
           <span>On Order</span>
           <strong>{onOrderStatusLabel}</strong>
         </div>
         <div className="mortality-popup-stat feed-projection-popup-note">
+          <span>On Order Split</span>
+          <strong>{onOrderTypeSplitLabel}</strong>
+        </div>
+        <div className="mortality-popup-stat feed-projection-popup-note">
           <span>Ordering Position</span>
           <strong>{recommendedOrderLabel}</strong>
+        </div>
+        <div className="mortality-popup-stat feed-projection-popup-note">
+          <span>Recommendation Split</span>
+          <strong>{recommendedOrderSplitLabel}</strong>
         </div>
         <div className="mortality-popup-stat feed-projection-popup-note">
           <span>Requirement Split</span>
@@ -1448,6 +1484,16 @@ function PlacementTile({
               </dd>
             </div>
           </dl>
+          {placement.closeoutLogEditorAccess?.canOpen ? (
+            <Link
+              className="tile-subpanel-link"
+              href={`/admin/placements/${placement.placementId}/logs/weight-report`}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Log Weight Report
+            </Link>
+          ) : null}
         </section>
 
       </div>

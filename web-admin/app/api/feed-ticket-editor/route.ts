@@ -54,6 +54,58 @@ type AppSettingRow = {
   updated_at?: string | null;
 };
 
+type FeedBinLayerBinRow = {
+  id: string;
+  binsentry_last_inventory_lbs: number | null;
+};
+
+type FeedBinLayerDropRow = {
+  id: string;
+  feed_bin_id: string | null;
+  feed_ticket_id: string | null;
+  type: string | null;
+  drop_weight: number | null;
+  drop_order: number | null;
+};
+
+type FeedBinLayerTicketRow = {
+  id: string;
+  delivery_date: string | null;
+};
+
+type FeedOrderCommitmentReceiptRow = {
+  commitment_id: string;
+  farm_id: string | null;
+  barn_id: string | null;
+  feed_bin_id: string | null;
+  placement_id: string | null;
+  expected_delivery_date: string | null;
+  ordered_lbs: number | null;
+  received_lbs: number | null;
+  status: string | null;
+  feed_type?: string | null;
+  created_at?: string | null;
+};
+
+type FeedDropReceiptRow = {
+  id: string;
+  feed_ticket_id: string | null;
+  farm_id: string | null;
+  barn_id: string | null;
+  feed_bin_id: string | null;
+  placement_id: string | null;
+  type: string | null;
+  drop_weight: number | null;
+  drop_order: number | null;
+  off_farm_redirect: boolean | null;
+};
+
+type FeedTicketReceiptRow = {
+  id: string;
+  delivery_date: string | null;
+  ticket_type: string | null;
+};
+
 const FEED_TICKET_SETTINGS_GROUP = "feed_tickets";
 const HISTORICAL_SETTING_NAMES = [
   "allow_historical_entry",
@@ -105,6 +157,18 @@ function rankRole(value: string) {
   return 0;
 }
 
+function canManualFlockCorrectionRole(value: string | null | undefined) {
+  const normalized = normalizeCode(String(value ?? ""));
+  return (
+    normalized === "admin" ||
+    normalized === "super_admin" ||
+    normalized === "superadmin" ||
+    normalized === "farm_manager" ||
+    normalized === "farmmanager" ||
+    normalized === "manager"
+  );
+}
+
 function isWriteAllowed(row: PermissionRow) {
   return row.createyn === true || row.updateyn === true;
 }
@@ -120,6 +184,340 @@ function pickPreferredAppSetting(rows: AppSettingRow[], name: string) {
       }
       return String(right.updated_at ?? "").localeCompare(String(left.updated_at ?? ""));
     })[0] ?? null;
+}
+
+function normalizeFeedType(value: string | null | undefined) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return normalized === "starter" || normalized === "grower" ? normalized : null;
+}
+
+function isoFromDateOnly(value: string | null | undefined) {
+  return value ? `${value}T00:00:00.000Z` : null;
+}
+
+async function recalculateFeedBinLayerState(
+  admin: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
+  feedBinIds: string[],
+) {
+  const uniqueFeedBinIds = Array.from(new Set(feedBinIds.filter((value) => typeof value === "string" && value.length > 0)));
+  if (uniqueFeedBinIds.length === 0) {
+    return;
+  }
+
+  const { data: binRows, error: binError } = await admin
+    .from("feedbins")
+    .select("id,binsentry_last_inventory_lbs")
+    .in("id", uniqueFeedBinIds);
+  if (binError) {
+    throw new Error(binError.message);
+  }
+
+  const { data: dropRows, error: dropError } = await admin
+    .from("feed_drops")
+    .select("id,feed_bin_id,feed_ticket_id,type,drop_weight,drop_order")
+    .in("feed_bin_id", uniqueFeedBinIds)
+    .eq("off_farm_redirect", false);
+  if (dropError) {
+    throw new Error(dropError.message);
+  }
+
+  const ticketIds = Array.from(
+    new Set(
+      ((dropRows ?? []) as FeedBinLayerDropRow[])
+        .map((row) => row.feed_ticket_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0),
+    ),
+  );
+  const ticketRowsResult = ticketIds.length
+    ? await admin.from("feed_tickets").select("id,delivery_date").in("id", ticketIds)
+    : { data: [], error: null };
+  if (ticketRowsResult.error) {
+    throw new Error(ticketRowsResult.error.message);
+  }
+
+  const ticketDateById = new Map(
+    ((ticketRowsResult.data ?? []) as FeedBinLayerTicketRow[]).map((row) => [row.id, row.delivery_date ?? ""]),
+  );
+
+  const dropsByFeedBinId = new Map<string, FeedBinLayerDropRow[]>();
+  for (const row of (dropRows ?? []) as FeedBinLayerDropRow[]) {
+    if (!row.feed_bin_id) continue;
+    const bucket = dropsByFeedBinId.get(row.feed_bin_id) ?? [];
+    bucket.push(row);
+    dropsByFeedBinId.set(row.feed_bin_id, bucket);
+  }
+
+  for (const row of (binRows ?? []) as FeedBinLayerBinRow[]) {
+    const drops = (dropsByFeedBinId.get(row.id) ?? []).slice().sort((left, right) => {
+      const leftDate = ticketDateById.get(left.feed_ticket_id ?? "") ?? "";
+      const rightDate = ticketDateById.get(right.feed_ticket_id ?? "") ?? "";
+      if (leftDate !== rightDate) return leftDate.localeCompare(rightDate);
+      const leftOrder = left.drop_order ?? 0;
+      const rightOrder = right.drop_order ?? 0;
+      if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+      return String(left.id).localeCompare(String(right.id));
+    });
+
+    let accessibleFeedType: "starter" | "grower" | null = null;
+    let accessibleFeedLbs = 0;
+    let queuedFeedType: "starter" | "grower" | null = null;
+    let queuedFeedLbs = 0;
+    let latestEventDate: string | null = null;
+
+    for (const drop of drops) {
+      const feedType = normalizeFeedType(drop.type) as "starter" | "grower" | null;
+      const weight = typeof drop.drop_weight === "number" && Number.isFinite(drop.drop_weight) ? drop.drop_weight : 0;
+      if (!feedType || Math.abs(weight) <= 0.01) {
+        continue;
+      }
+
+      latestEventDate = ticketDateById.get(drop.feed_ticket_id ?? "") ?? latestEventDate;
+
+      if (weight > 0) {
+        if (!accessibleFeedType || accessibleFeedLbs <= 0) {
+          accessibleFeedType = feedType;
+          accessibleFeedLbs = weight;
+          if (queuedFeedLbs <= 0) {
+            queuedFeedType = null;
+            queuedFeedLbs = 0;
+          }
+          continue;
+        }
+
+        if (accessibleFeedType === feedType && !queuedFeedType) {
+          accessibleFeedLbs += weight;
+          continue;
+        }
+
+        if (queuedFeedType === feedType || (!queuedFeedType && accessibleFeedType !== feedType)) {
+          queuedFeedType = feedType;
+          queuedFeedLbs += weight;
+          continue;
+        }
+
+        if (accessibleFeedType === feedType) {
+          accessibleFeedLbs += weight;
+        }
+      } else {
+        const reduction = Math.abs(weight);
+        if (queuedFeedType === feedType && queuedFeedLbs > 0) {
+          queuedFeedLbs = Math.max(0, queuedFeedLbs - reduction);
+          if (queuedFeedLbs <= 0.01) {
+            queuedFeedType = null;
+            queuedFeedLbs = 0;
+          }
+          continue;
+        }
+
+        if (accessibleFeedType === feedType && accessibleFeedLbs > 0) {
+          accessibleFeedLbs = Math.max(0, accessibleFeedLbs - reduction);
+          if (accessibleFeedLbs <= 0.01) {
+            accessibleFeedLbs = 0;
+            if (queuedFeedType && queuedFeedLbs > 0) {
+              accessibleFeedType = queuedFeedType;
+              accessibleFeedLbs = queuedFeedLbs;
+              queuedFeedType = null;
+              queuedFeedLbs = 0;
+            } else {
+              accessibleFeedType = null;
+            }
+          }
+        }
+      }
+    }
+
+    if (accessibleFeedType && !queuedFeedType && typeof row.binsentry_last_inventory_lbs === "number" && Number.isFinite(row.binsentry_last_inventory_lbs)) {
+      accessibleFeedLbs = Math.max(0, row.binsentry_last_inventory_lbs);
+    }
+
+    const { error: updateError } = await admin
+      .from("feedbins")
+      .update({
+        accessible_feed_type: accessibleFeedType,
+        accessible_feed_lbs: accessibleFeedType ? accessibleFeedLbs : null,
+        queued_feed_type: queuedFeedType,
+        queued_feed_lbs: queuedFeedType ? queuedFeedLbs : null,
+        feed_state_effective_at: accessibleFeedType || queuedFeedType ? isoFromDateOnly(latestEventDate) : null,
+        feed_state_source: accessibleFeedType || queuedFeedType ? "ticket_inferred" : null,
+      })
+      .eq("id", row.id);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+  }
+}
+
+function orderSpecificityRank(order: Pick<FeedOrderCommitmentReceiptRow, "feed_bin_id" | "placement_id" | "barn_id">) {
+  if (order.feed_bin_id) return 0;
+  if (order.placement_id) return 1;
+  if (order.barn_id) return 2;
+  return 3;
+}
+
+async function recalculateFeedOrderReceipts(
+  admin: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
+  farmIds: string[],
+) {
+  const uniqueFarmIds = Array.from(new Set(farmIds.filter((value) => typeof value === "string" && value.length > 0)));
+  if (uniqueFarmIds.length === 0) {
+    return;
+  }
+
+  const { data: orderRows, error: orderError } = await admin
+    .from("feed_order_commitments")
+    .select("commitment_id,farm_id,barn_id,feed_bin_id,placement_id,expected_delivery_date,ordered_lbs,received_lbs,status,feed_type,created_at")
+    .in("farm_id", uniqueFarmIds)
+    .neq("status", "cancelled");
+  if (orderError) {
+    throw new Error(orderError.message);
+  }
+
+  const { data: dropRows, error: dropError } = await admin
+    .from("feed_drops")
+    .select("id,feed_ticket_id,farm_id,barn_id,feed_bin_id,placement_id,type,drop_weight,drop_order,off_farm_redirect")
+    .in("farm_id", uniqueFarmIds)
+    .eq("off_farm_redirect", false);
+  if (dropError) {
+    throw new Error(dropError.message);
+  }
+
+  const ticketIds = Array.from(
+    new Set(
+      ((dropRows ?? []) as FeedDropReceiptRow[])
+        .map((row) => row.feed_ticket_id)
+        .filter((value): value is string => typeof value === "string" && value.length > 0),
+    ),
+  );
+  const ticketRowsResult = ticketIds.length
+    ? await admin.from("feed_tickets").select("id,delivery_date,ticket_type").in("id", ticketIds)
+    : { data: [], error: null };
+  if (ticketRowsResult.error) {
+    throw new Error(ticketRowsResult.error.message);
+  }
+
+  const ticketById = new Map(
+    ((ticketRowsResult.data ?? []) as FeedTicketReceiptRow[]).map((row) => [row.id, row]),
+  );
+
+  const eligibleDrops = ((dropRows ?? []) as FeedDropReceiptRow[])
+    .map((row) => {
+      const ticket = row.feed_ticket_id ? ticketById.get(row.feed_ticket_id) : null;
+      return {
+        ...row,
+        ticket_type: String(ticket?.ticket_type ?? "").trim(),
+        delivery_date: ticket?.delivery_date ?? "",
+      };
+    })
+    .filter((row) => {
+      const dropWeight = typeof row.drop_weight === "number" && Number.isFinite(row.drop_weight) ? row.drop_weight : 0;
+      return row.ticket_type === "Reg" && dropWeight > 0;
+    })
+    .sort((left, right) => {
+      if (left.delivery_date !== right.delivery_date) return left.delivery_date.localeCompare(right.delivery_date);
+      const leftOrder = left.drop_order ?? 0;
+      const rightOrder = right.drop_order ?? 0;
+      if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+      return String(left.id).localeCompare(String(right.id));
+    });
+
+  const orderState = new Map(
+    ((orderRows ?? []) as FeedOrderCommitmentReceiptRow[]).map((row) => [
+      row.commitment_id,
+      {
+        row,
+        receivedLbs: 0,
+        ticketIds: new Set<string>(),
+      },
+    ]),
+  );
+
+  for (const drop of eligibleDrops) {
+    const feedType = normalizeFeedType(drop.type);
+    if (!drop.farm_id) {
+      continue;
+    }
+
+    let remaining = Math.max(0, drop.drop_weight ?? 0);
+    if (remaining <= 0) {
+      continue;
+    }
+
+    const candidates = Array.from(orderState.values())
+      .filter(({ row, receivedLbs }) => {
+        const orderedLbs = Math.max(0, row.ordered_lbs ?? 0);
+        if (orderedLbs - receivedLbs <= 0.01) return false;
+        if (row.farm_id !== drop.farm_id) return false;
+
+        const orderFeedType = normalizeFeedType(row.feed_type);
+        if (orderFeedType && orderFeedType !== feedType) return false;
+        if (row.feed_bin_id && row.feed_bin_id !== drop.feed_bin_id) return false;
+        if (!row.feed_bin_id && row.placement_id && row.placement_id !== drop.placement_id) return false;
+        if (!row.feed_bin_id && !row.placement_id && row.barn_id && row.barn_id !== drop.barn_id) return false;
+        return true;
+      })
+      .sort((left, right) => {
+        const specificityCompare = orderSpecificityRank(left.row) - orderSpecificityRank(right.row);
+        if (specificityCompare !== 0) return specificityCompare;
+
+        const leftTypeRank = normalizeFeedType(left.row.feed_type) ? 0 : 1;
+        const rightTypeRank = normalizeFeedType(right.row.feed_type) ? 0 : 1;
+        if (leftTypeRank !== rightTypeRank) return leftTypeRank - rightTypeRank;
+
+        const leftEta = left.row.expected_delivery_date ?? "9999-12-31";
+        const rightEta = right.row.expected_delivery_date ?? "9999-12-31";
+        if (leftEta !== rightEta) return leftEta.localeCompare(rightEta);
+
+        const leftCreated = left.row.created_at ?? "";
+        const rightCreated = right.row.created_at ?? "";
+        if (leftCreated !== rightCreated) return leftCreated.localeCompare(rightCreated);
+
+        return left.row.commitment_id.localeCompare(right.row.commitment_id);
+      });
+
+    for (const candidate of candidates) {
+      if (remaining <= 0.01) {
+        break;
+      }
+
+      const orderedLbs = Math.max(0, candidate.row.ordered_lbs ?? 0);
+      const openLbs = Math.max(0, orderedLbs - candidate.receivedLbs);
+      if (openLbs <= 0.01) {
+        continue;
+      }
+
+      const applied = Math.min(openLbs, remaining);
+      candidate.receivedLbs += applied;
+      remaining -= applied;
+      if (drop.feed_ticket_id) {
+        candidate.ticketIds.add(drop.feed_ticket_id);
+      }
+    }
+  }
+
+  for (const state of orderState.values()) {
+    const orderedLbs = Math.max(0, state.row.ordered_lbs ?? 0);
+    const receivedLbs = Math.min(orderedLbs, Math.max(0, state.receivedLbs));
+    const nextStatus =
+      receivedLbs <= 0.01 ? "open" : receivedLbs >= orderedLbs - 0.01 ? "received" : "partial";
+    const receivedTicketId = state.ticketIds.size === 1 && nextStatus === "received"
+      ? Array.from(state.ticketIds)[0] ?? null
+      : null;
+
+    const { error: updateError } = await admin
+      .from("feed_order_commitments")
+      .update({
+        received_lbs: receivedLbs,
+        status: nextStatus,
+        received_ticket_id: receivedTicketId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("commitment_id", state.row.commitment_id);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+  }
 }
 
 async function getTicketNumberDefaults() {
@@ -432,13 +830,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(payload, { status: result.status });
   }
 
+  const access = await getFeedTicketWriteAccess(user.id, null);
+  const canManualFlockCorrection = canManualFlockCorrectionRole(access.role);
+
   const [placementOptions, ticketNumberDefaults, allowHistoricalEntry] = await Promise.all([
     listPlacementOptions(),
     getTicketNumberDefaults(),
     getAllowHistoricalEntry(),
   ]);
   return NextResponse.json(
-    { ...payload, placementOptions, ticketNumberDefaults, settings: { allowHistoricalEntry } },
+    {
+      ...payload,
+      placementOptions,
+      ticketNumberDefaults,
+      settings: { allowHistoricalEntry, canManualFlockCorrection },
+    },
     { status: 200, headers: { "Cache-Control": "no-store, max-age=0" } },
   );
 }
@@ -450,6 +856,65 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}));
+  const drops: unknown[] = Array.isArray(body?.drops) ? body.drops : [];
+  const manualOverrideDrops = drops.filter((drop: unknown) => {
+    if (!drop || typeof drop !== "object") {
+      return false;
+    }
+    const row = drop as Record<string, unknown>;
+    return row.off_farm_redirect !== true && row.manual_flock_override === true;
+  });
+
+  if (manualOverrideDrops.length > 0) {
+    const admin = createSupabaseAdminClient();
+    if (!admin) {
+      return NextResponse.json({ ok: false, error: "Manual flock correction is unavailable." }, { status: 500 });
+    }
+
+    const feedBinIds = Array.from(
+      new Set(
+        manualOverrideDrops
+          .map((drop: unknown) => (typeof (drop as Record<string, unknown>).feed_bin_id === "string"
+            ? (drop as Record<string, unknown>).feed_bin_id as string
+            : null))
+          .filter((value: string | null): value is string => Boolean(value && value.length > 0)),
+      ),
+    );
+
+    const feedBinsResult = feedBinIds.length
+      ? await admin.from("feedbins").select("id,farm_id").in("id", feedBinIds)
+      : { data: [], error: null };
+
+    if (feedBinsResult.error) {
+      return NextResponse.json({ ok: false, error: feedBinsResult.error.message }, { status: 500 });
+    }
+
+    const farmIds = Array.from(
+      new Set(
+        (feedBinsResult.data ?? [])
+          .map((row) => row.farm_id)
+          .filter((value): value is string => typeof value === "string" && value.length > 0),
+      ),
+    );
+
+    if (farmIds.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: "Manual flock correction requires a valid bin tied to a farm." },
+        { status: 400 },
+      );
+    }
+
+    for (const farmId of farmIds) {
+      const access = await getFeedTicketWriteAccess(user.id, farmId);
+      if (!access.allowed || !canManualFlockCorrectionRole(access.role)) {
+        return NextResponse.json(
+          { ok: false, error: "Only super admin or farm manager can correct a feed drop to a different flock." },
+          { status: 403 },
+        );
+      }
+    }
+  }
+
   return callFeedTicketFunction("feed-ticket-submit", {
     method: "POST",
     body: JSON.stringify(body),
@@ -475,7 +940,7 @@ export async function DELETE(req: NextRequest) {
 
   const dropResult = await admin
     .from("feed_drops")
-    .select("id,farm_id")
+    .select("id,farm_id,feed_bin_id")
     .eq("feed_ticket_id", ticketId);
   if (dropResult.error) {
     return NextResponse.json({ ok: false, error: dropResult.error.message }, { status: 500 });
@@ -517,6 +982,25 @@ export async function DELETE(req: NextRequest) {
     .eq("id", ticketId);
   if (deleteTicketError) {
     return NextResponse.json({ ok: false, error: deleteTicketError.message }, { status: 500 });
+  }
+
+  try {
+    await recalculateFeedBinLayerState(
+      admin,
+      Array.from(
+        new Set(
+          (dropResult.data ?? [])
+            .map((row) => row.feed_bin_id)
+            .filter((value): value is string => typeof value === "string" && value.length > 0),
+        ),
+      ),
+    );
+    await recalculateFeedOrderReceipts(admin, farmIds);
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, error: error instanceof Error ? error.message : "Failed to refresh inferred feed-bin state." },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ ok: true, deleted: true }, { status: 200 });

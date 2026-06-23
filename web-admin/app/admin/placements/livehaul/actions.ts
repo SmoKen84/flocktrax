@@ -1,13 +1,32 @@
 "use server";
 
+import { createHash } from "crypto";
 import { revalidatePath } from "next/cache";
 
+import {
+  BILL_OF_LADING_DOCUMENT_ROLE,
+  DOCUMENT_ARCHIVE_BUCKET,
+} from "@/lib/document-archive";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type LivehaulActionState = {
   status: "idle" | "success" | "error";
   message: string;
 };
+
+export type LivehaulDocumentActionState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/heic",
+  "image/heif",
+]);
 
 function coerce(value: FormDataEntryValue | null) {
   return String(value ?? "").trim();
@@ -53,6 +72,50 @@ async function getActor() {
     data: { user },
   } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
   return user;
+}
+
+function sanitizePathPart(value: string) {
+  return value
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function extensionForUpload(file: File) {
+  const fileName = file.name.trim();
+  const dotIndex = fileName.lastIndexOf(".");
+  if (dotIndex > -1 && dotIndex < fileName.length - 1) {
+    return sanitizePathPart(fileName.slice(dotIndex + 1)).toLowerCase();
+  }
+
+  switch (file.type) {
+    case "application/pdf":
+      return "pdf";
+    case "image/jpeg":
+      return "jpg";
+    case "image/png":
+      return "png";
+    case "image/heic":
+      return "heic";
+    case "image/heif":
+      return "heif";
+    default:
+      return "bin";
+  }
+}
+
+function buildLivehaulStoragePath(placement: {
+  id: string;
+  placement_key: string | null;
+  active_start: string | null;
+}, file: File) {
+  const anchorDate = placement.active_start?.trim() || "undated";
+  const placementLabel = sanitizePathPart(placement.placement_key?.trim() || placement.id);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const extension = extensionForUpload(file);
+
+  return `placements/livehaul/${anchorDate}/${placement.id}/${timestamp}-${placementLabel}.${extension}`;
 }
 
 async function inferCreateTargetSex(
@@ -225,6 +288,109 @@ export async function createLivehaulScheduleAction(
 
   revalidatePath("/admin/placements/livehaul");
   return { status: "success", message: "Livehaul schedule saved." };
+}
+
+export async function uploadLivehaulBillOfLadingAction(
+  _prevState: LivehaulDocumentActionState,
+  formData: FormData,
+): Promise<LivehaulDocumentActionState> {
+  const admin = createSupabaseAdminClient();
+  const actor = await getActor();
+
+  if (!admin || !actor) {
+    return {
+      status: "error",
+      message: "A signed-in admin user is required to archive livehaul packets.",
+    };
+  }
+
+  const placementId = coerce(formData.get("placement_id"));
+  const sourceKind = coerce(formData.get("source_kind")) || "manual_upload";
+  const notes = coerceNullableText(formData.get("notes"));
+  const fileValue = formData.get("document");
+
+  if (!placementId) {
+    return { status: "error", message: "Placement context was incomplete." };
+  }
+
+  if (!(fileValue instanceof File) || fileValue.size === 0) {
+    return { status: "error", message: "Choose a PDF or image file to archive." };
+  }
+
+  if (!ALLOWED_MIME_TYPES.has(fileValue.type)) {
+    return { status: "error", message: "Only PDF, JPG, PNG, HEIC, and HEIF originals are allowed." };
+  }
+
+  if (fileValue.size > MAX_UPLOAD_BYTES) {
+    return { status: "error", message: "The selected file is larger than the 20 MB archive limit." };
+  }
+
+  const { data: placementRow, error: placementError } = await admin
+    .from("placements")
+    .select("id,placement_key,active_start")
+    .eq("id", placementId)
+    .maybeSingle();
+
+  if (placementError || !placementRow) {
+    return { status: "error", message: placementError?.message ?? "The selected placement could not be found." };
+  }
+
+  const storagePath = buildLivehaulStoragePath(placementRow, fileValue);
+  const bytes = new Uint8Array(await fileValue.arrayBuffer());
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+
+  const { error: uploadError } = await admin.storage
+    .from(DOCUMENT_ARCHIVE_BUCKET)
+    .upload(storagePath, bytes, {
+      contentType: fileValue.type || "application/octet-stream",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    return { status: "error", message: uploadError.message };
+  }
+
+  const timestamp = new Date().toISOString();
+
+  const { error: retireError } = await admin
+    .from("document_archives")
+    .update({
+      is_current: false,
+      replaced_at: timestamp,
+      replaced_by: actor.id,
+    })
+    .eq("placement_id", placementId)
+    .eq("document_role", BILL_OF_LADING_DOCUMENT_ROLE)
+    .eq("is_current", true);
+
+  if (retireError) {
+    await admin.storage.from(DOCUMENT_ARCHIVE_BUCKET).remove([storagePath]);
+    return { status: "error", message: retireError.message };
+  }
+
+  const { error: insertError } = await admin.from("document_archives").insert({
+    document_role: BILL_OF_LADING_DOCUMENT_ROLE,
+    placement_id: placementId,
+    storage_bucket: DOCUMENT_ARCHIVE_BUCKET,
+    storage_path: storagePath,
+    original_filename: fileValue.name.trim() || "livehaul-packet",
+    mime_type: fileValue.type || null,
+    byte_size: fileValue.size,
+    sha256,
+    source_kind: sourceKind,
+    notes,
+    is_current: true,
+    created_by: actor.id,
+  });
+
+  if (insertError) {
+    await admin.storage.from(DOCUMENT_ARCHIVE_BUCKET).remove([storagePath]);
+    return { status: "error", message: insertError.message };
+  }
+
+  revalidatePath("/admin/placements/livehaul");
+  revalidatePath(`/admin/flock-closeout/${placementId}`);
+  return { status: "success", message: "Livehaul packet archived." };
 }
 
 export async function updateLivehaulScheduleAction(

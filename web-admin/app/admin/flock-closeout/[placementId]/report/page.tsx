@@ -83,8 +83,12 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
         <section className="closeout-report-section closeout-report-section--header">
           <div className="closeout-report-section-header">
             <div>
-              <p className="eyebrow">Closeout Header</p>
-              <h2>Overall Process Summary</h2>
+              <p className="eyebrow">Closeout</p>
+              <h2>
+                <span>{item.placementCode}</span>
+                <br />
+                <span>Process Summary</span>
+              </h2>
             </div>
             <p>Rolled-up production, feed, mortality, and breed results across all livehauls for this placement.</p>
           </div>
@@ -148,7 +152,7 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
           ) : null}
         </section>
 
-        <section className="closeout-report-section closeout-report-section--livehaul">
+        <section className="closeout-report-section closeout-report-section--livehaul digital-archive-report-break">
           <div className="closeout-report-section-header">
             <div>
               <p className="eyebrow">Livehaul Detail</p>
@@ -264,7 +268,7 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
           )}
         </section>
 
-        <section className="closeout-report-section closeout-report-section--feed">
+        <section className="closeout-report-section closeout-report-section--feed digital-archive-report-break">
           <div className="closeout-report-section-header">
             <div>
               <p className="eyebrow">Feed Report</p>

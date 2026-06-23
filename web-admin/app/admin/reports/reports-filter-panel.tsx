@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { startTransition, useMemo, useState } from "react";
 
+const CUSTOM_DAY_PRESETS = ["14", "21", "28"];
+
 type FarmGroupOption = {
   id: string;
   name: string;
@@ -38,6 +40,7 @@ type ReportsFilterPanelProps = {
   currentBarnId: string;
   currentFarmId: string;
   currentFlockCode: string;
+  currentDays: string;
   farmGroups: FarmGroupOption[];
   farms: FarmOption[];
   barns: BarnOption[];
@@ -51,6 +54,7 @@ export function ReportsFilterPanel({
   currentBarnId,
   currentFarmId,
   currentFlockCode,
+  currentDays,
   farmGroups,
   farms,
   barns,
@@ -63,6 +67,8 @@ export function ReportsFilterPanel({
   const [farmId, setFarmId] = useState(currentFarmId);
   const [barnId, setBarnId] = useState(currentBarnId);
   const [flockCode, setFlockCode] = useState(currentFlockCode);
+  const [days, setDays] = useState(currentDays);
+  const showDaysField = reportKey === "custom_feed_projection";
 
   const filteredFarms = useMemo(
     () => farms.filter((farm) => !farmGroupId || farm.farmGroupId === farmGroupId),
@@ -90,7 +96,13 @@ export function ReportsFilterPanel({
     [barnId, farmGroupId, farmId, flocks],
   );
 
-  function pushFilters(nextFarmGroupId: string, nextFarmId: string, nextBarnId: string, nextFlockCode: string) {
+  function pushFilters(
+    nextFarmGroupId: string,
+    nextFarmId: string,
+    nextBarnId: string,
+    nextFlockCode: string,
+    nextDays: string,
+  ) {
     const params = new URLSearchParams();
     params.set("category", categoryKey);
     params.set("report", reportKey);
@@ -98,6 +110,7 @@ export function ReportsFilterPanel({
     if (nextFarmId) params.set("farmId", nextFarmId);
     if (nextBarnId) params.set("barnId", nextBarnId);
     if (nextFlockCode) params.set("flockCode", nextFlockCode);
+    if (showDaysField && nextDays) params.set("days", nextDays);
 
     const query = params.toString();
     startTransition(() => {
@@ -131,7 +144,7 @@ export function ReportsFilterPanel({
     setFarmId(nextFarmId);
     setBarnId(nextBarnId);
     setFlockCode(nextFlockCode);
-    pushFilters(nextFarmGroupId, nextFarmId, nextBarnId, nextFlockCode);
+    pushFilters(nextFarmGroupId, nextFarmId, nextBarnId, nextFlockCode, days);
   }
 
   function handleFarmChange(nextFarmId: string) {
@@ -156,7 +169,7 @@ export function ReportsFilterPanel({
     setFarmId(nextFarmId);
     setBarnId(nextBarnId);
     setFlockCode(nextFlockCode);
-    pushFilters(farmGroupId, nextFarmId, nextBarnId, nextFlockCode);
+    pushFilters(farmGroupId, nextFarmId, nextBarnId, nextFlockCode, days);
   }
 
   function handleBarnChange(nextBarnId: string) {
@@ -172,12 +185,22 @@ export function ReportsFilterPanel({
 
     setBarnId(nextBarnId);
     setFlockCode(nextFlockCode);
-    pushFilters(farmGroupId, farmId, nextBarnId, nextFlockCode);
+    pushFilters(farmGroupId, farmId, nextBarnId, nextFlockCode, days);
   }
 
   function handleFlockChange(nextFlockCode: string) {
     setFlockCode(nextFlockCode);
-    pushFilters(farmGroupId, farmId, barnId, nextFlockCode);
+    pushFilters(farmGroupId, farmId, barnId, nextFlockCode, days);
+  }
+
+  function handleDaysChange(nextDays: string) {
+    setDays(nextDays);
+    pushFilters(farmGroupId, farmId, barnId, flockCode, nextDays);
+  }
+
+  function handlePresetClick(nextDays: string) {
+    setDays(nextDays);
+    pushFilters(farmGroupId, farmId, barnId, flockCode, nextDays);
   }
 
   const clearHref = buildReportsHubHref({
@@ -189,6 +212,8 @@ export function ReportsFilterPanel({
     farmId,
     barnId,
     flockCode,
+    days,
+    reportKey,
   });
 
   return (
@@ -241,6 +266,32 @@ export function ReportsFilterPanel({
         </select>
       </label>
 
+      {showDaysField ? (
+        <label>
+          <span>Days</span>
+          <input
+            max={45}
+            min={1}
+            onChange={(event) => handleDaysChange(event.target.value)}
+            type="number"
+            value={days}
+          />
+          <div className="reports-hub-days-presets">
+            {CUSTOM_DAY_PRESETS.map((preset) => (
+              <button
+                className="button-secondary reports-hub-days-preset"
+                data-active={days === preset}
+                key={preset}
+                onClick={() => handlePresetClick(preset)}
+                type="button"
+              >
+                {preset} Days
+              </button>
+            ))}
+          </div>
+        </label>
+      ) : null}
+
       <div className="reports-hub-filter-actions">
         <Link className="button-secondary" href={clearHref} scroll={false}>
           Clear
@@ -284,17 +335,26 @@ function buildFeedProjectionPreviewHref({
   farmId,
   barnId,
   flockCode,
+  days,
+  reportKey,
 }: {
   farmGroupId?: string;
   farmId?: string;
   barnId?: string;
   flockCode?: string;
+  days?: string;
+  reportKey: string;
 }) {
   const params = new URLSearchParams();
   if (farmGroupId) params.set("farmGroupId", farmGroupId);
   if (farmId) params.set("farmId", farmId);
   if (barnId) params.set("barnId", barnId);
   if (flockCode) params.set("flockCode", flockCode);
+  if (reportKey === "custom_feed_projection" && days) params.set("days", days);
   const query = params.toString();
-  return query ? `/admin/reports/feed-projection?${query}` : "/admin/reports/feed-projection";
+  const pathname =
+    reportKey === "custom_feed_projection"
+      ? "/admin/reports/feed-projection-custom"
+      : "/admin/reports/feed-projection";
+  return query ? `${pathname}?${query}` : pathname;
 }

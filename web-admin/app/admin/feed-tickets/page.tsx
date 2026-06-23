@@ -15,6 +15,7 @@ export default async function FeedTicketsPage({ searchParams }: FeedTicketsPageP
     listMode: firstParam(params.listMode) === "drop" ? "drop" : "ticket",
     ticketNumber: firstParam(params.ticketNumber),
     ticketTypes: allParams(params.ticketType),
+    hasRedirectedDropsOnly: toBoolean(params.hasRedirectedDropsOnly),
     flockCode: firstParam(params.flockCode),
     farm: firstParam(params.farm),
     barn: firstParam(params.barn),

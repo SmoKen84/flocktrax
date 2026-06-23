@@ -10,6 +10,10 @@ import type {
   FlockRecord,
   PlacementLifecycleStage,
 } from "@/lib/types";
+import {
+  getPlacementDocumentSummaryMap,
+  HATCH_TICKET_DOCUMENT_ROLE,
+} from "@/lib/document-archive";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
 class AdminDataError extends Error {
@@ -130,6 +134,8 @@ type FeedInventorySnapshotRow = {
   barn_id: string | null;
   inventory_lbs: number | null;
   captured_at: string | null;
+  accessible_feed_type?: string | null;
+  queued_feed_type?: string | null;
 };
 
 type FeedOrderCommitmentRow = {
@@ -139,6 +145,20 @@ type FeedOrderCommitmentRow = {
   received_lbs: number | null;
   expected_delivery_date: string | null;
   status: string | null;
+  feed_type?: string | null;
+};
+
+type FeedBinStateRow = {
+  id: string;
+  barn_id: string | null;
+  binsentry_last_inventory_lbs: number | null;
+  binsentry_last_sync_at: string | null;
+  accessible_feed_type?: string | null;
+  accessible_feed_lbs?: number | null;
+  queued_feed_type?: string | null;
+  queued_feed_lbs?: number | null;
+  feed_state_effective_at?: string | null;
+  feed_state_source?: string | null;
 };
 
 type FeedDeliveredDropRow = {
@@ -292,20 +312,79 @@ async function fetchFeedInventorySnapshotsSafe(
 
   const { data, error } = await supabase
     .from("feed_inventory_snapshots")
-    .select("feed_bin_id,barn_id,inventory_lbs,captured_at")
+    .select("feed_bin_id,barn_id,inventory_lbs,captured_at,accessible_feed_type,queued_feed_type")
     .in("barn_id", barnIds)
     .order("captured_at", { ascending: false })
     .limit(4000);
 
   if (error) {
+    const fallbackResult = await supabase
+      .from("feed_inventory_snapshots")
+      .select("feed_bin_id,barn_id,inventory_lbs,captured_at")
+      .in("barn_id", barnIds)
+      .order("captured_at", { ascending: false })
+      .limit(4000);
+
+    if (fallbackResult.error) {
+      return {
+        rows: [] as FeedInventorySnapshotRow[],
+        available: false,
+      };
+    }
+
     return {
-      rows: [] as FeedInventorySnapshotRow[],
-      available: false,
+      rows: (fallbackResult.data ?? []) as FeedInventorySnapshotRow[],
+      available: true,
     };
   }
 
   return {
     rows: (data ?? []) as FeedInventorySnapshotRow[],
+    available: true,
+  };
+}
+
+async function fetchFeedBinsSafe(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  barnIds: string[],
+) {
+  if (!supabase || barnIds.length === 0) {
+    return {
+      rows: [] as FeedBinStateRow[],
+      available: false,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("feedbins")
+    .select(
+      "id,barn_id,binsentry_last_inventory_lbs,binsentry_last_sync_at,accessible_feed_type,accessible_feed_lbs,queued_feed_type,queued_feed_lbs,feed_state_effective_at,feed_state_source",
+    )
+    .in("barn_id", barnIds)
+    .order("bin_num", { ascending: true });
+
+  if (error) {
+    const fallbackResult = await supabase
+      .from("feedbins")
+      .select("id,barn_id,binsentry_last_inventory_lbs,binsentry_last_sync_at")
+      .in("barn_id", barnIds)
+      .order("bin_num", { ascending: true });
+
+    if (fallbackResult.error) {
+      return {
+        rows: [] as FeedBinStateRow[],
+        available: false,
+      };
+    }
+
+    return {
+      rows: (fallbackResult.data ?? []) as FeedBinStateRow[],
+      available: true,
+    };
+  }
+
+  return {
+    rows: (data ?? []) as FeedBinStateRow[],
     available: true,
   };
 }
@@ -326,7 +405,7 @@ async function fetchFeedOrderCommitmentsSafe(
     placementIds.length > 0
       ? supabase
           .from("feed_order_commitments")
-          .select("placement_id,barn_id,ordered_lbs,received_lbs,expected_delivery_date,status")
+          .select("placement_id,barn_id,ordered_lbs,received_lbs,expected_delivery_date,status,feed_type")
           .in("status", ["open", "partial"])
           .in("placement_id", placementIds)
           .order("expected_delivery_date", { ascending: true, nullsFirst: false })
@@ -335,7 +414,7 @@ async function fetchFeedOrderCommitmentsSafe(
     barnIds.length > 0
       ? supabase
           .from("feed_order_commitments")
-          .select("placement_id,barn_id,ordered_lbs,received_lbs,expected_delivery_date,status")
+          .select("placement_id,barn_id,ordered_lbs,received_lbs,expected_delivery_date,status,feed_type")
           .in("status", ["open", "partial"])
           .in("barn_id", barnIds)
           .is("placement_id", null)
@@ -345,9 +424,41 @@ async function fetchFeedOrderCommitmentsSafe(
   ]);
 
   if (placementResult.error || barnResult.error) {
+    const [fallbackPlacementResult, fallbackBarnResult] = await Promise.all([
+      placementIds.length > 0
+        ? supabase
+            .from("feed_order_commitments")
+            .select("placement_id,barn_id,ordered_lbs,received_lbs,expected_delivery_date,status")
+            .in("status", ["open", "partial"])
+            .in("placement_id", placementIds)
+            .order("expected_delivery_date", { ascending: true, nullsFirst: false })
+            .limit(2000)
+        : Promise.resolve({ data: [], error: null }),
+      barnIds.length > 0
+        ? supabase
+            .from("feed_order_commitments")
+            .select("placement_id,barn_id,ordered_lbs,received_lbs,expected_delivery_date,status")
+            .in("status", ["open", "partial"])
+            .in("barn_id", barnIds)
+            .is("placement_id", null)
+            .order("expected_delivery_date", { ascending: true, nullsFirst: false })
+            .limit(2000)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+
+    if (fallbackPlacementResult.error || fallbackBarnResult.error) {
+      return {
+        rows: [] as FeedOrderCommitmentRow[],
+        available: false,
+      };
+    }
+
     return {
-      rows: [] as FeedOrderCommitmentRow[],
-      available: false,
+      rows: [
+        ...((fallbackPlacementResult.data ?? []) as FeedOrderCommitmentRow[]),
+        ...((fallbackBarnResult.data ?? []) as FeedOrderCommitmentRow[]),
+      ],
+      available: true,
     };
   }
 
@@ -460,7 +571,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       supabase
         .from("app_settings")
         .select('group,name,value,updated_at')
-        .in("name", ["age_checkout_avail", "First_LH", "first_lh", "First-LH", "first-lh"]),
+        .in("name", ["age_checkout_avail", "First_LH", "first_lh", "First-LH", "first-lh", "starter_lbs_per_chick"]),
       supabase
         .from("breeds")
         .select("id,code,breed_name,sex,is_active")
@@ -523,6 +634,10 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     const appSettingRows = (appSettingsResult.data ?? []) as AppSettingRow[];
     const breedRows = (breedsResult.data ?? []) as BreedRow[];
     const breedSpecRows = (breedSpecsResult.data ?? []) as BreedSpecRow[];
+    const { rows: feedBinStateRows, available: feedBinStateAvailable } = await fetchFeedBinsSafe(
+      supabase,
+      barnRows.map((row) => row.id),
+    );
     const { rows: feedInventorySnapshotRows, available: feedInventoryAvailable } = await fetchFeedInventorySnapshotsSafe(
       supabase,
       barnRows.map((row) => row.id),
@@ -535,6 +650,10 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     const { rows: feedDeliveredDropRows } = await fetchFeedDeliveredDropsSafe(
       supabase,
       placementRows.map((row) => row.placement_key).filter((value): value is string => Boolean(value)),
+    );
+    const hatchTicketSummaryByPlacementId = await getPlacementDocumentSummaryMap(
+      placementRows.map((row) => row.id),
+      HATCH_TICKET_DOCUMENT_ROLE,
     );
     const checkoutAgeAvailability = appSettingRows
       .filter((row) => row.name === "age_checkout_avail")
@@ -731,6 +850,18 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     }
 
     const feedInventoryByBarnId = new Map<string, { pounds: number; snapshotAt: string | null }>();
+    const typedFeedStateByBarnId = new Map<
+      string,
+      {
+        starterAccessibleLbs: number;
+        growerAccessibleLbs: number;
+        starterQueuedLbs: number;
+        growerQueuedLbs: number;
+        typedStateCount: number;
+        effectiveAt: string | null;
+        stateSource: string | null;
+      }
+    >();
     const latestInventoryByKey = new Map<string, FeedInventorySnapshotRow>();
 
     for (const row of feedInventorySnapshotRows) {
@@ -757,11 +888,73 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       feedInventoryByBarnId.set(row.barn_id, bucket);
     }
 
+    for (const row of feedBinStateRows) {
+      if (!row.barn_id) {
+        continue;
+      }
+
+      const accessibleType = normalizeFeedType(row.accessible_feed_type);
+      const queuedType = normalizeFeedType(row.queued_feed_type);
+      const accessibleLbs =
+        typeof row.accessible_feed_lbs === "number" && Number.isFinite(row.accessible_feed_lbs)
+          ? Math.max(0, row.accessible_feed_lbs)
+          : accessibleType
+            ? Math.max(0, row.binsentry_last_inventory_lbs ?? 0)
+            : 0;
+      const queuedLbs =
+        typeof row.queued_feed_lbs === "number" && Number.isFinite(row.queued_feed_lbs)
+          ? Math.max(0, row.queued_feed_lbs)
+          : 0;
+      const hasTypedState = Boolean(accessibleType || queuedType);
+      const bucket = typedFeedStateByBarnId.get(row.barn_id) ?? {
+        starterAccessibleLbs: 0,
+        growerAccessibleLbs: 0,
+        starterQueuedLbs: 0,
+        growerQueuedLbs: 0,
+        typedStateCount: 0,
+        effectiveAt: null,
+        stateSource: null,
+      };
+
+      if (accessibleType === "starter") bucket.starterAccessibleLbs += accessibleLbs;
+      if (accessibleType === "grower") bucket.growerAccessibleLbs += accessibleLbs;
+      if (queuedType === "starter") bucket.starterQueuedLbs += queuedLbs;
+      if (queuedType === "grower") bucket.growerQueuedLbs += queuedLbs;
+      if (hasTypedState) bucket.typedStateCount += 1;
+      if (!bucket.effectiveAt || (row.feed_state_effective_at && row.feed_state_effective_at > bucket.effectiveAt)) {
+        bucket.effectiveAt = row.feed_state_effective_at ?? bucket.effectiveAt;
+      }
+      if (!bucket.stateSource && row.feed_state_source) {
+        bucket.stateSource = row.feed_state_source;
+      }
+
+      typedFeedStateByBarnId.set(row.barn_id, bucket);
+    }
+
     const feedOrderPlacementSpecificByPlacementId = new Map<
       string,
-      { pounds: number; count: number; nextEta: string | null }
+      {
+        pounds: number;
+        starterLbs: number;
+        growerLbs: number;
+        typedCount: number;
+        untypedCount: number;
+        count: number;
+        nextEta: string | null;
+      }
     >();
-    const feedOrderBarnGenericByBarnId = new Map<string, { pounds: number; count: number; nextEta: string | null }>();
+    const feedOrderBarnGenericByBarnId = new Map<
+      string,
+      {
+        pounds: number;
+        starterLbs: number;
+        growerLbs: number;
+        typedCount: number;
+        untypedCount: number;
+        count: number;
+        nextEta: string | null;
+      }
+    >();
     const deliveredFeedByPlacementCode = new Map<string, { starter: number; grower: number }>();
 
     for (const row of feedOrderCommitmentRows) {
@@ -771,14 +964,23 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       if (remainingLbs <= 0) {
         continue;
       }
+      const feedType = normalizeFeedType(row.feed_type);
 
       if (row.placement_id) {
         const bucket = feedOrderPlacementSpecificByPlacementId.get(row.placement_id) ?? {
           pounds: 0,
+          starterLbs: 0,
+          growerLbs: 0,
+          typedCount: 0,
+          untypedCount: 0,
           count: 0,
           nextEta: null,
         };
         bucket.pounds += remainingLbs;
+        if (feedType === "starter") bucket.starterLbs += remainingLbs;
+        if (feedType === "grower") bucket.growerLbs += remainingLbs;
+        if (feedType) bucket.typedCount += 1;
+        if (!feedType) bucket.untypedCount += 1;
         bucket.count += 1;
         if (row.expected_delivery_date && (!bucket.nextEta || row.expected_delivery_date < bucket.nextEta)) {
           bucket.nextEta = row.expected_delivery_date;
@@ -790,10 +992,18 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       if (row.barn_id) {
         const bucket = feedOrderBarnGenericByBarnId.get(row.barn_id) ?? {
           pounds: 0,
+          starterLbs: 0,
+          growerLbs: 0,
+          typedCount: 0,
+          untypedCount: 0,
           count: 0,
           nextEta: null,
         };
         bucket.pounds += remainingLbs;
+        if (feedType === "starter") bucket.starterLbs += remainingLbs;
+        if (feedType === "grower") bucket.growerLbs += remainingLbs;
+        if (feedType) bucket.typedCount += 1;
+        if (!feedType) bucket.untypedCount += 1;
         bucket.count += 1;
         if (row.expected_delivery_date && (!bucket.nextEta || row.expected_delivery_date < bucket.nextEta)) {
           bucket.nextEta = row.expected_delivery_date;
@@ -1198,6 +1408,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       });
       const starterOrderableRemainingLbs = Math.round(Math.max(0, typedProjection.starterTotal ?? 0));
       const feedInventory = feedInventoryByBarnId.get(barn.id) ?? null;
+      const typedFeedState = typedFeedStateByBarnId.get(barn.id) ?? null;
       const feedOrdersForPlacement = row ? feedOrderPlacementSpecificByPlacementId.get(row.id) ?? null : null;
       const feedOrdersForBarn = feedOrderBarnGenericByBarnId.get(barn.id) ?? null;
       const feedInventoryOnHandLbs = feedInventoryAvailable
@@ -1230,6 +1441,52 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         feedProjection.total !== null && feedProjectedSupplyLbs !== null
           ? Math.max(0, Math.round(feedProjection.total - feedProjectedSupplyLbs))
           : null;
+      const feedInventoryStarterAccessibleLbs =
+        feedBinStateAvailable && typedFeedState?.typedStateCount
+          ? Math.round(Math.max(0, typedFeedState?.starterAccessibleLbs ?? 0))
+          : null;
+      const feedInventoryGrowerAccessibleLbs =
+        feedBinStateAvailable && typedFeedState?.typedStateCount
+          ? Math.round(Math.max(0, typedFeedState?.growerAccessibleLbs ?? 0))
+          : null;
+      const feedInventoryStarterQueuedLbs =
+        feedBinStateAvailable && typedFeedState?.typedStateCount
+          ? Math.round(Math.max(0, typedFeedState?.starterQueuedLbs ?? 0))
+          : null;
+      const feedInventoryGrowerQueuedLbs =
+        feedBinStateAvailable && typedFeedState?.typedStateCount
+          ? Math.round(Math.max(0, typedFeedState?.growerQueuedLbs ?? 0))
+          : null;
+      const typedOrderCount = (feedOrdersForPlacement?.typedCount ?? 0) + (feedOrdersForBarn?.typedCount ?? 0);
+      const feedOnOrderStarterLbs = feedOrdersAvailable
+        ? Math.round(Math.max(0, feedOrdersForPlacement?.starterLbs ?? 0) + Math.max(0, feedOrdersForBarn?.starterLbs ?? 0))
+        : null;
+      const feedOnOrderGrowerLbs = feedOrdersAvailable
+        ? Math.round(Math.max(0, feedOrdersForPlacement?.growerLbs ?? 0) + Math.max(0, feedOrdersForBarn?.growerLbs ?? 0))
+        : null;
+      const typedOrderingAvailable =
+        feedBinStateAvailable &&
+        feedOrdersAvailable &&
+        ((typedFeedState?.typedStateCount ?? 0) > 0 || typedOrderCount > 0) &&
+        (feedOrdersForPlacement?.untypedCount ?? 0) + (feedOrdersForBarn?.untypedCount ?? 0) === 0;
+      const starterRecommendedOrderLbs =
+        typedOrderingAvailable && typedProjection.starterTotal !== null
+          ? Math.max(0, Math.round((typedProjection.starterTotal ?? 0) - (feedInventoryStarterAccessibleLbs ?? 0) - (feedOnOrderStarterLbs ?? 0)))
+          : null;
+      const growerRecommendedOrderLbs =
+        typedOrderingAvailable && typedProjection.growerTotal !== null
+          ? Math.max(0, Math.round((typedProjection.growerTotal ?? 0) - (feedInventoryGrowerAccessibleLbs ?? 0) - (feedOnOrderGrowerLbs ?? 0)))
+          : null;
+      const typedRecommendedOrderTotalLbs =
+        starterRecommendedOrderLbs !== null && growerRecommendedOrderLbs !== null
+          ? starterRecommendedOrderLbs + growerRecommendedOrderLbs
+          : null;
+      const feedOrderingMode =
+        typedRecommendedOrderTotalLbs !== null
+          ? ("typed" as const)
+          : feedRecommendedOrderLbs !== null
+            ? ("legacy" as const)
+            : ("pending" as const);
 
       return {
         id: row?.id ?? `barn-${barn.id}`,
@@ -1286,9 +1543,18 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         feedOnOrderLbs,
         feedOnOrderOpenCount,
         feedOnOrderNextEta,
-        feedRecommendedOrderLbs,
+        feedRecommendedOrderLbs: typedRecommendedOrderTotalLbs ?? feedRecommendedOrderLbs,
         feedProjectedSupplyLbs,
         feedProjectedNetPositionLbs,
+        feedInventoryStarterAccessibleLbs,
+        feedInventoryGrowerAccessibleLbs,
+        feedInventoryStarterQueuedLbs,
+        feedInventoryGrowerQueuedLbs,
+        feedOnOrderStarterLbs,
+        feedOnOrderGrowerLbs,
+        starterRecommendedOrderLbs,
+        growerRecommendedOrderLbs,
+        feedOrderingMode,
         starterLbsPerChick,
         starterTargetLbs,
         starterDeliveredLbs: Math.round(deliveredFeed.starter),
@@ -1322,6 +1588,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
           canEditPlacementFields: false,
           message: null,
         },
+        hatchTicketDocument: row ? hatchTicketSummaryByPlacementId.get(row.id) ?? null : null,
         nextPlacement: nextPlacementRow
           ? {
               placementCode: nextPlacementRow.placement_key,
@@ -1789,6 +2056,11 @@ function ageDaysOnSampleDate(placedDate: string | null, sampleDate: string | nul
   const placedUtc = Date.UTC(placed.getUTCFullYear(), placed.getUTCMonth(), placed.getUTCDate());
   const sampleUtc = Date.UTC(sample.getUTCFullYear(), sample.getUTCMonth(), sample.getUTCDate());
   return Math.round((sampleUtc - placedUtc) / 86400000);
+}
+
+function normalizeFeedType(value: string | null | undefined) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return normalized === "starter" || normalized === "grower" ? normalized : null;
 }
 
 function normalizeBreedText(value: string | null | undefined) {

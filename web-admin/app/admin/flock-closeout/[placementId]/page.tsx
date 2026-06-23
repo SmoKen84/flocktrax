@@ -1,10 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CloseoutDocumentChecklist } from "@/app/admin/flock-closeout/closeout-document-panels";
 import { CloseoutLivehaulLoadsPanel } from "@/app/admin/flock-closeout/closeout-livehaul-load-forms";
 import { CloseoutWorksheetForm } from "@/app/admin/flock-closeout/closeout-worksheet-form";
 import { PageHeader } from "@/components/page-header";
 import { getCloseoutQueueData } from "@/lib/closeout-data";
+import {
+  BILL_OF_LADING_DOCUMENT_ROLE,
+  CLOSEOUT_SHEET_SNAPSHOT_DOCUMENT_ROLE,
+  getPlacementDocumentSummaryMap,
+  getPlacementDocumentListMap,
+  getPlacementCloseoutDocumentSummaryMap,
+  HATCH_TICKET_DOCUMENT_ROLE,
+  MISC_DOCUMENT_ROLE,
+} from "@/lib/document-archive";
 
 type CloseoutPlacementPageProps = {
   params: Promise<{
@@ -21,7 +31,18 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
     notFound();
   }
 
+  const [hatchTicketSummaryMap, closeoutSummaryMap, livehaulPacketSummaryMap, miscDocumentMap] = await Promise.all([
+    getPlacementDocumentSummaryMap([placementId], HATCH_TICKET_DOCUMENT_ROLE),
+    getPlacementCloseoutDocumentSummaryMap([placementId], CLOSEOUT_SHEET_SNAPSHOT_DOCUMENT_ROLE),
+    getPlacementDocumentSummaryMap([placementId], BILL_OF_LADING_DOCUMENT_ROLE),
+    getPlacementDocumentListMap([placementId], MISC_DOCUMENT_ROLE),
+  ]);
+
   const forceOpenLivehaulHref = buildForceLivehaulHref(item);
+  const hatchTicketSummary = hatchTicketSummaryMap.get(placementId) ?? null;
+  const closeoutSummary = closeoutSummaryMap.get(placementId) ?? null;
+  const livehaulPacketSummary = livehaulPacketSummaryMap.get(placementId) ?? null;
+  const miscDocuments = miscDocumentMap.get(placementId) ?? [];
 
   return (
     <>
@@ -49,6 +70,14 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
             </Link>
             <Link className="button-secondary" href={`/admin/placements/${item.placementId}/logs`}>
               Log Matrix Editor
+            </Link>
+            <Link
+              className="button-secondary"
+              href={`/admin/placements/${item.placementId}/logs/weight-report`}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Log Weight Report
             </Link>
             <Link className="button-secondary" href={forceOpenLivehaulHref}>
               Force Open Livehaul Scheduler
@@ -89,6 +118,15 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
       </section>
 
       <section className="closeout-detail-stack">
+        <CloseoutDocumentChecklist
+          closeoutSummary={closeoutSummary}
+          hatchTicket={hatchTicketSummary}
+          livehaulPacket={livehaulPacketSummary}
+          miscDocuments={miscDocuments}
+          placementCode={item.placementCode}
+          placementId={item.placementId}
+        />
+
         <CloseoutWorksheetForm item={item} />
 
         {item.livehauls.length > 0 ? (

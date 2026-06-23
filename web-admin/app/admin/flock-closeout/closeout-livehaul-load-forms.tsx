@@ -43,11 +43,11 @@ export function CloseoutLivehaulLoadsPanel({
           <p className="eyebrow">Livehaul Detail</p>
           <h3 className="closeout-livehaul-mainline">
             <span>{item.placementCode}</span>
-            <span>{formatLivehaulDay(livehaul.lhDate)}</span>
+            <span>{formatLivehaulDay(livehaul.actualDate ?? livehaul.lhDate)}</span>
           </h3>
           <p className="table-subtitle">{`LH${livehaul.sequenceNum ?? "--"} | ${formatStatus(livehaul.status)} | ${formatTargetSex(livehaul.targetSex)} | Target ${formatCount(livehaul.headTarget)} | Actual ${formatCount(livehaul.headActual)}`}</p>
           {livehaul.breedAgeDays !== null ? (
-            <p className="table-subtitle">{`Bird age on scheduled livehaul date: ${livehaul.breedAgeDays}d`}</p>
+            <p className="table-subtitle">{`Bird age on livehaul date: ${livehaul.breedAgeDays}d`}</p>
           ) : null}
           <CloseoutLivehaulStatusControl item={item} livehaul={livehaul} />
         </div>
@@ -457,7 +457,8 @@ function formatStatus(value: string) {
     .join(" ");
 }
 
-function formatLivehaulDay(value: string) {
+function formatLivehaulDay(value: string | null) {
+  if (!value) return "--";
   const date = new Date(`${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-US", {

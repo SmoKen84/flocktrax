@@ -43,11 +43,14 @@ type EditorDrop = {
   barn_code?: string | null;
   placement_id: string | null;
   placement_code?: string | null;
+  default_placement_id?: string | null;
+  default_placement_code?: string | null;
   feed_type: string | null;
   drop_weight_lbs: number | null;
   note: string | null;
   drop_order: number;
   off_farm_redirect?: boolean;
+  manual_flock_override?: boolean;
 };
 
 type EditorItem = {
@@ -74,6 +77,7 @@ type EditorPayload = {
   };
   settings?: {
     allowHistoricalEntry?: boolean;
+    canManualFlockCorrection?: boolean;
   };
   error?: string;
 };
@@ -114,6 +118,7 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
     nextVoucherNumber: null,
   });
   const [allowHistoricalEntry, setAllowHistoricalEntry] = useState(false);
+  const [canManualFlockCorrection, setCanManualFlockCorrection] = useState(false);
   const [recoverableDraft, setRecoverableDraft] = useState<EditorItem | null>(null);
 
   useEffect(() => {
@@ -135,7 +140,7 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
         if (cancelled) {
           return;
         }
-        const normalized = normalizeItem(payload.item);
+        const normalized = hydrateManualFlockOverrides(normalizeItem(payload.item), payload.placementOptions ?? []);
         const restoredDraft = readDraft(ticketId);
         setItem(normalized);
         setRecoverableDraft(restoredDraft);
@@ -150,6 +155,7 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
         setPlacementOptions(payload.placementOptions ?? []);
         setTicketNumberDefaults(payload.ticketNumberDefaults ?? { voucherPrefix: null, nextVoucherNumber: null });
         setAllowHistoricalEntry(payload.settings?.allowHistoricalEntry === true);
+        setCanManualFlockCorrection(payload.settings?.canManualFlockCorrection === true);
       } catch (error) {
         if (!cancelled) {
           setMessageTone("error");
@@ -207,7 +213,14 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
           barn_code: null,
           placement_id: null,
           placement_code: OFF_FARM_PLACEMENT_CODE,
+          default_placement_id: null,
+          default_placement_code: OFF_FARM_PLACEMENT_CODE,
+          manual_flock_override: false,
         };
+      }
+
+      if (drop.manual_flock_override) {
+        return drop;
       }
 
       const regPlacement = resolveRegPlacement(item, placementOptions, drop);
@@ -224,15 +237,19 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
 
       return {
         ...drop,
+        default_placement_id: drop.default_placement_id ?? regPlacement?.placement_id ?? null,
+        default_placement_code: drop.default_placement_code ?? regPlacement?.placement_code ?? null,
         placement_id: regPlacement?.placement_id ?? null,
         placement_code: regPlacement?.placement_code ?? null,
+        manual_flock_override: false,
       };
     });
 
     const changed = normalizedDrops.some(
       (drop, index) =>
         drop.placement_id !== item.drops[index]?.placement_id ||
-        drop.placement_code !== item.drops[index]?.placement_code,
+        drop.placement_code !== item.drops[index]?.placement_code ||
+        drop.manual_flock_override !== item.drops[index]?.manual_flock_override,
     );
 
     if (!changed) {
@@ -300,7 +317,7 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
       if (!response.ok || !payload.ok || !payload.item) {
         throw new Error(payload.error ?? "Feed ticket save failed.");
       }
-      const saved = normalizeItem(payload.item);
+      const saved = hydrateManualFlockOverrides(normalizeItem(payload.item), placementOptions);
       skipNextDraftWriteRef.current = true;
       setItem(saved);
       clearDraft(ticketId);
@@ -626,15 +643,46 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
               const isOffFarmRedirect = drop.off_farm_redirect === true;
               const currentPlacement = resolvePlacementOption(placementOptions, drop);
               const currentBin = resolveBinOption(item.bins, drop);
-              const regLockedPlacement =
+              const systemRegPlacement =
                 item.ticket_type === "Reg" && !isOffFarmRedirect ? resolveRegPlacement(item, placementOptions, drop) : null;
+              const canUseManualFlockCorrection =
+                canManualFlockCorrection && item.ticket_type === "Reg" && !isOffFarmRedirect;
+              const rememberedDefaultPlacementId = drop.default_placement_id ?? systemRegPlacement?.placement_id ?? null;
+              const rememberedDefaultPlacementCode = drop.default_placement_code ?? systemRegPlacement?.placement_code ?? null;
+              const placementDiffersFromSystem =
+                item.ticket_type === "Reg" &&
+                !isOffFarmRedirect &&
+                Boolean(drop.placement_id) &&
+                ((!rememberedDefaultPlacementId && Boolean(drop.feed_bin_id)) || rememberedDefaultPlacementId !== drop.placement_id);
+              const hasManualFlockOverride =
+                canUseManualFlockCorrection && (drop.manual_flock_override === true || placementDiffersFromSystem);
+              const regLockedPlacement =
+                item.ticket_type === "Reg" && !isOffFarmRedirect && !hasManualFlockOverride
+                  ? systemRegPlacement
+                  : null;
               const regCanManuallyPickHistorical = item.ticket_type === "Reg"
                 ? isRegManualFallbackAllowed(item, placementOptions, drop, allowHistoricalEntry)
                 : false;
-              const displayedPlacement = isOffFarmRedirect ? null : regLockedPlacement ?? currentPlacement;
+              const canEditPlacement =
+                !isOffFarmRedirect &&
+                (item.ticket_type !== "Reg" || regCanManuallyPickHistorical || hasManualFlockOverride);
+              const displayedPlacement = isOffFarmRedirect
+                ? null
+                : hasManualFlockOverride
+                  ? currentPlacement
+                  : regLockedPlacement ?? currentPlacement;
               const regManualPlacementOptions = item.ticket_type === "Reg" && regCanManuallyPickHistorical
                 ? resolveRegManualPlacementOptions(placementOptions, currentBin)
                 : [];
+              const manualCorrectionPlacementOptions =
+                item.ticket_type === "Reg" && hasManualFlockOverride
+                  ? resolveRegManualPlacementOptions(placementOptions, currentBin)
+                  : [];
+              const placementOptionsForSelect = hasManualFlockOverride
+                ? manualCorrectionPlacementOptions
+                : regCanManuallyPickHistorical
+                  ? regManualPlacementOptions
+                  : placementOptions;
 
               return (
                 <div className="feed-ticket-editor-drop-row" key={`${drop.id ?? "new"}-${index}`}>
@@ -648,8 +696,11 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                         feed_bin_id: nextBin?.feed_bin_id ?? null,
                         bin_code: nextBin?.bin_code ?? null,
                         barn_code: nextBin?.barn_code ?? null,
+                        default_placement_id: item.ticket_type === "Reg" ? nextRegPlacement?.placement_id ?? null : drop.default_placement_id ?? null,
+                        default_placement_code: item.ticket_type === "Reg" ? nextRegPlacement?.placement_code ?? null : drop.default_placement_code ?? null,
                         placement_id: item.ticket_type === "Reg" ? nextRegPlacement?.placement_id ?? null : drop.placement_id,
                         placement_code: item.ticket_type === "Reg" ? nextRegPlacement?.placement_code ?? null : drop.placement_code,
+                        manual_flock_override: false,
                       });
                     }}
                     value={drop.feed_bin_id ?? ""}
@@ -666,29 +717,63 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                         </option>
                       ))}
                   </select>
-                  <select
-                    disabled={isOffFarmRedirect || (item.ticket_type === "Reg" && !regCanManuallyPickHistorical)}
-                    onChange={(event) => {
-                      const nextPlacement = placementOptions.find((option) => option.placement_id === event.target.value) ?? null;
-                      updateDrop(index, item, setItem, {
-                        placement_id: nextPlacement?.placement_id ?? null,
-                        placement_code: nextPlacement?.placement_code ?? null,
-                      });
-                    }}
-                    value={isOffFarmRedirect ? OFF_FARM_PLACEMENT_CODE : displayedPlacement?.placement_id ?? ""}
-                  >
-                    {isOffFarmRedirect ? (
-                      <option value={OFF_FARM_PLACEMENT_CODE}>{OFF_FARM_PLACEMENT_CODE}</option>
-                    ) : item.ticket_type === "Reg" ? (
-                      regCanManuallyPickHistorical ? (
+                  <div className="feed-ticket-editor-flock-cell">
+                    <select
+                      disabled={!canEditPlacement}
+                      onChange={(event) => {
+                        const nextPlacement = placementOptions.find((option) => option.placement_id === event.target.value) ?? null;
+                        const nextPlacementId = nextPlacement?.placement_id ?? null;
+                        const nextManualOverride =
+                          item.ticket_type === "Reg" &&
+                          canUseManualFlockCorrection &&
+                          Boolean(nextPlacementId) &&
+                          ((!rememberedDefaultPlacementId && Boolean(drop.feed_bin_id)) || rememberedDefaultPlacementId !== nextPlacementId);
+                        updateDrop(index, item, setItem, {
+                          placement_id: nextPlacementId,
+                          placement_code: nextPlacement?.placement_code ?? null,
+                          manual_flock_override: nextManualOverride,
+                        });
+                      }}
+                      value={isOffFarmRedirect ? OFF_FARM_PLACEMENT_CODE : displayedPlacement?.placement_id ?? ""}
+                    >
+                      {isOffFarmRedirect ? (
+                        <option value={OFF_FARM_PLACEMENT_CODE}>{OFF_FARM_PLACEMENT_CODE}</option>
+                      ) : item.ticket_type === "Reg" ? (
+                        regCanManuallyPickHistorical || hasManualFlockOverride ? (
+                          <>
+                            <option value="">
+                              {hasManualFlockOverride
+                                ? (drop.feed_bin_id ? "Select corrected flock." : "Select Bin First")
+                                : (drop.feed_bin_id ? "No historical match. Select Flock." : "Select Bin First")}
+                            </option>
+                            {displayedPlacement ? (
+                              <option value={displayedPlacement.placement_id}>{formatPlacementLabel(displayedPlacement)}</option>
+                            ) : null}
+                            {placementOptionsForSelect
+                              .filter((option) => option.placement_id !== displayedPlacement?.placement_id)
+                              .map((option) => (
+                                <option key={option.placement_id} value={option.placement_id}>
+                                  {formatPlacementLabel(option)}
+                                </option>
+                              ))}
+                          </>
+                        ) : (
+                          <>
+                            <option value="">
+                              {drop.feed_bin_id ? "No active flock for selected bin" : "Select Bin First"}
+                            </option>
+                            {displayedPlacement ? (
+                              <option value={displayedPlacement.placement_id}>{formatPlacementLabel(displayedPlacement)}</option>
+                            ) : null}
+                          </>
+                        )
+                      ) : (
                         <>
-                          <option value="">
-                            {drop.feed_bin_id ? "No historical match. Select Flock." : "Select Bin First"}
-                          </option>
+                          <option value="">Select Flock</option>
                           {displayedPlacement ? (
                             <option value={displayedPlacement.placement_id}>{formatPlacementLabel(displayedPlacement)}</option>
                           ) : null}
-                          {regManualPlacementOptions
+                          {placementOptions
                             .filter((option) => option.placement_id !== displayedPlacement?.placement_id)
                             .map((option) => (
                               <option key={option.placement_id} value={option.placement_id}>
@@ -696,32 +781,31 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                               </option>
                             ))}
                         </>
-                      ) : (
-                        <>
-                          <option value="">
-                            {drop.feed_bin_id ? "No active flock for selected bin" : "Select Bin First"}
-                          </option>
-                          {displayedPlacement ? (
-                            <option value={displayedPlacement.placement_id}>{formatPlacementLabel(displayedPlacement)}</option>
-                          ) : null}
-                        </>
-                      )
-                    ) : (
-                      <>
-                        <option value="">Select Flock</option>
-                        {displayedPlacement ? (
-                          <option value={displayedPlacement.placement_id}>{formatPlacementLabel(displayedPlacement)}</option>
-                        ) : null}
-                        {placementOptions
-                          .filter((option) => option.placement_id !== displayedPlacement?.placement_id)
-                          .map((option) => (
-                            <option key={option.placement_id} value={option.placement_id}>
-                              {formatPlacementLabel(option)}
-                            </option>
-                          ))}
-                      </>
-                    )}
-                  </select>
+                      )}
+                    </select>
+                    {canUseManualFlockCorrection ? (
+                      <button
+                        className={`feed-ticket-editor-inline-toggle${hasManualFlockOverride ? " is-active" : ""}`}
+                        onClick={() => {
+                          if (hasManualFlockOverride) {
+                            updateDrop(index, item, setItem, {
+                              placement_id: rememberedDefaultPlacementId,
+                              placement_code: rememberedDefaultPlacementCode,
+                              manual_flock_override: false,
+                            });
+                            return;
+                          }
+
+                          updateDrop(index, item, setItem, {
+                            manual_flock_override: true,
+                          });
+                        }}
+                        type="button"
+                      >
+                        {hasManualFlockOverride ? "Default" : "Override"}
+                      </button>
+                    ) : null}
+                  </div>
                   <select
                     onChange={(event) => updateDrop(index, item, setItem, { feed_type: event.target.value || null })}
                     value={drop.feed_type ?? ""}
@@ -749,12 +833,18 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                               feed_bin_id: null,
                               bin_code: null,
                               barn_code: null,
+                              default_placement_id: null,
+                              default_placement_code: OFF_FARM_PLACEMENT_CODE,
                               placement_id: null,
                               placement_code: OFF_FARM_PLACEMENT_CODE,
+                              manual_flock_override: false,
                             }
                           : {
                               off_farm_redirect: false,
+                              default_placement_id: drop.default_placement_id ?? null,
+                              default_placement_code: drop.default_placement_code ?? null,
                               placement_code: null,
+                              manual_flock_override: false,
                             })}
                       type="checkbox"
                     />
@@ -833,8 +923,43 @@ function normalizeItem(item: EditorItem): EditorItem {
     drops: (item.drops ?? []).map((drop, index) => ({
       ...drop,
       off_farm_redirect: drop.off_farm_redirect === true,
+      manual_flock_override: drop.manual_flock_override === true,
+      default_placement_id: typeof drop.default_placement_id === "string" ? drop.default_placement_id : null,
+      default_placement_code: typeof drop.default_placement_code === "string" ? drop.default_placement_code : null,
       drop_order: typeof drop.drop_order === "number" ? drop.drop_order : index + 1,
     })),
+  };
+}
+
+function hydrateManualFlockOverrides(item: EditorItem, placementOptions: PlacementOption[]): EditorItem {
+  if (item.ticket_type !== "Reg") {
+    return item;
+  }
+
+  return {
+    ...item,
+    drops: item.drops.map((drop) => {
+      if (drop.off_farm_redirect) {
+        return {
+          ...drop,
+          default_placement_id: null,
+          default_placement_code: OFF_FARM_PLACEMENT_CODE,
+          manual_flock_override: false,
+        };
+      }
+
+      const resolvedPlacement = resolveRegPlacement(item, placementOptions, drop);
+      const inferredOverride =
+        Boolean(drop.placement_id) &&
+        ((!resolvedPlacement && Boolean(drop.feed_bin_id)) || resolvedPlacement?.placement_id !== drop.placement_id);
+
+      return {
+        ...drop,
+        default_placement_id: drop.default_placement_id ?? resolvedPlacement?.placement_id ?? null,
+        default_placement_code: drop.default_placement_code ?? resolvedPlacement?.placement_code ?? null,
+        manual_flock_override: inferredOverride,
+      };
+    }),
   };
 }
 
@@ -865,11 +990,14 @@ function buildEmptyDrop(order: number): EditorDrop {
     id: null,
     feed_bin_id: null,
     placement_id: null,
+    default_placement_id: null,
+    default_placement_code: null,
     feed_type: null,
     drop_weight_lbs: null,
     note: null,
     drop_order: order,
     off_farm_redirect: false,
+    manual_flock_override: false,
   };
 }
 

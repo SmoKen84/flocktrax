@@ -1,8 +1,13 @@
 "use server";
 
+import { createHash } from "crypto";
 import { revalidatePath } from "next/cache";
 
 import type { PlacementLogMatrixFormState } from "@/app/admin/placements/[placementId]/logs/form-state";
+import {
+  DOCUMENT_ARCHIVE_BUCKET,
+  HATCH_TICKET_DOCUMENT_ROLE,
+} from "@/lib/document-archive";
 import { getPlacementEditorActorAccess } from "@/lib/placement-editor-access";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PlacementLogMatrixRow } from "@/lib/placement-log-matrix";
@@ -28,6 +33,12 @@ type FarmContextRow = {
 type FlockContextRow = {
   id: string;
   date_placed: string | null;
+};
+
+type PlacementArchiveRow = {
+  id: string;
+  placement_key: string | null;
+  active_start: string | null;
 };
 
 type DailyRow = {
@@ -112,6 +123,77 @@ const WEIGHT_FIELDS = [
   ["procure", "procure"],
   ["otherNote", "other_note"],
 ] as const;
+
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/heic",
+  "image/heif",
+]);
+
+export type PlacementHatchTicketActionState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
+function coerce(value: FormDataEntryValue | null) {
+  return String(value ?? "").trim();
+}
+
+function coerceNullable(value: FormDataEntryValue | null) {
+  const normalized = coerce(value);
+  return normalized.length > 0 ? normalized : null;
+}
+
+async function getActorId() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+  return user?.id ?? null;
+}
+
+function sanitizePathPart(value: string) {
+  return value
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function extensionForUpload(file: File) {
+  const fileName = file.name.trim();
+  const dotIndex = fileName.lastIndexOf(".");
+  if (dotIndex > -1 && dotIndex < fileName.length - 1) {
+    return sanitizePathPart(fileName.slice(dotIndex + 1)).toLowerCase();
+  }
+
+  switch (file.type) {
+    case "application/pdf":
+      return "pdf";
+    case "image/jpeg":
+      return "jpg";
+    case "image/png":
+      return "png";
+    case "image/heic":
+      return "heic";
+    case "image/heif":
+      return "heif";
+    default:
+      return "bin";
+  }
+}
+
+function buildPlacementStoragePath(placement: PlacementArchiveRow, file: File) {
+  const placedDate = placement.active_start?.trim() || "undated";
+  const placementLabel = sanitizePathPart(placement.placement_key?.trim() || placement.id);
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const extension = extensionForUpload(file);
+
+  return `placements/hatch-tickets/${placedDate}/${placement.id}/${timestamp}-${placementLabel}.${extension}`;
+}
 
 export async function savePlacementLogMatrixAction(
   _prevState: PlacementLogMatrixFormState,
@@ -335,6 +417,145 @@ export async function savePlacementLogMatrixAction(
     message: `Saved ${savedTables} log update${savedTables === 1 ? "" : "s"} across ${savedDates} date${savedDates === 1 ? "" : "s"}.`,
     savedDates,
     savedTables,
+  };
+}
+
+export async function uploadPlacementHatchTicketAction(
+  _prevState: PlacementHatchTicketActionState,
+  formData: FormData,
+): Promise<PlacementHatchTicketActionState> {
+  const admin = createSupabaseAdminClient();
+  const actorId = await getActorId();
+
+  if (!admin || !actorId) {
+    return {
+      status: "error",
+      message: "A signed-in admin user is required to archive hatch tickets.",
+    };
+  }
+
+  const placementId = coerce(formData.get("placement_id"));
+  const sourceKind = coerce(formData.get("source_kind")) || "manual_upload";
+  const notes = coerceNullable(formData.get("notes"));
+  const fileValue = formData.get("document");
+
+  if (!placementId) {
+    return {
+      status: "error",
+      message: "Placement id is required.",
+    };
+  }
+
+  if (!(fileValue instanceof File) || fileValue.size === 0) {
+    return {
+      status: "error",
+      message: "Choose a PDF or image file to archive.",
+    };
+  }
+
+  if (!ALLOWED_MIME_TYPES.has(fileValue.type)) {
+    return {
+      status: "error",
+      message: "Only PDF, JPG, PNG, HEIC, and HEIF originals are allowed.",
+    };
+  }
+
+  if (fileValue.size > MAX_UPLOAD_BYTES) {
+    return {
+      status: "error",
+      message: "The selected file is larger than the 20 MB archive limit.",
+    };
+  }
+
+  const { data: placementRows, error: placementError } = await admin
+    .from("placements")
+    .select("id,placement_key,active_start")
+    .eq("id", placementId)
+    .limit(1);
+
+  if (placementError) {
+    return {
+      status: "error",
+      message: placementError.message,
+    };
+  }
+
+  const placement = (placementRows?.[0] ?? null) as PlacementArchiveRow | null;
+  if (!placement) {
+    return {
+      status: "error",
+      message: "The selected placement could not be found.",
+    };
+  }
+
+  const storagePath = buildPlacementStoragePath(placement, fileValue);
+  const bytes = new Uint8Array(await fileValue.arrayBuffer());
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+
+  const { error: uploadError } = await admin.storage
+    .from(DOCUMENT_ARCHIVE_BUCKET)
+    .upload(storagePath, bytes, {
+      contentType: fileValue.type || "application/octet-stream",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    return {
+      status: "error",
+      message: uploadError.message,
+    };
+  }
+
+  const timestamp = new Date().toISOString();
+
+  const { error: retireError } = await admin
+    .from("document_archives")
+    .update({
+      is_current: false,
+      replaced_at: timestamp,
+      replaced_by: actorId,
+    })
+    .eq("placement_id", placementId)
+    .eq("document_role", HATCH_TICKET_DOCUMENT_ROLE)
+    .eq("is_current", true);
+
+  if (retireError) {
+    await admin.storage.from(DOCUMENT_ARCHIVE_BUCKET).remove([storagePath]);
+    return {
+      status: "error",
+      message: retireError.message,
+    };
+  }
+
+  const { error: insertError } = await admin.from("document_archives").insert({
+    document_role: HATCH_TICKET_DOCUMENT_ROLE,
+    placement_id: placementId,
+    storage_bucket: DOCUMENT_ARCHIVE_BUCKET,
+    storage_path: storagePath,
+    original_filename: fileValue.name.trim() || "hatch-ticket",
+    mime_type: fileValue.type || null,
+    byte_size: fileValue.size,
+    sha256,
+    source_kind: sourceKind,
+    notes,
+    is_current: true,
+    created_by: actorId,
+  });
+
+  if (insertError) {
+    await admin.storage.from(DOCUMENT_ARCHIVE_BUCKET).remove([storagePath]);
+    return {
+      status: "error",
+      message: insertError.message,
+    };
+  }
+
+  revalidatePath(`/admin/placements/${placementId}/logs`);
+  revalidatePath(`/admin/flock-closeout/${placementId}`);
+
+  return {
+    status: "success",
+    message: `Hatch ticket archived for ${placement.placement_key?.trim() || "placement"}.`,
   };
 }
 

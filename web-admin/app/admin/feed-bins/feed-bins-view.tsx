@@ -352,6 +352,38 @@ export async function FeedBinsView({
                           <span>Capacity (lbs)</span>
                           <input defaultValue={selectedBin.capacity} name="capacity" />
                         </label>
+                        <label className="field">
+                          <span>Accessible Feed Type</span>
+                          <select defaultValue={selectedBin.accessibleFeedType || ""} name="accessible_feed_type">
+                            <option value="">Not set</option>
+                            <option value="starter">Starter</option>
+                            <option value="grower">Grower</option>
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Accessible Feed (lbs)</span>
+                          <input defaultValue={selectedBin.accessibleFeedLbs} name="accessible_feed_lbs" />
+                        </label>
+                        <label className="field">
+                          <span>Queued Feed Type</span>
+                          <select defaultValue={selectedBin.queuedFeedType || ""} name="queued_feed_type">
+                            <option value="">Not set</option>
+                            <option value="starter">Starter</option>
+                            <option value="grower">Grower</option>
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Queued Feed (lbs)</span>
+                          <input defaultValue={selectedBin.queuedFeedLbs} name="queued_feed_lbs" />
+                        </label>
+                        <label className="field">
+                          <span>Feed State Effective At</span>
+                          <input defaultValue={selectedBin.feedStateEffectiveAt} name="feed_state_effective_at" placeholder="2026-06-17T12:00:00Z" />
+                        </label>
+                        <label className="field">
+                          <span>Feed State Source</span>
+                          <input defaultValue={selectedBin.feedStateSource} name="feed_state_source" placeholder="manual" />
+                        </label>
                       </div>
                     </div>
 

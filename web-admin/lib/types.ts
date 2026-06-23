@@ -80,6 +80,14 @@ export type PlacementLogEditorAccessRecord = {
   message: string | null;
 };
 
+export type LinkedDocumentRecord = {
+  documentId: string | null;
+  originalFilename: string | null;
+  uploadedAt: string | null;
+  sourceKind: string | null;
+  isOnFile: boolean;
+};
+
 export type BreedOptionRecord = {
   id: string;
   label: string;
@@ -170,12 +178,21 @@ export type ActivePlacementRecord = {
   feedProjectionLiveHaulDates: string[];
   feedInventoryOnHandLbs: number | null;
   feedInventorySnapshotAt: string | null;
+  feedInventoryStarterAccessibleLbs: number | null;
+  feedInventoryGrowerAccessibleLbs: number | null;
+  feedInventoryStarterQueuedLbs: number | null;
+  feedInventoryGrowerQueuedLbs: number | null;
   feedOnOrderLbs: number | null;
   feedOnOrderOpenCount: number;
   feedOnOrderNextEta: string | null;
+  feedOnOrderStarterLbs: number | null;
+  feedOnOrderGrowerLbs: number | null;
   feedRecommendedOrderLbs: number | null;
   feedProjectedSupplyLbs: number | null;
   feedProjectedNetPositionLbs: number | null;
+  starterRecommendedOrderLbs: number | null;
+  growerRecommendedOrderLbs: number | null;
+  feedOrderingMode: "typed" | "legacy" | "pending";
   starterLbsPerChick: number;
   starterTargetLbs: number;
   starterDeliveredLbs: number;
@@ -210,6 +227,7 @@ export type ActivePlacementRecord = {
   tileState: "live" | "awaiting" | "scheduled" | "empty";
   placementEditorAccess: PlacementEditorAccessRecord;
   closeoutLogEditorAccess?: PlacementLogEditorAccessRecord;
+  hatchTicketDocument?: LinkedDocumentRecord | null;
   nextPlacement: {
     placementCode: string;
     flockCode: string;

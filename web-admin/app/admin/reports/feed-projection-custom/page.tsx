@@ -6,21 +6,24 @@ import { PageHeader } from "@/components/page-header";
 import { getFeedProjectionReportData } from "@/lib/feed-projection-report-data";
 
 export const metadata: Metadata = {
-  title: "10 Day Feed Projection | FlockTrax Admin",
+  title: "Custom Feed Projection | FlockTrax Admin",
 };
 
-type FeedProjectionReportPageProps = {
+type FeedProjectionCustomReportPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function FeedProjectionReportPage({ searchParams }: FeedProjectionReportPageProps) {
+export default async function FeedProjectionCustomReportPage({
+  searchParams,
+}: FeedProjectionCustomReportPageProps) {
   const params = (await searchParams) ?? {};
   const farmGroupId = firstParam(params.farmGroupId);
   const farmId = firstParam(params.farmId);
   const barnId = firstParam(params.barnId);
   const flockCode = firstParam(params.flockCode)?.toLowerCase() ?? null;
+  const requestedDays = Number.parseInt(firstParam(params.days) ?? "14", 10);
   const report = await getFeedProjectionReportData({
-    windowDays: 10,
+    windowDays: requestedDays,
     farmGroupId,
     farmId,
     barnId,
@@ -31,8 +34,8 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
     <>
       <PageHeader
         eyebrow="Reports"
-        title="10 Day Feed Projection"
-        body="Matrix view of projected daily feed demand, on-hand inventory, and open orders across all barns."
+        title="Custom Feed Projection"
+        body="Matrix view of projected feed demand across a user-selected horizon so you can look past holidays and order farther ahead."
         actions={
           <Link
             className="button-secondary"
@@ -41,6 +44,7 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
               farmId: farmId ?? "",
               barnId: barnId ?? "",
               flockCode: flockCode ?? "",
+              days: String(report.windowDays),
             })}
           >
             <span aria-hidden="true">←</span>
@@ -57,7 +61,7 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
             <small>All barns, including inventory-only and future-assigned barns</small>
           </article>
           <article className="feed-projection-report-summary-card">
-            <span>10 Day Requirement</span>
+            <span>{`${report.windowDays} Day Requirement`}</span>
             <strong>{formatWeight(report.overallTotal)}</strong>
             <small>Summed from daily projected feed values</small>
           </article>
@@ -102,8 +106,8 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
           windowDates={report.windowDates}
           emptyColSpanExpanded={12 + report.windowDates.length}
           emptyColSpanCollapsed={12}
-          windowLabel="10 Day"
-          emptyMessage="No live or qualifying scheduled placements were found for the next 10 day window."
+          windowLabel={`${report.windowDays} Day`}
+          emptyMessage={`No live or qualifying scheduled placements were found for the next ${report.windowDays} day window.`}
         />
       </section>
     </>
@@ -158,19 +162,22 @@ function buildReportsHubHref({
   farmId,
   barnId,
   flockCode,
+  days,
 }: {
   farmGroupId?: string;
   farmId?: string;
   barnId?: string;
   flockCode?: string;
+  days?: string;
 }) {
   const params = new URLSearchParams({
     category: "feed_reports",
-    report: "ten_day_feed_requirements",
+    report: "custom_feed_projection",
   });
   if (farmGroupId) params.set("farmGroupId", farmGroupId);
   if (farmId) params.set("farmId", farmId);
   if (barnId) params.set("barnId", barnId);
   if (flockCode) params.set("flockCode", flockCode);
+  if (days) params.set("days", days);
   return `/admin/reports?${params.toString()}`;
 }

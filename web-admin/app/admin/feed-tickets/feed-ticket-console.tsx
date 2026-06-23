@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import type { FeedTicketAdminBundle, FeedTicketAdminRow } from "@/lib/feed-ticket-data";
 import { formatFeedTicketTypeHelp } from "@/lib/feed-ticket-types";
+import { FeedTicketDocumentUploader } from "./feed-ticket-document-uploader";
 import { FeedTicketEditor } from "./feed-ticket-editor";
 
 const ROWS_PER_PAGE = 12;
@@ -57,6 +58,10 @@ type TicketAggregateRow = {
   growerDropWeightLbs: number;
   dropCount: number;
   comment: string | null;
+  hasOriginalDocument: boolean;
+  originalDocumentId: string | null;
+  originalDocumentName: string | null;
+  originalDocumentUploadedAt: string | null;
 };
 
 type TicketTypeFilter = "Reg" | "xTran" | "iTran" | "f2f";
@@ -89,6 +94,7 @@ export function FeedTicketConsole({
   const [ticketTypes, setTicketTypes] = useState<TicketTypeFilter[]>(
     (bundle.filters.ticketTypes as TicketTypeFilter[]) ?? [],
   );
+  const [hasRedirectedDropsOnly, setHasRedirectedDropsOnly] = useState(bundle.filters.hasRedirectedDropsOnly);
   const [farm, setFarm] = useState(bundle.filters.farm);
   const [barn, setBarn] = useState(bundle.filters.barn);
   const [bin, setBin] = useState(bundle.filters.bin);
@@ -102,6 +108,7 @@ export function FeedTicketConsole({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [readerState, setReaderState] = useState<{ title: string; value: string } | null>(null);
   const [editorTicketId, setEditorTicketId] = useState<string | null>(null);
+  const [documentTicket, setDocumentTicket] = useState<{ ticketId: string; ticketNumber: string | null } | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>("deliveryDate");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -140,6 +147,7 @@ export function FeedTicketConsole({
     params.set("listMode", listMode);
     if (ticketNumber.trim()) params.set("ticketNumber", ticketNumber.trim());
     for (const ticketType of ticketTypes) params.append("ticketType", ticketType);
+    if (hasRedirectedDropsOnly) params.set("hasRedirectedDropsOnly", "true");
     if (farm.trim()) params.set("farm", farm.trim());
     if (barn.trim()) params.set("barn", barn.trim());
     if (bin.trim()) params.set("bin", bin.trim());
@@ -155,6 +163,7 @@ export function FeedTicketConsole({
   function clearFilters() {
     setTicketNumber("");
     setTicketTypes([]);
+    setHasRedirectedDropsOnly(false);
     setFarm("");
     setBarn("");
     setBin("");
@@ -214,6 +223,16 @@ export function FeedTicketConsole({
           printReportHelpText={ticketPrintReportOption?.subtitle ?? null}
           ticketId={editorTicketId === "__new__" ? null : editorTicketId}
           ticketTypeOptions={ticketTypeOptions}
+        />
+      ) : documentTicket ? (
+        <FeedTicketDocumentUploader
+          onClose={() => setDocumentTicket(null)}
+          onSaved={() => {
+            setDocumentTicket(null);
+            router.refresh();
+          }}
+          ticketId={documentTicket.ticketId}
+          ticketNumber={documentTicket.ticketNumber}
         />
       ) : (
         <>
@@ -328,6 +347,11 @@ export function FeedTicketConsole({
                 <input onChange={(event) => setSourceType(event.target.value)} placeholder="Type feedmill or source" type="text" value={sourceType} />
               </label>
 
+              <label className="feed-ticket-flat-check">
+                <input checked={hasRedirectedDropsOnly} onChange={(event) => setHasRedirectedDropsOnly(event.target.checked)} type="checkbox" />
+                <span>Show only tickets with Redirected drops.</span>
+              </label>
+
               <div className="feed-ticket-flat-field-grid">
                 <SelectorField
                   label="Farm:"
@@ -422,7 +446,9 @@ export function FeedTicketConsole({
             </div>
           </div>
 
-          <p className="feed-ticket-flat-summary-text">{buildSummaryText({ farm, barn, bin, flockCode, ticketNumber }, displayedRows.length)}</p>
+          <p className="feed-ticket-flat-summary-text">
+            {buildSummaryText({ farm, barn, bin, flockCode, ticketNumber, hasRedirectedDropsOnly }, displayedRows.length)}
+          </p>
 
           <div className="feed-ticket-flat-table-shell">
             <div className="feed-ticket-flat-table-wrap">
@@ -445,6 +471,7 @@ export function FeedTicketConsole({
                       <th>{renderSortHeader("Feed Type", "feedType", sortKey, sortDirection, handleSort)}</th>
                       <th>{renderSortHeader("Drop Weight", "dropWeightLbs", sortKey, sortDirection, handleSort)}</th>
                       <th>{renderSortHeader("Ticket", "ticketNumber", sortKey, sortDirection, handleSort)}</th>
+                      <th>Document</th>
                       <th>{renderSortHeader("Source", "source", sortKey, sortDirection, handleSort)}</th>
                       <th>{renderSortHeader("Gross Weight", "grossWeightLbs", sortKey, sortDirection, handleSort)}</th>
                       <th>Action</th>
@@ -466,14 +493,47 @@ export function FeedTicketConsole({
                           <td>{formatWeightCompact(row.dropWeightLbs)}</td>
                           <td>
                             <div className="feed-ticket-flat-subnote-cell">
-                              <strong>{row.ticketNumber || "--"}</strong>
+                              {row.originalDocumentId ? (
+                                <a
+                                  className="feed-ticket-flat-ticket-link"
+                                  href={`/api/document-archive/${row.originalDocumentId}`}
+                                  rel="noreferrer"
+                                  target="_blank"
+                                >
+                                  <strong>{row.ticketNumber || "--"}</strong>
+                                </a>
+                              ) : (
+                                <strong>{row.ticketNumber || "--"}</strong>
+                              )}
                               <span>{row.ticketType || "ticket ref"}</span>
                             </div>
                           </td>
+                          <td>{renderDocumentStatus(row.hasOriginalDocument, row.originalDocumentName, row.originalDocumentUploadedAt)}</td>
                           <td>{row.source || "--"}</td>
                           <td>{formatWeightCompact(row.grossWeightLbs)}</td>
                           <td className="list-action-cell">
                             <div className="list-action-stack">
+                              {row.originalDocumentId ? (
+                                <a
+                                  aria-label="Open archived original"
+                                  className="list-action-button list-action-button-more"
+                                  href={`/api/document-archive/${row.originalDocumentId}`}
+                                  rel="noreferrer"
+                                  target="_blank"
+                                  title="Open Original"
+                                >
+                                  Doc
+                                </a>
+                              ) : null}
+                              <button
+                                aria-label="Upload ticket original"
+                                className="list-action-button list-action-button-more"
+                                onClick={() => setDocumentTicket({ ticketId: row.ticketId, ticketNumber: row.ticketNumber })}
+                                title={row.hasOriginalDocument ? "Replace Original" : "Upload Original"}
+                                type="button"
+                              >
+                                <DocumentIcon />
+                              </button>
                               <button
                                 aria-label="Edit feed ticket"
                                 className="list-action-button list-action-button-edit"
@@ -489,7 +549,7 @@ export function FeedTicketConsole({
                       ))
                     ) : (
                       <tr>
-                        <td className="feed-ticket-flat-empty" colSpan={12}>
+                        <td className="feed-ticket-flat-empty" colSpan={13}>
                           No feed ticket deliveries matched the current filters.
                         </td>
                       </tr>
@@ -509,6 +569,7 @@ export function FeedTicketConsole({
                       </th>
                       <th>{renderSortHeader("Date", "deliveryDate", sortKey, sortDirection, handleSort)}</th>
                       <th>{renderSortHeader("Ticket", "ticketNumber", sortKey, sortDirection, handleSort)}</th>
+                      <th>Document</th>
                       <th>{renderSortHeader("Source", "source", sortKey, sortDirection, handleSort)}</th>
                       <th>{renderSortHeader("Gross Weight", "grossWeightLbs", sortKey, sortDirection, handleSort)}</th>
                       <th>{renderSortHeader("Farm", "farmName", sortKey, sortDirection, handleSort)}</th>
@@ -528,7 +589,24 @@ export function FeedTicketConsole({
                             <input checked={selectedIds.includes(row.id)} onChange={() => toggleSelected(row.id)} type="checkbox" />
                           </td>
                           <td>{formatDate(row.deliveryDate)}</td>
-                          <td>{row.ticketNumber || "--"}</td>
+                          <td>
+                            <div className="feed-ticket-flat-subnote-cell">
+                              {row.originalDocumentId ? (
+                                <a
+                                  className="feed-ticket-flat-ticket-link"
+                                  href={`/api/document-archive/${row.originalDocumentId}`}
+                                  rel="noreferrer"
+                                  target="_blank"
+                                >
+                                  <strong>{row.ticketNumber || "--"}</strong>
+                                </a>
+                              ) : (
+                                <strong>{row.ticketNumber || "--"}</strong>
+                              )}
+                              <span>{row.ticketType || "ticket"}</span>
+                            </div>
+                          </td>
+                          <td>{renderDocumentStatus(row.hasOriginalDocument, row.originalDocumentName, row.originalDocumentUploadedAt)}</td>
                           <td>{row.source || "--"}</td>
                           <td>{formatWeightCompact(row.grossWeightLbs)}</td>
                           <td>
@@ -555,6 +633,27 @@ export function FeedTicketConsole({
                           <td>{formatWeightCompact(row.dropWeightLbs)}</td>
                           <td className="list-action-cell">
                             <div className="list-action-stack">
+                              {row.originalDocumentId ? (
+                                <a
+                                  aria-label="Open archived original"
+                                  className="list-action-button list-action-button-more"
+                                  href={`/api/document-archive/${row.originalDocumentId}`}
+                                  rel="noreferrer"
+                                  target="_blank"
+                                  title="Open Original"
+                                >
+                                  Doc
+                                </a>
+                              ) : null}
+                              <button
+                                aria-label="Upload ticket original"
+                                className="list-action-button list-action-button-more"
+                                onClick={() => setDocumentTicket({ ticketId: row.ticketId, ticketNumber: row.ticketNumber })}
+                                title={row.hasOriginalDocument ? "Replace Original" : "Upload Original"}
+                                type="button"
+                              >
+                                <DocumentIcon />
+                              </button>
                               <button
                                 aria-label="Edit feed ticket"
                                 className="list-action-button list-action-button-edit"
@@ -570,7 +669,7 @@ export function FeedTicketConsole({
                       ))
                     ) : (
                       <tr>
-                        <td className="feed-ticket-flat-empty" colSpan={12}>
+                        <td className="feed-ticket-flat-empty" colSpan={13}>
                           No feed ticket deliveries matched the current filters.
                         </td>
                       </tr>
@@ -738,6 +837,10 @@ function groupTicketRows(rows: FeedTicketAdminRow[]): TicketAggregateRow[] {
         growerDropWeightLbs: row.feedType?.toLowerCase() === "grower" ? row.dropWeightLbs ?? 0 : 0,
         dropCount: 1,
         comment: row.comment,
+        hasOriginalDocument: row.hasOriginalDocument === true,
+        originalDocumentId: row.originalDocumentId ?? null,
+        originalDocumentName: row.originalDocumentName ?? null,
+        originalDocumentUploadedAt: row.originalDocumentUploadedAt ?? null,
       });
       continue;
     }
@@ -754,9 +857,36 @@ function groupTicketRows(rows: FeedTicketAdminRow[]): TicketAggregateRow[] {
     current.placementCode = joinUnique(current.placementCode, row.placementCode);
     current.feedType = joinUnique(current.feedType, row.feedType ? toFeedShortLabel(row.feedType) : null);
     current.comment = joinUnique(current.comment, row.comment);
+    current.hasOriginalDocument = current.hasOriginalDocument || row.hasOriginalDocument === true;
+    current.originalDocumentId = current.originalDocumentId ?? row.originalDocumentId ?? null;
+    current.originalDocumentName = current.originalDocumentName ?? row.originalDocumentName ?? null;
+    current.originalDocumentUploadedAt = current.originalDocumentUploadedAt ?? row.originalDocumentUploadedAt ?? null;
   }
 
   return Array.from(grouped.values());
+}
+
+function renderDocumentStatus(
+  hasOriginalDocument: boolean | undefined,
+  originalDocumentName: string | null | undefined,
+  uploadedAt: string | null | undefined,
+) {
+  if (!hasOriginalDocument) {
+    return <span className="feed-ticket-doc-status feed-ticket-doc-status-missing">Missing</span>;
+  }
+
+  const titleParts = [originalDocumentName ?? null, uploadedAt ? `Uploaded ${formatTimestamp(uploadedAt)}` : null]
+    .filter(Boolean)
+    .join(" | ");
+
+  return (
+    <span
+      className="feed-ticket-doc-status feed-ticket-doc-status-ready"
+      title={titleParts || "Archived original on file"}
+    >
+      Filed
+    </span>
+  );
 }
 
 function joinUnique(current: string | null, next: string | null) {
@@ -865,6 +995,7 @@ function buildSummaryText(
     bin: string;
     flockCode: string;
     ticketNumber: string;
+    hasRedirectedDropsOnly: boolean;
   },
   rowCount: number,
 ) {
@@ -873,6 +1004,9 @@ function buildSummaryText(
   }
   if (filters.ticketNumber) {
     return `Includes all matched feed_drops for Ticket ${filters.ticketNumber}`;
+  }
+  if (filters.hasRedirectedDropsOnly) {
+    return `Includes ${rowCount} records from tickets with redirected drops.`;
   }
   if (filters.farm || filters.barn || filters.bin) {
     const parts = [filters.farm, filters.barn, filters.bin].filter(Boolean);
@@ -896,6 +1030,19 @@ function formatDate(value: string | null | undefined) {
   }
 
   const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "numeric",
+    day: "2-digit",
+    year: "2-digit",
+  });
+}
+
+function formatTimestamp(value: string) {
+  const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return value;
   }
@@ -1015,6 +1162,37 @@ function PencilIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.9"
+      />
+    </svg>
+  );
+}
+
+function DocumentIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path
+        d="M8 3.75h5.9L18 7.85V18a2.25 2.25 0 0 1-2.25 2.25h-7.5A2.25 2.25 0 0 1 6 18V6A2.25 2.25 0 0 1 8.25 3.75Z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M13.75 3.9v3.35h3.35"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M9.25 11h5.5M9.25 14.25h5.5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
       />
     </svg>
   );

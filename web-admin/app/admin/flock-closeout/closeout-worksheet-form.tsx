@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 
 import {
   archivePlacementCloseoutAction,
+  recalculatePlacementCloseoutTotalsAction,
   savePlacementCloseoutDraftAction,
   type CloseoutFormState,
 } from "@/app/admin/flock-closeout/actions";
@@ -238,9 +239,17 @@ export function CloseoutWorksheetForm({ item }: { item: CloseoutQueueItem }) {
             <p className="table-subtitle">Feed consumed is taken directly from feed-ticket totals, including any flock-to-flock credit activity already booked through `f2f` tickets.</p>
           )}
 
-          <button className="button-primary" disabled={isPending} type="submit">
-            {isPending ? "Saving..." : "Save Closeout Draft"}
-          </button>
+          <div className="closeout-action-links">
+            <form action={recalculatePlacementCloseoutTotalsAction}>
+              <input name="placement_id" type="hidden" value={item.placementId} />
+              <button className="button-secondary" type="submit">
+                Recalculate Totals
+              </button>
+            </form>
+            <button className="button-primary" disabled={isPending} type="submit">
+              {isPending ? "Saving..." : "Save Closeout Draft"}
+            </button>
+          </div>
         </div>
       </form>
 

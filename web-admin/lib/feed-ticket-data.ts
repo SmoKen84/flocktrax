@@ -1,11 +1,13 @@
 import { unstable_noStore as noStore } from "next/cache";
 
+import { getFeedTicketDocumentSummaryMap } from "@/lib/document-archive";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
 export type FeedTicketAdminFilters = {
   listMode?: "ticket" | "drop" | null;
   ticketNumber?: string | null;
   ticketTypes?: string[] | null;
+  hasRedirectedDropsOnly?: boolean | null;
   flockCode?: string | null;
   farm?: string | null;
   barn?: string | null;
@@ -33,6 +35,11 @@ export type FeedTicketAdminRow = {
   dropWeightLbs: number | null;
   comment: string | null;
   offFarmRedirect: boolean;
+  hasOriginalDocument?: boolean;
+  originalDocumentId?: string | null;
+  originalDocumentName?: string | null;
+  originalDocumentUploadedAt?: string | null;
+  originalDocumentSourceKind?: string | null;
 };
 
 type FeedTicketAdminRowWithSort = FeedTicketAdminRow & {
@@ -45,6 +52,7 @@ export type FeedTicketAdminBundle = {
     listMode: "ticket" | "drop";
     ticketNumber: string;
     ticketTypes: string[];
+    hasRedirectedDropsOnly: boolean;
     flockCode: string;
     farm: string;
     barn: string;
@@ -197,6 +205,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
     listMode: filters.listMode === "drop" ? "drop" : "ticket",
     ticketNumber: normalize(filters.ticketNumber),
     ticketTypes: normalizeTicketTypes(filters.ticketTypes),
+    hasRedirectedDropsOnly: filters.hasRedirectedDropsOnly === true,
     flockCode: normalize(filters.flockCode),
     farm: normalize(filters.farm),
     barn: normalize(filters.barn),
@@ -239,6 +248,8 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
     return emptyFeedTicketBundle(normalizedFilters, collectSourceTypes(tickets), collectTicketTypes(tickets));
   }
 
+  const documentSummaryByTicketId = await getFeedTicketDocumentSummaryMap(ticketIds);
+
   const { data: dropRows, error: dropsError } = await admin
     .from("feed_drops")
     .select("id,feed_ticket_id,farm_id,barn_id,feed_bin_id,drop_weight,placement_code,type,comment,bin_code,off_farm_redirect")
@@ -248,6 +259,9 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
   }
 
   const drops = (dropRows ?? []) as FeedDropRow[];
+  const redirectedTicketIds = new Set(
+    drops.filter((drop) => drop.off_farm_redirect === true).map((drop) => drop.feed_ticket_id).filter(Boolean),
+  );
 
   const farmIds = Array.from(new Set(drops.map((row) => row.farm_id).filter(Boolean)));
   const barnIds = Array.from(new Set(drops.map((row) => row.barn_id).filter(Boolean)));
@@ -288,7 +302,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
   const shouldFilterType = normalizedFilters.includeStarter || normalizedFilters.includeGrower;
 
   const rows = drops
-    .map((drop) => {
+    .map((drop): FeedTicketAdminRowWithSort | null => {
       const ticket = ticketById.get(drop.feed_ticket_id);
       if (!ticket) {
         return null;
@@ -327,8 +341,11 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
           return null;
         }
       }
+      if (normalizedFilters.hasRedirectedDropsOnly && !redirectedTicketIds.has(ticket.id)) {
+        return null;
+      }
 
-      return {
+      const row: FeedTicketAdminRowWithSort = {
         id: drop.id,
         ticketId: ticket.id,
         deliveryDate: ticket.delivery_date ?? null,
@@ -344,8 +361,15 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
         dropWeightLbs: typeof drop.drop_weight === "number" ? drop.drop_weight : null,
         comment: normalize(drop.comment) || null,
         offFarmRedirect: drop.off_farm_redirect === true,
+        hasOriginalDocument: documentSummaryByTicketId.get(ticket.id)?.isOnFile ?? false,
+        originalDocumentId: documentSummaryByTicketId.get(ticket.id)?.documentId ?? null,
+        originalDocumentName: documentSummaryByTicketId.get(ticket.id)?.originalFilename ?? null,
+        originalDocumentUploadedAt: documentSummaryByTicketId.get(ticket.id)?.uploadedAt ?? null,
+        originalDocumentSourceKind: documentSummaryByTicketId.get(ticket.id)?.sourceKind ?? null,
         barnSortCode: barnSortCodeById.get(drop.barn_id ?? "") || null,
-      } satisfies FeedTicketAdminRowWithSort;
+      };
+
+      return row;
     })
     .filter((row): row is FeedTicketAdminRowWithSort => row !== null)
     .sort((a, b) => {
@@ -815,6 +839,9 @@ function buildSummaryText(
   }
   if (filters.ticketNumber) {
     return `Includes all matched feed_drops for Ticket ${filters.ticketNumber}`;
+  }
+  if (filters.hasRedirectedDropsOnly) {
+    return `Includes ${rows.length} records from tickets with redirected drops.`;
   }
   if (filters.farm || filters.barn || filters.bin) {
     const parts = [filters.farm, filters.barn, filters.bin].filter(Boolean);
