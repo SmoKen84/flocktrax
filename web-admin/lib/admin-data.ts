@@ -1406,7 +1406,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         daily: feedProjection.daily,
         starterRemainingObligationLbs,
       });
-      const starterOrderableRemainingLbs = Math.round(Math.max(0, typedProjection.starterTotal ?? 0));
+      const starterOrderableRemainingLbs = Math.round(Math.max(0, starterRemainingObligationLbs));
       const feedInventory = feedInventoryByBarnId.get(barn.id) ?? null;
       const typedFeedState = typedFeedStateByBarnId.get(barn.id) ?? null;
       const feedOrdersForPlacement = row ? feedOrderPlacementSpecificByPlacementId.get(row.id) ?? null : null;
@@ -1437,7 +1437,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         feedProjection.total !== null && feedProjectedSupplyLbs !== null
           ? feedProjectedSupplyLbs - feedProjection.total
           : null;
-      const feedRecommendedOrderLbs =
+      const legacyRecommendedOrderLbs =
         feedProjection.total !== null && feedProjectedSupplyLbs !== null
           ? Math.max(0, Math.round(feedProjection.total - feedProjectedSupplyLbs))
           : null;
@@ -1470,8 +1470,8 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         ((typedFeedState?.typedStateCount ?? 0) > 0 || typedOrderCount > 0) &&
         (feedOrdersForPlacement?.untypedCount ?? 0) + (feedOrdersForBarn?.untypedCount ?? 0) === 0;
       const starterRecommendedOrderLbs =
-        typedOrderingAvailable && typedProjection.starterTotal !== null
-          ? Math.max(0, Math.round((typedProjection.starterTotal ?? 0) - (feedInventoryStarterAccessibleLbs ?? 0) - (feedOnOrderStarterLbs ?? 0)))
+        feedOrdersAvailable
+          ? Math.max(0, Math.round(starterRemainingObligationLbs - (feedOnOrderStarterLbs ?? 0)))
           : null;
       const growerRecommendedOrderLbs =
         typedOrderingAvailable && typedProjection.growerTotal !== null
@@ -1481,10 +1481,15 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         starterRecommendedOrderLbs !== null && growerRecommendedOrderLbs !== null
           ? starterRecommendedOrderLbs + growerRecommendedOrderLbs
           : null;
+      const feedRecommendedOrderLbs = Math.max(
+        legacyRecommendedOrderLbs ?? 0,
+        typedRecommendedOrderTotalLbs ?? 0,
+        starterRecommendedOrderLbs ?? 0,
+      );
       const feedOrderingMode =
         typedRecommendedOrderTotalLbs !== null
           ? ("typed" as const)
-          : feedRecommendedOrderLbs !== null
+          : legacyRecommendedOrderLbs !== null
             ? ("legacy" as const)
             : ("pending" as const);
 
@@ -1543,7 +1548,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         feedOnOrderLbs,
         feedOnOrderOpenCount,
         feedOnOrderNextEta,
-        feedRecommendedOrderLbs: typedRecommendedOrderTotalLbs ?? feedRecommendedOrderLbs,
+        feedRecommendedOrderLbs,
         feedProjectedSupplyLbs,
         feedProjectedNetPositionLbs,
         feedInventoryStarterAccessibleLbs,
@@ -2217,7 +2222,6 @@ function buildTenDayFeedProjection({
     .filter((value) => Boolean(value.date))
     .slice()
     .sort((left, right) => left.date.localeCompare(right.date));
-  const scheduledPlacementStarterMinimumLbs = ageDays < 0 ? 12000 : 0;
   const scheduledLiveHaulDates = scheduledLiveHaulEvents.map((event) => event.date);
   const liveHaulDatesInWindow = scheduledLiveHaulDates.filter((date) => {
     return date > today && date <= addDays(today, 10);
@@ -2403,34 +2407,6 @@ function buildTenDayFeedProjection({
     }
   }
 
-  if (scheduledPlacementStarterMinimumLbs > 0) {
-    const arrivalWindowIndexes = daily
-      .map((entry, index) => ({ entry, index }))
-      .filter(({ entry }) => entry.ageDays >= 0 && entry.totalFeed !== null);
-    const projectedArrivalWindowTotal = arrivalWindowIndexes.reduce(
-      (sum, { entry }) => sum + (entry.totalFeed ?? 0),
-      0,
-    );
-
-    if (
-      arrivalWindowIndexes.length > 0 &&
-      projectedArrivalWindowTotal > 0 &&
-      projectedArrivalWindowTotal < scheduledPlacementStarterMinimumLbs
-    ) {
-      const firstArrivalIndex = arrivalWindowIndexes[0]?.index ?? -1;
-      if (firstArrivalIndex >= 0) {
-        const delta = scheduledPlacementStarterMinimumLbs - projectedArrivalWindowTotal;
-        const firstArrivalEntry = daily[firstArrivalIndex];
-        if (firstArrivalEntry && firstArrivalEntry.totalFeed !== null) {
-          daily[firstArrivalIndex] = {
-            ...firstArrivalEntry,
-            totalFeed: firstArrivalEntry.totalFeed + delta,
-          };
-        }
-      }
-    }
-  }
-
   const feedValues = daily
     .map((entry) => entry.totalFeed)
     .filter((value): value is number => value !== null && Number.isFinite(value));
@@ -2463,7 +2439,6 @@ function splitFeedProjectionByType({
   }>;
   starterRemainingObligationLbs: number;
 }) {
-  const starterOrderingCutoffDay = 14;
   let remainingStarter = Math.max(0, starterRemainingObligationLbs);
   let starterTotal = 0;
   let growerTotal = 0;
@@ -2477,8 +2452,7 @@ function splitFeedProjectionByType({
       };
     }
 
-    const starterFeed =
-      entry.ageDays <= starterOrderingCutoffDay ? Math.min(entry.totalFeed, remainingStarter) : 0;
+    const starterFeed = Math.min(entry.totalFeed, remainingStarter);
     const growerFeed = Math.max(0, entry.totalFeed - starterFeed);
     remainingStarter = Math.max(0, remainingStarter - starterFeed);
     starterTotal += starterFeed;

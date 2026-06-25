@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { FeedProjectionReportActions } from "@/app/admin/reports/feed-projection/feed-projection-report-actions";
 import { FeedProjectionReportTable } from "@/app/admin/reports/feed-projection/feed-projection-report-table";
 import { PageHeader } from "@/components/page-header";
 import { getFeedProjectionReportData } from "@/lib/feed-projection-report-data";
@@ -25,27 +26,31 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
     farmId,
     barnId,
     flockCode,
+    reportMode: "operational",
   });
 
   return (
-    <>
+    <div className="feed-projection-report-page">
       <PageHeader
         eyebrow="Reports"
         title="10 Day Feed Projection"
         body="Matrix view of projected daily feed demand, on-hand inventory, and open orders across all barns."
         actions={
-          <Link
-            className="button-secondary"
-            href={buildReportsHubHref({
-              farmGroupId: farmGroupId ?? "",
-              farmId: farmId ?? "",
-              barnId: barnId ?? "",
-              flockCode: flockCode ?? "",
-            })}
-          >
-            <span aria-hidden="true">←</span>
-            <span>Back to Reports</span>
-          </Link>
+          <>
+            <FeedProjectionReportActions />
+            <Link
+              className="button-secondary"
+              href={buildReportsHubHref({
+                farmGroupId: farmGroupId ?? "",
+                farmId: farmId ?? "",
+                barnId: barnId ?? "",
+                flockCode: flockCode ?? "",
+              })}
+            >
+              <span aria-hidden="true">←</span>
+              <span>Back to Reports</span>
+            </Link>
+          </>
         }
       />
 
@@ -103,10 +108,11 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
           emptyColSpanExpanded={12 + report.windowDates.length}
           emptyColSpanCollapsed={12}
           windowLabel="10 Day"
+          reportMode="operational"
           emptyMessage="No live or qualifying scheduled placements were found for the next 10 day window."
         />
       </section>
-    </>
+    </div>
   );
 }
 

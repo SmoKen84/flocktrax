@@ -11141,6 +11141,10 @@ tr:last-child td {
     display: none !important;
   }
 
+  .feed-projection-report-page > .hero-panel {
+    display: none !important;
+  }
+
   .feed-ticket-print-page {
     break-after: auto !important;
     page-break-after: auto !important;
@@ -11183,8 +11187,20 @@ tr:last-child td {
     padding: 0 !important;
   }
 
+  .feed-projection-report-page {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   .closeout-report-shell {
     padding-top: 0 !important;
+  }
+
+  .feed-projection-report-shell {
+    padding-top: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    border-color: rgba(0, 0, 0, 0.16) !important;
   }
 
   .closeout-report-section--header {
@@ -13750,18 +13766,29 @@ tr:last-child td {
 .feed-projection-report-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1800px;
+  min-width: 1620px;
 }
 
 .feed-projection-report-table.is-collapsed {
-  min-width: 1260px;
+  min-width: 850px;
+  font-size: 0.69rem;
 }
 
 .feed-projection-report-table th,
 .feed-projection-report-table td {
-  padding: 0.75rem 0.8rem;
+  padding: 0.68rem 0.58rem;
   border-bottom: 1px solid rgba(160, 122, 74, 0.12);
   vertical-align: middle;
+}
+
+.feed-projection-report-table.is-collapsed th,
+.feed-projection-report-table.is-collapsed td {
+  padding: 0.42rem 0.28rem;
+}
+
+.feed-projection-report-table.is-collapsed .feed-projection-report-number-col {
+  padding-left: 0.22rem;
+  padding-right: 0.22rem;
 }
 
 .feed-projection-report-table th {
@@ -13773,6 +13800,11 @@ tr:last-child td {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   z-index: 1;
+}
+
+.feed-projection-report-table.is-collapsed th {
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
 }
 
 .feed-projection-report-sticky-col {
@@ -13789,12 +13821,43 @@ tr:last-child td {
 
 .feed-projection-report-sticky-col--farm {
   left: 0;
-  min-width: 150px;
+  min-width: 76px;
 }
 
 .feed-projection-report-sticky-col--barn {
-  left: 150px;
-  min-width: 76px;
+  left: 76px;
+  min-width: 52px;
+}
+
+.feed-projection-report-table.is-collapsed .feed-projection-report-sticky-col--farm {
+  min-width: 56px;
+}
+
+.feed-projection-report-table.is-collapsed .feed-projection-report-sticky-col--barn {
+  left: 56px;
+  min-width: 36px;
+}
+
+.feed-projection-report-flock-col {
+  width: 4.35rem;
+  min-width: 4.35rem;
+  white-space: nowrap;
+}
+
+.feed-projection-report-mode-col {
+  width: 3.25rem;
+  min-width: 3.25rem;
+  white-space: nowrap;
+}
+
+.feed-projection-report-table.is-collapsed .feed-projection-report-flock-col {
+  width: 3.9rem;
+  min-width: 3.9rem;
+}
+
+.feed-projection-report-table.is-collapsed .feed-projection-report-mode-col {
+  width: 2.8rem;
+  min-width: 2.8rem;
 }
 
 .feed-projection-report-drilldown-header {
@@ -13819,13 +13882,63 @@ tr:last-child td {
   margin-top: 0.18rem;
   font-size: 0.64rem;
   letter-spacing: 0.04em;
-  text-transform: none;
+  text-transform: uppercase;
   color: var(--muted-ink);
+}
+
+.feed-projection-report-table.is-collapsed .feed-projection-report-drilldown-header small {
+  font-size: 0.54rem;
+}
+
+.feed-projection-report-header-cell {
+  display: inline-grid;
+  gap: 0.1rem;
+}
+
+.feed-projection-report-header-cell span,
+.feed-projection-report-header-cell small {
+  display: block;
+}
+
+.feed-projection-report-header-cell small {
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-ink);
+}
+
+.feed-projection-report-table.is-collapsed .feed-projection-report-header-cell {
+  gap: 0.02rem;
+}
+
+.feed-projection-report-table.is-collapsed .feed-projection-report-header-cell small {
+  font-size: 0.52rem;
 }
 
 .feed-projection-report-number-col {
   text-align: right;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.feed-projection-report-age-col {
+  width: 3.2rem;
+  min-width: 3.2rem;
+}
+
+.feed-projection-report-status-col {
+  width: 6rem;
+  min-width: 6rem;
+}
+
+.feed-projection-report-table.is-collapsed .feed-projection-report-age-col {
+  width: 2.2rem;
+  min-width: 2.2rem;
+}
+
+.feed-projection-report-table.is-collapsed .feed-projection-report-status-col {
+  width: 4.2rem;
+  min-width: 4.2rem;
 }
 
 .feed-projection-report-placement-cell {
@@ -13841,13 +13954,23 @@ tr:last-child td {
 .feed-projection-report-status-pill {
   display: inline-flex;
   align-items: center;
-  padding: 0.28rem 0.55rem;
+  padding: 0.24rem 0.42rem;
   border-radius: 999px;
-  font-size: 0.76rem;
+  font-size: 0.69rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.feed-projection-report-table.is-collapsed .feed-projection-report-status-pill {
+  padding: 0.14rem 0.22rem;
+  font-size: 0.58rem;
+  letter-spacing: 0.03em;
+}
+
+.feed-projection-report-table.is-collapsed td strong {
+  letter-spacing: -0.01em;
 }
 
 .feed-projection-report-status-pill[data-state="live"] {
@@ -13956,9 +14079,10 @@ tr:last-child td {
   min-height: 44px;
   border-radius: 14px;
   border: 1px solid var(--line);
-  background: var(--panel);
+  background: rgba(255, 255, 255, 0.9);
   padding: 0 0.85rem;
   color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
 .reports-hub-days-presets {

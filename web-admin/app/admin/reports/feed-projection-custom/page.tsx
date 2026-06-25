@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { FeedProjectionReportActions } from "@/app/admin/reports/feed-projection/feed-projection-report-actions";
 import { FeedProjectionReportTable } from "@/app/admin/reports/feed-projection/feed-projection-report-table";
 import { PageHeader } from "@/components/page-header";
 import { getFeedProjectionReportData } from "@/lib/feed-projection-report-data";
@@ -28,28 +29,32 @@ export default async function FeedProjectionCustomReportPage({
     farmId,
     barnId,
     flockCode,
+    reportMode: "planning",
   });
 
   return (
-    <>
+    <div className="feed-projection-report-page">
       <PageHeader
         eyebrow="Reports"
         title="Custom Feed Projection"
-        body="Matrix view of projected feed demand across a user-selected horizon so you can look past holidays and order farther ahead."
+        body="Planning-only matrix view of projected feed demand across a user-selected horizon so you can look past holidays and see where supply may get tight."
         actions={
-          <Link
-            className="button-secondary"
-            href={buildReportsHubHref({
-              farmGroupId: farmGroupId ?? "",
-              farmId: farmId ?? "",
-              barnId: barnId ?? "",
-              flockCode: flockCode ?? "",
-              days: String(report.windowDays),
-            })}
-          >
-            <span aria-hidden="true">←</span>
-            <span>Back to Reports</span>
-          </Link>
+          <>
+            <FeedProjectionReportActions />
+            <Link
+              className="button-secondary"
+              href={buildReportsHubHref({
+                farmGroupId: farmGroupId ?? "",
+                farmId: farmId ?? "",
+                barnId: barnId ?? "",
+                flockCode: flockCode ?? "",
+                days: String(report.windowDays),
+              })}
+            >
+              <span aria-hidden="true">←</span>
+              <span>Back to Reports</span>
+            </Link>
+          </>
         }
       />
 
@@ -71,7 +76,7 @@ export default async function FeedProjectionCustomReportPage({
             <small>Latest mapped feed-bin inventory where available</small>
           </article>
           <article className="feed-projection-report-summary-card">
-            <span>Recommended Order</span>
+            <span>Req'd Feed</span>
             <strong>{formatWeight(report.overallRecommended)}</strong>
             <small>{`Starter ${formatWeight(report.overallStarterRecommended)} · Grower ${formatWeight(report.overallGrowerRecommended)}`}</small>
           </article>
@@ -107,10 +112,11 @@ export default async function FeedProjectionCustomReportPage({
           emptyColSpanExpanded={12 + report.windowDates.length}
           emptyColSpanCollapsed={12}
           windowLabel={`${report.windowDays} Day`}
+          reportMode="planning"
           emptyMessage={`No live or qualifying scheduled placements were found for the next ${report.windowDays} day window.`}
         />
       </section>
-    </>
+    </div>
   );
 }
 

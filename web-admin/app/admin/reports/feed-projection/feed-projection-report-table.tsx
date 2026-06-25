@@ -8,10 +8,9 @@ type FeedProjectionReportTableProps = {
     farmName: string;
     barnCode: string;
     placementCode: string;
-    placedDateLabel: string;
+    ageDays: number | null;
     statusLabel: string;
     statusTone: string;
-    headCount: number | null | undefined;
     starterTotalLbs: number | null | undefined;
     growerTotalLbs: number | null | undefined;
     daily: Array<{
@@ -37,6 +36,7 @@ type FeedProjectionReportTableProps = {
   emptyColSpanCollapsed: number;
   windowLabel?: string;
   emptyMessage?: string;
+  reportMode?: "operational" | "planning";
 };
 
 export function FeedProjectionReportTable({
@@ -46,6 +46,7 @@ export function FeedProjectionReportTable({
   emptyColSpanCollapsed,
   windowLabel = "10 Day",
   emptyMessage = "No live or qualifying scheduled placements were found for the next 10 day window.",
+  reportMode = "operational",
 }: FeedProjectionReportTableProps) {
   const [showDailyBreakdown, setShowDailyBreakdown] = useState(false);
   const toggleDailyBreakdown = () => setShowDailyBreakdown((current) => !current);
@@ -63,13 +64,27 @@ export function FeedProjectionReportTable({
       <table className={`feed-projection-report-table${showDailyBreakdown ? " is-expanded" : " is-collapsed"}`}>
         <thead>
           <tr>
-            <th className="feed-projection-report-sticky-col feed-projection-report-sticky-col--farm">Farm</th>
-            <th className="feed-projection-report-sticky-col feed-projection-report-sticky-col--barn">Barn</th>
-            <th>Placement</th>
-            <th>Status</th>
-            <th className="feed-projection-report-number-col">Birds</th>
-            <th className="feed-projection-report-number-col">{`Starter ${windowLabel}`}</th>
-            <th className="feed-projection-report-number-col">{`Grower ${windowLabel}`}</th>
+            <th className="feed-projection-report-sticky-col feed-projection-report-sticky-col--farm">
+              <HeaderCell title="Farm" subtitle="Name" />
+            </th>
+            <th className="feed-projection-report-sticky-col feed-projection-report-sticky-col--barn">
+              <HeaderCell title="Barn" subtitle="Code" />
+            </th>
+            <th className="feed-projection-report-flock-col">
+              <HeaderCell title="Flock" subtitle="Code" />
+            </th>
+            <th className="feed-projection-report-number-col feed-projection-report-age-col">
+              <HeaderCell title="Age" subtitle="Day" />
+            </th>
+            <th className="feed-projection-report-status-col">
+              <HeaderCell title="Status" subtitle="State" />
+            </th>
+            <th className="feed-projection-report-number-col">
+              <HeaderCell title="Starter" subtitle={reportMode === "operational" ? "Oblg" : "Need"} />
+            </th>
+            <th className="feed-projection-report-number-col">
+              <HeaderCell title="Grower" subtitle="Need" />
+            </th>
             {showDailyBreakdown
               ? windowDates.map((date) => (
                   <th className="feed-projection-report-number-col" key={date}>
@@ -83,33 +98,46 @@ export function FeedProjectionReportTable({
               onClick={toggleDailyBreakdown}
               title={showDailyBreakdown ? "Click to collapse daily detail" : "Click to expand daily detail"}
             >
-              <span>{showDailyBreakdown ? `${windowLabel} Total [-]` : `${windowLabel} Total [+]`}</span>
-              <small>{showDailyBreakdown ? "Click to collapse" : "Click to expand"}</small>
+              <span>{`${windowLabel} [-]`}</span>
+              <small>{showDailyBreakdown ? "Required" : "Required [+]"}</small>
             </th>
-            <th className="feed-projection-report-number-col">On Hand</th>
-            <th className="feed-projection-report-number-col">On Order</th>
-            <th className="feed-projection-report-number-col">Recommended</th>
-            <th>Mode</th>
+            <th className="feed-projection-report-number-col">
+              <HeaderCell title="On" subtitle="Hand" />
+            </th>
+            <th className="feed-projection-report-number-col">
+              <HeaderCell title="On" subtitle="Order" />
+            </th>
+            <th className="feed-projection-report-number-col">
+              <HeaderCell
+                title={reportMode === "operational" ? "Order" : "Req'd"}
+                subtitle={reportMode === "operational" ? "Need" : "Feed"}
+              />
+            </th>
+            <th className="feed-projection-report-mode-col">
+              <HeaderCell title="Mode" />
+            </th>
           </tr>
         </thead>
         <tbody>
           {rows.length > 0 ? (
             rows.map((row) => (
               <tr key={row.id}>
-                <td className="feed-projection-report-sticky-col feed-projection-report-sticky-col--farm">{row.farmName}</td>
-                <td className="feed-projection-report-sticky-col feed-projection-report-sticky-col--barn">{row.barnCode}</td>
-                <td>
-                  <div className="feed-projection-report-placement-cell">
-                    <strong>{row.placementCode}</strong>
-                    <span>{row.placedDateLabel}</span>
-                  </div>
+                <td
+                  className="feed-projection-report-sticky-col feed-projection-report-sticky-col--farm"
+                  title={row.farmName}
+                >
+                  {truncateFarmName(row.farmName)}
                 </td>
+                <td className="feed-projection-report-sticky-col feed-projection-report-sticky-col--barn">{row.barnCode}</td>
+                <td className="feed-projection-report-flock-col">
+                  <strong>{row.placementCode}</strong>
+                </td>
+                <td className="feed-projection-report-number-col feed-projection-report-age-col">{formatAge(row.ageDays)}</td>
                 <td>
                   <span className="feed-projection-report-status-pill" data-state={row.statusTone}>
                     {row.statusLabel}
                   </span>
                 </td>
-                <td className="feed-projection-report-number-col">{formatWhole(row.headCount)}</td>
                 <td className="feed-projection-report-number-col">{formatWeight(row.starterTotalLbs)}</td>
                 <td className="feed-projection-report-number-col">{formatWeight(row.growerTotalLbs)}</td>
                 {showDailyBreakdown
@@ -126,10 +154,13 @@ export function FeedProjectionReportTable({
                 <td className="feed-projection-report-number-col" title={buildSplitTitle("On order", row.starterOnOrderLbs, row.growerOnOrderLbs)}>
                   {formatWeight(row.onOrderLbs)}
                 </td>
-                <td className="feed-projection-report-number-col" title={buildSplitTitle("Recommended", row.starterRecommendedLbs, row.growerRecommendedLbs)}>
+                <td
+                  className="feed-projection-report-number-col"
+                  title={buildSplitTitle(reportMode === "operational" ? "Recommended" : "Planning gap", row.starterRecommendedLbs, row.growerRecommendedLbs)}
+                >
                   {formatWeight(row.recommendedOrderLbs)}
                 </td>
-                <td>{formatMode(row.orderingMode)}</td>
+                <td className="feed-projection-report-mode-col">{formatMode(row.orderingMode)}</td>
               </tr>
             ))
           ) : (
@@ -152,14 +183,29 @@ function formatMonthDay(value: string) {
   return date.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
 }
 
-function formatWhole(value: number | null | undefined) {
-  if (value === null || value === undefined || !Number.isFinite(value)) return "--";
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
-}
-
 function formatWeight(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "--";
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.round(value));
+}
+
+function formatAge(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "--";
+  return Math.round(value).toString();
+}
+
+function truncateFarmName(value: string) {
+  const normalized = value.trim();
+  if (normalized.length <= 5) return normalized;
+  return normalized.slice(0, 5);
+}
+
+function HeaderCell({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <span className="feed-projection-report-header-cell">
+      <span>{title}</span>
+      {subtitle ? <small>{subtitle}</small> : null}
+    </span>
+  );
 }
 
 function buildSplitTitle(

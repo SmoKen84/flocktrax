@@ -14,6 +14,8 @@ import {
   getPlacementCloseoutDocumentSummaryMap,
   HATCH_TICKET_DOCUMENT_ROLE,
   MISC_DOCUMENT_ROLE,
+  type DocumentArchiveListItem,
+  type DocumentArchiveSummary,
 } from "@/lib/document-archive";
 
 type CloseoutPlacementPageProps = {
@@ -31,16 +33,31 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
     notFound();
   }
 
-  const [hatchTicketSummaryMap, closeoutSummaryMap, livehaulPacketSummaryMap, miscDocumentMap] = await Promise.all([
-    getPlacementDocumentSummaryMap([placementId], HATCH_TICKET_DOCUMENT_ROLE),
-    getPlacementCloseoutDocumentSummaryMap([placementId], CLOSEOUT_SHEET_SNAPSHOT_DOCUMENT_ROLE),
-    getPlacementDocumentSummaryMap([placementId], BILL_OF_LADING_DOCUMENT_ROLE),
-    getPlacementDocumentListMap([placementId], MISC_DOCUMENT_ROLE),
-  ]);
+  let archiveWarning: string | null = null;
+  let hatchTicketSummaryMap = new Map<string, DocumentArchiveSummary>();
+  let closeoutSummaryMap = new Map<string, DocumentArchiveSummary>();
+  let livehaulPacketSummaryMap = new Map<string, DocumentArchiveSummary>();
+  let miscDocumentMap = new Map<string, DocumentArchiveListItem[]>();
+
+  try {
+    [hatchTicketSummaryMap, closeoutSummaryMap, livehaulPacketSummaryMap, miscDocumentMap] = await Promise.all([
+      getPlacementDocumentSummaryMap([placementId], HATCH_TICKET_DOCUMENT_ROLE),
+      item.closeout?.closeoutId
+        ? getPlacementCloseoutDocumentSummaryMap([item.closeout.closeoutId], CLOSEOUT_SHEET_SNAPSHOT_DOCUMENT_ROLE)
+        : Promise.resolve(new Map()),
+      getPlacementDocumentSummaryMap([placementId], BILL_OF_LADING_DOCUMENT_ROLE),
+      getPlacementDocumentListMap([placementId], MISC_DOCUMENT_ROLE),
+    ]);
+  } catch (error) {
+    archiveWarning =
+      error instanceof Error
+        ? `Document archive is temporarily unavailable: ${error.message}`
+        : "Document archive is temporarily unavailable.";
+  }
 
   const forceOpenLivehaulHref = buildForceLivehaulHref(item);
   const hatchTicketSummary = hatchTicketSummaryMap.get(placementId) ?? null;
-  const closeoutSummary = closeoutSummaryMap.get(placementId) ?? null;
+  const closeoutSummary = item.closeout?.closeoutId ? closeoutSummaryMap.get(item.closeout.closeoutId) ?? null : null;
   const livehaulPacketSummary = livehaulPacketSummaryMap.get(placementId) ?? null;
   const miscDocuments = miscDocumentMap.get(placementId) ?? [];
 
@@ -119,6 +136,7 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
 
       <section className="closeout-detail-stack">
         <CloseoutDocumentChecklist
+          archiveWarning={archiveWarning}
           closeoutSummary={closeoutSummary}
           hatchTicket={hatchTicketSummary}
           livehaulPacket={livehaulPacketSummary}

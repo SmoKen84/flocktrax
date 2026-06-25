@@ -917,7 +917,7 @@ function FeedProjectionPopup({
       : `Starter ${formatFeedAmount(placement.feedProjectionTenDayStarterTotal)} · Grower ${formatFeedAmount(placement.feedProjectionTenDayGrowerTotal)}`;
   const starterProgramLabel =
     placement.starterTargetLbs > 0
-      ? `Target ${formatFeedAmount(placement.starterTargetLbs)} at ${placement.starterLbsPerChick.toFixed(2)} lbs/chick · delivered ${formatFeedAmount(placement.starterDeliveredLbs)} · orderable through day 14 ${formatFeedAmount(placement.starterOrderableRemainingLbs)}`
+      ? `Target ${formatFeedAmount(placement.starterTargetLbs)} at ${placement.starterLbsPerChick.toFixed(2)} lbs/chick · delivered ${formatFeedAmount(placement.starterDeliveredLbs)} · remaining obligation ${formatFeedAmount(placement.starterOrderableRemainingLbs)}`
       : "Starter target pending placement counts.";
 
   if (typeof document === "undefined") {

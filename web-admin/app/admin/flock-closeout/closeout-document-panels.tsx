@@ -41,6 +41,7 @@ export function CloseoutDocumentChecklist({
   miscDocuments,
   placementCode,
   placementId,
+  archiveWarning,
 }: {
   closeoutSummary: DocumentArchiveSummary | null;
   hatchTicket: DocumentArchiveSummary | null;
@@ -48,6 +49,7 @@ export function CloseoutDocumentChecklist({
   miscDocuments: DocumentArchiveListItem[];
   placementCode: string;
   placementId: string;
+  archiveWarning?: string | null;
 }) {
   const [modal, setModal] = useState<
     | { kind: "hatch" }
@@ -67,6 +69,7 @@ export function CloseoutDocumentChecklist({
             <p className="table-subtitle">
               Required flock documents live here in one place during closeout. Open filed originals or attach missing ones without leaving this workspace.
             </p>
+            {archiveWarning ? <p className="feed-ticket-doc-error">{archiveWarning}</p> : null}
           </div>
         </div>
 

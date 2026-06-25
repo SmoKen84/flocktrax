@@ -45,7 +45,7 @@ export type FeedProjectionReportRow = {
   farmName: string;
   barnCode: string;
   placementCode: string;
-  placedDateLabel: string;
+  ageDays: number | null;
   statusLabel: string;
   statusTone: string;
   headCount: number | null | undefined;
@@ -76,8 +76,10 @@ export async function getFeedProjectionReportData(options: {
   farmId?: string | null;
   barnId?: string | null;
   flockCode?: string | null;
+  reportMode?: "operational" | "planning";
 }) {
   const windowDays = clampWindowDays(options.windowDays);
+  const reportMode = options.reportMode ?? (windowDays === 10 ? "operational" : "planning");
   const adminData = await getAdminData();
   const supabase = createSupabaseAdminClient();
 
@@ -199,6 +201,7 @@ export async function getFeedProjectionReportData(options: {
         liveHaulEvents: liveHaulEventsByPlacementId.get(placement.placementId) ?? [],
         feedOrdersForPlacement: feedOrdersByPlacementId.get(placement.placementId) ?? null,
         feedOrdersForBarn: feedOrdersByBarnId.get(placement.barnId) ?? null,
+        reportMode,
       }),
     )
     .sort(compareReportRows);
@@ -232,6 +235,7 @@ function toReportRow({
   liveHaulEvents,
   feedOrdersForPlacement,
   feedOrdersForBarn,
+  reportMode,
 }: {
   placement: ActivePlacementRecord;
   windowDates: string[];
@@ -240,6 +244,7 @@ function toReportRow({
   liveHaulEvents: FeedProjectionLiveHaulEvent[];
   feedOrdersForPlacement: FeedOrderWindowBucket | null;
   feedOrdersForBarn: FeedOrderWindowBucket | null;
+  reportMode: "operational" | "planning";
 }): FeedProjectionReportRow {
   const windowDays = windowDates.length;
   const anchorToday = addDays(windowDates[0] ?? isoDate(new Date()), -1);
@@ -301,16 +306,18 @@ function toReportRow({
     Math.max(0, feedOrdersForPlacement?.growerLbs ?? 0) + Math.max(0, feedOrdersForBarn?.growerLbs ?? 0),
   );
   const starterRecommendedLbs =
-    typedOrderingAvailable && typedProjection.starterTotal !== null
-      ? Math.max(
-          0,
-          Math.round(
-            typedProjection.starterTotal -
-              (placement.feedInventoryStarterAccessibleLbs ?? 0) -
-              windowStarterOnOrderLbs,
-          ),
-        )
-      : null;
+    reportMode === "operational"
+      ? Math.max(0, Math.round(placement.starterRemainingObligationLbs - windowStarterOnOrderLbs))
+      : typedOrderingAvailable && typedProjection.starterTotal !== null
+        ? Math.max(
+            0,
+            Math.round(
+              typedProjection.starterTotal -
+                (placement.feedInventoryStarterAccessibleLbs ?? 0) -
+                windowStarterOnOrderLbs,
+            ),
+          )
+        : null;
   const growerRecommendedLbs =
     typedOrderingAvailable && typedProjection.growerTotal !== null
       ? Math.max(
@@ -326,7 +333,10 @@ function toReportRow({
     starterRecommendedLbs !== null && growerRecommendedLbs !== null
       ? starterRecommendedLbs + growerRecommendedLbs
       : null;
-  const recommendedOrderLbs = typedRecommendedTotal ?? legacyRecommended;
+  const recommendedOrderLbs =
+    reportMode === "operational"
+      ? Math.max(legacyRecommended ?? 0, typedRecommendedTotal ?? 0, starterRecommendedLbs ?? 0)
+      : legacyRecommended;
   const orderingMode =
     typedRecommendedTotal !== null
       ? ("typed" as const)
@@ -339,10 +349,7 @@ function toReportRow({
     farmName: placement.farmName,
     barnCode: placement.barnCode,
     placementCode: placement.placementCode,
-    placedDateLabel:
-      placement.tileState === "scheduled"
-        ? `Arrives ${formatDate(placement.placedDate)}`
-        : `Placed ${formatDate(placement.placedDate)}`,
+    ageDays: placement.ageDays,
     statusLabel:
       placement.tileState === "scheduled"
         ? "Scheduled"
@@ -356,7 +363,8 @@ function toReportRow({
           ? "awaiting"
           : "live",
     headCount: placement.headCount,
-    starterTotalLbs: typedProjection.starterTotal,
+    starterTotalLbs:
+      reportMode === "operational" ? placement.starterRemainingObligationLbs : typedProjection.starterTotal,
     growerTotalLbs: typedProjection.growerTotal,
     daily: windowDates.map((date) => {
       const match = typedProjection.daily.find((day) => day.date === date);
@@ -452,13 +460,6 @@ function addDays(date: string, days: number) {
   const value = new Date(`${date}T00:00:00`);
   value.setDate(value.getDate() + days);
   return isoDate(value);
-}
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return "--";
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
 }
 
 function normalizeBreedText(value: string | null | undefined) {
@@ -561,7 +562,6 @@ function buildFeedProjection({
   const scheduledLiveHaulDates = scheduledLiveHaulEvents.map((event) => event.date);
   const liveHaulEventByDate = new Map(scheduledLiveHaulEvents.map((event) => [event.date, event]));
   const liveHaulIndexByDate = new Map(scheduledLiveHaulDates.map((date, index) => [date, index]));
-  const scheduledPlacementStarterMinimumLbs = ageDays < 0 ? 12000 : 0;
 
   let femalePopulation = currentFemaleCount;
   let malePopulation = currentMaleCount;
@@ -703,29 +703,6 @@ function buildFeedProjection({
     }
   }
 
-  if (scheduledPlacementStarterMinimumLbs > 0) {
-    const arrivalWindowIndexes = daily
-      .map((entry, index) => ({ entry, index }))
-      .filter(({ entry }) => entry.ageDays >= 0 && entry.totalFeed !== null);
-    const projectedArrivalWindowTotal = arrivalWindowIndexes.reduce((sum, { entry }) => sum + (entry.totalFeed ?? 0), 0);
-    if (
-      arrivalWindowIndexes.length > 0 &&
-      projectedArrivalWindowTotal > 0 &&
-      projectedArrivalWindowTotal < scheduledPlacementStarterMinimumLbs
-    ) {
-      const firstArrivalIndex = arrivalWindowIndexes[0]?.index ?? -1;
-      if (firstArrivalIndex >= 0) {
-        const firstArrivalEntry = daily[firstArrivalIndex];
-        if (firstArrivalEntry && firstArrivalEntry.totalFeed !== null) {
-          daily[firstArrivalIndex] = {
-            ...firstArrivalEntry,
-            totalFeed: firstArrivalEntry.totalFeed + (scheduledPlacementStarterMinimumLbs - projectedArrivalWindowTotal),
-          };
-        }
-      }
-    }
-  }
-
   const feedValues = daily
     .map((entry) => entry.totalFeed)
     .filter((value): value is number => value !== null && Number.isFinite(value));
@@ -748,7 +725,6 @@ function splitFeedProjectionByType({
   }>;
   starterRemainingObligationLbs: number;
 }) {
-  const starterOrderingCutoffDay = 14;
   let remainingStarter = Math.max(0, starterRemainingObligationLbs);
   let starterTotal = 0;
   let growerTotal = 0;
@@ -757,8 +733,7 @@ function splitFeedProjectionByType({
     if (entry.totalFeed === null || !Number.isFinite(entry.totalFeed)) {
       return { ...entry, starterFeed: null, growerFeed: null };
     }
-    const starterFeed =
-      entry.ageDays <= starterOrderingCutoffDay ? Math.min(entry.totalFeed, remainingStarter) : 0;
+    const starterFeed = Math.min(entry.totalFeed, remainingStarter);
     const growerFeed = Math.max(0, entry.totalFeed - starterFeed);
     remainingStarter = Math.max(0, remainingStarter - starterFeed);
     starterTotal += starterFeed;
