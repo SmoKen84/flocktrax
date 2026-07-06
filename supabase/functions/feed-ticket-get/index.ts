@@ -90,6 +90,7 @@ function emptyDraft() {
 }
 
 const OFF_FARM_PLACEMENT_CODE = "OFF-FARM";
+const QUEUED_DROP_PLACEMENT_CODE = "DROP-QUEUE";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -199,7 +200,7 @@ Deno.serve(async (req) => {
           .limit(1),
         service
           .from("feed_drops")
-          .select("id,feed_bin_id,placement_id,placement_code,type,drop_weight,drop_order,comment,bin_code,barn_id,off_farm_redirect")
+          .select("id,feed_bin_id,placement_id,placement_code,type,drop_weight,drop_order,comment,bin_code,barn_id,off_farm_redirect,queued_for_reconciliation,queued_from_feed_bin_id,queued_from_bin_code,queued_from_barn_id,queued_from_barn_code,queued_from_placement_id,queued_from_placement_code,queued_at")
           .eq("feed_ticket_id", ticketId)
           .order("drop_order", { ascending: true }),
       ]);
@@ -230,16 +231,27 @@ Deno.serve(async (req) => {
               id: drop.id,
               feed_bin_id: drop.feed_bin_id ?? null,
               bin_code: bin?.bin_code ?? drop.bin_code ?? null,
-              barn_code: bin?.barn_code ?? null,
+              barn_id: bin?.barn_id ?? drop.barn_id ?? null,
+              barn_code: bin?.barn_code ?? drop.barn_code ?? drop.queued_from_barn_code ?? null,
               placement_id: drop.placement_id ?? null,
               placement_code: drop.off_farm_redirect === true
                 ? OFF_FARM_PLACEMENT_CODE
-                : drop.placement_code ?? bin?.active_placement_code ?? null,
+                : drop.queued_for_reconciliation === true
+                  ? QUEUED_DROP_PLACEMENT_CODE
+                  : drop.placement_code ?? bin?.active_placement_code ?? null,
+              queued_from_feed_bin_id: drop.queued_from_feed_bin_id ?? null,
+              queued_from_bin_code: drop.queued_from_bin_code ?? null,
+              queued_from_barn_id: drop.queued_from_barn_id ?? null,
+              queued_from_barn_code: drop.queued_from_barn_code ?? null,
+              queued_from_placement_id: drop.queued_from_placement_id ?? null,
+              queued_from_placement_code: drop.queued_from_placement_code ?? null,
+              queued_at: drop.queued_at ?? null,
               feed_type: drop.type ?? null,
               drop_weight_lbs: typeof drop.drop_weight === "number" ? drop.drop_weight : null,
               note: drop.comment ?? null,
               drop_order: typeof drop.drop_order === "number" ? drop.drop_order : 1,
               off_farm_redirect: drop.off_farm_redirect === true,
+              queued_for_reconciliation: drop.queued_for_reconciliation === true,
             };
           }),
         };

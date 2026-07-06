@@ -8,6 +8,7 @@ export type FeedTicketAdminFilters = {
   ticketNumber?: string | null;
   ticketTypes?: string[] | null;
   hasRedirectedDropsOnly?: boolean | null;
+  hasQueuedDropsOnly?: boolean | null;
   flockCode?: string | null;
   farm?: string | null;
   barn?: string | null;
@@ -35,6 +36,7 @@ export type FeedTicketAdminRow = {
   dropWeightLbs: number | null;
   comment: string | null;
   offFarmRedirect: boolean;
+  queuedForReconciliation: boolean;
   hasOriginalDocument?: boolean;
   originalDocumentId?: string | null;
   originalDocumentName?: string | null;
@@ -53,6 +55,7 @@ export type FeedTicketAdminBundle = {
     ticketNumber: string;
     ticketTypes: string[];
     hasRedirectedDropsOnly: boolean;
+    hasQueuedDropsOnly: boolean;
     flockCode: string;
     farm: string;
     barn: string;
@@ -128,6 +131,7 @@ export type FeedTicketPrintBundle = {
     dropWeightLbs: number | null;
     comment: string | null;
     offFarmRedirect: boolean;
+    queuedForReconciliation: boolean;
   }>;
   totals: {
     dropCount: number;
@@ -161,6 +165,7 @@ type FeedDropRow = {
   comment: string | null;
   bin_code: string | null;
   off_farm_redirect?: boolean | null;
+  queued_for_reconciliation?: boolean | null;
 };
 
 type FeedBinRow = {
@@ -206,6 +211,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
     ticketNumber: normalize(filters.ticketNumber),
     ticketTypes: normalizeTicketTypes(filters.ticketTypes),
     hasRedirectedDropsOnly: filters.hasRedirectedDropsOnly === true,
+    hasQueuedDropsOnly: filters.hasQueuedDropsOnly === true,
     flockCode: normalize(filters.flockCode),
     farm: normalize(filters.farm),
     barn: normalize(filters.barn),
@@ -252,7 +258,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
 
   const { data: dropRows, error: dropsError } = await admin
     .from("feed_drops")
-    .select("id,feed_ticket_id,farm_id,barn_id,feed_bin_id,drop_weight,placement_code,type,comment,bin_code,off_farm_redirect")
+    .select("id,feed_ticket_id,farm_id,barn_id,feed_bin_id,drop_weight,placement_code,type,comment,bin_code,off_farm_redirect,queued_for_reconciliation")
     .in("feed_ticket_id", ticketIds);
   if (dropsError) {
     throw new Error(dropsError.message);
@@ -261,6 +267,9 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
   const drops = (dropRows ?? []) as FeedDropRow[];
   const redirectedTicketIds = new Set(
     drops.filter((drop) => drop.off_farm_redirect === true).map((drop) => drop.feed_ticket_id).filter(Boolean),
+  );
+  const queuedTicketIds = new Set(
+    drops.filter((drop) => drop.queued_for_reconciliation === true).map((drop) => drop.feed_ticket_id).filter(Boolean),
   );
 
   const farmIds = Array.from(new Set(drops.map((row) => row.farm_id).filter(Boolean)));
@@ -344,6 +353,9 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
       if (normalizedFilters.hasRedirectedDropsOnly && !redirectedTicketIds.has(ticket.id)) {
         return null;
       }
+      if (normalizedFilters.hasQueuedDropsOnly && !queuedTicketIds.has(ticket.id)) {
+        return null;
+      }
 
       const row: FeedTicketAdminRowWithSort = {
         id: drop.id,
@@ -361,6 +373,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
         dropWeightLbs: typeof drop.drop_weight === "number" ? drop.drop_weight : null,
         comment: normalize(drop.comment) || null,
         offFarmRedirect: drop.off_farm_redirect === true,
+        queuedForReconciliation: drop.queued_for_reconciliation === true,
         hasOriginalDocument: documentSummaryByTicketId.get(ticket.id)?.isOnFile ?? false,
         originalDocumentId: documentSummaryByTicketId.get(ticket.id)?.documentId ?? null,
         originalDocumentName: documentSummaryByTicketId.get(ticket.id)?.originalFilename ?? null,
@@ -487,7 +500,7 @@ export async function getFeedTicketFlockReportBundle(filters: FeedTicketAdminFil
 
   const { data: dropRows, error: dropsError } = await admin
     .from("feed_drops")
-    .select("id,feed_ticket_id,farm_id,barn_id,feed_bin_id,drop_weight,placement_code,type,comment,bin_code,off_farm_redirect")
+    .select("id,feed_ticket_id,farm_id,barn_id,feed_bin_id,drop_weight,placement_code,type,comment,bin_code,off_farm_redirect,queued_for_reconciliation")
     .ilike("placement_code", `%${normalizedFlockCode}%`);
 
   if (dropsError) {
@@ -606,6 +619,7 @@ export async function getFeedTicketFlockReportBundle(filters: FeedTicketAdminFil
         dropWeightLbs: typeof drop.drop_weight === "number" ? drop.drop_weight : null,
         comment: normalize(drop.comment) || null,
         offFarmRedirect: drop.off_farm_redirect === true,
+        queuedForReconciliation: drop.queued_for_reconciliation === true,
         barnSortCode: barnSortCodeById.get(drop.barn_id ?? "") || null,
       } satisfies FeedTicketAdminRowWithSort;
     })
@@ -675,7 +689,7 @@ export async function getFeedTicketPrintBundle(ticketId: string): Promise<FeedTi
 
   const { data: dropRows, error: dropError } = await admin
     .from("feed_drops")
-    .select("id,drop_order,farm_id,barn_id,feed_bin_id,placement_code,type,drop_weight,comment,bin_code,off_farm_redirect")
+    .select("id,drop_order,farm_id,barn_id,feed_bin_id,placement_code,type,drop_weight,comment,bin_code,off_farm_redirect,queued_for_reconciliation")
     .eq("feed_ticket_id", normalizedTicketId)
     .order("drop_order", { ascending: true })
     .order("id", { ascending: true });
@@ -696,6 +710,7 @@ export async function getFeedTicketPrintBundle(ticketId: string): Promise<FeedTi
     comment: string | null;
     bin_code: string | null;
     off_farm_redirect?: boolean | null;
+    queued_for_reconciliation?: boolean | null;
   }>;
 
   const farmIds = Array.from(new Set(drops.map((row) => row.farm_id).filter(Boolean)));
@@ -756,6 +771,7 @@ export async function getFeedTicketPrintBundle(ticketId: string): Promise<FeedTi
     dropWeightLbs: typeof drop.drop_weight === "number" ? drop.drop_weight : null,
     comment: normalize(drop.comment) || null,
     offFarmRedirect: drop.off_farm_redirect === true,
+    queuedForReconciliation: drop.queued_for_reconciliation === true,
   }));
 
   const totalDropWeightLbs = normalizedDrops.reduce((sum, drop) => sum + (drop.dropWeightLbs ?? 0), 0);
@@ -842,6 +858,9 @@ function buildSummaryText(
   }
   if (filters.hasRedirectedDropsOnly) {
     return `Includes ${rows.length} records from tickets with redirected drops.`;
+  }
+  if (filters.hasQueuedDropsOnly) {
+    return `Includes ${rows.length} records from tickets with queued drops.`;
   }
   if (filters.farm || filters.barn || filters.bin) {
     const parts = [filters.farm, filters.barn, filters.bin].filter(Boolean);

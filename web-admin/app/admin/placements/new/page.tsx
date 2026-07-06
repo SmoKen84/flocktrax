@@ -345,7 +345,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                 const dayContent = (
                   <>
                     <span className="placement-scheduler-day-number">{day.dayNumber}</span>
-                    {day.items.length > 0 ? (
+                    {day.items.length > 0 || day.secondaryArrivals.length > 0 ? (
                       <div className="placement-scheduler-day-stack placement-scheduler-day-stack-farm">
                         {day.items.map((item) =>
                           day.items.length === 1 ? (
@@ -377,6 +377,12 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                             </Link>
                           ),
                         )}
+                        {day.secondaryArrivals.map((badge) => (
+                          <span className="placement-scheduler-day-pill placement-scheduler-day-pill-detail" data-active={badge.isActive} data-tone={badge.tone} key={badge.id}>
+                            <strong>{badge.label}</strong>
+                            <small>{formatWhole(badge.birdCount)} birds</small>
+                          </span>
+                        ))}
                       </div>
                     ) : (
                       <span className="placement-scheduler-board-empty">No start</span>
@@ -425,7 +431,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                   <>
                     <span className="placement-scheduler-day-number">{day.dayNumber}</span>
                     {day.hasLiveHaulScheduled ? <span className="placement-scheduler-day-lh-flag">LH</span> : null}
-                    {day.items.length > 0 ? (
+                    {day.items.length > 0 || day.secondaryArrivals.length > 0 ? (
                       <div className="placement-scheduler-day-stack">
                         {day.items.slice(0, 2).map((item) => (
                           <span className="placement-scheduler-day-pill" data-active={item.isActive} data-tone={item.tone} key={item.id}>
@@ -433,6 +439,12 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                           </span>
                         ))}
                         {day.items.length > 2 ? <span className="placement-scheduler-day-more">+{day.items.length - 2}</span> : null}
+                        {day.secondaryArrivals.slice(0, 2).map((badge) => (
+                          <span className="placement-scheduler-day-pill placement-scheduler-day-pill-detail" data-active={badge.isActive} data-tone={badge.tone} key={badge.id}>
+                            <strong>{badge.label}</strong>
+                            <small>{formatWhole(badge.birdCount)} birds</small>
+                          </span>
+                        ))}
                       </div>
                     ) : day.isRecommended ? (
                       <span className="placement-scheduler-day-recommend">Recommended</span>
@@ -535,62 +547,70 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                         </select>
                       </label>
                     ) : null}
-                    <div className="placement-scheduler-start-row">
-                      <label className="field">
-                        <span>Start Males</span>
-                        <input
-                          className="placement-scheduler-start-input"
-                          defaultValue={selectedPlacement.maleCount ?? ""}
-                          name="start_cnt_males"
-                          type="number"
-                        />
-                      </label>
-                      <label className="field">
-                        <span>Start Females</span>
-                        <input
-                          className="placement-scheduler-start-input"
-                          defaultValue={selectedPlacement.femaleCount ?? ""}
-                          name="start_cnt_females"
-                          type="number"
-                        />
-                      </label>
+                    <div className="placement-scheduler-sex-grid">
+                      <div className="placement-scheduler-sex-card">
+                        <label className="field">
+                          <span>Start Males</span>
+                          <input
+                            className="placement-scheduler-start-input"
+                            defaultValue={selectedPlacement.maleCount ?? ""}
+                            name="start_cnt_males"
+                            type="number"
+                          />
+                        </label>
+                        <label className="field placement-scheduler-sex-date-field">
+                          <input
+                            aria-label="Male Placement Date"
+                            className="placement-scheduler-date-input"
+                            defaultValue={selectedPlacement.malePlacedDate ?? selectedPlacement.startDate}
+                            name="male_date_placed"
+                            type="date"
+                          />
+                        </label>
+                      </div>
+                      <div className="placement-scheduler-sex-card">
+                        <label className="field">
+                          <span>Start Females</span>
+                          <input
+                            className="placement-scheduler-start-input"
+                            defaultValue={selectedPlacement.femaleCount ?? ""}
+                            name="start_cnt_females"
+                            type="number"
+                          />
+                        </label>
+                        <label className="field placement-scheduler-sex-date-field">
+                          <input
+                            aria-label="Female Placement Date"
+                            className="placement-scheduler-date-input"
+                            defaultValue={selectedPlacement.femalePlacedDate ?? selectedPlacement.startDate}
+                            name="female_date_placed"
+                            type="date"
+                          />
+                        </label>
+                      </div>
                     </div>
-                    <div className="placement-scheduler-triplet">
-                      <label className="field field-third">
-                        <span>LH 1 Date</span>
-                        <input defaultValue={selectedPlacement.lh1Date ?? ""} name="lh1_date" type="date" />
-                      </label>
-                      <label className="field field-third">
-                        <span>LH 2 Date</span>
-                        <input defaultValue={selectedPlacement.lh2Date ?? ""} name="lh2_date" type="date" />
-                      </label>
-                      <label className="field field-third">
-                        <span>LH 3 Date</span>
-                        <input defaultValue={selectedPlacement.lh3Date ?? ""} name="lh3_date" type="date" />
-                      </label>
-                    </div>
-                      <label className="field">
-                        <span>Breed Males</span>
-                        <select defaultValue={selectedPlacement.breedMales ?? ""} name="breed_males">
-                          <option value=""></option>
-                          {maleBreedOptions.map((breed) => (
-                            <option key={breed.id} value={breed.id}>
-                              {breed.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="field">
-                        <span>Breed Females</span>
-                        <select defaultValue={selectedPlacement.breedFemales ?? ""} name="breed_females">
-                          <option value=""></option>
-                          {femaleBreedOptions.map((breed) => (
-                            <option key={breed.id} value={breed.id}>
-                              {breed.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                    <label className="field">
+                      <span>Breed Males</span>
+                      <select defaultValue={selectedPlacement.breedMales ?? ""} name="breed_males">
+                        <option value=""></option>
+                        {maleBreedOptions.map((breed) => (
+                          <option key={breed.id} value={breed.id}>
+                            {breed.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Breed Females</span>
+                      <select defaultValue={selectedPlacement.breedFemales ?? ""} name="breed_females">
+                        <option value=""></option>
+                        {femaleBreedOptions.map((breed) => (
+                          <option key={breed.id} value={breed.id}>
+                            {breed.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
 
                   <div className="placement-scheduler-projection">
@@ -732,39 +752,47 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                     </select>
                   </label>
                 ) : null}
-                <div className="placement-scheduler-start-row">
-                  <label className="field">
-                    <span>Start Males</span>
-                    <input
-                      className="placement-scheduler-start-input"
-                      defaultValue={selectedPlacement.maleCount ?? ""}
-                      name="start_cnt_males"
-                      type="number"
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Start Females</span>
-                    <input
-                      className="placement-scheduler-start-input"
-                      defaultValue={selectedPlacement.femaleCount ?? ""}
-                      name="start_cnt_females"
-                      type="number"
-                    />
-                  </label>
-                </div>
-                <div className="placement-scheduler-triplet">
-                  <label className="field field-third">
-                    <span>LH 1 Date</span>
-                    <input defaultValue={selectedPlacement.lh1Date ?? ""} name="lh1_date" type="date" />
-                  </label>
-                  <label className="field field-third">
-                    <span>LH 2 Date</span>
-                    <input defaultValue={selectedPlacement.lh2Date ?? ""} name="lh2_date" type="date" />
-                  </label>
-                  <label className="field field-third">
-                    <span>LH 3 Date</span>
-                    <input defaultValue={selectedPlacement.lh3Date ?? ""} name="lh3_date" type="date" />
-                  </label>
+                <div className="placement-scheduler-sex-grid">
+                  <div className="placement-scheduler-sex-card">
+                    <label className="field">
+                      <span>Start Males</span>
+                      <input
+                        className="placement-scheduler-start-input"
+                        defaultValue={selectedPlacement.maleCount ?? ""}
+                        name="start_cnt_males"
+                        type="number"
+                      />
+                    </label>
+                    <label className="field placement-scheduler-sex-date-field">
+                      <input
+                        aria-label="Male Placement Date"
+                        className="placement-scheduler-date-input"
+                        defaultValue={selectedPlacement.malePlacedDate ?? selectedPlacement.startDate}
+                        name="male_date_placed"
+                        type="date"
+                      />
+                    </label>
+                  </div>
+                  <div className="placement-scheduler-sex-card">
+                    <label className="field">
+                      <span>Start Females</span>
+                      <input
+                        className="placement-scheduler-start-input"
+                        defaultValue={selectedPlacement.femaleCount ?? ""}
+                        name="start_cnt_females"
+                        type="number"
+                      />
+                    </label>
+                    <label className="field placement-scheduler-sex-date-field">
+                      <input
+                        aria-label="Female Placement Date"
+                        className="placement-scheduler-date-input"
+                        defaultValue={selectedPlacement.femalePlacedDate ?? selectedPlacement.startDate}
+                        name="female_date_placed"
+                        type="date"
+                      />
+                    </label>
+                  </div>
                 </div>
                 <label className="field">
                   <span>Breed Males</span>
@@ -889,39 +917,47 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                     </select>
                   </label>
                 ) : null}
-                <div className="placement-scheduler-start-row">
-                  <label className="field">
-                    <span>Start Males</span>
-                    <input
-                      className="placement-scheduler-start-input"
-                      defaultValue={selectedPlacement.maleCount ?? ""}
-                      name="start_cnt_males"
-                      type="number"
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Start Females</span>
-                    <input
-                      className="placement-scheduler-start-input"
-                      defaultValue={selectedPlacement.femaleCount ?? ""}
-                      name="start_cnt_females"
-                      type="number"
-                    />
-                  </label>
-                </div>
-                <div className="placement-scheduler-triplet">
-                  <label className="field field-third">
-                    <span>LH 1 Date</span>
-                    <input defaultValue={selectedPlacement.lh1Date ?? ""} name="lh1_date" type="date" />
-                  </label>
-                  <label className="field field-third">
-                    <span>LH 2 Date</span>
-                    <input defaultValue={selectedPlacement.lh2Date ?? ""} name="lh2_date" type="date" />
-                  </label>
-                  <label className="field field-third">
-                    <span>LH 3 Date</span>
-                    <input defaultValue={selectedPlacement.lh3Date ?? ""} name="lh3_date" type="date" />
-                  </label>
+                <div className="placement-scheduler-sex-grid">
+                  <div className="placement-scheduler-sex-card">
+                    <label className="field">
+                      <span>Start Males</span>
+                      <input
+                        className="placement-scheduler-start-input"
+                        defaultValue={selectedPlacement.maleCount ?? ""}
+                        name="start_cnt_males"
+                        type="number"
+                      />
+                    </label>
+                    <label className="field placement-scheduler-sex-date-field">
+                      <input
+                        aria-label="Male Placement Date"
+                        className="placement-scheduler-date-input"
+                        defaultValue={selectedPlacement.malePlacedDate ?? selectedPlacement.startDate}
+                        name="male_date_placed"
+                        type="date"
+                      />
+                    </label>
+                  </div>
+                  <div className="placement-scheduler-sex-card">
+                    <label className="field">
+                      <span>Start Females</span>
+                      <input
+                        className="placement-scheduler-start-input"
+                        defaultValue={selectedPlacement.femaleCount ?? ""}
+                        name="start_cnt_females"
+                        type="number"
+                      />
+                    </label>
+                    <label className="field placement-scheduler-sex-date-field">
+                      <input
+                        aria-label="Female Placement Date"
+                        className="placement-scheduler-date-input"
+                        defaultValue={selectedPlacement.femalePlacedDate ?? selectedPlacement.startDate}
+                        name="female_date_placed"
+                        type="date"
+                      />
+                    </label>
+                  </div>
                 </div>
                 <label className="field">
                   <span>Breed Males</span>
@@ -1107,6 +1143,8 @@ type CalendarWindow = {
   headCount?: number | null;
   femaleCount?: number | null;
   maleCount?: number | null;
+  femalePlacedDate?: string | null;
+  malePlacedDate?: string | null;
   breedMales?: string | null;
   breedFemales?: string | null;
   lh1Date?: string | null;
@@ -1115,6 +1153,39 @@ type CalendarWindow = {
   isFuture?: boolean;
   tone?: number;
 };
+
+type SecondaryArrivalBadge = {
+  id: string;
+  label: string;
+  birdCount: number | null;
+  tone: number;
+  isActive: boolean;
+};
+
+function buildSecondaryArrivalBadges(window: CalendarWindow) {
+  const badges: SecondaryArrivalBadge[] = [];
+  const arrivalMap = new Map<string, number>();
+
+  if (window.femalePlacedDate && window.femalePlacedDate > window.startDate && (window.femaleCount ?? 0) > 0) {
+    arrivalMap.set(window.femalePlacedDate, (arrivalMap.get(window.femalePlacedDate) ?? 0) + (window.femaleCount ?? 0));
+  }
+
+  if (window.malePlacedDate && window.malePlacedDate > window.startDate && (window.maleCount ?? 0) > 0) {
+    arrivalMap.set(window.malePlacedDate, (arrivalMap.get(window.malePlacedDate) ?? 0) + (window.maleCount ?? 0));
+  }
+
+  for (const [arrivalDate, birdCount] of arrivalMap.entries()) {
+    badges.push({
+      id: `${window.id}-${arrivalDate}`,
+      label: window.placementCode,
+      birdCount,
+      tone: window.tone ?? 0,
+      isActive: Boolean(window.isActive),
+    });
+  }
+
+  return badges;
+}
 
 function buildCalendar(month: string, windows: CalendarWindow[], selectedDate: string | null, recommendedStartDate: string | null) {
   const [year, monthValue] = month.split("-").map(Number);
@@ -1134,6 +1205,7 @@ function buildCalendar(month: string, windows: CalendarWindow[], selectedDate: s
     date.setUTCDate(firstGridDay.getUTCDate() + index);
     const iso = date.toISOString().slice(0, 10);
     const items = tonedWindows.filter((window) => iso >= window.startDate && iso <= window.endDate);
+    const secondaryArrivals = tonedWindows.flatMap((window) => buildSecondaryArrivalBadges(window).filter((badge) => badge.id.endsWith(iso)));
     const hasLiveHaulScheduled = items.some(
       (item) => item.lh1Date === iso || item.lh2Date === iso || item.lh3Date === iso,
     );
@@ -1147,6 +1219,7 @@ function buildCalendar(month: string, windows: CalendarWindow[], selectedDate: s
       isActive: items.some((item) => item.isActive),
       hasLiveHaulScheduled,
       items,
+      secondaryArrivals,
       tone: items[0]?.tone ?? 0,
     };
   });
@@ -1183,12 +1256,14 @@ function buildFarmCalendar(
     nextMonth: frame.nextMonth,
     days: frame.days.map((day) => {
       const items = tonedWindows.filter((window) => window.startDate === day.date);
+      const secondaryArrivals = tonedWindows.flatMap((window) => buildSecondaryArrivalBadges(window).filter((badge) => badge.id.endsWith(day.date)));
       return {
         ...day,
         isSelected: selectedDate === day.date && items.some((item) => item.barnId === selectedBarnId),
         isActive: items.some((item) => item.isActive),
         tone: items[0]?.tone ?? 0,
         items,
+        secondaryArrivals,
       };
     }),
   };
@@ -1230,6 +1305,11 @@ function addDays(dateString: string, days: number) {
   const date = new Date(`${dateString}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+function formatWhole(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "--";
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
 }
 
 function formatDateLabel(dateString: string | null | undefined) {

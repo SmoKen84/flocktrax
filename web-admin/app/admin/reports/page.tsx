@@ -10,6 +10,23 @@ type ReportsHubPageProps = {
 
 const reportCategories = [
   {
+    key: "quick_access_reports",
+    label: "Quick Access Reports",
+    reports: [
+      { key: "at_a_glance", label: "At-a-Glance" },
+      { key: "quick_placements_report", label: "Placements Report" },
+      { key: "quick_livehaul_report", label: "Livehaul Report" },
+    ],
+  },
+  {
+    key: "detailed_reports",
+    label: "Detailed Reports",
+    reports: [
+      { key: "detailed_placements_report", label: "Placements Report" },
+      { key: "detailed_livehaul_report", label: "Livehaul Report" },
+    ],
+  },
+  {
     key: "feed_reports",
     label: "Feed Reports",
     reports: [
@@ -21,13 +38,30 @@ const reportCategories = [
 
 export default async function ReportsHubPage({ searchParams }: ReportsHubPageProps) {
   const params = (await searchParams) ?? {};
-  const categoryKey = firstParam(params.category) ?? "feed_reports";
-  const reportKey = firstParam(params.report) ?? "ten_day_feed_requirements";
+  const categoryKey = firstParam(params.category) ?? "quick_access_reports";
+  const reportKey = firstParam(params.report) ?? "at_a_glance";
   const farmGroupId = firstParam(params.farmGroupId) ?? "";
   const farmId = firstParam(params.farmId) ?? "";
   const barnId = firstParam(params.barnId) ?? "";
   const flockCode = firstParam(params.flockCode) ?? "";
   const days = firstParam(params.days) ?? "14";
+  const includeBinSentryOnOrderParam = firstParam(params.includeBinSentryOnOrder);
+  const includeBinSentryOnOrder =
+    includeBinSentryOnOrderParam === null
+      ? reportKey === "ten_day_feed_requirements" || reportKey === "custom_feed_projection"
+      : includeBinSentryOnOrderParam === "1";
+  const reportDate = firstParam(params.reportDate) ?? new Date().toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  const reportStartDate =
+    firstParam(params.startDate) ??
+    (categoryKey === "quick_access_reports"
+      ? today
+      : `${today.slice(0, 7)}-01`);
+  const reportEndDate =
+    firstParam(params.endDate) ??
+    (categoryKey === "quick_access_reports"
+      ? addDays(today, 30)
+      : today);
 
   const adminData = await getAdminData();
   const activeFarmGroups = dedupeBy(
@@ -106,6 +140,9 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                 farmId,
                 barnId,
                 flockCode,
+                startDate: reportStartDate,
+                endDate: reportEndDate,
+                includeBinSentryOnOrder,
               });
 
               return (
@@ -141,6 +178,9 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                   farmId,
                   barnId,
                   flockCode,
+                  startDate: reportStartDate,
+                  endDate: reportEndDate,
+                  includeBinSentryOnOrder,
                 });
 
                 return (
@@ -166,7 +206,13 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
               </div>
             </div>
 
-            {selectedReport?.key === "ten_day_feed_requirements" || selectedReport?.key === "custom_feed_projection" ? (
+            {selectedReport?.key === "ten_day_feed_requirements" ||
+            selectedReport?.key === "custom_feed_projection" ||
+            selectedReport?.key === "at_a_glance" ||
+            selectedReport?.key === "quick_placements_report" ||
+            selectedReport?.key === "quick_livehaul_report" ||
+            selectedReport?.key === "detailed_placements_report" ||
+            selectedReport?.key === "detailed_livehaul_report" ? (
               <ReportsFilterPanel
                 barns={activeBarns}
                 categoryKey={selectedCategory.key}
@@ -175,6 +221,10 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                 currentFarmGroupId={farmGroupId}
                 currentFarmId={farmId}
                 currentFlockCode={flockCode}
+                currentIncludeBinSentryOnOrder={includeBinSentryOnOrder}
+                currentReportDate={reportDate}
+                currentStartDate={reportStartDate}
+                currentEndDate={reportEndDate}
                 farmGroups={activeFarmGroups}
                 farms={activeFarms}
                 flocks={activeFlocks}
@@ -196,6 +246,12 @@ function firstParam(value: string | string[] | undefined) {
   return value ?? null;
 }
 
+function addDays(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function buildReportsHubHref({
   category,
   report,
@@ -203,6 +259,9 @@ function buildReportsHubHref({
   farmId,
   barnId,
   flockCode,
+  startDate,
+  endDate,
+  includeBinSentryOnOrder,
 }: {
   category: string;
   report: string;
@@ -210,6 +269,9 @@ function buildReportsHubHref({
   farmId?: string;
   barnId?: string;
   flockCode?: string;
+  startDate?: string;
+  endDate?: string;
+  includeBinSentryOnOrder?: boolean;
 }) {
   const params = new URLSearchParams();
   if (category) params.set("category", category);
@@ -218,6 +280,9 @@ function buildReportsHubHref({
   if (farmId) params.set("farmId", farmId);
   if (barnId) params.set("barnId", barnId);
   if (flockCode) params.set("flockCode", flockCode);
+  if (startDate) params.set("startDate", startDate);
+  if (endDate) params.set("endDate", endDate);
+  if (includeBinSentryOnOrder) params.set("includeBinSentryOnOrder", "1");
   const query = params.toString();
   return query ? `/admin/reports?${query}` : "/admin/reports";
 }

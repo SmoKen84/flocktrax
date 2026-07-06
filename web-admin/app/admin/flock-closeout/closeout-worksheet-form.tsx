@@ -226,12 +226,9 @@ export function CloseoutWorksheetForm({ item }: { item: CloseoutQueueItem }) {
               <div className="closeout-worksheet-feedback-body">
                 <p>{state.message}</p>
                 {state.status === "success" && state.readyToArchive ? (
-                  <form action={archivePlacementCloseoutAction}>
-                    <input name="placement_id" type="hidden" value={item.placementId} />
-                    <button className="button-secondary" type="submit">
-                      Move To Archive
-                    </button>
-                  </form>
+                  <button className="button-secondary" formAction={archivePlacementCloseoutAction} type="submit">
+                    Move To Archive
+                  </button>
                 ) : null}
               </div>
             </div>
@@ -240,12 +237,9 @@ export function CloseoutWorksheetForm({ item }: { item: CloseoutQueueItem }) {
           )}
 
           <div className="closeout-action-links">
-            <form action={recalculatePlacementCloseoutTotalsAction}>
-              <input name="placement_id" type="hidden" value={item.placementId} />
-              <button className="button-secondary" type="submit">
-                Recalculate Totals
-              </button>
-            </form>
+            <button className="button-secondary" formAction={recalculatePlacementCloseoutTotalsAction} type="submit">
+              Recalculate Totals
+            </button>
             <button className="button-primary" disabled={isPending} type="submit">
               {isPending ? "Saving..." : "Save Closeout Draft"}
             </button>

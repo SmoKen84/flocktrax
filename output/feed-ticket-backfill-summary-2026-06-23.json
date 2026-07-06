@@ -1,0 +1,347 @@
+{
+  "importedCount": 45,
+  "imported": [
+    {
+      "file": "Feed-010572.pdf",
+      "ticket": "010572",
+      "deliveryDate": "2026-03-27",
+      "storagePath": "feed-tickets/2026-03-27/48f832ed-a15a-4f5b-aadf-95f4a0c2b2e2/backfill-Feed-010572.pdf"
+    },
+    {
+      "file": "Feed-010665.pdf",
+      "ticket": "010665",
+      "deliveryDate": "2026-04-22",
+      "storagePath": "feed-tickets/2026-04-22/eb8e8fe3-b878-42e9-b596-50a78876d3c1/backfill-Feed-010665.pdf"
+    },
+    {
+      "file": "Feed-010720.HEIC",
+      "ticket": "010720",
+      "deliveryDate": "2026-05-11",
+      "storagePath": "feed-tickets/2026-05-11/00dbeac5-e87f-4229-acba-2b46b441144a/backfill-Feed-010720.HEIC"
+    },
+    {
+      "file": "Feed-010731.pdf",
+      "ticket": "010731",
+      "deliveryDate": "2026-05-15",
+      "storagePath": "feed-tickets/2026-05-15/dfb20aa8-1b7f-4eb4-8e0e-6d7ecb64aee6/backfill-Feed-010731.pdf"
+    },
+    {
+      "file": "Feed-010732.pdf",
+      "ticket": "010732",
+      "deliveryDate": "2026-05-15",
+      "storagePath": "feed-tickets/2026-05-15/1cd81729-dcbe-4b27-9708-cb46cd46663b/backfill-Feed-010732.pdf"
+    },
+    {
+      "file": "Feed-010770.pdf",
+      "ticket": "010770",
+      "deliveryDate": "2026-05-29",
+      "storagePath": "feed-tickets/2026-05-29/cafb6009-21dd-4e98-90cc-ac026ef86820/backfill-Feed-010770.pdf"
+    },
+    {
+      "file": "Feed-010771.pdf",
+      "ticket": "010771",
+      "deliveryDate": "2026-05-29",
+      "storagePath": "feed-tickets/2026-05-29/6c8c5df7-386b-4e70-8474-64e3664f3d22/backfill-Feed-010771.pdf"
+    },
+    {
+      "file": "Feed-010782.pdf",
+      "ticket": "010782",
+      "deliveryDate": "2026-06-02",
+      "storagePath": "feed-tickets/2026-06-02/4f67e1d7-b1f9-48f5-909c-b7a79003af6a/backfill-Feed-010782.pdf"
+    },
+    {
+      "file": "Feed-010789.pdf",
+      "ticket": "010789",
+      "deliveryDate": "2026-06-04",
+      "storagePath": "feed-tickets/2026-06-04/b3c5c0d7-a038-451a-be1c-07c0bd7f8df1/backfill-Feed-010789.pdf"
+    },
+    {
+      "file": "Feed-010796.pdf",
+      "ticket": "010796",
+      "deliveryDate": "2026-06-09",
+      "storagePath": "feed-tickets/2026-06-09/be6a5cd7-c5ad-4449-ad4e-1f57731481a1/backfill-Feed-010796.pdf"
+    },
+    {
+      "file": "Feed-1002410081.pdf",
+      "ticket": "1002410081",
+      "deliveryDate": "2026-04-07",
+      "storagePath": "feed-tickets/2026-04-07/4bee9798-ad2e-446e-b92c-e9168dddf92f/backfill-Feed-1002410081.pdf"
+    },
+    {
+      "file": "Feed-1002410467.pdf",
+      "ticket": "1002410467",
+      "deliveryDate": "2026-04-08",
+      "storagePath": "feed-tickets/2026-04-08/88105ac5-c38c-4d43-88ad-e6c0fe757bea/backfill-Feed-1002410467.pdf"
+    },
+    {
+      "file": "Feed-1002463453.pdf",
+      "ticket": "1002463453",
+      "deliveryDate": "2026-04-27",
+      "storagePath": "feed-tickets/2026-04-27/8077d4a5-da70-4380-bd0f-c4b4bb46511a/backfill-Feed-1002463453.pdf"
+    },
+    {
+      "file": "Feed-1002482407.pdf",
+      "ticket": "1002482407",
+      "deliveryDate": "2026-05-06",
+      "storagePath": "feed-tickets/2026-05-06/82b7499c-0c5c-433f-a186-c7ade3748cc6/backfill-Feed-1002482407.pdf"
+    },
+    {
+      "file": "Feed-1002499781.pdf",
+      "ticket": "1002499781",
+      "deliveryDate": "2026-05-13",
+      "storagePath": "feed-tickets/2026-05-13/0c024a60-69a2-4a20-a7eb-b9350f2ab31c/backfill-Feed-1002499781.pdf"
+    },
+    {
+      "file": "Feed-1002499799.pdf",
+      "ticket": "1002499799",
+      "deliveryDate": "2026-05-12",
+      "storagePath": "feed-tickets/2026-05-12/7c31c307-41ba-4694-93a2-2f5961a10ee6/backfill-Feed-1002499799.pdf"
+    },
+    {
+      "file": "Feed-1002499802.pdf",
+      "ticket": "1002499802",
+      "deliveryDate": "2026-05-11",
+      "storagePath": "feed-tickets/2026-05-11/d6575baa-a6e2-4460-9f68-7baac144d05b/backfill-Feed-1002499802.pdf"
+    },
+    {
+      "file": "Feed-1002549788.pdf",
+      "ticket": "1002549788",
+      "deliveryDate": "2026-05-28",
+      "storagePath": "feed-tickets/2026-05-28/726ad218-1476-4d46-ba60-d2407f9fde64/backfill-Feed-1002549788.pdf"
+    },
+    {
+      "file": "Feed-1002564164.pdf",
+      "ticket": "1002564164",
+      "deliveryDate": "2026-06-08",
+      "storagePath": "feed-tickets/2026-06-08/95c3528f-2dcd-47bc-8ea2-206fb8c5b85c/backfill-Feed-1002564164.pdf"
+    },
+    {
+      "file": "Feed-1002564170.pdf",
+      "ticket": "1002564170",
+      "deliveryDate": "2026-06-11",
+      "storagePath": "feed-tickets/2026-06-11/deb39b30-91ce-43e8-8126-28e8143fc5a7/backfill-Feed-1002564170.pdf"
+    },
+    {
+      "file": "Feed-1002564178.pdf",
+      "ticket": "1002564178",
+      "deliveryDate": "2026-06-11",
+      "storagePath": "feed-tickets/2026-06-11/89b7e553-0ef9-4516-b216-e4360080742e/backfill-Feed-1002564178.pdf"
+    },
+    {
+      "file": "Feed-11277.pdf",
+      "ticket": "11277",
+      "deliveryDate": "2026-03-23",
+      "storagePath": "feed-tickets/2026-03-23/a733c741-f514-43cf-9a26-0dc38ac54152/backfill-Feed-11277.pdf"
+    },
+    {
+      "file": "Feed-11391.pdf",
+      "ticket": "11391",
+      "deliveryDate": "2026-02-06",
+      "storagePath": "feed-tickets/2026-02-06/8ce06b39-2f09-4e9e-898d-38f224310a45/backfill-Feed-11391.pdf"
+    },
+    {
+      "file": "Feed-11392.pdf",
+      "ticket": "11392",
+      "deliveryDate": "2026-02-09",
+      "storagePath": "feed-tickets/2026-02-09/d3c6418d-90bb-4533-903d-cf9ff1f1e9cd/backfill-Feed-11392.pdf"
+    },
+    {
+      "file": "Feed-11701.pdf",
+      "ticket": "11701",
+      "deliveryDate": "2026-03-24",
+      "storagePath": "feed-tickets/2026-03-24/b59ef75b-1fc9-4edb-9536-b130c1574c3f/backfill-Feed-11701.pdf"
+    },
+    {
+      "file": "Feed-11712.pdf",
+      "ticket": "11712",
+      "deliveryDate": "2026-03-30",
+      "storagePath": "feed-tickets/2026-03-30/e7387bf6-59de-46d1-bded-9e5b7bcdfeb6/backfill-Feed-11712.pdf"
+    },
+    {
+      "file": "Feed-260318.pdf",
+      "ticket": "260318",
+      "deliveryDate": "2026-03-18",
+      "storagePath": "feed-tickets/2026-03-18/b1542a89-3cb7-41e3-a8b8-f3fed93d9a7f/backfill-Feed-260318.pdf"
+    },
+    {
+      "file": "Feed-260318b.pdf",
+      "ticket": "260318b",
+      "deliveryDate": "2026-03-18",
+      "storagePath": "feed-tickets/2026-03-18/805aa4d8-4c03-48cc-8805-206a7bd7440a/backfill-Feed-260318b.pdf"
+    },
+    {
+      "file": "Feed-61835.pdf",
+      "ticket": "61835",
+      "deliveryDate": "2026-01-29",
+      "storagePath": "feed-tickets/2026-01-29/af48d6a9-fb4a-4c3b-a345-9a60956303bb/backfill-Feed-61835.pdf"
+    },
+    {
+      "file": "Feed-62082.pdf",
+      "ticket": "62082",
+      "deliveryDate": "2026-02-10",
+      "storagePath": "feed-tickets/2026-02-10/ae7e46df-2178-4f66-8774-061804071c69/backfill-Feed-62082.pdf"
+    },
+    {
+      "file": "Feed-62083.pdf",
+      "ticket": "62083",
+      "deliveryDate": "2026-02-10",
+      "storagePath": "feed-tickets/2026-02-10/23ab4bcf-37ea-4eef-b05c-8c257a2712af/backfill-Feed-62083.pdf"
+    },
+    {
+      "file": "Feed-62670.pdf",
+      "ticket": "62670",
+      "deliveryDate": "2026-02-17",
+      "storagePath": "feed-tickets/2026-02-17/92e072c7-0c7d-46b2-b218-9dfe300ce329/backfill-Feed-62670.pdf"
+    },
+    {
+      "file": "Feed-62740.pdf",
+      "ticket": "62740",
+      "deliveryDate": "2026-02-19",
+      "storagePath": "feed-tickets/2026-02-19/aaaaf974-4aa5-4a7f-ab36-f8309bb1fcf2/backfill-Feed-62740.pdf"
+    },
+    {
+      "file": "Feed-62742.pdf",
+      "ticket": "62742",
+      "deliveryDate": "2026-02-19",
+      "storagePath": "feed-tickets/2026-02-19/56daf6f4-bb17-43a0-9fb1-77e79697ae45/backfill-Feed-62742.pdf"
+    },
+    {
+      "file": "Feed-62744.pdf",
+      "ticket": "62744",
+      "deliveryDate": "2026-02-20",
+      "storagePath": "feed-tickets/2026-02-20/1acd255c-a0d7-4d30-a2e1-c173219ba1c3/backfill-Feed-62744.pdf"
+    },
+    {
+      "file": "Feed-62777.pdf",
+      "ticket": "62777",
+      "deliveryDate": "2026-02-24",
+      "storagePath": "feed-tickets/2026-02-24/072f02a7-6dd8-46d1-8e4c-a3017b9f5ce2/backfill-Feed-62777.pdf"
+    },
+    {
+      "file": "Feed-62780.pdf",
+      "ticket": "62780",
+      "deliveryDate": "2026-02-23",
+      "storagePath": "feed-tickets/2026-02-23/7a57b520-52f7-4b35-9481-7777db85fff0/backfill-Feed-62780.pdf"
+    },
+    {
+      "file": "Feed-62967.pdf",
+      "ticket": "62967",
+      "deliveryDate": "2026-03-01",
+      "storagePath": "feed-tickets/2026-03-01/1831acae-610d-458b-a735-efec1a817c83/backfill-Feed-62967.pdf"
+    },
+    {
+      "file": "Feed-62970.pdf",
+      "ticket": "62970",
+      "deliveryDate": "2026-03-06",
+      "storagePath": "feed-tickets/2026-03-06/b593c0e4-8a17-4c26-b08b-5a109297e41e/backfill-Feed-62970.pdf"
+    },
+    {
+      "file": "Feed-63137.pdf",
+      "ticket": "63137",
+      "deliveryDate": "2026-03-10",
+      "storagePath": "feed-tickets/2026-03-10/b2d3ec77-4d0f-4762-813a-f51150d228ee/backfill-Feed-63137.pdf"
+    },
+    {
+      "file": "Feed-63139.pdf",
+      "ticket": "63139",
+      "deliveryDate": "2026-03-11",
+      "storagePath": "feed-tickets/2026-03-11/683dcc91-7d2f-4238-992b-c9957603dadb/backfill-Feed-63139.pdf"
+    },
+    {
+      "file": "Feed-63341.pdf",
+      "ticket": "63341",
+      "deliveryDate": "2026-03-17",
+      "storagePath": "feed-tickets/2026-03-17/de959492-4db8-4298-a70d-2ab220018c12/backfill-Feed-63341.pdf"
+    },
+    {
+      "file": "Feed-63342.pdf",
+      "ticket": "63342",
+      "deliveryDate": "2026-03-17",
+      "storagePath": "feed-tickets/2026-03-17/043d0bdd-faa5-4373-acd0-c5fa59ba1d36/backfill-Feed-63342.pdf"
+    },
+    {
+      "file": "Feed-63378.pdf",
+      "ticket": "63378",
+      "deliveryDate": "2026-03-18",
+      "storagePath": "feed-tickets/2026-03-18/56dff740-f86a-4d2a-9ca6-881bd5a3ef48/backfill-Feed-63378.pdf"
+    },
+    {
+      "file": "Feed-010761.pdf",
+      "ticket": "010761",
+      "deliveryDate": "2026-05-27",
+      "storagePath": "(manually resolved duplicate on 2026-06-23)"
+    }
+  ],
+  "duplicateTickets": [],
+  "unmatchedFiles": [
+    {
+      "file": "Feed-10024582412.pdf",
+      "ticket": "10024582412"
+    },
+    {
+      "file": "Feed-11360.pdf",
+      "ticket": "11360"
+    },
+    {
+      "file": "Feed-61329.pdf",
+      "ticket": "61329"
+    },
+    {
+      "file": "Feed-61330.pdf",
+      "ticket": "61330"
+    },
+    {
+      "file": "Feed-61398.pdf",
+      "ticket": "61398"
+    },
+    {
+      "file": "Feed-61442.pdf",
+      "ticket": "61442"
+    },
+    {
+      "file": "Feed-61444.pdf",
+      "ticket": "61444"
+    },
+    {
+      "file": "Feed-61446.pdf",
+      "ticket": "61446"
+    },
+    {
+      "file": "Feed-61591.pdf",
+      "ticket": "61591"
+    },
+    {
+      "file": "Feed-61661.pdf",
+      "ticket": "61661"
+    },
+    {
+      "file": "Feed-61663.pdf",
+      "ticket": "61663"
+    },
+    {
+      "file": "Feed-61666.pdf",
+      "ticket": "61666"
+    },
+    {
+      "file": "Feed-61804.pdf",
+      "ticket": "61804"
+    },
+    {
+      "file": "Feed-61833.pdf",
+      "ticket": "61833"
+    },
+    {
+      "file": "Feed-61834.pdf",
+      "ticket": "61834"
+    },
+    {
+      "file": "Feed-68138.pdf",
+      "ticket": "68138"
+    },
+    {
+      "file": "Feed-Bins.jpg",
+      "ticket": "Bins"
+    }
+  ],
+  "skippedExisting": []
+}

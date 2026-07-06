@@ -98,6 +98,7 @@ type FeedDropReceiptRow = {
   drop_weight: number | null;
   drop_order: number | null;
   off_farm_redirect: boolean | null;
+  queued_for_reconciliation: boolean | null;
 };
 
 type FeedTicketReceiptRow = {
@@ -216,7 +217,8 @@ async function recalculateFeedBinLayerState(
     .from("feed_drops")
     .select("id,feed_bin_id,feed_ticket_id,type,drop_weight,drop_order")
     .in("feed_bin_id", uniqueFeedBinIds)
-    .eq("off_farm_redirect", false);
+    .eq("off_farm_redirect", false)
+    .eq("queued_for_reconciliation", false);
   if (dropError) {
     throw new Error(dropError.message);
   }
@@ -375,9 +377,10 @@ async function recalculateFeedOrderReceipts(
 
   const { data: dropRows, error: dropError } = await admin
     .from("feed_drops")
-    .select("id,feed_ticket_id,farm_id,barn_id,feed_bin_id,placement_id,type,drop_weight,drop_order,off_farm_redirect")
+    .select("id,feed_ticket_id,farm_id,barn_id,feed_bin_id,placement_id,type,drop_weight,drop_order,off_farm_redirect,queued_for_reconciliation")
     .in("farm_id", uniqueFarmIds)
-    .eq("off_farm_redirect", false);
+    .eq("off_farm_redirect", false)
+    .eq("queued_for_reconciliation", false);
   if (dropError) {
     throw new Error(dropError.message);
   }
@@ -862,7 +865,7 @@ export async function POST(req: NextRequest) {
       return false;
     }
     const row = drop as Record<string, unknown>;
-    return row.off_farm_redirect !== true && row.manual_flock_override === true;
+    return row.off_farm_redirect !== true && row.queued_for_reconciliation !== true && row.manual_flock_override === true;
   });
 
   if (manualOverrideDrops.length > 0) {

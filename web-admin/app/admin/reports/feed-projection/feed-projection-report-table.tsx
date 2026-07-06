@@ -13,6 +13,12 @@ type FeedProjectionReportTableProps = {
     statusTone: string;
     starterTotalLbs: number | null | undefined;
     growerTotalLbs: number | null | undefined;
+    headCount: number | null | undefined;
+    starterTargetLbs: number | null | undefined;
+    starterDeliveredLbs: number | null | undefined;
+    starterRemainingObligationLbs: number | null | undefined;
+    starterDeliveredPlusOnOrderLbs: number | null | undefined;
+    starterLbsPerChick: number | null | undefined;
     daily: Array<{
       date: string;
       pounds: number | null;
@@ -32,8 +38,6 @@ type FeedProjectionReportTableProps = {
     orderingMode: "typed" | "legacy" | "pending";
   }>;
   windowDates: string[];
-  emptyColSpanExpanded: number;
-  emptyColSpanCollapsed: number;
   windowLabel?: string;
   emptyMessage?: string;
   reportMode?: "operational" | "planning";
@@ -42,81 +46,174 @@ type FeedProjectionReportTableProps = {
 export function FeedProjectionReportTable({
   rows,
   windowDates,
-  emptyColSpanExpanded,
-  emptyColSpanCollapsed,
   windowLabel = "10 Day",
   emptyMessage = "No live or qualifying scheduled placements were found for the next 10 day window.",
   reportMode = "operational",
 }: FeedProjectionReportTableProps) {
   const [showDailyBreakdown, setShowDailyBreakdown] = useState(false);
+  const [showFeedDetail, setShowFeedDetail] = useState(false);
+  const [selectedStarterMathRowId, setSelectedStarterMathRowId] = useState<string | null>(null);
   const toggleDailyBreakdown = () => setShowDailyBreakdown((current) => !current);
+  const toggleFeedDetail = () => setShowFeedDetail((current) => !current);
+  const selectedStarterMathRow = rows.find((row) => row.id === selectedStarterMathRowId) ?? null;
+  const columnCount = 10 + (showFeedDetail ? 6 : 3) + (showDailyBreakdown ? windowDates.length : 0);
 
   return (
     <div className="feed-projection-report-table-shell">
+      {showFeedDetail ? <style media="print">{`@page { size: landscape; }`}</style> : null}
       <div className="feed-projection-report-table-toolbar">
-        <button className="button-secondary feed-projection-report-toggle-button" type="button" onClick={toggleDailyBreakdown}>
-          {showDailyBreakdown ? "Hide Daily Columns" : "Show Daily Columns"}
-        </button>
-        <small>{showDailyBreakdown ? "Daily detail is expanded." : `Daily detail is collapsed to the ${windowLabel.toLowerCase()} total view.`}</small>
+        <div className="feed-projection-report-table-toolbar-buttons">
+          <button className="button-secondary feed-projection-report-toggle-button" type="button" onClick={toggleDailyBreakdown}>
+            {showDailyBreakdown ? "Hide Daily Columns" : "Show Daily Columns"}
+          </button>
+          <button className="button-secondary feed-projection-report-toggle-button" type="button" onClick={toggleFeedDetail}>
+            {showFeedDetail ? "Hide Detail" : "Show Detail"}
+          </button>
+        </div>
+        <small>
+          {showDailyBreakdown ? "Daily detail is expanded." : `Daily detail is collapsed to the ${windowLabel.toLowerCase()} total view.`}
+          {showFeedDetail ? " Feed columns are expanded by starter and grower, and print will use landscape mode." : ""}
+        </small>
       </div>
 
       <div className="feed-projection-report-table-wrap">
-      <table className={`feed-projection-report-table${showDailyBreakdown ? " is-expanded" : " is-collapsed"}`}>
+      <table
+        className={`feed-projection-report-table${showDailyBreakdown ? " is-expanded" : " is-collapsed"}${showFeedDetail ? " is-feed-detail-expanded" : ""}`}
+      >
         <thead>
-          <tr>
-            <th className="feed-projection-report-sticky-col feed-projection-report-sticky-col--farm">
-              <HeaderCell title="Farm" subtitle="Name" />
-            </th>
-            <th className="feed-projection-report-sticky-col feed-projection-report-sticky-col--barn">
-              <HeaderCell title="Barn" subtitle="Code" />
-            </th>
-            <th className="feed-projection-report-flock-col">
-              <HeaderCell title="Flock" subtitle="Code" />
-            </th>
-            <th className="feed-projection-report-number-col feed-projection-report-age-col">
-              <HeaderCell title="Age" subtitle="Day" />
-            </th>
-            <th className="feed-projection-report-status-col">
-              <HeaderCell title="Status" subtitle="State" />
-            </th>
-            <th className="feed-projection-report-number-col">
-              <HeaderCell title="Starter" subtitle={reportMode === "operational" ? "Oblg" : "Need"} />
-            </th>
-            <th className="feed-projection-report-number-col">
-              <HeaderCell title="Grower" subtitle="Need" />
-            </th>
-            {showDailyBreakdown
-              ? windowDates.map((date) => (
-                  <th className="feed-projection-report-number-col" key={date}>
-                    {formatMonthDay(date)}
-                  </th>
-                ))
-              : null}
-            <th
-              className="feed-projection-report-number-col feed-projection-report-drilldown-header"
-              data-expanded={showDailyBreakdown ? "true" : "false"}
-              onClick={toggleDailyBreakdown}
-              title={showDailyBreakdown ? "Click to collapse daily detail" : "Click to expand daily detail"}
-            >
-              <span>{`${windowLabel} [-]`}</span>
-              <small>{showDailyBreakdown ? "Required" : "Required [+]"}</small>
-            </th>
-            <th className="feed-projection-report-number-col">
-              <HeaderCell title="On" subtitle="Hand" />
-            </th>
-            <th className="feed-projection-report-number-col">
-              <HeaderCell title="On" subtitle="Order" />
-            </th>
-            <th className="feed-projection-report-number-col">
-              <HeaderCell
-                title={reportMode === "operational" ? "Order" : "Req'd"}
-                subtitle={reportMode === "operational" ? "Need" : "Feed"}
-              />
-            </th>
-            <th className="feed-projection-report-mode-col">
-              <HeaderCell title="Mode" />
-            </th>
-          </tr>
+          {showFeedDetail ? (
+            <>
+              <tr>
+                <th className="feed-projection-report-sticky-col feed-projection-report-sticky-col--farm" rowSpan={2}>
+                  <HeaderCell title="Farm" subtitle="Name" />
+                </th>
+                <th className="feed-projection-report-sticky-col feed-projection-report-sticky-col--barn" rowSpan={2}>
+                  <HeaderCell title="Barn" subtitle="Code" />
+                </th>
+                <th className="feed-projection-report-flock-col" rowSpan={2}>
+                  <HeaderCell title="Flock" subtitle="Code" />
+                </th>
+                <th className="feed-projection-report-number-col feed-projection-report-age-col" rowSpan={2}>
+                  <HeaderCell title="Age" subtitle="Day" />
+                </th>
+                <th className="feed-projection-report-status-col" rowSpan={2}>
+                  <HeaderCell title="Status" subtitle="State" />
+                </th>
+                <th className="feed-projection-report-number-col" rowSpan={2}>
+                  <HeaderCell title="Starter" subtitle="Req'd" />
+                </th>
+                <th className="feed-projection-report-number-col" rowSpan={2}>
+                  <HeaderCell title="Grower" subtitle="Need" />
+                </th>
+                {showDailyBreakdown
+                  ? windowDates.map((date) => (
+                      <th className="feed-projection-report-number-col" key={date} rowSpan={2}>
+                        {formatMonthDay(date)}
+                      </th>
+                    ))
+                  : null}
+                <th
+                  className="feed-projection-report-number-col feed-projection-report-drilldown-header"
+                  data-expanded={showDailyBreakdown ? "true" : "false"}
+                  onClick={toggleDailyBreakdown}
+                  title={showDailyBreakdown ? "Click to collapse daily detail" : "Click to expand daily detail"}
+                  rowSpan={2}
+                >
+                  <span>{`${windowLabel} [-]`}</span>
+                  <small>{showDailyBreakdown ? "Required" : "Required [+]"}</small>
+                </th>
+                <th className="feed-projection-report-number-col" colSpan={2}>
+                  <span className="feed-projection-report-group-header">On-Hand</span>
+                </th>
+                <th className="feed-projection-report-number-col" colSpan={2}>
+                  <span className="feed-projection-report-group-header">On-Order</span>
+                </th>
+                <th className="feed-projection-report-number-col" colSpan={2}>
+                  <span className="feed-projection-report-group-header">
+                    {reportMode === "operational" ? "Order Needed" : "Req'd Feed"}
+                  </span>
+                </th>
+                <th className="feed-projection-report-mode-col" rowSpan={2}>
+                  <HeaderCell title="Mode" />
+                </th>
+              </tr>
+              <tr>
+                <th className="feed-projection-report-number-col">
+                  <span className="feed-projection-report-sub-header">Starter</span>
+                </th>
+                <th className="feed-projection-report-number-col">
+                  <span className="feed-projection-report-sub-header">Grower</span>
+                </th>
+                <th className="feed-projection-report-number-col">
+                  <span className="feed-projection-report-sub-header">Starter</span>
+                </th>
+                <th className="feed-projection-report-number-col">
+                  <span className="feed-projection-report-sub-header">Grower</span>
+                </th>
+                <th className="feed-projection-report-number-col">
+                  <span className="feed-projection-report-sub-header">Starter</span>
+                </th>
+                <th className="feed-projection-report-number-col">
+                  <span className="feed-projection-report-sub-header">Grower</span>
+                </th>
+              </tr>
+            </>
+          ) : (
+            <tr>
+              <th className="feed-projection-report-sticky-col feed-projection-report-sticky-col--farm">
+                <HeaderCell title="Farm" subtitle="Name" />
+              </th>
+              <th className="feed-projection-report-sticky-col feed-projection-report-sticky-col--barn">
+                <HeaderCell title="Barn" subtitle="Code" />
+              </th>
+              <th className="feed-projection-report-flock-col">
+                <HeaderCell title="Flock" subtitle="Code" />
+              </th>
+              <th className="feed-projection-report-number-col feed-projection-report-age-col">
+                <HeaderCell title="Age" subtitle="Day" />
+              </th>
+              <th className="feed-projection-report-status-col">
+                <HeaderCell title="Status" subtitle="State" />
+              </th>
+              <th className="feed-projection-report-number-col">
+                <HeaderCell title="Starter" subtitle="Req'd" />
+              </th>
+              <th className="feed-projection-report-number-col">
+                <HeaderCell title="Grower" subtitle="Need" />
+              </th>
+              {showDailyBreakdown
+                ? windowDates.map((date) => (
+                    <th className="feed-projection-report-number-col" key={date}>
+                      {formatMonthDay(date)}
+                    </th>
+                  ))
+                : null}
+              <th
+                className="feed-projection-report-number-col feed-projection-report-drilldown-header"
+                data-expanded={showDailyBreakdown ? "true" : "false"}
+                onClick={toggleDailyBreakdown}
+                title={showDailyBreakdown ? "Click to collapse daily detail" : "Click to expand daily detail"}
+              >
+                <span>{`${windowLabel} [-]`}</span>
+                <small>{showDailyBreakdown ? "Required" : "Required [+]"}</small>
+              </th>
+              <th className="feed-projection-report-number-col">
+                <HeaderCell title="On" subtitle="Hand" />
+              </th>
+              <th className="feed-projection-report-number-col">
+                <HeaderCell title="On" subtitle="Order" />
+              </th>
+              <th className="feed-projection-report-number-col">
+                <HeaderCell
+                  title={reportMode === "operational" ? "Order" : "Req'd"}
+                  subtitle={reportMode === "operational" ? "Need" : "Feed"}
+                />
+              </th>
+              <th className="feed-projection-report-mode-col">
+                <HeaderCell title="Mode" />
+              </th>
+            </tr>
+          )}
         </thead>
         <tbody>
           {rows.length > 0 ? (
@@ -138,7 +235,20 @@ export function FeedProjectionReportTable({
                     {row.statusLabel}
                   </span>
                 </td>
-                <td className="feed-projection-report-number-col">{formatWeight(row.starterTotalLbs)}</td>
+                <td className="feed-projection-report-number-col">
+                  {row.starterTotalLbs !== null && row.starterTotalLbs !== undefined ? (
+                    <button
+                      className="feed-projection-report-math-trigger"
+                      type="button"
+                      onClick={() => setSelectedStarterMathRowId(row.id)}
+                      title="Show starter requirement math"
+                    >
+                      {formatWeight(row.starterTotalLbs)}
+                    </button>
+                  ) : (
+                    formatWeight(row.starterTotalLbs)
+                  )}
+                </td>
                 <td className="feed-projection-report-number-col">{formatWeight(row.growerTotalLbs)}</td>
                 {showDailyBreakdown
                   ? row.daily.map((day) => (
@@ -148,24 +258,37 @@ export function FeedProjectionReportTable({
                     ))
                   : null}
                 <td className="feed-projection-report-number-col">{formatWeight(row.totalLbs)}</td>
-                <td className="feed-projection-report-number-col" title={buildSplitTitle("Accessible", row.starterAccessibleLbs, row.growerAccessibleLbs, row.starterQueuedLbs, row.growerQueuedLbs)}>
-                  {formatWeight(row.onHandLbs)}
-                </td>
-                <td className="feed-projection-report-number-col" title={buildSplitTitle("On order", row.starterOnOrderLbs, row.growerOnOrderLbs)}>
-                  {formatWeight(row.onOrderLbs)}
-                </td>
-                <td
-                  className="feed-projection-report-number-col"
-                  title={buildSplitTitle(reportMode === "operational" ? "Recommended" : "Planning gap", row.starterRecommendedLbs, row.growerRecommendedLbs)}
-                >
-                  {formatWeight(row.recommendedOrderLbs)}
-                </td>
+                {showFeedDetail ? (
+                  <>
+                    <td className="feed-projection-report-number-col">{formatWeight(row.starterAccessibleLbs)}</td>
+                    <td className="feed-projection-report-number-col">{formatWeight(row.growerAccessibleLbs)}</td>
+                    <td className="feed-projection-report-number-col">{formatWeight(row.starterOnOrderLbs)}</td>
+                    <td className="feed-projection-report-number-col">{formatWeight(row.growerOnOrderLbs)}</td>
+                    <td className="feed-projection-report-number-col">{formatWeight(row.starterRecommendedLbs)}</td>
+                    <td className="feed-projection-report-number-col">{formatWeight(row.growerRecommendedLbs)}</td>
+                  </>
+                ) : (
+                  <>
+                    <td className="feed-projection-report-number-col" title={buildSplitTitle("Accessible", row.starterAccessibleLbs, row.growerAccessibleLbs, row.starterQueuedLbs, row.growerQueuedLbs)}>
+                      {formatWeight(row.onHandLbs)}
+                    </td>
+                    <td className="feed-projection-report-number-col" title={buildSplitTitle("On order", row.starterOnOrderLbs, row.growerOnOrderLbs)}>
+                      {formatWeight(row.onOrderLbs)}
+                    </td>
+                    <td
+                      className="feed-projection-report-number-col"
+                      title={buildSplitTitle(reportMode === "operational" ? "Recommended" : "Planning gap", row.starterRecommendedLbs, row.growerRecommendedLbs)}
+                    >
+                      {formatWeight(row.recommendedOrderLbs)}
+                    </td>
+                  </>
+                )}
                 <td className="feed-projection-report-mode-col">{formatMode(row.orderingMode)}</td>
               </tr>
             ))
           ) : (
             <tr>
-              <td className="feed-projection-report-empty" colSpan={showDailyBreakdown ? emptyColSpanExpanded : emptyColSpanCollapsed}>
+              <td className="feed-projection-report-empty" colSpan={columnCount}>
                 {emptyMessage}
               </td>
             </tr>
@@ -173,6 +296,64 @@ export function FeedProjectionReportTable({
         </tbody>
       </table>
       </div>
+      {selectedStarterMathRow ? (
+        <div className="feed-projection-report-math-modal-shell" role="dialog" aria-modal="true" aria-labelledby="starter-obligation-math-title">
+          <button
+            className="feed-projection-report-math-modal-backdrop"
+            type="button"
+            aria-label="Close starter requirement math"
+            onClick={() => setSelectedStarterMathRowId(null)}
+          />
+          <div className="feed-projection-report-math-modal-panel">
+            <div className="feed-projection-report-math-modal-header">
+              <div>
+                <span>Starter 10-Day Math</span>
+                <strong id="starter-obligation-math-title">{selectedStarterMathRow.placementCode}</strong>
+              </div>
+              <button className="button-secondary" type="button" onClick={() => setSelectedStarterMathRowId(null)}>
+                Close
+              </button>
+            </div>
+            <div className="feed-projection-report-math-grid">
+              <div>
+                <span>Starter Required</span>
+                <strong>{formatWeight(selectedStarterMathRow.starterTotalLbs)}</strong>
+                <small>
+                  Projected starter consumption inside the current report window
+                </small>
+              </div>
+              <div>
+                <span>Starter Accessible</span>
+                <strong>{formatWeight(selectedStarterMathRow.starterAccessibleLbs)}</strong>
+                <small>
+                  Starter inventory already on hand for this barn
+                </small>
+              </div>
+              <div>
+                <span>Starter On Order</span>
+                <strong>{formatWeight(selectedStarterMathRow.starterOnOrderLbs)}</strong>
+                <small>Open starter orders counted inside the same window</small>
+              </div>
+              <div>
+                <span>Starter Gap</span>
+                <strong>{formatWeight(selectedStarterMathRow.starterRecommendedLbs)}</strong>
+                <small>Additional starter still needed for the window</small>
+              </div>
+            </div>
+            <div className="feed-projection-report-math-formula">
+              <span>Formula</span>
+              <strong>
+                {formatWeight(selectedStarterMathRow.starterTotalLbs)} - {formatWeight(selectedStarterMathRow.starterAccessibleLbs)} -{" "}
+                {formatWeight(selectedStarterMathRow.starterOnOrderLbs)} = {formatWeight(selectedStarterMathRow.starterRecommendedLbs)}
+              </strong>
+            </div>
+            <div className="feed-projection-report-math-formula">
+              <span>Starter Obligation Remaining</span>
+              <strong>{formatWeight(selectedStarterMathRow.starterRemainingObligationLbs)}</strong>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

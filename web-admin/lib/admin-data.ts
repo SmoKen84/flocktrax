@@ -896,11 +896,13 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const accessibleType = normalizeFeedType(row.accessible_feed_type);
       const queuedType = normalizeFeedType(row.queued_feed_type);
       const accessibleLbs =
-        typeof row.accessible_feed_lbs === "number" && Number.isFinite(row.accessible_feed_lbs)
-          ? Math.max(0, row.accessible_feed_lbs)
-          : accessibleType
-            ? Math.max(0, row.binsentry_last_inventory_lbs ?? 0)
-            : 0;
+        accessibleType
+          ? typeof row.binsentry_last_inventory_lbs === "number" && Number.isFinite(row.binsentry_last_inventory_lbs)
+            ? Math.max(0, row.binsentry_last_inventory_lbs)
+            : typeof row.accessible_feed_lbs === "number" && Number.isFinite(row.accessible_feed_lbs)
+              ? Math.max(0, row.accessible_feed_lbs)
+              : 0
+          : 0;
       const queuedLbs =
         typeof row.queued_feed_lbs === "number" && Number.isFinite(row.queued_feed_lbs)
           ? Math.max(0, row.queued_feed_lbs)
@@ -1249,7 +1251,12 @@ export async function getAdminData(): Promise<AdminDataBundle> {
           (row) =>
             row.lifecycle_stage === "awaiting_arrival" || row.lifecycle_stage === "in_barn_growing",
         ) ?? null;
-      const scheduledRow = rowsForBarn.find((row) => row.lifecycle_stage === "scheduled") ?? null;
+      const scheduledRow =
+        rowsForBarn.find(
+          (candidate) =>
+            candidate.lifecycle_stage === "scheduled" &&
+            isPlacementScheduledOnOrAfter(candidate, today, flockById),
+        ) ?? null;
       const row = activeRow ?? scheduledRow ?? null;
       const nextPlacementRow =
         row && activeRow
@@ -1257,6 +1264,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
               (candidate) =>
                 candidate.id !== row.id &&
                 candidate.lifecycle_stage === "scheduled" &&
+                isPlacementScheduledOnOrAfter(candidate, today, flockById) &&
                 comparePlacementRows(candidate, row, flockById) > 0,
             ) ??
             null
@@ -1798,7 +1806,7 @@ function deriveNonLiveDashboardStatus(tileState: ActivePlacementRecord["tileStat
     return { label: "Scheduled", tone: "neutral" as const };
   }
 
-  return { label: "OFFLINE", tone: "neutral" as const };
+  return { label: "Off-Line", tone: "neutral" as const };
 }
 
 function deriveTileState(lifecycleStage: PlacementLifecycleStage | null): ActivePlacementRecord["tileState"] {
@@ -2477,14 +2485,34 @@ function comparePlacementRows(
   right: PlacementRow,
   flockById: Map<string, FlockRow>,
 ) {
-  const leftDate = left.active_start ?? flockById.get(left.flock_id)?.date_placed ?? "9999-12-31";
-  const rightDate = right.active_start ?? flockById.get(right.flock_id)?.date_placed ?? "9999-12-31";
+  const leftDate = resolvePlacementScheduledDate(left, flockById) ?? "9999-12-31";
+  const rightDate = resolvePlacementScheduledDate(right, flockById) ?? "9999-12-31";
   const dateCompare = leftDate.localeCompare(rightDate);
   if (dateCompare !== 0) {
     return dateCompare;
   }
 
   return String(left.created_at ?? "").localeCompare(String(right.created_at ?? ""));
+}
+
+function resolvePlacementScheduledDate(
+  row: PlacementRow,
+  flockById: Map<string, FlockRow>,
+) {
+  return row.active_start ?? flockById.get(row.flock_id)?.date_placed ?? null;
+}
+
+function isPlacementScheduledOnOrAfter(
+  row: PlacementRow,
+  today: string,
+  flockById: Map<string, FlockRow>,
+) {
+  const scheduledDate = resolvePlacementScheduledDate(row, flockById);
+  if (!scheduledDate) {
+    return false;
+  }
+
+  return scheduledDate >= today;
 }
 
 function isOnOrAfter(date: string | null, compareTo: string) {

@@ -55,14 +55,38 @@ export function SchedulePlacementForm({
             value={growOutDays}
           />
         </label>
-        <label className="field">
-          <span>Start Females</span>
-          <input name="start_cnt_females" type="number" />
-        </label>
-        <label className="field">
-          <span>Start Males</span>
-          <input name="start_cnt_males" type="number" />
-        </label>
+        <div className="placement-scheduler-sex-grid">
+          <div className="placement-scheduler-sex-card">
+            <label className="field">
+              <span>Start Males</span>
+              <input className="placement-scheduler-start-input" name="start_cnt_males" type="number" />
+            </label>
+            <label className="field placement-scheduler-sex-date-field">
+              <input
+                aria-label="Male Placement Date"
+                className="placement-scheduler-date-input"
+                defaultValue={selectedDate}
+                name="male_date_placed"
+                type="date"
+              />
+            </label>
+          </div>
+          <div className="placement-scheduler-sex-card">
+            <label className="field">
+              <span>Start Females</span>
+              <input className="placement-scheduler-start-input" name="start_cnt_females" type="number" />
+            </label>
+            <label className="field placement-scheduler-sex-date-field">
+              <input
+                aria-label="Female Placement Date"
+                className="placement-scheduler-date-input"
+                defaultValue={selectedDate}
+                name="female_date_placed"
+                type="date"
+              />
+            </label>
+          </div>
+        </div>
       </div>
 
       <div className="placement-scheduler-projection">

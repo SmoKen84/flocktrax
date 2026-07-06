@@ -130,7 +130,7 @@ export async function getDashboardWeatherForecast(input: {
   const params = new URLSearchParams({
     latitude: String(input.latitude),
     longitude: String(input.longitude),
-    current: "temperature_2m,weather_code",
+    current: "temperature_2m,relative_humidity_2m,weather_code",
     daily: "temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max",
     timezone: "auto",
     forecast_days: "1",
@@ -151,6 +151,7 @@ export async function getDashboardWeatherForecast(input: {
     latitude: input.latitude,
     longitude: input.longitude,
     currentTemperature: coerceNumber(current?.temperature_2m),
+    currentRelativeHumidity: coerceNumber(current?.relative_humidity_2m),
     currentWeatherCode: coerceNumber(current?.weather_code),
     dailyHigh: coerceNumber(readArrayValue(daily?.temperature_2m_max, 0)),
     dailyLow: coerceNumber(readArrayValue(daily?.temperature_2m_min, 0)),

@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { FeedTicketDocumentUploader } from "@/app/admin/feed-tickets/feed-ticket-document-uploader";
 import { reportSessionExpired } from "@/components/session-recovery-layer";
 import {
   formatFeedTicketTypeHelp as formatHostedFeedTicketTypeHelp,
@@ -40,16 +42,25 @@ type EditorDrop = {
   id?: string | null;
   feed_bin_id: string | null;
   bin_code?: string | null;
+  barn_id?: string | null;
   barn_code?: string | null;
   placement_id: string | null;
   placement_code?: string | null;
   default_placement_id?: string | null;
   default_placement_code?: string | null;
+  queued_from_feed_bin_id?: string | null;
+  queued_from_bin_code?: string | null;
+  queued_from_barn_id?: string | null;
+  queued_from_barn_code?: string | null;
+  queued_from_placement_id?: string | null;
+  queued_from_placement_code?: string | null;
+  queued_at?: string | null;
   feed_type: string | null;
   drop_weight_lbs: number | null;
   note: string | null;
   drop_order: number;
   off_farm_redirect?: boolean;
+  queued_for_reconciliation?: boolean;
   manual_flock_override?: boolean;
 };
 
@@ -99,6 +110,7 @@ const LOAD_TYPE_OPTIONS = ["Starter", "Grower", "Split"] as const;
 const DRAFT_STORAGE_PREFIX = "flocktrax:feed-ticket-draft";
 const SESSION_RESTORED_EVENT = "flocktrax:session-restored";
 const OFF_FARM_PLACEMENT_CODE = "OFF-FARM";
+const QUEUED_DROP_PLACEMENT_CODE = "DROP-QUEUE";
 
 export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpText, ticketTypeOptions }: Props) {
   const isExistingTicket = Boolean(ticketId);
@@ -120,6 +132,7 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
   const [allowHistoricalEntry, setAllowHistoricalEntry] = useState(false);
   const [canManualFlockCorrection, setCanManualFlockCorrection] = useState(false);
   const [recoverableDraft, setRecoverableDraft] = useState<EditorItem | null>(null);
+  const [showDocumentUploader, setShowDocumentUploader] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -219,6 +232,21 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
         };
       }
 
+      if (drop.queued_for_reconciliation) {
+        return {
+          ...drop,
+          feed_bin_id: null,
+          bin_code: null,
+          barn_id: null,
+          barn_code: null,
+          placement_id: null,
+          placement_code: QUEUED_DROP_PLACEMENT_CODE,
+          default_placement_id: null,
+          default_placement_code: QUEUED_DROP_PLACEMENT_CODE,
+          manual_flock_override: false,
+        };
+      }
+
       if (drop.manual_flock_override) {
         return drop;
       }
@@ -247,8 +275,14 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
 
     const changed = normalizedDrops.some(
       (drop, index) =>
+        drop.feed_bin_id !== item.drops[index]?.feed_bin_id ||
+        drop.bin_code !== item.drops[index]?.bin_code ||
+        drop.barn_id !== item.drops[index]?.barn_id ||
+        drop.barn_code !== item.drops[index]?.barn_code ||
         drop.placement_id !== item.drops[index]?.placement_id ||
         drop.placement_code !== item.drops[index]?.placement_code ||
+        drop.default_placement_id !== item.drops[index]?.default_placement_id ||
+        drop.default_placement_code !== item.drops[index]?.default_placement_code ||
         drop.manual_flock_override !== item.drops[index]?.manual_flock_override,
     );
 
@@ -294,7 +328,8 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
   async function handleSave() {
     if (!item) return;
 
-    const validation = validateItem(item);
+    const preparedItem = prepareItemForSave(item);
+    const validation = validateItem(preparedItem);
     if (validation) {
       setMessageTone("error");
       setMessage(validation);
@@ -307,11 +342,11 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
       const response = await fetch("/api/feed-ticket-editor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(item),
+        body: JSON.stringify(preparedItem),
       });
       const payload = (await response.json()) as EditorPayload;
       if (response.status === 401) {
-        writeDraft(ticketId ?? item.id ?? null, item);
+        writeDraft(ticketId ?? preparedItem.id ?? null, preparedItem);
         reportSessionExpired("Your JWT expired before this feed ticket could save. Sign in again and the draft will stay loaded.");
       }
       if (!response.ok || !payload.ok || !payload.item) {
@@ -438,6 +473,31 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
               <h3 className="feed-ticket-editor-ticket-number">{item.ticket_number?.trim() || "New Ticket"}</h3>
             </div>
             <div className="feed-ticket-editor-toolbar">
+              <button
+                aria-label="Archive feed ticket original"
+                className="button-secondary feed-ticket-editor-icon-button"
+                disabled={saving || !item.id}
+                onClick={() => {
+                  if (!item.id) {
+                    setMessageTone("error");
+                    setMessage("Save the ticket before archiving its original document.");
+                    return;
+                  }
+                  setShowDocumentUploader(true);
+                }}
+                title={item.id ? "Document IN: Archive Original" : "Save the ticket before archiving the original"}
+                type="button"
+              >
+                <Image
+                  alt=""
+                  aria-hidden="true"
+                  className="feed-ticket-editor-doc-icon"
+                  draggable={false}
+                  height={18}
+                  src="/icons/doc-inA.png?v=2"
+                  width={18}
+                />
+              </button>
               <button
                 aria-label="Print feed ticket"
                 className="button-secondary feed-ticket-editor-icon-button"
@@ -635,52 +695,54 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
               <span>Flock</span>
               <span>Feed Type</span>
               <span>Weight</span>
-              <span>Redirect</span>
+              <span>Disposition</span>
               <span>Note</span>
               <span />
             </div>
             {item.drops.map((drop, index) => {
               const isOffFarmRedirect = drop.off_farm_redirect === true;
+              const isQueuedForReconciliation = drop.queued_for_reconciliation === true;
               const currentPlacement = resolvePlacementOption(placementOptions, drop);
               const currentBin = resolveBinOption(item.bins, drop);
               const systemRegPlacement =
-                item.ticket_type === "Reg" && !isOffFarmRedirect ? resolveRegPlacement(item, placementOptions, drop) : null;
+                item.ticket_type === "Reg" && !isOffFarmRedirect && !isQueuedForReconciliation
+                  ? resolveRegPlacement(item, placementOptions, drop)
+                  : null;
               const canUseManualFlockCorrection =
-                canManualFlockCorrection && item.ticket_type === "Reg" && !isOffFarmRedirect;
+                canManualFlockCorrection && item.ticket_type === "Reg" && !isOffFarmRedirect && !isQueuedForReconciliation;
               const rememberedDefaultPlacementId = drop.default_placement_id ?? systemRegPlacement?.placement_id ?? null;
               const rememberedDefaultPlacementCode = drop.default_placement_code ?? systemRegPlacement?.placement_code ?? null;
               const placementDiffersFromSystem =
                 item.ticket_type === "Reg" &&
                 !isOffFarmRedirect &&
                 Boolean(drop.placement_id) &&
-                ((!rememberedDefaultPlacementId && Boolean(drop.feed_bin_id)) || rememberedDefaultPlacementId !== drop.placement_id);
+                Boolean(drop.default_placement_id) &&
+                rememberedDefaultPlacementId !== drop.placement_id;
               const hasManualFlockOverride =
                 canUseManualFlockCorrection && (drop.manual_flock_override === true || placementDiffersFromSystem);
               const regLockedPlacement =
-                item.ticket_type === "Reg" && !isOffFarmRedirect && !hasManualFlockOverride
+                item.ticket_type === "Reg" && !isOffFarmRedirect && !isQueuedForReconciliation && !hasManualFlockOverride
                   ? systemRegPlacement
                   : null;
               const regCanManuallyPickHistorical = item.ticket_type === "Reg"
                 ? isRegManualFallbackAllowed(item, placementOptions, drop, allowHistoricalEntry)
                 : false;
+              const canChooseRegPlacement =
+                item.ticket_type === "Reg" && (regCanManuallyPickHistorical || canUseManualFlockCorrection);
               const canEditPlacement =
                 !isOffFarmRedirect &&
-                (item.ticket_type !== "Reg" || regCanManuallyPickHistorical || hasManualFlockOverride);
-              const displayedPlacement = isOffFarmRedirect
+                !isQueuedForReconciliation &&
+                (item.ticket_type !== "Reg" || canChooseRegPlacement);
+              const displayedPlacement = isOffFarmRedirect || isQueuedForReconciliation
                 ? null
                 : hasManualFlockOverride
                   ? currentPlacement
                   : regLockedPlacement ?? currentPlacement;
-              const regManualPlacementOptions = item.ticket_type === "Reg" && regCanManuallyPickHistorical
+              const regManualPlacementOptions = item.ticket_type === "Reg" && canChooseRegPlacement
                 ? resolveRegManualPlacementOptions(placementOptions, currentBin)
                 : [];
-              const manualCorrectionPlacementOptions =
-                item.ticket_type === "Reg" && hasManualFlockOverride
-                  ? resolveRegManualPlacementOptions(placementOptions, currentBin)
-                  : [];
-              const placementOptionsForSelect = hasManualFlockOverride
-                ? manualCorrectionPlacementOptions
-                : regCanManuallyPickHistorical
+              const placementOptionsForSelect =
+                item.ticket_type === "Reg" && canChooseRegPlacement
                   ? regManualPlacementOptions
                   : placementOptions;
 
@@ -688,13 +750,14 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                 <div className="feed-ticket-editor-drop-row" key={`${drop.id ?? "new"}-${index}`}>
                   <span className="feed-ticket-editor-ordinal">{index + 1}</span>
                   <select
-                    disabled={isOffFarmRedirect}
+                    disabled={isOffFarmRedirect || isQueuedForReconciliation}
                     onChange={(event) => {
                       const nextBin = item.bins.find((bin) => bin.feed_bin_id === event.target.value) ?? null;
                       const nextRegPlacement = item.ticket_type === "Reg" ? resolveRegPlacementForBin(item, placementOptions, nextBin) : null;
                       updateDrop(index, item, setItem, {
                         feed_bin_id: nextBin?.feed_bin_id ?? null,
                         bin_code: nextBin?.bin_code ?? null,
+                        barn_id: nextBin?.barn_id ?? null,
                         barn_code: nextBin?.barn_code ?? null,
                         default_placement_id: item.ticket_type === "Reg" ? nextRegPlacement?.placement_id ?? null : drop.default_placement_id ?? null,
                         default_placement_code: item.ticket_type === "Reg" ? nextRegPlacement?.placement_code ?? null : drop.default_placement_code ?? null,
@@ -705,7 +768,9 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                     }}
                     value={drop.feed_bin_id ?? ""}
                   >
-                    <option value="">{isOffFarmRedirect ? "Off Farm Redirect" : "Select Bin"}</option>
+                    <option value="">
+                      {isOffFarmRedirect ? "Off Farm Redirect" : isQueuedForReconciliation ? buildQueuedBinLabel(drop) ?? "Queued" : "Select Bin"}
+                    </option>
                     {currentBin ? (
                       <option value={currentBin.feed_bin_id}>{formatBinLabel(currentBin)}</option>
                     ) : null}
@@ -719,6 +784,7 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                   </select>
                   <div className="feed-ticket-editor-flock-cell">
                     <select
+                      className={hasManualFlockOverride ? "feed-ticket-editor-flock-select is-overridden" : "feed-ticket-editor-flock-select"}
                       disabled={!canEditPlacement}
                       onChange={(event) => {
                         const nextPlacement = placementOptions.find((option) => option.placement_id === event.target.value) ?? null;
@@ -734,17 +800,36 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                           manual_flock_override: nextManualOverride,
                         });
                       }}
-                      value={isOffFarmRedirect ? OFF_FARM_PLACEMENT_CODE : displayedPlacement?.placement_id ?? ""}
+                      title={
+                        !canEditPlacement
+                          ? "Flock follows the system-selected active flock. Farm Manager or Super Admin access is required to change it."
+                          : hasManualFlockOverride
+                            ? "This flock assignment was manually overridden."
+                            : "System-selected flock assignment."
+                      }
+                      value={
+                        isOffFarmRedirect
+                          ? OFF_FARM_PLACEMENT_CODE
+                          : isQueuedForReconciliation
+                            ? QUEUED_DROP_PLACEMENT_CODE
+                            : displayedPlacement?.placement_id ?? ""
+                      }
                     >
                       {isOffFarmRedirect ? (
                         <option value={OFF_FARM_PLACEMENT_CODE}>{OFF_FARM_PLACEMENT_CODE}</option>
+                      ) : isQueuedForReconciliation ? (
+                        <option value={QUEUED_DROP_PLACEMENT_CODE}>
+                          {buildQueuedSourceLabel(drop) ?? QUEUED_DROP_PLACEMENT_CODE}
+                        </option>
                       ) : item.ticket_type === "Reg" ? (
-                        regCanManuallyPickHistorical || hasManualFlockOverride ? (
+                        canChooseRegPlacement ? (
                           <>
                             <option value="">
                               {hasManualFlockOverride
                                 ? (drop.feed_bin_id ? "Select corrected flock." : "Select Bin First")
-                                : (drop.feed_bin_id ? "No historical match. Select Flock." : "Select Bin First")}
+                                : regCanManuallyPickHistorical
+                                  ? (drop.feed_bin_id ? "No historical match. Select Flock." : "Select Bin First")
+                                  : (drop.feed_bin_id ? "System flock selected. Change only if needed." : "Select Bin First")}
                             </option>
                             {displayedPlacement ? (
                               <option value={displayedPlacement.placement_id}>{formatPlacementLabel(displayedPlacement)}</option>
@@ -783,28 +868,6 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                         </>
                       )}
                     </select>
-                    {canUseManualFlockCorrection ? (
-                      <button
-                        className={`feed-ticket-editor-inline-toggle${hasManualFlockOverride ? " is-active" : ""}`}
-                        onClick={() => {
-                          if (hasManualFlockOverride) {
-                            updateDrop(index, item, setItem, {
-                              placement_id: rememberedDefaultPlacementId,
-                              placement_code: rememberedDefaultPlacementCode,
-                              manual_flock_override: false,
-                            });
-                            return;
-                          }
-
-                          updateDrop(index, item, setItem, {
-                            manual_flock_override: true,
-                          });
-                        }}
-                        type="button"
-                      >
-                        {hasManualFlockOverride ? "Default" : "Override"}
-                      </button>
-                    ) : null}
                   </div>
                   <select
                     onChange={(event) => updateDrop(index, item, setItem, { feed_type: event.target.value || null })}
@@ -823,36 +886,99 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                     type="number"
                     value={drop.drop_weight_lbs ?? ""}
                   />
-                  <label className="feed-ticket-editor-redirect-toggle">
-                    <input
-                      checked={isOffFarmRedirect}
-                      onChange={(event) =>
-                        updateDrop(index, item, setItem, event.target.checked
-                          ? {
-                              off_farm_redirect: true,
-                              feed_bin_id: null,
-                              bin_code: null,
-                              barn_code: null,
-                              default_placement_id: null,
-                              default_placement_code: OFF_FARM_PLACEMENT_CODE,
-                              placement_id: null,
-                              placement_code: OFF_FARM_PLACEMENT_CODE,
-                              manual_flock_override: false,
-                            }
-                          : {
-                              off_farm_redirect: false,
-                              default_placement_id: drop.default_placement_id ?? null,
-                              default_placement_code: drop.default_placement_code ?? null,
-                              placement_code: null,
-                              manual_flock_override: false,
-                            })}
-                      type="checkbox"
-                    />
-                    <span>Off Farm</span>
-                  </label>
+                  <div className="feed-ticket-editor-disposition-cell">
+                    <label className="feed-ticket-editor-redirect-toggle">
+                      <input
+                        checked={isOffFarmRedirect}
+                        onChange={(event) =>
+                          updateDrop(index, item, setItem, event.target.checked
+                            ? {
+                                off_farm_redirect: true,
+                                queued_for_reconciliation: false,
+                                feed_bin_id: null,
+                                bin_code: null,
+                                barn_id: null,
+                                barn_code: null,
+                                default_placement_id: null,
+                                default_placement_code: OFF_FARM_PLACEMENT_CODE,
+                                placement_id: null,
+                                placement_code: OFF_FARM_PLACEMENT_CODE,
+                                queued_from_feed_bin_id: null,
+                                queued_from_bin_code: null,
+                                queued_from_barn_id: null,
+                                queued_from_barn_code: null,
+                                queued_from_placement_id: null,
+                                queued_from_placement_code: null,
+                                queued_at: null,
+                                manual_flock_override: false,
+                              }
+                            : {
+                                off_farm_redirect: false,
+                                default_placement_id: drop.default_placement_id ?? null,
+                                default_placement_code: drop.default_placement_code ?? null,
+                                placement_code: null,
+                                manual_flock_override: false,
+                              })}
+                        type="checkbox"
+                      />
+                      <span>Off Farm</span>
+                    </label>
+                    <label className="feed-ticket-editor-redirect-toggle">
+                      <input
+                        checked={isQueuedForReconciliation}
+                        onChange={(event) =>
+                          updateDrop(index, item, setItem, event.target.checked
+                            ? {
+                                queued_for_reconciliation: true,
+                                off_farm_redirect: false,
+                                feed_bin_id: null,
+                                bin_code: null,
+                                barn_id: null,
+                                barn_code: null,
+                                default_placement_id: null,
+                                default_placement_code: QUEUED_DROP_PLACEMENT_CODE,
+                                placement_id: null,
+                                placement_code: QUEUED_DROP_PLACEMENT_CODE,
+                                queued_from_feed_bin_id: drop.queued_from_feed_bin_id ?? drop.feed_bin_id ?? null,
+                                queued_from_bin_code: drop.queued_from_bin_code ?? drop.bin_code ?? currentBin?.bin_code ?? null,
+                                queued_from_barn_id: drop.queued_from_barn_id ?? drop.barn_id ?? currentBin?.barn_id ?? null,
+                                queued_from_barn_code: drop.queued_from_barn_code ?? drop.barn_code ?? currentBin?.barn_code ?? null,
+                                queued_from_placement_id: drop.queued_from_placement_id ?? drop.placement_id ?? null,
+                                queued_from_placement_code: drop.queued_from_placement_code ?? drop.placement_code ?? displayedPlacement?.placement_code ?? null,
+                                queued_at: drop.queued_at ?? new Date().toISOString(),
+                                manual_flock_override: false,
+                              }
+                            : {
+                                queued_for_reconciliation: false,
+                                feed_bin_id: drop.queued_from_feed_bin_id ?? null,
+                                bin_code: drop.queued_from_bin_code ?? null,
+                                barn_id: drop.queued_from_barn_id ?? null,
+                                barn_code: drop.queued_from_barn_code ?? null,
+                                default_placement_id: drop.queued_from_placement_id ?? drop.default_placement_id ?? null,
+                                default_placement_code: drop.queued_from_placement_code ?? drop.default_placement_code ?? null,
+                                placement_id: drop.queued_from_placement_id ?? null,
+                                placement_code: drop.queued_from_placement_code ?? null,
+                                manual_flock_override: false,
+                              })}
+                        type="checkbox"
+                      />
+                      <span>Queue</span>
+                    </label>
+                  </div>
                   <input
                     onChange={(event) => updateDrop(index, item, setItem, { note: event.target.value || null })}
-                    placeholder={isOffFarmRedirect ? "Required: where was this feed redirected?" : ""}
+                    placeholder={
+                      isOffFarmRedirect
+                        ? "Required: where was this feed redirected?"
+                        : isQueuedForReconciliation
+                          ? "Required: why is this drop being queued?"
+                          : ""
+                    }
+                    title={
+                      isQueuedForReconciliation
+                        ? [buildQueuedSourceLabel(drop), drop.queued_at ? `Queued ${formatQueuedAt(drop.queued_at)}` : null].filter(Boolean).join("\n")
+                        : undefined
+                    }
                     type="text"
                     value={drop.note ?? ""}
                   />
@@ -871,6 +997,18 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
           </div>
         </div>
       </div>
+      {showDocumentUploader && item.id ? (
+        <FeedTicketDocumentUploader
+          onClose={() => setShowDocumentUploader(false)}
+          onSaved={() => {
+            setShowDocumentUploader(false);
+            setMessageTone("success");
+            setMessage("Original archived for this feed ticket.");
+          }}
+          ticketId={item.id}
+          ticketNumber={item.ticket_number}
+        />
+      ) : null}
     </div>
   );
 }
@@ -922,10 +1060,19 @@ function normalizeItem(item: EditorItem): EditorItem {
     ticket_type: item.ticket_type ?? "Reg",
     drops: (item.drops ?? []).map((drop, index) => ({
       ...drop,
+      barn_id: typeof drop.barn_id === "string" ? drop.barn_id : null,
       off_farm_redirect: drop.off_farm_redirect === true,
+      queued_for_reconciliation: drop.queued_for_reconciliation === true,
       manual_flock_override: drop.manual_flock_override === true,
       default_placement_id: typeof drop.default_placement_id === "string" ? drop.default_placement_id : null,
       default_placement_code: typeof drop.default_placement_code === "string" ? drop.default_placement_code : null,
+      queued_from_feed_bin_id: typeof drop.queued_from_feed_bin_id === "string" ? drop.queued_from_feed_bin_id : null,
+      queued_from_bin_code: typeof drop.queued_from_bin_code === "string" ? drop.queued_from_bin_code : null,
+      queued_from_barn_id: typeof drop.queued_from_barn_id === "string" ? drop.queued_from_barn_id : null,
+      queued_from_barn_code: typeof drop.queued_from_barn_code === "string" ? drop.queued_from_barn_code : null,
+      queued_from_placement_id: typeof drop.queued_from_placement_id === "string" ? drop.queued_from_placement_id : null,
+      queued_from_placement_code: typeof drop.queued_from_placement_code === "string" ? drop.queued_from_placement_code : null,
+      queued_at: typeof drop.queued_at === "string" ? drop.queued_at : null,
       drop_order: typeof drop.drop_order === "number" ? drop.drop_order : index + 1,
     })),
   };
@@ -948,10 +1095,21 @@ function hydrateManualFlockOverrides(item: EditorItem, placementOptions: Placeme
         };
       }
 
+      if (drop.queued_for_reconciliation) {
+        return {
+          ...drop,
+          default_placement_id: null,
+          default_placement_code: QUEUED_DROP_PLACEMENT_CODE,
+          manual_flock_override: false,
+        };
+      }
+
       const resolvedPlacement = resolveRegPlacement(item, placementOptions, drop);
       const inferredOverride =
-        Boolean(drop.placement_id) &&
-        ((!resolvedPlacement && Boolean(drop.feed_bin_id)) || resolvedPlacement?.placement_id !== drop.placement_id);
+        drop.manual_flock_override === true ||
+        (Boolean(drop.default_placement_id) &&
+          Boolean(drop.placement_id) &&
+          drop.default_placement_id !== drop.placement_id);
 
       return {
         ...drop,
@@ -961,6 +1119,36 @@ function hydrateManualFlockOverrides(item: EditorItem, placementOptions: Placeme
       };
     }),
   };
+}
+
+function prepareItemForSave(item: EditorItem): EditorItem {
+  return {
+    ...item,
+    drops: item.drops.map((drop) => {
+      if (!drop.queued_for_reconciliation) {
+        return drop;
+      }
+
+      return {
+        ...drop,
+        queued_from_feed_bin_id: drop.queued_from_feed_bin_id ?? drop.feed_bin_id ?? null,
+        queued_from_bin_code: drop.queued_from_bin_code ?? drop.bin_code ?? null,
+        queued_from_barn_id: drop.queued_from_barn_id ?? drop.barn_id ?? null,
+        queued_from_barn_code: drop.queued_from_barn_code ?? drop.barn_code ?? null,
+        queued_from_placement_id:
+          drop.queued_from_placement_id ?? drop.placement_id ?? drop.default_placement_id ?? null,
+        queued_from_placement_code:
+          drop.queued_from_placement_code ?? drop.placement_code ?? drop.default_placement_code ?? null,
+      };
+    }),
+  };
+}
+
+function hasQueuedSourceAssignment(drop: EditorDrop) {
+  return Boolean(
+    (drop.queued_from_feed_bin_id && drop.queued_from_placement_id) ||
+      (drop.feed_bin_id && drop.placement_id),
+  );
 }
 
 function validateItem(item: EditorItem) {
@@ -973,6 +1161,11 @@ function validateItem(item: EditorItem) {
   for (const [index, drop] of item.drops.entries()) {
     if (drop.off_farm_redirect) {
       if (!drop.note?.trim()) return `Drop ${index + 1} must include a note when marked Off Farm Redirect.`;
+    } else if (drop.queued_for_reconciliation) {
+      if (!drop.note?.trim()) return `Drop ${index + 1} must include a note when queued for reconciliation.`;
+      if (!hasQueuedSourceAssignment(drop)) {
+        return `Drop ${index + 1} must be assigned to a bin and flock before it can be queued.`;
+      }
     } else {
       if (!drop.feed_bin_id) return `Drop ${index + 1} is missing a bin.`;
       if (!drop.placement_id) return `Drop ${index + 1} is missing a flock.`;
@@ -989,14 +1182,23 @@ function buildEmptyDrop(order: number): EditorDrop {
   return {
     id: null,
     feed_bin_id: null,
+    barn_id: null,
     placement_id: null,
     default_placement_id: null,
     default_placement_code: null,
+    queued_from_feed_bin_id: null,
+    queued_from_bin_code: null,
+    queued_from_barn_id: null,
+    queued_from_barn_code: null,
+    queued_from_placement_id: null,
+    queued_from_placement_code: null,
+    queued_at: null,
     feed_type: null,
     drop_weight_lbs: null,
     note: null,
     drop_order: order,
     off_farm_redirect: false,
+    queued_for_reconciliation: false,
     manual_flock_override: false,
   };
 }
@@ -1025,8 +1227,28 @@ function formatBinLabel(bin: EditorBinOption) {
   return [barnCode, binCode].filter(Boolean).join(" ");
 }
 
+function buildQueuedBinLabel(drop: EditorDrop) {
+  const barnCode = compactBarnCode(drop.queued_from_barn_code);
+  const binCode = compactBinCode(drop.queued_from_bin_code);
+  const source = [barnCode, binCode].filter(Boolean).join(" ");
+  return source ? `Queued from ${source}` : null;
+}
+
 function formatPlacementLabel(option: PlacementOption) {
   return [compactPlacementCode(option.placement_code), verbosePlacementState(option)].filter(Boolean).join(" - ");
+}
+
+function buildQueuedSourceLabel(drop: EditorDrop) {
+  const placementCode = compactPlacementCode(drop.queued_from_placement_code);
+  const barnCode = compactBarnCode(drop.queued_from_barn_code);
+  const binCode = compactBinCode(drop.queued_from_bin_code);
+  const source = [placementCode, [barnCode, binCode].filter(Boolean).join(" ")].filter(Boolean).join(" / ");
+  return source ? `Queued from ${source}` : null;
+}
+
+function formatQueuedAt(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
 function resolveRegPlacement(item: EditorItem, options: PlacementOption[], drop: EditorDrop) {

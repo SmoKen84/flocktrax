@@ -328,7 +328,7 @@ export async function uploadCloseoutSummarySnapshotAction(
 
   const { data: closeoutRow, error: closeoutError } = await admin
     .from("placement_closeouts")
-    .select("closeout_id")
+    .select("placement_id")
     .eq("placement_id", placementId)
     .maybeSingle();
 
@@ -336,8 +336,8 @@ export async function uploadCloseoutSummarySnapshotAction(
     return { status: "error", message: closeoutError.message };
   }
 
-  const closeoutId = coerce(closeoutRow?.closeout_id ?? null);
-  if (!closeoutId) {
+  const closeoutPlacementId = coerce(closeoutRow?.placement_id ?? null);
+  if (!closeoutPlacementId) {
     return { status: "error", message: "Create the placement closeout worksheet before archiving the summary snapshot." };
   }
 
@@ -365,7 +365,7 @@ export async function uploadCloseoutSummarySnapshotAction(
       replaced_at: timestamp,
       replaced_by: actor.id,
     })
-    .eq("placement_closeout_id", closeoutId)
+    .eq("placement_closeout_id", closeoutPlacementId)
     .eq("document_role", CLOSEOUT_SHEET_SNAPSHOT_DOCUMENT_ROLE)
     .eq("is_current", true);
 
@@ -376,7 +376,7 @@ export async function uploadCloseoutSummarySnapshotAction(
 
   const { error: insertError } = await admin.from("document_archives").insert({
     document_role: CLOSEOUT_SHEET_SNAPSHOT_DOCUMENT_ROLE,
-    placement_closeout_id: closeoutId,
+    placement_closeout_id: closeoutPlacementId,
     storage_bucket: DOCUMENT_ARCHIVE_BUCKET,
     storage_path: storagePath,
     original_filename: fileValue.name.trim() || "closeout-summary",

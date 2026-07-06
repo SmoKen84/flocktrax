@@ -20,6 +20,8 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
   const farmId = firstParam(params.farmId);
   const barnId = firstParam(params.barnId);
   const flockCode = firstParam(params.flockCode)?.toLowerCase() ?? null;
+  const includeBinSentryOnOrderParam = firstParam(params.includeBinSentryOnOrder);
+  const includeBinSentryOnOrder = includeBinSentryOnOrderParam === null ? true : includeBinSentryOnOrderParam === "1";
   const report = await getFeedProjectionReportData({
     windowDays: 10,
     farmGroupId,
@@ -27,6 +29,7 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
     barnId,
     flockCode,
     reportMode: "operational",
+    includeBinSentryOnOrder,
   });
 
   return (
@@ -45,6 +48,7 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
                 farmId: farmId ?? "",
                 barnId: barnId ?? "",
                 flockCode: flockCode ?? "",
+                includeBinSentryOnOrder,
               })}
             >
               <span aria-hidden="true">←</span>
@@ -90,6 +94,7 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
           <div>
             <span>Open Orders</span>
             <strong>{formatWeight(report.overallOnOrder)}</strong>
+            {includeBinSentryOnOrder ? <small>Includes BinSentry scheduled orders</small> : null}
           </div>
         </div>
 
@@ -105,8 +110,6 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
         <FeedProjectionReportTable
           rows={report.rows}
           windowDates={report.windowDates}
-          emptyColSpanExpanded={12 + report.windowDates.length}
-          emptyColSpanCollapsed={12}
           windowLabel="10 Day"
           reportMode="operational"
           emptyMessage="No live or qualifying scheduled placements were found for the next 10 day window."
@@ -117,11 +120,16 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
 }
 
 function firstParam(value: string | string[] | undefined) {
+  const normalize = (entry: string | null | undefined) => {
+    const trimmed = String(entry ?? "").trim();
+    return trimmed.length > 0 ? trimmed : null;
+  };
+
   if (Array.isArray(value)) {
-    return value[0] ?? null;
+    return normalize(value[0]);
   }
 
-  return value ?? null;
+  return normalize(value);
 }
 
 function formatDate(value: string | null | undefined) {
@@ -164,11 +172,13 @@ function buildReportsHubHref({
   farmId,
   barnId,
   flockCode,
+  includeBinSentryOnOrder,
 }: {
   farmGroupId?: string;
   farmId?: string;
   barnId?: string;
   flockCode?: string;
+  includeBinSentryOnOrder?: boolean;
 }) {
   const params = new URLSearchParams({
     category: "feed_reports",
@@ -178,5 +188,6 @@ function buildReportsHubHref({
   if (farmId) params.set("farmId", farmId);
   if (barnId) params.set("barnId", barnId);
   if (flockCode) params.set("flockCode", flockCode);
+  if (includeBinSentryOnOrder) params.set("includeBinSentryOnOrder", "1");
   return `/admin/reports?${params.toString()}`;
 }

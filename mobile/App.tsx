@@ -606,6 +606,7 @@ export default function App() {
     }
 
     if (
+      item.rel_humidity !== null &&
       item.outside_temp_current !== null &&
       item.outside_temp_low !== null &&
       item.outside_temp_high !== null
@@ -623,6 +624,7 @@ export default function App() {
 
       return {
         ...item,
+        rel_humidity: item.rel_humidity ?? forecast.currentRelativeHumidity ?? null,
         outside_temp_current:
           item.outside_temp_current ?? forecast.currentTemperature ?? null,
         outside_temp_low: item.outside_temp_low ?? forecast.dailyLow ?? null,
@@ -892,6 +894,7 @@ export default function App() {
                 <>
                   <View style={styles.weatherSummaryRow}>
                     <WeatherMetric label="Current" value={formatTemperature(weatherForecast.currentTemperature)} />
+                    <WeatherMetric label="Humidity" value={formatPercent(weatherForecast.currentRelativeHumidity)} />
                     <WeatherMetric label="Low" value={formatTemperature(weatherForecast.dailyLow)} />
                     <WeatherMetric label="High" value={formatTemperature(weatherForecast.dailyHigh)} />
                   </View>
@@ -1022,6 +1025,11 @@ function formatDashboardUser(profile: UserProfile | null) {
 function formatTemperature(value: number | null) {
   if (value === null) return "--";
   return `${Math.round(value)}°F`;
+}
+
+function formatPercent(value: number | null) {
+  if (value === null) return "--";
+  return `${Math.round(value)}%`;
 }
 
 function describeWeatherCode(code: number | null) {

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useActionState, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 
 import type { DocumentArchiveListItem, DocumentArchiveSummary } from "@/lib/document-archive";
@@ -379,7 +380,18 @@ function ArchiveUploadModal({
   state: { status: "idle" | "success" | "error"; message: string };
   submitLabel: string;
 }) {
-  return (
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+
+  if (!isMounted || typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
     <div className="feed-ticket-doc-scrim" onClick={onClose}>
       <div className="feed-ticket-doc-card" onClick={(event) => event.stopPropagation()}>
         <div className="feed-ticket-doc-header">
@@ -430,6 +442,7 @@ function ArchiveUploadModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

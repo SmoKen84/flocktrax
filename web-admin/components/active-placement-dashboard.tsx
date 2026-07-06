@@ -1214,6 +1214,10 @@ function PlacementTile({
     }
   }
 
+  const summaryPlacementValue = placement.tileState === "empty" ? "" : placement.placementCode;
+  const summaryPlacedValue = placement.tileState === "empty" ? "" : placement.placedDate || "Pending";
+  const summaryAgeValue = placement.tileState === "empty" ? "" : `${placement.ageDays} days`;
+
   return (
     <article
       aria-label={`Open placement editor for ${placement.placementCode} in ${placement.farmName} barn ${placement.barnCode}`}
@@ -1269,15 +1273,15 @@ function PlacementTile({
       <div className="placement-summary-grid">
         <div>
           <p className="stat-label">Flock</p>
-          <p className="tile-value">{placement.placementCode}</p>
+          <p className="tile-value">{summaryPlacementValue}</p>
         </div>
         <div>
           <p className="stat-label">Placed</p>
-          <p className="tile-value">{placement.placedDate || "Pending"}</p>
+          <p className="tile-value">{summaryPlacedValue}</p>
         </div>
         <div>
           <p className="stat-label">Age</p>
-          <p className="tile-value">{placement.ageDays} days</p>
+          <p className="tile-value">{summaryAgeValue}</p>
         </div>
       </div>
 

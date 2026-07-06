@@ -35,6 +35,8 @@ export type PlacementSchedulerWindow = {
   headCount: number | null;
   femaleCount: number | null;
   maleCount: number | null;
+  femalePlacedDate: string | null;
+  malePlacedDate: string | null;
   breedMales: string | null;
   breedFemales: string | null;
   lh1Date: string | null;
@@ -86,6 +88,8 @@ type FlockRow = {
   farm_id: string;
   flock_number: number | null;
   date_placed: string | null;
+  female_date_placed: string | null;
+  male_date_placed: string | null;
   max_date: string | null;
   is_active: boolean | null;
   is_complete: boolean | null;
@@ -226,7 +230,7 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
     supabase.from("barns").select("id,farm_id,barn_code,sort_code,is_active"),
     supabase
       .from("flocks")
-      .select("id,farm_id,flock_number,date_placed,max_date,is_active,is_complete,is_in_barn,start_cnt_females,start_cnt_males,breed_males,breed_females")
+      .select("id,farm_id,flock_number,date_placed,female_date_placed,male_date_placed,max_date,is_active,is_complete,is_in_barn,start_cnt_females,start_cnt_males,breed_males,breed_females")
       .order("date_placed", { ascending: false }),
     supabase
       .from("placements")
@@ -391,6 +395,8 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
           : null,
       femaleCount: flock?.start_cnt_females ?? null,
       maleCount: flock?.start_cnt_males ?? null,
+      femalePlacedDate: normalize(flock?.female_date_placed) || null,
+      malePlacedDate: normalize(flock?.male_date_placed) || null,
       breedMales: normalize(flock?.breed_males) || null,
       breedFemales: normalize(flock?.breed_females) || null,
       lh1Date: normalize(row.lh1_date) || null,

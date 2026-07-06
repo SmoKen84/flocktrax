@@ -20,6 +20,53 @@ function coerceNullableNumber(value: FormDataEntryValue | null) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function minDate(values: Array<string | null | undefined>) {
+  const filtered = values.filter((value): value is string => Boolean(value)).sort();
+  return filtered[0] ?? null;
+}
+
+function buildSexPlacementDates(options: {
+  primaryDate: string;
+  femaleCount: number | null;
+  maleCount: number | null;
+  femaleDate: string | null;
+  maleDate: string | null;
+}) {
+  const femalePlacedDate =
+    options.femaleDate ?? (options.femaleCount !== null && options.femaleCount > 0 ? options.primaryDate : null);
+  const malePlacedDate =
+    options.maleDate ?? (options.maleCount !== null && options.maleCount > 0 ? options.primaryDate : null);
+  const canonicalPrimaryDate = minDate([options.primaryDate, femalePlacedDate, malePlacedDate]) ?? options.primaryDate;
+
+  return {
+    canonicalPrimaryDate,
+    femalePlacedDate,
+    malePlacedDate,
+  };
+}
+
+function resolveSubmittedSexPlacementDate(options: {
+  submittedDate: string | null;
+  originalPrimaryDate: string | null;
+  originalSexDate: string | null;
+  nextPrimaryDate: string;
+}) {
+  if (!options.submittedDate || !options.originalPrimaryDate) {
+    return options.submittedDate;
+  }
+
+  const originalEffectiveSexDate = options.originalSexDate ?? options.originalPrimaryDate;
+  const primaryDateChanged = options.nextPrimaryDate !== options.originalPrimaryDate;
+  const wasFollowingPrimaryDate = originalEffectiveSexDate === options.originalPrimaryDate;
+  const stillMatchesOriginalPrimaryDate = options.submittedDate === options.originalPrimaryDate;
+
+  if (primaryDateChanged && wasFollowingPrimaryDate && stillMatchesOriginalPrimaryDate) {
+    return options.nextPrimaryDate;
+  }
+
+  return options.submittedDate;
+}
+
 function addDays(dateString: string, days: number) {
   const date = new Date(`${dateString}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
@@ -214,6 +261,8 @@ export async function schedulePlacementAction(formData: FormData) {
   const submittedGrowOutDays = coerceNullableNumber(formData.get("grow_out_days"));
   const femaleCount = coerceNullableNumber(formData.get("start_cnt_females"));
   const maleCount = coerceNullableNumber(formData.get("start_cnt_males"));
+  const submittedFemalePlacedDate = coerceNullableDate(formData.get("female_date_placed"));
+  const submittedMalePlacedDate = coerceNullableDate(formData.get("male_date_placed"));
 
   if (!farmId || !barnId || !selectedDate) {
     redirect(buildLocation({ farm: farmId || null, barn: barnId || null, month: month || null, error: "Select a farm, barn, and calendar date before scheduling." }));
@@ -221,6 +270,14 @@ export async function schedulePlacementAction(formData: FormData) {
 
   if (!requestedFlockNumber) {
     redirect(buildLocation({ farm: farmId, barn: barnId, date: selectedDate, month: month || selectedDate.slice(0, 7), error: "Enter the integrator flock number before scheduling this placement." }));
+  }
+
+  if (submittedFemalePlacedDate && submittedFemalePlacedDate < selectedDate) {
+    redirect(buildLocation({ farm: farmId, barn: barnId, date: selectedDate, month: month || selectedDate.slice(0, 7), error: "Female placement date cannot be earlier than the barn possession date." }));
+  }
+
+  if (submittedMalePlacedDate && submittedMalePlacedDate < selectedDate) {
+    redirect(buildLocation({ farm: farmId, barn: barnId, date: selectedDate, month: month || selectedDate.slice(0, 7), error: "Male placement date cannot be earlier than the barn possession date." }));
   }
 
   const [barnResult, placementsResult, schedulerGrowOutDays] = await Promise.all([
@@ -253,7 +310,15 @@ export async function schedulePlacementAction(formData: FormData) {
 
   const flockById = new Map(((flocksResult.data ?? []) as Array<{ id: string; date_placed: string | null; max_date: string | null; flock_number: number | null }>).map((row) => [row.id, row]));
 
-  const projectedEndDate = addDays(selectedDate, growOutDays);
+  const { canonicalPrimaryDate, femalePlacedDate, malePlacedDate } = buildSexPlacementDates({
+    primaryDate: selectedDate,
+    femaleCount,
+    maleCount,
+    femaleDate: submittedFemalePlacedDate,
+    maleDate: submittedMalePlacedDate,
+  });
+
+  const projectedEndDate = addDays(canonicalPrimaryDate, growOutDays);
 
   const overlap = (placementsResult.data ?? []).find((row) => {
     const flock = flockById.get(row.flock_id);
@@ -268,7 +333,7 @@ export async function schedulePlacementAction(formData: FormData) {
       coerce(row.active_end as unknown as FormDataEntryValue | null) ||
       coerce(flock?.max_date as unknown as FormDataEntryValue | null) ||
       addDays(siblingStart, growOutDays);
-    return selectedDate <= siblingEnd && projectedEndDate >= siblingStart;
+    return canonicalPrimaryDate <= siblingEnd && projectedEndDate >= siblingStart;
   });
 
   if (overlap) {
@@ -287,8 +352,8 @@ export async function schedulePlacementAction(formData: FormData) {
       buildLocation({
         farm: farmId,
         barn: barnId,
-        date: selectedDate,
-        month: month || selectedDate.slice(0, 7),
+        date: canonicalPrimaryDate,
+        month: month || canonicalPrimaryDate.slice(0, 7),
         error: buildPlacementOverlapMessage({
           barnCode: barnResult.data.barn_code,
           siblingStart,
@@ -317,7 +382,9 @@ export async function schedulePlacementAction(formData: FormData) {
     .insert({
       farm_id: farmId,
       flock_number: flockNumber,
-      date_placed: selectedDate,
+      date_placed: canonicalPrimaryDate,
+      female_date_placed: femalePlacedDate,
+      male_date_placed: malePlacedDate,
       max_date: projectedEndDate,
       start_cnt_females: femaleCount,
       start_cnt_males: maleCount,
@@ -335,13 +402,15 @@ export async function schedulePlacementAction(formData: FormData) {
   }
 
   const flockDatesNeedCorrection =
-    flockInsertResult.data.date_placed !== selectedDate || flockInsertResult.data.max_date !== projectedEndDate;
+    flockInsertResult.data.date_placed !== canonicalPrimaryDate || flockInsertResult.data.max_date !== projectedEndDate;
 
   if (flockDatesNeedCorrection) {
     const flockCorrectionResult = await admin
       .from("flocks")
       .update({
-        date_placed: selectedDate,
+        date_placed: canonicalPrimaryDate,
+        female_date_placed: femalePlacedDate,
+        male_date_placed: malePlacedDate,
         max_date: projectedEndDate,
         updated_by: actorId,
       })
@@ -358,7 +427,7 @@ export async function schedulePlacementAction(formData: FormData) {
     .insert({
       barn_id: barnId,
       flock_id: flockInsertResult.data.id,
-      active_start: selectedDate,
+      active_start: canonicalPrimaryDate,
       active_end: projectedEndDate,
       created_by: actorId,
       is_active: false,
@@ -383,7 +452,9 @@ export async function schedulePlacementAction(formData: FormData) {
     barnId,
     flockId: flockInsertResult.data.id,
     meta: {
-      selected_date: selectedDate,
+      selected_date: canonicalPrimaryDate,
+      female_date_placed: femalePlacedDate,
+      male_date_placed: malePlacedDate,
       projected_end_date: projectedEndDate,
       flock_number: flockNumber,
     },
@@ -396,9 +467,9 @@ export async function schedulePlacementAction(formData: FormData) {
     buildLocation({
       farm: farmId,
       barn: barnId,
-      month: month || selectedDate.slice(0, 7),
+      month: month || canonicalPrimaryDate.slice(0, 7),
       cleared: true,
-      notice: `Scheduled flock ${flockNumber} in barn ${barnResult.data.barn_code} starting ${selectedDate}.`,
+      notice: `Scheduled flock ${flockNumber} in barn ${barnResult.data.barn_code} starting ${canonicalPrimaryDate}.`,
     }),
   );
 }
@@ -439,6 +510,8 @@ export async function updatePlacementAction(formData: FormData) {
   const submittedMaxDate = coerceNullableDate(formData.get("max_date"));
   const femaleCount = coerceNullableNumber(formData.get("start_cnt_females"));
   const maleCount = coerceNullableNumber(formData.get("start_cnt_males"));
+  const submittedFemalePlacedDate = coerceNullableDate(formData.get("female_date_placed"));
+  const submittedMalePlacedDate = coerceNullableDate(formData.get("male_date_placed"));
   const breedFemales = coerceNullableDate(formData.get("breed_females"));
   const breedMales = coerceNullableDate(formData.get("breed_males"));
   const submittedLh1Date = coerceNullableDate(formData.get("lh1_date"));
@@ -475,7 +548,7 @@ export async function updatePlacementAction(formData: FormData) {
       .maybeSingle(),
     admin
       .from("flocks")
-      .select("id,date_placed,max_date,is_in_barn,is_complete")
+      .select("id,date_placed,female_date_placed,male_date_placed,max_date,is_in_barn,is_complete")
       .eq("id", flockId)
       .maybeSingle(),
   ]);
@@ -501,6 +574,25 @@ export async function updatePlacementAction(formData: FormData) {
   }
 
   const originalPlacedDate = currentFlock.date_placed ?? currentPlacement.active_start;
+  const effectiveFemalePlacedDate = resolveSubmittedSexPlacementDate({
+    submittedDate: submittedFemalePlacedDate,
+    originalPrimaryDate: originalPlacedDate,
+    originalSexDate: currentFlock.female_date_placed,
+    nextPrimaryDate: datePlaced,
+  });
+  const effectiveMalePlacedDate = resolveSubmittedSexPlacementDate({
+    submittedDate: submittedMalePlacedDate,
+    originalPrimaryDate: originalPlacedDate,
+    originalSexDate: currentFlock.male_date_placed,
+    nextPrimaryDate: datePlaced,
+  });
+  const { canonicalPrimaryDate, femalePlacedDate, malePlacedDate } = buildSexPlacementDates({
+    primaryDate: datePlaced,
+    femaleCount,
+    maleCount,
+    femaleDate: effectiveFemalePlacedDate,
+    maleDate: effectiveMalePlacedDate,
+  });
   const originalMaxDate = currentFlock.max_date ?? currentPlacement.active_end;
   const normalizedRole = String(actorRole?.key ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
   const canOverridePlacementLifecycleStage =
@@ -516,8 +608,8 @@ export async function updatePlacementAction(formData: FormData) {
   let lh2Date = submittedLh2Date;
   let lh3Date = submittedLh3Date;
 
-  if (canShiftAwaitingArrivalDates && originalPlacedDate && datePlaced !== originalPlacedDate) {
-    const dateDelta = diffDays(datePlaced, originalPlacedDate);
+  if (canShiftAwaitingArrivalDates && originalPlacedDate && canonicalPrimaryDate !== originalPlacedDate) {
+    const dateDelta = diffDays(canonicalPrimaryDate, originalPlacedDate);
 
     if (originalMaxDate && (!submittedMaxDate || submittedMaxDate === originalMaxDate)) {
       maxDate = addDays(originalMaxDate, dateDelta);
@@ -536,27 +628,53 @@ export async function updatePlacementAction(formData: FormData) {
     }
   }
 
-  if (maxDate && maxDate < datePlaced) {
+  if (femalePlacedDate && femalePlacedDate < canonicalPrimaryDate) {
     redirect(
       buildLocation({
         mode,
         farm: farmId,
         barn: barnId,
-        date: selectedDate || datePlaced,
-        month: month || datePlaced.slice(0, 7),
+        date: selectedDate || canonicalPrimaryDate,
+        month: month || canonicalPrimaryDate.slice(0, 7),
+        error: "Female placement date cannot be earlier than the primary placed date.",
+      }),
+    );
+  }
+
+  if (malePlacedDate && malePlacedDate < canonicalPrimaryDate) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        date: selectedDate || canonicalPrimaryDate,
+        month: month || canonicalPrimaryDate.slice(0, 7),
+        error: "Male placement date cannot be earlier than the primary placed date.",
+      }),
+    );
+  }
+
+  if (maxDate && maxDate < canonicalPrimaryDate) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        date: selectedDate || canonicalPrimaryDate,
+        month: month || canonicalPrimaryDate.slice(0, 7),
         error: "Projected end date cannot be earlier than the placed date.",
       }),
     );
   }
 
-  if (dateRemoved && dateRemoved < datePlaced) {
+  if (dateRemoved && dateRemoved < canonicalPrimaryDate) {
     redirect(
       buildLocation({
         mode,
         farm: farmId,
         barn: barnId,
-        date: selectedDate || datePlaced,
-        month: month || datePlaced.slice(0, 7),
+        date: selectedDate || canonicalPrimaryDate,
+        month: month || canonicalPrimaryDate.slice(0, 7),
         error: "Removed date cannot be earlier than the placed date.",
       }),
     );
@@ -569,8 +687,8 @@ export async function updatePlacementAction(formData: FormData) {
         farm: farmId,
         barn: barnId,
         placement: placementId,
-        date: selectedDate || datePlaced,
-        month: month || datePlaced.slice(0, 7),
+        date: selectedDate || canonicalPrimaryDate,
+        month: month || canonicalPrimaryDate.slice(0, 7),
         error: "Breed fields currently expect a breed UUID, not a free-text value like Ross308.",
       }),
     );
@@ -587,8 +705,8 @@ export async function updatePlacementAction(formData: FormData) {
         mode,
         farm: farmId,
         barn: barnId,
-        date: selectedDate || datePlaced,
-        month: month || datePlaced.slice(0, 7),
+        date: selectedDate || canonicalPrimaryDate,
+        month: month || canonicalPrimaryDate.slice(0, 7),
         error: duplicateFlockResult.error?.message ?? placementsResult.error?.message ?? "Placement validation failed.",
       }),
     );
@@ -628,7 +746,7 @@ export async function updatePlacementAction(formData: FormData) {
   const siblingFlockById = new Map(
     ((siblingFlocksResult.data ?? []) as Array<{ id: string; date_placed: string | null; max_date: string | null; flock_number: number | null }>).map((row) => [row.id, row]),
   );
-  const desiredEnd = dateRemoved || maxDate || datePlaced;
+  const desiredEnd = dateRemoved || maxDate || canonicalPrimaryDate;
   const overlap = (placementsResult.data ?? []).find((row) => {
     const siblingFlock = siblingFlockById.get(row.flock_id);
     const siblingStart = coerceNullableDate(siblingFlock?.date_placed as unknown as FormDataEntryValue | null) || coerceNullableDate(row.active_start as unknown as FormDataEntryValue | null);
@@ -641,7 +759,7 @@ export async function updatePlacementAction(formData: FormData) {
       return false;
     }
 
-    return datePlaced <= siblingEnd && desiredEnd >= siblingStart;
+    return canonicalPrimaryDate <= siblingEnd && desiredEnd >= siblingStart;
   });
 
   if (overlap) {
@@ -649,7 +767,7 @@ export async function updatePlacementAction(formData: FormData) {
     const siblingStart =
       coerceNullableDate(siblingFlock?.date_placed as unknown as FormDataEntryValue | null) ||
       coerceNullableDate(overlap.active_start as unknown as FormDataEntryValue | null) ||
-      datePlaced;
+      canonicalPrimaryDate;
     const siblingEnd =
       coerceNullableDate(overlap.date_removed as unknown as FormDataEntryValue | null) ||
       coerceNullableDate(siblingFlock?.max_date as unknown as FormDataEntryValue | null) ||
@@ -662,8 +780,8 @@ export async function updatePlacementAction(formData: FormData) {
         mode,
         farm: farmId,
         barn: barnId,
-        date: selectedDate || datePlaced,
-        month: month || datePlaced.slice(0, 7),
+        date: selectedDate || canonicalPrimaryDate,
+        month: month || canonicalPrimaryDate.slice(0, 7),
         error: buildPlacementOverlapMessage({
           barnCode: barnCodeResult.data?.barn_code ?? "this barn",
           siblingStart,
@@ -679,7 +797,9 @@ export async function updatePlacementAction(formData: FormData) {
     .from("flocks")
     .update({
       flock_number: flockNumber,
-      date_placed: datePlaced,
+      date_placed: canonicalPrimaryDate,
+      female_date_placed: femalePlacedDate,
+      male_date_placed: malePlacedDate,
       max_date: maxDate,
       start_cnt_females: femaleCount,
       start_cnt_males: maleCount,
@@ -695,8 +815,8 @@ export async function updatePlacementAction(formData: FormData) {
         mode,
         farm: farmId,
         barn: barnId,
-        date: selectedDate || datePlaced,
-        month: month || datePlaced.slice(0, 7),
+        date: selectedDate || canonicalPrimaryDate,
+        month: month || canonicalPrimaryDate.slice(0, 7),
         error: flockUpdateResult.error.message,
       }),
     );
@@ -713,7 +833,7 @@ export async function updatePlacementAction(formData: FormData) {
       lh1_date: lh1Date,
       lh2_date: lh2Date,
       lh3_date: lh3Date,
-      active_start: datePlaced,
+      active_start: canonicalPrimaryDate,
       active_end: maxDate,
       updated_by: actorId,
     })
@@ -725,8 +845,8 @@ export async function updatePlacementAction(formData: FormData) {
         mode,
         farm: farmId,
         barn: barnId,
-        date: selectedDate || datePlaced,
-        month: month || datePlaced.slice(0, 7),
+        date: selectedDate || canonicalPrimaryDate,
+        month: month || canonicalPrimaryDate.slice(0, 7),
         error: placementUpdateResult.error.message,
       }),
     );
@@ -744,7 +864,9 @@ export async function updatePlacementAction(formData: FormData) {
     barnId,
     flockId,
     meta: {
-      date_placed: datePlaced,
+      date_placed: canonicalPrimaryDate,
+      female_date_placed: femalePlacedDate,
+      male_date_placed: malePlacedDate,
       max_date: maxDate,
       date_removed: dateRemoved,
       lifecycle_stage:
@@ -765,7 +887,7 @@ export async function updatePlacementAction(formData: FormData) {
       mode,
       farm: farmId,
       barn: barnId,
-      month: month || datePlaced.slice(0, 7),
+      month: month || canonicalPrimaryDate.slice(0, 7),
       cleared: true,
       notice: `Updated placement details for flock ${flockNumber}.`,
     }),

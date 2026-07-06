@@ -16,6 +16,7 @@ export default async function FeedTicketsPage({ searchParams }: FeedTicketsPageP
     ticketNumber: firstParam(params.ticketNumber),
     ticketTypes: allParams(params.ticketType),
     hasRedirectedDropsOnly: toBoolean(params.hasRedirectedDropsOnly),
+    hasQueuedDropsOnly: toBoolean(params.hasQueuedDropsOnly),
     flockCode: firstParam(params.flockCode),
     farm: firstParam(params.farm),
     barn: firstParam(params.barn),

@@ -23,6 +23,8 @@ export default async function FeedProjectionCustomReportPage({
   const barnId = firstParam(params.barnId);
   const flockCode = firstParam(params.flockCode)?.toLowerCase() ?? null;
   const requestedDays = Number.parseInt(firstParam(params.days) ?? "14", 10);
+  const includeBinSentryOnOrderParam = firstParam(params.includeBinSentryOnOrder);
+  const includeBinSentryOnOrder = includeBinSentryOnOrderParam === null ? true : includeBinSentryOnOrderParam === "1";
   const report = await getFeedProjectionReportData({
     windowDays: requestedDays,
     farmGroupId,
@@ -30,6 +32,7 @@ export default async function FeedProjectionCustomReportPage({
     barnId,
     flockCode,
     reportMode: "planning",
+    includeBinSentryOnOrder,
   });
 
   return (
@@ -49,6 +52,7 @@ export default async function FeedProjectionCustomReportPage({
                 barnId: barnId ?? "",
                 flockCode: flockCode ?? "",
                 days: String(report.windowDays),
+                includeBinSentryOnOrder,
               })}
             >
               <span aria-hidden="true">←</span>
@@ -94,6 +98,7 @@ export default async function FeedProjectionCustomReportPage({
           <div>
             <span>Open Orders</span>
             <strong>{formatWeight(report.overallOnOrder)}</strong>
+            {includeBinSentryOnOrder ? <small>Includes BinSentry scheduled orders</small> : null}
           </div>
         </div>
 
@@ -109,8 +114,6 @@ export default async function FeedProjectionCustomReportPage({
         <FeedProjectionReportTable
           rows={report.rows}
           windowDates={report.windowDates}
-          emptyColSpanExpanded={12 + report.windowDates.length}
-          emptyColSpanCollapsed={12}
           windowLabel={`${report.windowDays} Day`}
           reportMode="planning"
           emptyMessage={`No live or qualifying scheduled placements were found for the next ${report.windowDays} day window.`}
@@ -121,11 +124,16 @@ export default async function FeedProjectionCustomReportPage({
 }
 
 function firstParam(value: string | string[] | undefined) {
+  const normalize = (entry: string | null | undefined) => {
+    const trimmed = String(entry ?? "").trim();
+    return trimmed.length > 0 ? trimmed : null;
+  };
+
   if (Array.isArray(value)) {
-    return value[0] ?? null;
+    return normalize(value[0]);
   }
 
-  return value ?? null;
+  return normalize(value);
 }
 
 function formatDate(value: string | null | undefined) {
@@ -169,12 +177,14 @@ function buildReportsHubHref({
   barnId,
   flockCode,
   days,
+  includeBinSentryOnOrder,
 }: {
   farmGroupId?: string;
   farmId?: string;
   barnId?: string;
   flockCode?: string;
   days?: string;
+  includeBinSentryOnOrder?: boolean;
 }) {
   const params = new URLSearchParams({
     category: "feed_reports",
@@ -185,5 +195,6 @@ function buildReportsHubHref({
   if (barnId) params.set("barnId", barnId);
   if (flockCode) params.set("flockCode", flockCode);
   if (days) params.set("days", days);
+  if (includeBinSentryOnOrder) params.set("includeBinSentryOnOrder", "1");
   return `/admin/reports?${params.toString()}`;
 }

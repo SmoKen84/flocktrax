@@ -95,6 +95,7 @@ export function FeedTicketConsole({
     (bundle.filters.ticketTypes as TicketTypeFilter[]) ?? [],
   );
   const [hasRedirectedDropsOnly, setHasRedirectedDropsOnly] = useState(bundle.filters.hasRedirectedDropsOnly);
+  const [hasQueuedDropsOnly, setHasQueuedDropsOnly] = useState(bundle.filters.hasQueuedDropsOnly);
   const [farm, setFarm] = useState(bundle.filters.farm);
   const [barn, setBarn] = useState(bundle.filters.barn);
   const [bin, setBin] = useState(bundle.filters.bin);
@@ -148,6 +149,7 @@ export function FeedTicketConsole({
     if (ticketNumber.trim()) params.set("ticketNumber", ticketNumber.trim());
     for (const ticketType of ticketTypes) params.append("ticketType", ticketType);
     if (hasRedirectedDropsOnly) params.set("hasRedirectedDropsOnly", "true");
+    if (hasQueuedDropsOnly) params.set("hasQueuedDropsOnly", "true");
     if (farm.trim()) params.set("farm", farm.trim());
     if (barn.trim()) params.set("barn", barn.trim());
     if (bin.trim()) params.set("bin", bin.trim());
@@ -164,6 +166,7 @@ export function FeedTicketConsole({
     setTicketNumber("");
     setTicketTypes([]);
     setHasRedirectedDropsOnly(false);
+    setHasQueuedDropsOnly(false);
     setFarm("");
     setBarn("");
     setBin("");
@@ -223,16 +226,6 @@ export function FeedTicketConsole({
           printReportHelpText={ticketPrintReportOption?.subtitle ?? null}
           ticketId={editorTicketId === "__new__" ? null : editorTicketId}
           ticketTypeOptions={ticketTypeOptions}
-        />
-      ) : documentTicket ? (
-        <FeedTicketDocumentUploader
-          onClose={() => setDocumentTicket(null)}
-          onSaved={() => {
-            setDocumentTicket(null);
-            router.refresh();
-          }}
-          ticketId={documentTicket.ticketId}
-          ticketNumber={documentTicket.ticketNumber}
         />
       ) : (
         <>
@@ -352,6 +345,11 @@ export function FeedTicketConsole({
                 <span>Show only tickets with Redirected drops.</span>
               </label>
 
+              <label className="feed-ticket-flat-check">
+                <input checked={hasQueuedDropsOnly} onChange={(event) => setHasQueuedDropsOnly(event.target.checked)} type="checkbox" />
+                <span>Show only tickets with Queued drops.</span>
+              </label>
+
               <div className="feed-ticket-flat-field-grid">
                 <SelectorField
                   label="Farm:"
@@ -447,7 +445,7 @@ export function FeedTicketConsole({
           </div>
 
           <p className="feed-ticket-flat-summary-text">
-            {buildSummaryText({ farm, barn, bin, flockCode, ticketNumber, hasRedirectedDropsOnly }, displayedRows.length)}
+            {buildSummaryText({ farm, barn, bin, flockCode, ticketNumber, hasRedirectedDropsOnly, hasQueuedDropsOnly }, displayedRows.length)}
           </p>
 
           <div className="feed-ticket-flat-table-shell">
@@ -508,32 +506,42 @@ export function FeedTicketConsole({
                               <span>{row.ticketType || "ticket ref"}</span>
                             </div>
                           </td>
-                          <td>{renderDocumentStatus(row.hasOriginalDocument, row.originalDocumentName, row.originalDocumentUploadedAt)}</td>
+                          <td>{renderDocumentStatus(row.ticketType, row.ticketNumber, row.hasOriginalDocument, row.originalDocumentName, row.originalDocumentUploadedAt)}</td>
                           <td>{row.source || "--"}</td>
                           <td>{formatWeightCompact(row.grossWeightLbs)}</td>
                           <td className="list-action-cell">
                             <div className="list-action-stack">
-                              {row.originalDocumentId ? (
-                                <a
-                                  aria-label="Open archived original"
+                              {canShowDocumentActions(row.ticketType, row.ticketNumber) ? (
+                                row.originalDocumentId ? (
+                                  <a
+                                    aria-label="Document out: retrieve archived original"
+                                    className="list-action-button list-action-button-more"
+                                    href={`/api/document-archive/${row.originalDocumentId}`}
+                                    rel="noreferrer"
+                                    target="_blank"
+                                    title="Document OUT: Retrieve Original"
+                                  >
+                                    <FeedTicketDocumentActionIcon alt="" src="/icons/doc-outA.png?v=2" />
+                                  </a>
+                                ) : (
+                                  <span aria-hidden="true" className="list-action-button list-action-button-placeholder" />
+                                )
+                              ) : (
+                                <span aria-hidden="true" className="list-action-button list-action-button-placeholder" />
+                              )}
+                              {canShowDocumentActions(row.ticketType, row.ticketNumber) ? (
+                                <button
+                                  aria-label={row.hasOriginalDocument ? "Document in: replace archived original" : "Document in: archive original"}
                                   className="list-action-button list-action-button-more"
-                                  href={`/api/document-archive/${row.originalDocumentId}`}
-                                  rel="noreferrer"
-                                  target="_blank"
-                                  title="Open Original"
+                                  onClick={() => setDocumentTicket({ ticketId: row.ticketId, ticketNumber: row.ticketNumber })}
+                                  title={row.hasOriginalDocument ? "Document IN: Replace Original" : "Document IN: Archive Original"}
+                                  type="button"
                                 >
-                                  Doc
-                                </a>
-                              ) : null}
-                              <button
-                                aria-label="Upload ticket original"
-                                className="list-action-button list-action-button-more"
-                                onClick={() => setDocumentTicket({ ticketId: row.ticketId, ticketNumber: row.ticketNumber })}
-                                title={row.hasOriginalDocument ? "Replace Original" : "Upload Original"}
-                                type="button"
-                              >
-                                <DocumentIcon />
-                              </button>
+                                  <FeedTicketDocumentActionIcon alt="" src="/icons/doc-inA.png?v=2" />
+                                </button>
+                              ) : (
+                                <span aria-hidden="true" className="list-action-button list-action-button-placeholder" />
+                              )}
                               <button
                                 aria-label="Edit feed ticket"
                                 className="list-action-button list-action-button-edit"
@@ -606,7 +614,7 @@ export function FeedTicketConsole({
                               <span>{row.ticketType || "ticket"}</span>
                             </div>
                           </td>
-                          <td>{renderDocumentStatus(row.hasOriginalDocument, row.originalDocumentName, row.originalDocumentUploadedAt)}</td>
+                          <td>{renderDocumentStatus(row.ticketType, row.ticketNumber, row.hasOriginalDocument, row.originalDocumentName, row.originalDocumentUploadedAt)}</td>
                           <td>{row.source || "--"}</td>
                           <td>{formatWeightCompact(row.grossWeightLbs)}</td>
                           <td>
@@ -633,27 +641,37 @@ export function FeedTicketConsole({
                           <td>{formatWeightCompact(row.dropWeightLbs)}</td>
                           <td className="list-action-cell">
                             <div className="list-action-stack">
-                              {row.originalDocumentId ? (
-                                <a
-                                  aria-label="Open archived original"
+                              {canShowDocumentActions(row.ticketType, row.ticketNumber) ? (
+                                row.originalDocumentId ? (
+                                  <a
+                                    aria-label="Document out: retrieve archived original"
+                                    className="list-action-button list-action-button-more"
+                                    href={`/api/document-archive/${row.originalDocumentId}`}
+                                    rel="noreferrer"
+                                    target="_blank"
+                                    title="Document OUT: Retrieve Original"
+                                  >
+                                    <FeedTicketDocumentActionIcon alt="" src="/icons/doc-outA.png?v=2" />
+                                  </a>
+                                ) : (
+                                  <span aria-hidden="true" className="list-action-button list-action-button-placeholder" />
+                                )
+                              ) : (
+                                <span aria-hidden="true" className="list-action-button list-action-button-placeholder" />
+                              )}
+                              {canShowDocumentActions(row.ticketType, row.ticketNumber) ? (
+                                <button
+                                  aria-label={row.hasOriginalDocument ? "Document in: replace archived original" : "Document in: archive original"}
                                   className="list-action-button list-action-button-more"
-                                  href={`/api/document-archive/${row.originalDocumentId}`}
-                                  rel="noreferrer"
-                                  target="_blank"
-                                  title="Open Original"
+                                  onClick={() => setDocumentTicket({ ticketId: row.ticketId, ticketNumber: row.ticketNumber })}
+                                  title={row.hasOriginalDocument ? "Document IN: Replace Original" : "Document IN: Archive Original"}
+                                  type="button"
                                 >
-                                  Doc
-                                </a>
-                              ) : null}
-                              <button
-                                aria-label="Upload ticket original"
-                                className="list-action-button list-action-button-more"
-                                onClick={() => setDocumentTicket({ ticketId: row.ticketId, ticketNumber: row.ticketNumber })}
-                                title={row.hasOriginalDocument ? "Replace Original" : "Upload Original"}
-                                type="button"
-                              >
-                                <DocumentIcon />
-                              </button>
+                                  <FeedTicketDocumentActionIcon alt="" src="/icons/doc-inA.png?v=2" />
+                                </button>
+                              ) : (
+                                <span aria-hidden="true" className="list-action-button list-action-button-placeholder" />
+                              )}
                               <button
                                 aria-label="Edit feed ticket"
                                 className="list-action-button list-action-button-edit"
@@ -707,6 +725,18 @@ export function FeedTicketConsole({
           ) : null}
         </>
       )}
+
+      {documentTicket ? (
+        <FeedTicketDocumentUploader
+          onClose={() => setDocumentTicket(null)}
+          onSaved={() => {
+            setDocumentTicket(null);
+            router.refresh();
+          }}
+          ticketId={documentTicket.ticketId}
+          ticketNumber={documentTicket.ticketNumber}
+        />
+      ) : null}
 
       {selectorState ? (
         <div className="feed-ticket-selector-scrim" onClick={() => setSelectorState(null)}>
@@ -867,10 +897,16 @@ function groupTicketRows(rows: FeedTicketAdminRow[]): TicketAggregateRow[] {
 }
 
 function renderDocumentStatus(
+  ticketType: string | null | undefined,
+  ticketNumber: string | null | undefined,
   hasOriginalDocument: boolean | undefined,
   originalDocumentName: string | null | undefined,
   uploadedAt: string | null | undefined,
 ) {
+  if (!canShowDocumentActions(ticketType, ticketNumber)) {
+    return null;
+  }
+
   if (!hasOriginalDocument) {
     return <span className="feed-ticket-doc-status feed-ticket-doc-status-missing">Missing</span>;
   }
@@ -886,6 +922,22 @@ function renderDocumentStatus(
     >
       Filed
     </span>
+  );
+}
+
+function canShowDocumentActions(
+  ticketType: string | null | undefined,
+  ticketNumber: string | null | undefined,
+) {
+  const normalizedTicketType = (ticketType ?? "").trim().toLowerCase();
+  const normalizedTicketNumber = (ticketNumber ?? "").trim().toLowerCase();
+
+  return !(
+    normalizedTicketType === "xtran" ||
+    normalizedTicketType === "itran" ||
+    normalizedTicketType === "f2f" ||
+    normalizedTicketNumber.includes("openbal") ||
+    normalizedTicketNumber.startsWith("smo")
   );
 }
 
@@ -996,6 +1048,7 @@ function buildSummaryText(
     flockCode: string;
     ticketNumber: string;
     hasRedirectedDropsOnly: boolean;
+    hasQueuedDropsOnly: boolean;
   },
   rowCount: number,
 ) {
@@ -1007,6 +1060,9 @@ function buildSummaryText(
   }
   if (filters.hasRedirectedDropsOnly) {
     return `Includes ${rowCount} records from tickets with redirected drops.`;
+  }
+  if (filters.hasQueuedDropsOnly) {
+    return `Includes ${rowCount} records from tickets with queued drops.`;
   }
   if (filters.farm || filters.barn || filters.bin) {
     const parts = [filters.farm, filters.barn, filters.bin].filter(Boolean);
@@ -1167,34 +1223,9 @@ function PencilIcon() {
   );
 }
 
-function DocumentIcon() {
+function FeedTicketDocumentActionIcon({ alt, src }: { alt: string; src: string }) {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path
-        d="M8 3.75h5.9L18 7.85V18a2.25 2.25 0 0 1-2.25 2.25h-7.5A2.25 2.25 0 0 1 6 18V6A2.25 2.25 0 0 1 8.25 3.75Z"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.8"
-      />
-      <path
-        d="M13.75 3.9v3.35h3.35"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.8"
-      />
-      <path
-        d="M9.25 11h5.5M9.25 14.25h5.5"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.8"
-      />
-    </svg>
+    <img alt={alt} className="feed-ticket-action-icon-image" draggable="false" src={src} />
   );
 }
 

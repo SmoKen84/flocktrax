@@ -143,6 +143,7 @@ export type DashboardWeatherForecast = {
   latitude: number;
   longitude: number;
   currentTemperature: number | null;
+  currentRelativeHumidity: number | null;
   currentWeatherCode: number | null;
   dailyHigh: number | null;
   dailyLow: number | null;

@@ -42,8 +42,8 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
   try {
     [hatchTicketSummaryMap, closeoutSummaryMap, livehaulPacketSummaryMap, miscDocumentMap] = await Promise.all([
       getPlacementDocumentSummaryMap([placementId], HATCH_TICKET_DOCUMENT_ROLE),
-      item.closeout?.closeoutId
-        ? getPlacementCloseoutDocumentSummaryMap([item.closeout.closeoutId], CLOSEOUT_SHEET_SNAPSHOT_DOCUMENT_ROLE)
+      item.closeout
+        ? getPlacementCloseoutDocumentSummaryMap([placementId], CLOSEOUT_SHEET_SNAPSHOT_DOCUMENT_ROLE)
         : Promise.resolve(new Map()),
       getPlacementDocumentSummaryMap([placementId], BILL_OF_LADING_DOCUMENT_ROLE),
       getPlacementDocumentListMap([placementId], MISC_DOCUMENT_ROLE),
@@ -57,7 +57,7 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
 
   const forceOpenLivehaulHref = buildForceLivehaulHref(item);
   const hatchTicketSummary = hatchTicketSummaryMap.get(placementId) ?? null;
-  const closeoutSummary = item.closeout?.closeoutId ? closeoutSummaryMap.get(item.closeout.closeoutId) ?? null : null;
+  const closeoutSummary = item.closeout ? closeoutSummaryMap.get(placementId) ?? null : null;
   const livehaulPacketSummary = livehaulPacketSummaryMap.get(placementId) ?? null;
   const miscDocuments = miscDocumentMap.get(placementId) ?? [];
 

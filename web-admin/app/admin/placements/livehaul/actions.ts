@@ -67,11 +67,16 @@ function resolveLivehaulStatus(options: {
 }
 
 async function getActor() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
-  return user;
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+    return user;
+  } catch (error) {
+    console.error("livehaul actor lookup failed", error);
+    return null;
+  }
 }
 
 function sanitizePathPart(value: string) {
@@ -294,103 +299,111 @@ export async function uploadLivehaulBillOfLadingAction(
   _prevState: LivehaulDocumentActionState,
   formData: FormData,
 ): Promise<LivehaulDocumentActionState> {
-  const admin = createSupabaseAdminClient();
-  const actor = await getActor();
+  try {
+    const admin = createSupabaseAdminClient();
+    const actor = await getActor();
 
-  if (!admin || !actor) {
-    return {
-      status: "error",
-      message: "A signed-in admin user is required to archive livehaul packets.",
-    };
-  }
+    if (!admin || !actor) {
+      return {
+        status: "error",
+        message: "A signed-in admin user is required to archive livehaul packets.",
+      };
+    }
 
-  const placementId = coerce(formData.get("placement_id"));
-  const sourceKind = coerce(formData.get("source_kind")) || "manual_upload";
-  const notes = coerceNullableText(formData.get("notes"));
-  const fileValue = formData.get("document");
+    const placementId = coerce(formData.get("placement_id"));
+    const sourceKind = coerce(formData.get("source_kind")) || "manual_upload";
+    const notes = coerceNullableText(formData.get("notes"));
+    const fileValue = formData.get("document");
 
-  if (!placementId) {
-    return { status: "error", message: "Placement context was incomplete." };
-  }
+    if (!placementId) {
+      return { status: "error", message: "Placement context was incomplete." };
+    }
 
-  if (!(fileValue instanceof File) || fileValue.size === 0) {
-    return { status: "error", message: "Choose a PDF or image file to archive." };
-  }
+    if (!(fileValue instanceof File) || fileValue.size === 0) {
+      return { status: "error", message: "Choose a PDF or image file to archive." };
+    }
 
-  if (!ALLOWED_MIME_TYPES.has(fileValue.type)) {
-    return { status: "error", message: "Only PDF, JPG, PNG, HEIC, and HEIF originals are allowed." };
-  }
+    if (!ALLOWED_MIME_TYPES.has(fileValue.type)) {
+      return { status: "error", message: "Only PDF, JPG, PNG, HEIC, and HEIF originals are allowed." };
+    }
 
-  if (fileValue.size > MAX_UPLOAD_BYTES) {
-    return { status: "error", message: "The selected file is larger than the 20 MB archive limit." };
-  }
+    if (fileValue.size > MAX_UPLOAD_BYTES) {
+      return { status: "error", message: "The selected file is larger than the 20 MB archive limit." };
+    }
 
-  const { data: placementRow, error: placementError } = await admin
-    .from("placements")
-    .select("id,placement_key,active_start")
-    .eq("id", placementId)
-    .maybeSingle();
+    const { data: placementRow, error: placementError } = await admin
+      .from("placements")
+      .select("id,placement_key,active_start")
+      .eq("id", placementId)
+      .maybeSingle();
 
-  if (placementError || !placementRow) {
-    return { status: "error", message: placementError?.message ?? "The selected placement could not be found." };
-  }
+    if (placementError || !placementRow) {
+      return { status: "error", message: placementError?.message ?? "The selected placement could not be found." };
+    }
 
-  const storagePath = buildLivehaulStoragePath(placementRow, fileValue);
-  const bytes = new Uint8Array(await fileValue.arrayBuffer());
-  const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const storagePath = buildLivehaulStoragePath(placementRow, fileValue);
+    const bytes = new Uint8Array(await fileValue.arrayBuffer());
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
 
-  const { error: uploadError } = await admin.storage
-    .from(DOCUMENT_ARCHIVE_BUCKET)
-    .upload(storagePath, bytes, {
-      contentType: fileValue.type || "application/octet-stream",
-      upsert: false,
+    const { error: uploadError } = await admin.storage
+      .from(DOCUMENT_ARCHIVE_BUCKET)
+      .upload(storagePath, bytes, {
+        contentType: fileValue.type || "application/octet-stream",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      return { status: "error", message: uploadError.message };
+    }
+
+    const timestamp = new Date().toISOString();
+
+    const { error: retireError } = await admin
+      .from("document_archives")
+      .update({
+        is_current: false,
+        replaced_at: timestamp,
+        replaced_by: actor.id,
+      })
+      .eq("placement_id", placementId)
+      .eq("document_role", BILL_OF_LADING_DOCUMENT_ROLE)
+      .eq("is_current", true);
+
+    if (retireError) {
+      await admin.storage.from(DOCUMENT_ARCHIVE_BUCKET).remove([storagePath]);
+      return { status: "error", message: retireError.message };
+    }
+
+    const { error: insertError } = await admin.from("document_archives").insert({
+      document_role: BILL_OF_LADING_DOCUMENT_ROLE,
+      placement_id: placementId,
+      storage_bucket: DOCUMENT_ARCHIVE_BUCKET,
+      storage_path: storagePath,
+      original_filename: fileValue.name.trim() || "livehaul-packet",
+      mime_type: fileValue.type || null,
+      byte_size: fileValue.size,
+      sha256,
+      source_kind: sourceKind,
+      notes,
+      is_current: true,
+      created_by: actor.id,
     });
 
-  if (uploadError) {
-    return { status: "error", message: uploadError.message };
+    if (insertError) {
+      await admin.storage.from(DOCUMENT_ARCHIVE_BUCKET).remove([storagePath]);
+      return { status: "error", message: insertError.message };
+    }
+
+    revalidatePath("/admin/placements/livehaul");
+    revalidatePath(`/admin/flock-closeout/${placementId}`);
+    return { status: "success", message: "Livehaul packet archived." };
+  } catch (error) {
+    console.error("livehaul packet archive failed", error);
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "Livehaul packet upload failed unexpectedly.",
+    };
   }
-
-  const timestamp = new Date().toISOString();
-
-  const { error: retireError } = await admin
-    .from("document_archives")
-    .update({
-      is_current: false,
-      replaced_at: timestamp,
-      replaced_by: actor.id,
-    })
-    .eq("placement_id", placementId)
-    .eq("document_role", BILL_OF_LADING_DOCUMENT_ROLE)
-    .eq("is_current", true);
-
-  if (retireError) {
-    await admin.storage.from(DOCUMENT_ARCHIVE_BUCKET).remove([storagePath]);
-    return { status: "error", message: retireError.message };
-  }
-
-  const { error: insertError } = await admin.from("document_archives").insert({
-    document_role: BILL_OF_LADING_DOCUMENT_ROLE,
-    placement_id: placementId,
-    storage_bucket: DOCUMENT_ARCHIVE_BUCKET,
-    storage_path: storagePath,
-    original_filename: fileValue.name.trim() || "livehaul-packet",
-    mime_type: fileValue.type || null,
-    byte_size: fileValue.size,
-    sha256,
-    source_kind: sourceKind,
-    notes,
-    is_current: true,
-    created_by: actor.id,
-  });
-
-  if (insertError) {
-    await admin.storage.from(DOCUMENT_ARCHIVE_BUCKET).remove([storagePath]);
-    return { status: "error", message: insertError.message };
-  }
-
-  revalidatePath("/admin/placements/livehaul");
-  revalidatePath(`/admin/flock-closeout/${placementId}`);
-  return { status: "success", message: "Livehaul packet archived." };
 }
 
 export async function updateLivehaulScheduleAction(

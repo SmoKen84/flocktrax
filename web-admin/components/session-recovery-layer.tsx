@@ -12,6 +12,30 @@ type SessionExpiredDetail = {
   reason?: string;
 };
 
+function isLikelySessionFetchFailure(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.trim().toLowerCase();
+  return message === "failed to fetch" || message.includes("fetch failed");
+}
+
+function buildSessionExpiredResponse() {
+  return new Response(
+    JSON.stringify({
+      message: "Your sign-in session may have expired. Sign in again, then retry this action.",
+    }),
+    {
+      status: 401,
+      statusText: "Session expired",
+      headers: {
+        "content-type": "application/json",
+      },
+    },
+  );
+}
+
 function dispatchSessionExpired(detail?: SessionExpiredDetail) {
   if (typeof window === "undefined") {
     return;
@@ -48,15 +72,46 @@ export function SessionRecoveryLayer() {
 
     const originalFetch = window.fetch.bind(window);
     window.fetch = async (...args) => {
-      const response = await originalFetch(...args);
-      if (response.status === 401) {
-        dispatchSessionExpired({ reason: "Your sign-in session expired. Sign in again without leaving this screen." });
+      try {
+        const response = await originalFetch(...args);
+        if (response.status === 401) {
+          dispatchSessionExpired({ reason: "Your sign-in session expired. Sign in again without leaving this screen." });
+        }
+        return response;
+      } catch (error) {
+        if (isLikelySessionFetchFailure(error)) {
+          dispatchSessionExpired({ reason: "Your sign-in session may have expired. Sign in again, then retry this action." });
+          return buildSessionExpiredResponse();
+        }
+        throw error;
       }
-      return response;
     };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (!isLikelySessionFetchFailure(event.reason)) {
+        return;
+      }
+
+      event.preventDefault();
+      dispatchSessionExpired({ reason: "Your sign-in session may have expired. Sign in again, then retry this action." });
+    };
+
+    const handleWindowError = (event: ErrorEvent) => {
+      if (!isLikelySessionFetchFailure(event.error ?? new Error(event.message))) {
+        return;
+      }
+
+      event.preventDefault();
+      dispatchSessionExpired({ reason: "Your sign-in session may have expired. Sign in again, then retry this action." });
+    };
+
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+    window.addEventListener("error", handleWindowError);
 
     return () => {
       window.fetch = originalFetch;
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+      window.removeEventListener("error", handleWindowError);
     };
   }, []);
 

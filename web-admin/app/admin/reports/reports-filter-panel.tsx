@@ -41,6 +41,10 @@ type ReportsFilterPanelProps = {
   currentFarmId: string;
   currentFlockCode: string;
   currentDays: string;
+  currentReportDate: string;
+  currentStartDate: string;
+  currentEndDate: string;
+  currentIncludeBinSentryOnOrder: boolean;
   farmGroups: FarmGroupOption[];
   farms: FarmOption[];
   barns: BarnOption[];
@@ -55,6 +59,10 @@ export function ReportsFilterPanel({
   currentFarmId,
   currentFlockCode,
   currentDays,
+  currentReportDate,
+  currentStartDate,
+  currentEndDate,
+  currentIncludeBinSentryOnOrder,
   farmGroups,
   farms,
   barns,
@@ -68,7 +76,21 @@ export function ReportsFilterPanel({
   const [barnId, setBarnId] = useState(currentBarnId);
   const [flockCode, setFlockCode] = useState(currentFlockCode);
   const [days, setDays] = useState(currentDays);
+  const [reportDate, setReportDate] = useState(currentReportDate);
+  const [startDate, setStartDate] = useState(currentStartDate);
+  const [endDate, setEndDate] = useState(currentEndDate);
+  const [includeBinSentryOnOrder, setIncludeBinSentryOnOrder] = useState(currentIncludeBinSentryOnOrder);
   const showDaysField = reportKey === "custom_feed_projection";
+  const showDateField = reportKey === "at_a_glance";
+  const showDateRangeField = [
+    "quick_placements_report",
+    "quick_livehaul_report",
+    "detailed_placements_report",
+    "detailed_livehaul_report",
+  ].includes(reportKey);
+  const showBinSentryOnOrderToggle =
+    reportKey === "ten_day_feed_requirements" || reportKey === "custom_feed_projection";
+  const limitToTodayForward = categoryKey === "quick_access_reports" && showDateRangeField;
 
   const filteredFarms = useMemo(
     () => farms.filter((farm) => !farmGroupId || farm.farmGroupId === farmGroupId),
@@ -102,6 +124,10 @@ export function ReportsFilterPanel({
     nextBarnId: string,
     nextFlockCode: string,
     nextDays: string,
+    nextReportDate: string,
+    nextStartDate: string,
+    nextEndDate: string,
+    nextIncludeBinSentryOnOrder: boolean,
   ) {
     const params = new URLSearchParams();
     params.set("category", categoryKey);
@@ -111,6 +137,10 @@ export function ReportsFilterPanel({
     if (nextBarnId) params.set("barnId", nextBarnId);
     if (nextFlockCode) params.set("flockCode", nextFlockCode);
     if (showDaysField && nextDays) params.set("days", nextDays);
+    if (showDateField && nextReportDate) params.set("reportDate", nextReportDate);
+    if (showDateRangeField && nextStartDate) params.set("startDate", nextStartDate);
+    if (showDateRangeField && nextEndDate) params.set("endDate", nextEndDate);
+    if (showBinSentryOnOrderToggle && nextIncludeBinSentryOnOrder) params.set("includeBinSentryOnOrder", "1");
 
     const query = params.toString();
     startTransition(() => {
@@ -144,7 +174,7 @@ export function ReportsFilterPanel({
     setFarmId(nextFarmId);
     setBarnId(nextBarnId);
     setFlockCode(nextFlockCode);
-    pushFilters(nextFarmGroupId, nextFarmId, nextBarnId, nextFlockCode, days);
+    pushFilters(nextFarmGroupId, nextFarmId, nextBarnId, nextFlockCode, days, reportDate, startDate, endDate, includeBinSentryOnOrder);
   }
 
   function handleFarmChange(nextFarmId: string) {
@@ -169,7 +199,7 @@ export function ReportsFilterPanel({
     setFarmId(nextFarmId);
     setBarnId(nextBarnId);
     setFlockCode(nextFlockCode);
-    pushFilters(farmGroupId, nextFarmId, nextBarnId, nextFlockCode, days);
+    pushFilters(farmGroupId, nextFarmId, nextBarnId, nextFlockCode, days, reportDate, startDate, endDate, includeBinSentryOnOrder);
   }
 
   function handleBarnChange(nextBarnId: string) {
@@ -185,22 +215,46 @@ export function ReportsFilterPanel({
 
     setBarnId(nextBarnId);
     setFlockCode(nextFlockCode);
-    pushFilters(farmGroupId, farmId, nextBarnId, nextFlockCode, days);
+    pushFilters(farmGroupId, farmId, nextBarnId, nextFlockCode, days, reportDate, startDate, endDate, includeBinSentryOnOrder);
   }
 
   function handleFlockChange(nextFlockCode: string) {
     setFlockCode(nextFlockCode);
-    pushFilters(farmGroupId, farmId, barnId, nextFlockCode, days);
+    pushFilters(farmGroupId, farmId, barnId, nextFlockCode, days, reportDate, startDate, endDate, includeBinSentryOnOrder);
   }
 
   function handleDaysChange(nextDays: string) {
     setDays(nextDays);
-    pushFilters(farmGroupId, farmId, barnId, flockCode, nextDays);
+    pushFilters(farmGroupId, farmId, barnId, flockCode, nextDays, reportDate, startDate, endDate, includeBinSentryOnOrder);
   }
 
   function handlePresetClick(nextDays: string) {
     setDays(nextDays);
-    pushFilters(farmGroupId, farmId, barnId, flockCode, nextDays);
+    pushFilters(farmGroupId, farmId, barnId, flockCode, nextDays, reportDate, startDate, endDate, includeBinSentryOnOrder);
+  }
+
+  function handleReportDateChange(nextReportDate: string) {
+    setReportDate(nextReportDate);
+    pushFilters(farmGroupId, farmId, barnId, flockCode, days, nextReportDate, startDate, endDate, includeBinSentryOnOrder);
+  }
+
+  function handleStartDateChange(nextStartDate: string) {
+    const normalized = normalizeDateRange(nextStartDate, endDate, limitToTodayForward);
+    setStartDate(normalized.startDate);
+    setEndDate(normalized.endDate);
+    pushFilters(farmGroupId, farmId, barnId, flockCode, days, reportDate, normalized.startDate, normalized.endDate, includeBinSentryOnOrder);
+  }
+
+  function handleEndDateChange(nextEndDate: string) {
+    const normalized = normalizeDateRange(startDate, nextEndDate, limitToTodayForward);
+    setStartDate(normalized.startDate);
+    setEndDate(normalized.endDate);
+    pushFilters(farmGroupId, farmId, barnId, flockCode, days, reportDate, normalized.startDate, normalized.endDate, includeBinSentryOnOrder);
+  }
+
+  function handleIncludeBinSentryOnOrderChange(nextValue: boolean) {
+    setIncludeBinSentryOnOrder(nextValue);
+    pushFilters(farmGroupId, farmId, barnId, flockCode, days, reportDate, startDate, endDate, nextValue);
   }
 
   const clearHref = buildReportsHubHref({
@@ -213,6 +267,10 @@ export function ReportsFilterPanel({
     barnId,
     flockCode,
     days,
+    reportDate,
+    startDate,
+    endDate,
+    includeBinSentryOnOrder,
     reportKey,
   });
 
@@ -266,6 +324,41 @@ export function ReportsFilterPanel({
         </select>
       </label>
 
+      {showDateField ? (
+        <label>
+          <span>Select Date</span>
+          <input
+            onChange={(event) => handleReportDateChange(event.target.value)}
+            type="date"
+            value={reportDate}
+          />
+        </label>
+      ) : null}
+
+      {showDateRangeField ? (
+        <>
+          <label>
+            <span>From Date</span>
+            <input
+              min={limitToTodayForward ? todayDateKey() : undefined}
+              onChange={(event) => handleStartDateChange(event.target.value)}
+              type="date"
+              value={startDate}
+            />
+          </label>
+
+          <label>
+            <span>To Date</span>
+            <input
+              min={limitToTodayForward ? todayDateKey() : undefined}
+              onChange={(event) => handleEndDateChange(event.target.value)}
+              type="date"
+              value={endDate}
+            />
+          </label>
+        </>
+      ) : null}
+
       {showDaysField ? (
         <label>
           <span>Days</span>
@@ -292,6 +385,20 @@ export function ReportsFilterPanel({
         </label>
       ) : null}
 
+      {showBinSentryOnOrderToggle ? (
+        <label className="reports-hub-checkbox-field">
+          <input
+            checked={includeBinSentryOnOrder}
+            onChange={(event) => handleIncludeBinSentryOnOrderChange(event.target.checked)}
+            type="checkbox"
+          />
+          <div>
+            <span>Include BinSentry Scheduled Orders</span>
+            <small>Use BinSentry Order Manager orders in the Scheduled state as called-in feed for the On Order totals and recommendation math.</small>
+          </div>
+        </label>
+      ) : null}
+
       <div className="reports-hub-filter-actions">
         <Link className="button-secondary" href={clearHref} scroll={false}>
           Clear
@@ -311,6 +418,10 @@ function buildReportsHubHref({
   farmId,
   barnId,
   flockCode,
+  reportDate,
+  startDate,
+  endDate,
+  includeBinSentryOnOrder,
 }: {
   category: string;
   report: string;
@@ -318,6 +429,10 @@ function buildReportsHubHref({
   farmId?: string;
   barnId?: string;
   flockCode?: string;
+  reportDate?: string;
+  startDate?: string;
+  endDate?: string;
+  includeBinSentryOnOrder?: boolean;
 }) {
   const params = new URLSearchParams();
   if (category) params.set("category", category);
@@ -326,6 +441,10 @@ function buildReportsHubHref({
   if (farmId) params.set("farmId", farmId);
   if (barnId) params.set("barnId", barnId);
   if (flockCode) params.set("flockCode", flockCode);
+  if (reportDate) params.set("reportDate", reportDate);
+  if (startDate) params.set("startDate", startDate);
+  if (endDate) params.set("endDate", endDate);
+  if (includeBinSentryOnOrder) params.set("includeBinSentryOnOrder", "1");
   const query = params.toString();
   return query ? `/admin/reports?${query}` : "/admin/reports";
 }
@@ -336,6 +455,10 @@ function buildFeedProjectionPreviewHref({
   barnId,
   flockCode,
   days,
+  reportDate,
+  startDate,
+  endDate,
+  includeBinSentryOnOrder,
   reportKey,
 }: {
   farmGroupId?: string;
@@ -343,6 +466,10 @@ function buildFeedProjectionPreviewHref({
   barnId?: string;
   flockCode?: string;
   days?: string;
+  reportDate?: string;
+  startDate?: string;
+  endDate?: string;
+  includeBinSentryOnOrder?: boolean;
   reportKey: string;
 }) {
   const params = new URLSearchParams();
@@ -351,10 +478,51 @@ function buildFeedProjectionPreviewHref({
   if (barnId) params.set("barnId", barnId);
   if (flockCode) params.set("flockCode", flockCode);
   if (reportKey === "custom_feed_projection" && days) params.set("days", days);
+  if ((reportKey === "custom_feed_projection" || reportKey === "ten_day_feed_requirements") && includeBinSentryOnOrder) {
+    params.set("includeBinSentryOnOrder", "1");
+  }
+  if (reportKey === "at_a_glance" && reportDate) params.set("reportDate", reportDate);
+  if (["quick_placements_report", "quick_livehaul_report", "detailed_placements_report", "detailed_livehaul_report"].includes(reportKey)) {
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+  }
   const query = params.toString();
   const pathname =
     reportKey === "custom_feed_projection"
       ? "/admin/reports/feed-projection-custom"
-      : "/admin/reports/feed-projection";
+      : reportKey === "at_a_glance"
+        ? "/admin/reports/today-at-a-glance"
+        : reportKey === "quick_placements_report"
+          ? "/admin/reports/placements-quick-access"
+          : reportKey === "quick_livehaul_report"
+            ? "/admin/reports/livehaul-quick-access"
+            : reportKey === "detailed_placements_report"
+              ? "/admin/reports/placements-detailed"
+              : reportKey === "detailed_livehaul_report"
+                ? "/admin/reports/livehaul-detailed"
+        : "/admin/reports/feed-projection";
   return query ? `${pathname}?${query}` : pathname;
+}
+
+function normalizeDateRange(startDate: string, endDate: string, limitToTodayForward: boolean) {
+  const today = todayDateKey();
+  let nextStart = startDate;
+  let nextEnd = endDate;
+
+  if (limitToTodayForward) {
+    if (nextStart && nextStart < today) nextStart = today;
+    if (nextEnd && nextEnd < today) nextEnd = today;
+  }
+
+  if (!nextStart && nextEnd) nextStart = nextEnd;
+  if (!nextEnd && nextStart) nextEnd = nextStart;
+  if (nextStart && nextEnd && nextStart > nextEnd) {
+    return { startDate: nextEnd, endDate: nextStart };
+  }
+
+  return { startDate: nextStart, endDate: nextEnd };
+}
+
+function todayDateKey() {
+  return new Date().toISOString().slice(0, 10);
 }

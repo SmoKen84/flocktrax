@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-06-12`
+Updated: `2026-07-03`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,50 @@ Purpose:
 ## Chronological Index
 
 ### June 2026
+
+### July 2026
+
+- `2026-07-03`
+  - [FlockTrax_Localhost_Feed_Drop_Queue_And_Reconciliation_Filter_Checkpoint_2026-07-03.md](C:\dev\FlockTrax\output\FlockTrax_Localhost_Feed_Drop_Queue_And_Reconciliation_Filter_Checkpoint_2026-07-03.md)
+  - detailed local working-tree checkpoint covering the official orphaned feed-drop queue model, preserved queued-source flock/bin/barn memory, the applied `queued_for_reconciliation` schema migration, hosted queue-aware feed-ticket function deploys, the production queue editor release already shipped earlier, and the still-local queued-drop console filter being held on localhost for real reconciliation shakeout
+
+- `2026-07-01`
+  - [FlockTrax_Reports_Hub_Quick_Access_And_Calendar_Report_Checkpoint_2026-07-01.md](C:\dev\FlockTrax\output\FlockTrax_Reports_Hub_Quick_Access_And_Calendar_Report_Checkpoint_2026-07-01.md)
+  - detailed local working-tree checkpoint covering the reports-hub expansion into Quick Access and Detailed calendar reports, the renamed date-selectable `At-a-Glance` report, new month-grouped placement/livehaul packet layouts, detailed placements switching to final-processing-date calendar placement, month-by-month page breaks, and the latest calendar contrast/badge-readability refinements on localhost
+
+### June 2026
+
+- `2026-06-30`
+  - [FlockTrax_Localhost_Closeout_Document_Archive_And_Feed_Projection_Checkpoint_2026-06-30.md](C:\dev\FlockTrax\output\FlockTrax_Localhost_Closeout_Document_Archive_And_Feed_Projection_Checkpoint_2026-06-30.md)
+  - detailed local working-tree checkpoint covering localhost closeout document-archive stabilization, feed-ticket document icon/original-rule cleanup, feed-ticket audit-field follow-up, corrected 10-day/custom feed-projection rules, and the new clickable `Starter Oblg` math popup on the 10-day report
+
+- `2026-06-25`
+  - [FlockTrax_Localhost_Document_Archive_Recovery_And_Feed_Ticket_UI_Checkpoint_2026-06-25.md](C:\dev\FlockTrax\output\FlockTrax_Localhost_Document_Archive_Recovery_And_Feed_Ticket_UI_Checkpoint_2026-06-25.md)
+  - detailed local working-tree checkpoint covering the localhost recovery of closeout document-archive uploads, the Next server-action upload-limit fix, livehaul/session crash hardening, closeout summary foreign-key correction, feed-ticket `Document IN` / `Document OUT` icon actions plus missing-badge exemptions, and the newly identified historical closeout negative-feed edge case that blocks `Save Closeout Draft` for incomplete early backfill flocks
+
+- `2026-06-24`
+  - [FlockTrax_Feed_Projection_Rule_Reset_And_Custom_Report_Planning_Checkpoint_2026-06-24.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Projection_Rule_Reset_And_Custom_Report_Planning_Checkpoint_2026-06-24.md)
+  - local working-tree checkpoint covering the feed projection rule reset that removed the mistaken 12,000 lb arrival shortcut and the age-14 starter cutoff, split operational 10-day ordering logic from custom planning-only reports, tightened the collapsed projection matrix to fit on screen, and recorded the user decision to return to flock closeouts before any future truck-load builder work
+
+- `2026-06-23`
+  - [FlockTrax_Document_Archive_Placement_Closeout_And_Backfill_Checkpoint_2026-06-23.md](C:\dev\FlockTrax\output\FlockTrax_Document_Archive_Placement_Closeout_And_Backfill_Checkpoint_2026-06-23.md)
+  - local working-tree checkpoint covering the document-archive expansion beyond feed tickets, including feed-ticket original backfill context, hatch/livehaul/summary/misc record-link decisions, compact closeout checklist consolidation, and the corrected placement-level livehaul packet model
+
+- `2026-06-22`
+  - [FlockTrax_Document_Archive_Feed_Ticket_Foundation_Checkpoint_2026-06-22.md](C:\dev\FlockTrax\output\FlockTrax_Document_Archive_Feed_Ticket_Foundation_Checkpoint_2026-06-22.md)
+  - local working-tree checkpoint covering the new private Supabase Storage + `document_archives` metadata foundation, the first live feed-ticket archive workflow, protected signed-URL retrieval, and the compact `Missing` / `Filed` ticket-list status model for audit-original visibility
+
+- `2026-06-20`
+  - [FlockTrax_PC_Stability_Precaution_Checkpoint_2026-06-20.md](C:\dev\FlockTrax\output\FlockTrax_PC_Stability_Precaution_Checkpoint_2026-06-20.md)
+  - precautionary local working-tree checkpoint captured because of severe PC/display instability, preserving the exact dirty tree and pointing back to the active June 17 feed-ordering, bin-layer-state, and load-reconciliation work path
+
+- `2026-06-17`
+  - [FlockTrax_Feed_Order_Reconciliation_And_Bin_Layer_State_Checkpoint_2026-06-17.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Order_Reconciliation_And_Bin_Layer_State_Checkpoint_2026-06-17.md)
+  - detailed local working-tree checkpoint covering the new layered feed-bin state schema, live-safe forward-only bin-layer inference from real feed-ticket drops, BinSentry quantity refresh for single-layer bins, and the new load-level feed-order receipt reconciliation model that matches actual delivered drops against compatible open loads without requiring the original planned drop sequence
+
+- `2026-06-16`
+  - [FlockTrax_Log_Weight_Report_And_Feed_Ticket_Scan_Storage_Checkpoint_2026-06-16.md](C:\dev\FlockTrax\output\FlockTrax_Log_Weight_Report_And_Feed_Ticket_Scan_Storage_Checkpoint_2026-06-16.md)
+  - detailed local working-tree checkpoint covering the new placement `log_weight` vs `stdbreedspec` report flow across closeout/log-matrix/dashboard surfaces, plus the agreed private Supabase Storage + metadata-table direction for preserving original scanned feed-ticket audit documents
 
 - `2026-06-12`
   - [FlockTrax_Admin_Release_5_6_Log_Matrix_And_Closeout_Production_Checkpoint_2026-06-12.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Release_5_6_Log_Matrix_And_Closeout_Production_Checkpoint_2026-06-12.md)
@@ -330,6 +374,26 @@ Purpose:
   - production checkpoint covering action-item list/work-order reporting, flock-history action-item print expansion, Vercel deployment `dpl_6Dq8Zrp1XbadeP43ZiktbE3S6uht`, and hosted admin build marker `5.3`
 
 # Latest Checkpoint
+
+- `2026-06-23`
+  - [FlockTrax_Document_Archive_Placement_Closeout_And_Backfill_Checkpoint_2026-06-23.md](C:\dev\FlockTrax\output\FlockTrax_Document_Archive_Placement_Closeout_And_Backfill_Checkpoint_2026-06-23.md)
+  - current best resume point for the document-archive expansion path, including feed-ticket backfill context, placement/dashboard/closeout archive hooks, the single-checklist closeout archive UI, and the corrected one-per-placement livehaul packet model
+
+- `2026-06-22`
+  - [FlockTrax_Document_Archive_Feed_Ticket_Foundation_Checkpoint_2026-06-22.md](C:\dev\FlockTrax\output\FlockTrax_Document_Archive_Feed_Ticket_Foundation_Checkpoint_2026-06-22.md)
+  - current best resume point for the new document-archive work, including the private Storage bucket, `document_archives` metadata table, first feed-ticket upload/open flow, and the next-step path for extending archive coverage to placements, livehaul, and closeout records
+
+- `2026-06-20`
+  - [FlockTrax_PC_Stability_Precaution_Checkpoint_2026-06-20.md](C:\dev\FlockTrax\output\FlockTrax_PC_Stability_Precaution_Checkpoint_2026-06-20.md)
+  - current best crash-safe resume point when the local machine is unstable, with explicit restart guidance back into the June 17 feed-ordering and receipt-reconciliation path
+
+- `2026-06-17`
+  - [FlockTrax_Feed_Order_Reconciliation_And_Bin_Layer_State_Checkpoint_2026-06-17.md](C:\dev\FlockTrax\output\FlockTrax_Feed_Order_Reconciliation_And_Bin_Layer_State_Checkpoint_2026-06-17.md)
+  - current best resume point for the feed project and ordering recommendations path, including layered feed-bin state, live BinSentry quantity refresh, forward-only feed-ticket layer inference, and load-level receipt reconciliation against compatible open feed orders
+
+- `2026-06-16`
+  - [FlockTrax_Log_Weight_Report_And_Feed_Ticket_Scan_Storage_Checkpoint_2026-06-16.md](C:\dev\FlockTrax\output\FlockTrax_Log_Weight_Report_And_Feed_Ticket_Scan_Storage_Checkpoint_2026-06-16.md)
+  - current best resume point for the new placement `log_weight` report flow and the agreed original scanned-ticket archive direction using private Supabase Storage plus immutable metadata rows
 
 - `2026-06-09`
   - [FlockTrax_Admin_Release_5_5_Feed_Ordering_Reports_And_Scheduler_Production_Checkpoint_2026-06-09.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Release_5_5_Feed_Ordering_Reports_And_Scheduler_Production_Checkpoint_2026-06-09.md)
