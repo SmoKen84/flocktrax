@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-07-03`
+Updated: `2026-07-08`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -12,6 +12,10 @@ Purpose:
 ### June 2026
 
 ### July 2026
+
+- `2026-07-08`
+  - [FlockTrax_BinSentry_Density_Tools_And_Feed_Projection_Preflight_Checkpoint_2026-07-08.md](C:\dev\FlockTrax\output\FlockTrax_BinSentry_Density_Tools_And_Feed_Projection_Preflight_Checkpoint_2026-07-08.md)
+  - detailed implementation + production-deploy checkpoint covering BinSentry feed-name fallback typing, feed-bin live density audit and push-back actions driven by `app_settings.BulkDensity`, the feed projection preflight warning gate, and the current shared server-side BinSentry auth model note for future multi-farm-group scaling
 
 - `2026-07-03`
   - [FlockTrax_Localhost_Feed_Drop_Queue_And_Reconciliation_Filter_Checkpoint_2026-07-03.md](C:\dev\FlockTrax\output\FlockTrax_Localhost_Feed_Drop_Queue_And_Reconciliation_Filter_Checkpoint_2026-07-03.md)

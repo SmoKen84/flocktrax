@@ -6,6 +6,12 @@ type FeedBinMapping = {
   barn_id: string | null;
   bin_num: number | null;
   binsentry_bin_ref: string | null;
+  accessible_feed_type?: string | null;
+  accessible_feed_lbs?: number | null;
+  queued_feed_type?: string | null;
+  queued_feed_lbs?: number | null;
+  feed_state_effective_at?: string | null;
+  feed_state_source?: string | null;
 };
 
 type InventorySnapshotWrite = {
@@ -16,6 +22,7 @@ type InventorySnapshotWrite = {
   inventoryLbs: number;
   capturedAt: string;
   rawPayload: unknown;
+  accessibleFeedType: string | null;
 };
 
 type SirenLink = {
@@ -84,6 +91,23 @@ async function readBody(req: Request): Promise<WorkerBody> {
 
 function normalize(value: string | null | undefined) {
   return (value ?? "").trim();
+}
+
+function normalizeFeedType(value: string | null | undefined) {
+  const normalized = normalize(value).toLowerCase();
+  if (normalized === "starter" || normalized === "grower") {
+    return normalized;
+  }
+
+  if (normalized.includes("starter")) {
+    return "starter";
+  }
+
+  if (normalized.includes("grower")) {
+    return "grower";
+  }
+
+  return null;
 }
 
 function createAdminClient() {
@@ -407,6 +431,7 @@ function extractInventorySnapshot(
     ]) ?? new Date().toISOString();
 
   const feedName = pickFirstString(properties, ["feed_name", "feedName", "ration_name", "rationName", "product_name", "productName"]);
+  const accessibleFeedType = normalizeFeedType(mapping.accessible_feed_type) ?? normalizeFeedType(feedName);
 
   return {
     farmId: mapping.farm_id,
@@ -416,6 +441,31 @@ function extractInventorySnapshot(
     inventoryLbs: Math.max(0, inventoryLbs),
     capturedAt,
     rawPayload: payload,
+    accessibleFeedType,
+  };
+}
+
+function buildFeedBinSyncUpdate(snapshot: InventorySnapshotWrite, mapping: FeedBinMapping) {
+  const accessibleFeedType = snapshot.accessibleFeedType;
+  const queuedFeedType = normalizeFeedType(mapping.queued_feed_type);
+  const hasQueuedLayer =
+    queuedFeedType !== null ||
+    (typeof mapping.queued_feed_lbs === "number" && Number.isFinite(mapping.queued_feed_lbs) && mapping.queued_feed_lbs > 0);
+  const feedStateSource =
+    accessibleFeedType && !hasQueuedLayer
+      ? normalize(mapping.accessible_feed_type)
+        ? normalize(mapping.feed_state_source) || "binsentry_sync"
+        : "binsentry_feed_name"
+      : mapping.feed_state_source ?? null;
+
+  return {
+    binsentry_last_sync_at: snapshot.capturedAt,
+    binsentry_last_inventory_lbs: snapshot.inventoryLbs,
+    binsentry_sync_note: `Inventory synced from BinSentry (${Math.round(snapshot.inventoryLbs).toLocaleString()} lbs).`,
+    accessible_feed_type: accessibleFeedType ?? mapping.accessible_feed_type ?? null,
+    accessible_feed_lbs: accessibleFeedType && !hasQueuedLayer ? snapshot.inventoryLbs : mapping.accessible_feed_lbs ?? null,
+    feed_state_effective_at: accessibleFeedType && !hasQueuedLayer ? snapshot.capturedAt : mapping.feed_state_effective_at ?? null,
+    feed_state_source: feedStateSource,
   };
 }
 
@@ -425,7 +475,9 @@ async function syncBarnInventory(
 ) {
   const { data, error } = await supabase
     .from("feedbins")
-    .select("id,farm_id,barn_id,bin_num,binsentry_bin_ref")
+    .select(
+      "id,farm_id,barn_id,bin_num,binsentry_bin_ref,accessible_feed_type,accessible_feed_lbs,queued_feed_type,queued_feed_lbs,feed_state_effective_at,feed_state_source",
+    )
     .eq("barn_id", barnId)
     .order("bin_num", { ascending: true });
 
@@ -463,11 +515,7 @@ async function syncBarnInventory(
       snapshots.push(snapshot);
       await supabase
         .from("feedbins")
-        .update({
-          binsentry_last_sync_at: snapshot.capturedAt,
-          binsentry_last_inventory_lbs: snapshot.inventoryLbs,
-          binsentry_sync_note: `Inventory synced from BinSentry (${Math.round(snapshot.inventoryLbs).toLocaleString()} lbs).`,
-        })
+        .update(buildFeedBinSyncUpdate(snapshot, mapping))
         .eq("id", mapping.id);
     } catch (error) {
       const message = error instanceof Error ? error.message : "BinSentry request failed.";

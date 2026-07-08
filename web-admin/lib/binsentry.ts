@@ -39,7 +39,19 @@ function normalize(value: string | null | undefined) {
 
 function normalizeFeedType(value: string | null | undefined) {
   const normalized = normalize(value).toLowerCase();
-  return normalized === "starter" || normalized === "grower" ? normalized : null;
+  if (normalized === "starter" || normalized === "grower") {
+    return normalized;
+  }
+
+  if (normalized.includes("starter")) {
+    return "starter";
+  }
+
+  if (normalized.includes("grower")) {
+    return "grower";
+  }
+
+  return null;
 }
 
 function coerceNumber(value: unknown): number | null {
@@ -175,6 +187,7 @@ function extractInventorySnapshot(
     ]) ?? new Date().toISOString();
 
   const feedName = pickFirstString(properties, ["feed_name", "feedName", "ration_name", "rationName", "product_name", "productName"]);
+  const accessibleFeedType = normalizeFeedType(mapping.accessible_feed_type) ?? normalizeFeedType(feedName);
 
   return {
     farmId: mapping.farm_id,
@@ -184,28 +197,32 @@ function extractInventorySnapshot(
     inventoryLbs: Math.max(0, inventoryLbs),
     capturedAt,
     rawPayload: payload,
-    accessibleFeedType: normalizeFeedType(mapping.accessible_feed_type),
+    accessibleFeedType,
     queuedFeedType: normalizeFeedType(mapping.queued_feed_type),
   };
 }
 
 function buildFeedBinSyncUpdate(snapshot: BinSentryInventorySnapshotWrite, mapping: BinSentryFeedBinMapping) {
-  const accessibleFeedType = normalizeFeedType(mapping.accessible_feed_type);
+  const accessibleFeedType = snapshot.accessibleFeedType;
   const queuedFeedType = normalizeFeedType(mapping.queued_feed_type);
   const hasQueuedLayer =
     queuedFeedType !== null ||
     (typeof mapping.queued_feed_lbs === "number" && Number.isFinite(mapping.queued_feed_lbs) && mapping.queued_feed_lbs > 0);
+  const feedStateSource =
+    accessibleFeedType && !hasQueuedLayer
+      ? normalize(mapping.accessible_feed_type)
+        ? normalize(mapping.feed_state_source) || "binsentry_sync"
+        : "binsentry_feed_name"
+      : mapping.feed_state_source ?? null;
 
   return {
     binsentry_last_sync_at: snapshot.capturedAt,
     binsentry_last_inventory_lbs: snapshot.inventoryLbs,
     binsentry_sync_note: `Inventory synced from BinSentry (${Math.round(snapshot.inventoryLbs).toLocaleString()} lbs).`,
+    accessible_feed_type: accessibleFeedType ?? mapping.accessible_feed_type ?? null,
     accessible_feed_lbs: accessibleFeedType && !hasQueuedLayer ? snapshot.inventoryLbs : mapping.accessible_feed_lbs ?? null,
     feed_state_effective_at: accessibleFeedType && !hasQueuedLayer ? snapshot.capturedAt : mapping.feed_state_effective_at ?? null,
-    feed_state_source:
-      accessibleFeedType && !hasQueuedLayer
-        ? (normalize(mapping.feed_state_source) || "binsentry_sync")
-        : mapping.feed_state_source ?? null,
+    feed_state_source: feedStateSource,
   };
 }
 

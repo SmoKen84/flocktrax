@@ -1,5 +1,6 @@
 import { getAdminData } from "@/lib/admin-data";
 import { getBinSentryAccessToken, getBinSentryConfig } from "@/lib/binsentry-auth";
+import { buildBinSentryEntityUrl } from "@/lib/binsentry-http";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import type { ActivePlacementRecord } from "@/lib/types";
 
@@ -43,7 +44,22 @@ type FeedOrderWindowBucket = {
 
 type FeedBinMappingRow = {
   barn_id: string | null;
+  bin_num?: number | null;
   binsentry_bin_ref: string | null;
+};
+
+export type FeedProjectionDensityWarningRow = {
+  barnId: string;
+  barnCode: string;
+  binNumber: string;
+  liveBulkDensityLbFt3: number | null;
+  binSentryRef: string;
+  error: string | null;
+};
+
+export type FeedProjectionDensityWarning = {
+  targetBulkDensityLbFt3: number | null;
+  mismatches: FeedProjectionDensityWarningRow[];
 };
 
 type SirenEntity = {
@@ -111,25 +127,14 @@ export async function getFeedProjectionReportData(options: {
     throw new Error("Supabase admin access is required to build the feed projection report.");
   }
 
-  const filteredPlacements = adminData.activePlacements.filter((placement) => {
-    if (farmGroupId && placement.farmGroupId !== farmGroupId) return false;
-    if (farmId && placement.farmId !== farmId) return false;
-    if (barnId && placement.barnId !== barnId) return false;
-    if (flockCode) {
-      const haystack = `${placement.placementCode} ${placement.flockCode ?? ""}`.toLowerCase();
-      if (!haystack.includes(flockCode.toLowerCase())) return false;
-    }
-    if (
-      reportMode === "operational" &&
-      !placementOverlapsOperationalWindow({
-        placement,
-        windowStart: isoDate(new Date()),
-        windowEnd: addDays(isoDate(new Date()), windowDays),
-      })
-    ) {
-      return false;
-    }
-    return true;
+  const filteredPlacements = filterPlacementsForFeedProjection({
+    placements: adminData.activePlacements,
+    farmGroupId,
+    farmId,
+    barnId,
+    flockCode,
+    reportMode,
+    windowDays,
   });
   const filteredPlacementIds = Array.from(
     new Set(
@@ -268,8 +273,173 @@ export async function getFeedProjectionReportData(options: {
     overallOnOrder: rows.reduce((sum, row) => sum + (row.onOrderLbs ?? 0), 0),
     overallRecommended: rows.reduce((sum, row) => sum + (row.recommendedOrderLbs ?? 0), 0),
     overallStarterRecommended: rows.reduce((sum, row) => sum + (row.starterRecommendedLbs ?? 0), 0),
-    overallGrowerRecommended: rows.reduce((sum, row) => sum + (row.growerRecommendedLbs ?? 0), 0),
+  overallGrowerRecommended: rows.reduce((sum, row) => sum + (row.growerRecommendedLbs ?? 0), 0),
   };
+}
+
+export async function getFeedProjectionDensityWarning(options: {
+  windowDays: number;
+  farmGroupId?: string | null;
+  farmId?: string | null;
+  barnId?: string | null;
+  flockCode?: string | null;
+  reportMode?: "operational" | "planning";
+}) {
+  const windowDays = clampWindowDays(options.windowDays);
+  const reportMode = options.reportMode ?? (windowDays === 10 ? "operational" : "planning");
+  const adminData = await getAdminData();
+  const supabase = createSupabaseAdminClient();
+  const farmGroupId = normalizeOptionalId(options.farmGroupId);
+  const farmId = normalizeOptionalId(options.farmId);
+  const barnId = normalizeOptionalId(options.barnId);
+  const flockCode = normalizeOptionalText(options.flockCode);
+
+  if (!supabase) {
+    return {
+      targetBulkDensityLbFt3: null,
+      mismatches: [],
+    } satisfies FeedProjectionDensityWarning;
+  }
+
+  const filteredPlacements = filterPlacementsForFeedProjection({
+    placements: adminData.activePlacements,
+    farmGroupId,
+    farmId,
+    barnId,
+    flockCode,
+    reportMode,
+    windowDays,
+  });
+  const barnCodeByBarnId = new Map(
+    filteredPlacements
+      .map((placement) => [placement.barnId, placement.barnCode] as const)
+      .filter(([currentBarnId]) => Boolean(currentBarnId)),
+  );
+  const uniqueBarnIds = Array.from(new Set(filteredPlacements.map((placement) => placement.barnId).filter(Boolean)));
+
+  if (uniqueBarnIds.length === 0) {
+    return {
+      targetBulkDensityLbFt3: null,
+      mismatches: [],
+    } satisfies FeedProjectionDensityWarning;
+  }
+
+  const [binsResult, settingResult] = await Promise.all([
+    supabase
+      .from("feedbins")
+      .select("barn_id,bin_num,binsentry_bin_ref")
+      .in("barn_id", uniqueBarnIds)
+      .not("binsentry_bin_ref", "is", null),
+    supabase
+      .from("app_settings")
+      .select("name,value")
+      .eq("name", "BulkDensity")
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const targetBulkDensityLbFt3 = parseNullableNumber(settingResult.data?.value);
+  const rows = ((binsResult.data ?? []) as FeedBinMappingRow[]).filter((row) => normalizeOptionalText(row.binsentry_bin_ref));
+  if (rows.length === 0 || targetBulkDensityLbFt3 === null) {
+    return {
+      targetBulkDensityLbFt3,
+      mismatches: [],
+    } satisfies FeedProjectionDensityWarning;
+  }
+
+  try {
+    const token = await getBinSentryAccessToken();
+    const mismatches = await Promise.all(
+      rows.map(async (row) => {
+        const binRef = normalizeOptionalText(row.binsentry_bin_ref);
+        const currentBarnId = normalizeOptionalId(row.barn_id);
+        if (!binRef || !currentBarnId) {
+          return null;
+        }
+
+        try {
+          const payload = await fetchBinSentrySirenEntity(buildBinSentryEntityUrl(binRef), token);
+          const bulkDensityKgPerM3 =
+            typeof payload.properties?.bulkDensity === "number" && Number.isFinite(payload.properties.bulkDensity)
+              ? payload.properties.bulkDensity
+              : null;
+          const liveBulkDensityLbFt3 =
+            bulkDensityKgPerM3 === null ? null : Math.round(bulkDensityKgPerM3 * 0.0624279606 * 100) / 100;
+
+          if (liveBulkDensityLbFt3 !== null && Math.abs(liveBulkDensityLbFt3 - targetBulkDensityLbFt3) < 0.01) {
+            return null;
+          }
+
+          return {
+            barnId: currentBarnId,
+            barnCode: barnCodeByBarnId.get(currentBarnId) ?? currentBarnId,
+            binNumber: typeof row.bin_num === "number" && Number.isFinite(row.bin_num) ? String(row.bin_num) : "--",
+            liveBulkDensityLbFt3,
+            binSentryRef: binRef,
+            error: liveBulkDensityLbFt3 === null ? "Bulk density was not present on the BinSentry payload." : null,
+          } satisfies FeedProjectionDensityWarningRow;
+        } catch (error) {
+          return {
+            barnId: currentBarnId,
+            barnCode: barnCodeByBarnId.get(currentBarnId) ?? currentBarnId,
+            binNumber: typeof row.bin_num === "number" && Number.isFinite(row.bin_num) ? String(row.bin_num) : "--",
+            liveBulkDensityLbFt3: null,
+            binSentryRef: binRef,
+            error: error instanceof Error ? error.message : "BinSentry density preflight failed.",
+          } satisfies FeedProjectionDensityWarningRow;
+        }
+      }),
+    );
+
+    return {
+      targetBulkDensityLbFt3,
+      mismatches: mismatches.filter((row): row is FeedProjectionDensityWarningRow => row !== null),
+    } satisfies FeedProjectionDensityWarning;
+  } catch {
+    return {
+      targetBulkDensityLbFt3,
+      mismatches: [],
+    } satisfies FeedProjectionDensityWarning;
+  }
+}
+
+function filterPlacementsForFeedProjection({
+  placements,
+  farmGroupId,
+  farmId,
+  barnId,
+  flockCode,
+  reportMode,
+  windowDays,
+}: {
+  placements: ActivePlacementRecord[];
+  farmGroupId?: string | null;
+  farmId?: string | null;
+  barnId?: string | null;
+  flockCode?: string | null;
+  reportMode: "operational" | "planning";
+  windowDays: number;
+}) {
+  return placements.filter((placement) => {
+    if (farmGroupId && placement.farmGroupId !== farmGroupId) return false;
+    if (farmId && placement.farmId !== farmId) return false;
+    if (barnId && placement.barnId !== barnId) return false;
+    if (flockCode) {
+      const haystack = `${placement.placementCode} ${placement.flockCode ?? ""}`.toLowerCase();
+      if (!haystack.includes(flockCode.toLowerCase())) return false;
+    }
+    if (
+      reportMode === "operational" &&
+      !placementOverlapsOperationalWindow({
+        placement,
+        windowStart: isoDate(new Date()),
+        windowEnd: addDays(isoDate(new Date()), windowDays),
+      })
+    ) {
+      return false;
+    }
+    return true;
+  });
 }
 
 function toReportRow({
@@ -739,6 +909,11 @@ function normalizeOptionalText(value: string | null | undefined) {
 
 function normalizeOptionalId(value: string | null | undefined) {
   return normalizeOptionalText(value);
+}
+
+function parseNullableNumber(value: unknown) {
+  const parsed = Number(String(value ?? "").trim());
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function isoDate(value: Date) {

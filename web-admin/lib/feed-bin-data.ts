@@ -1,5 +1,6 @@
 import { unstable_noStore as noStore } from "next/cache";
 
+import { buildBinSentryEntityUrl, fetchBinSentryEntity } from "@/lib/binsentry-http";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
 export type FeedBinFarmRecord = {
@@ -44,6 +45,22 @@ export type FeedBinScreenBundle = {
   farms: FeedBinFarmRecord[];
   barnsByFarmId: Record<string, FeedBinBarnRecord[]>;
   binsByBarnId: Record<string, FeedBinEditorRecord[]>;
+};
+
+export type FeedBinDensityAuditRow = {
+  feedBinId: string;
+  barnId: string;
+  binNumber: string;
+  binSentryRef: string;
+  liveBulkDensityLbFt3: number | null;
+  liveBulkDensityKgM3: number | null;
+  matchesTarget: boolean | null;
+  error: string | null;
+};
+
+export type FeedBinDensityAudit = {
+  targetBulkDensityLbFt3: number | null;
+  rows: FeedBinDensityAuditRow[];
 };
 
 type FarmRow = {
@@ -94,6 +111,11 @@ function normalize(value: string | null | undefined) {
 
 function formatNumeric(value: number | null | undefined) {
   return value === null || value === undefined ? "" : String(value);
+}
+
+function parseNumericSetting(value: string | null | undefined) {
+  const parsed = Number(normalize(value));
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 async function fetchFeedBinRows(
@@ -253,6 +275,88 @@ export async function getFeedBinScreenBundle(): Promise<FeedBinScreenBundle> {
     })),
     barnsByFarmId,
     binsByBarnId,
+  };
+}
+
+export async function getFeedBinDensityAudit(barnId: string): Promise<FeedBinDensityAudit> {
+  noStore();
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase || !normalize(barnId)) {
+    return {
+      targetBulkDensityLbFt3: null,
+      rows: [],
+    };
+  }
+
+  const [binsResult, settingResult] = await Promise.all([
+    supabase
+      .from("feedbins")
+      .select("id,barn_id,bin_num,binsentry_bin_ref")
+      .eq("barn_id", barnId)
+      .not("binsentry_bin_ref", "is", null)
+      .order("bin_num", { ascending: true }),
+    supabase
+      .from("app_settings")
+      .select("name,value")
+      .eq("name", "BulkDensity")
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const targetBulkDensityLbFt3 = parseNumericSetting(
+    settingResult.data && typeof settingResult.data.value !== "undefined" && settingResult.data.value !== null
+      ? String(settingResult.data.value)
+      : null,
+  );
+  const binRows =
+    ((binsResult.data ?? []) as Array<{ id: string; barn_id: string | null; bin_num: number | null; binsentry_bin_ref: string | null }>)
+      .filter((row) => normalize(row.binsentry_bin_ref));
+
+  const rows = await Promise.all(
+    binRows.map(async (row) => {
+      const binSentryRef = normalize(row.binsentry_bin_ref);
+      const result: FeedBinDensityAuditRow = {
+        feedBinId: row.id,
+        barnId: normalize(row.barn_id),
+        binNumber: formatNumeric(row.bin_num),
+        binSentryRef,
+        liveBulkDensityLbFt3: null,
+        liveBulkDensityKgM3: null,
+        matchesTarget: null,
+        error: null,
+      };
+
+      try {
+        const payload = await fetchBinSentryEntity(buildBinSentryEntityUrl(binSentryRef));
+        const properties =
+          "properties" in payload && payload.properties && typeof payload.properties === "object"
+            ? (payload.properties as Record<string, unknown>)
+            : (payload as Record<string, unknown>);
+        const bulkDensity =
+          typeof properties.bulkDensity === "number" && Number.isFinite(properties.bulkDensity) ? properties.bulkDensity : null;
+
+        if (bulkDensity === null) {
+          result.error = "Bulk density was not present on the BinSentry bin payload.";
+          return result;
+        }
+
+        const lbFt3 = bulkDensity * 0.0624279606;
+        result.liveBulkDensityKgM3 = Math.round(bulkDensity * 1000) / 1000;
+        result.liveBulkDensityLbFt3 = Math.round(lbFt3 * 100) / 100;
+        result.matchesTarget =
+          targetBulkDensityLbFt3 === null ? null : Math.abs(result.liveBulkDensityLbFt3 - targetBulkDensityLbFt3) < 0.01;
+        return result;
+      } catch (error) {
+        result.error = error instanceof Error ? error.message : "BinSentry density check failed.";
+        return result;
+      }
+    }),
+  );
+
+  return {
+    targetBulkDensityLbFt3,
+    rows,
   };
 }
 

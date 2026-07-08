@@ -3,11 +3,12 @@ import Link from "next/link";
 import {
   createFeedBinAction,
   deleteFeedBinAction,
+  syncFeedBinBulkDensityAction,
   syncFeedBinInventoryAction,
   updateFeedBinAction,
 } from "@/app/admin/feed-bins/actions";
 import { BinSentryRefReader } from "@/app/admin/feed-bins/binsentry-refs/binsentry-ref-reader";
-import { getFeedBinScreenBundle } from "@/lib/feed-bin-data";
+import { getFeedBinDensityAudit, getFeedBinScreenBundle } from "@/lib/feed-bin-data";
 import { getPlatformScreenTextValues } from "@/lib/platform-content";
 
 type FeedBinsViewProps = {
@@ -20,6 +21,7 @@ type SearchParamShape = {
   bin?: string | string[];
   notice?: string | string[];
   error?: string | string[];
+  density?: string | string[];
 };
 
 export async function FeedBinsView({
@@ -32,6 +34,7 @@ export async function FeedBinsView({
   const selectedBinParam = readParam(params?.bin);
   const notice = readParam(params?.notice);
   const error = readParam(params?.error);
+  const densityRequested = readParam(params?.density) === "1";
   const data = await getFeedBinScreenBundle();
   const screenText = await getPlatformScreenTextValues(["feed_bin_title", "feed_bin_desc"]);
 
@@ -40,16 +43,19 @@ export async function FeedBinsView({
   const selectedBarn = visibleBarns.find((barn) => barn.id === selectedBarnParam) ?? visibleBarns[0] ?? null;
   const visibleBins = selectedBarn ? data.binsByBarnId[selectedBarn.id] ?? [] : [];
   const selectedBin = visibleBins.find((bin) => bin.id === selectedBinParam) ?? visibleBins[0] ?? null;
+  const densityAudit = densityRequested && selectedBarn ? await getFeedBinDensityAudit(selectedBarn.id) : null;
 
-  const buildHref = (options: { farm?: string | null; barn?: string | null; bin?: string | null } = {}) => {
+  const buildHref = (options: { farm?: string | null; barn?: string | null; bin?: string | null; density?: string | null } = {}) => {
     const query = new URLSearchParams();
     const farm = options.farm === undefined ? selectedFarm?.id ?? null : options.farm;
     const barn = options.barn === undefined ? selectedBarn?.id ?? null : options.barn;
     const bin = options.bin === undefined ? selectedBin?.id ?? null : options.bin;
+    const density = options.density === undefined ? (densityRequested ? "1" : null) : options.density;
 
     if (farm) query.set("farm", farm);
     if (barn) query.set("barn", barn);
     if (bin) query.set("bin", bin);
+    if (density) query.set("density", density);
 
     const search = query.toString();
     return search ? `${routeBase}?${search}` : routeBase;
@@ -268,6 +274,13 @@ export async function FeedBinsView({
                 Sync BinSentry
               </button>
             </form>
+            <Link
+              className="button-secondary farm-structure-mini-action"
+              href={buildHref({ density: densityRequested ? null : "1" })}
+              scroll={false}
+            >
+              {densityRequested ? "Hide Density Check" : "Check Density"}
+            </Link>
           </div>
         </div>
 
@@ -301,6 +314,58 @@ export async function FeedBinsView({
         )}
       </article>
       </section>
+
+      {selectedBarn && densityAudit ? (
+        <article className="card farm-structure-card">
+          <div className="farm-structure-card-header">
+            <div>
+              <p className="farm-structure-card-title">BinSentry Density Check</p>
+              <p className="farm-structure-card-copy">
+                {densityAudit.targetBulkDensityLbFt3 !== null
+                  ? `Live BinSentry bulk density compared to app setting BulkDensity = ${densityAudit.targetBulkDensityLbFt3} lb/ft³ for ${selectedBarn.barnCode}.`
+                  : `Live BinSentry bulk density for ${selectedBarn.barnCode}. BulkDensity app setting is not readable yet.`}
+              </p>
+            </div>
+          </div>
+
+          {densityAudit.rows.length > 0 ? (
+            <div className="farm-structure-list">
+              {densityAudit.rows.map((row) => (
+                <div className="farm-structure-item" key={row.feedBinId}>
+                  <div>
+                    <p className="farm-structure-item-title">{row.binNumber ? `Bin ${row.binNumber}` : "Unnamed bin"}</p>
+                    <p className="farm-structure-item-subtitle">
+                      {row.error
+                        ? row.error
+                        : row.liveBulkDensityLbFt3 !== null
+                          ? `${row.liveBulkDensityLbFt3} lb/ft³ (${row.liveBulkDensityKgM3} kg/m³)`
+                          : "No live bulk density returned"}
+                    </p>
+                  </div>
+                  <div className="farm-structure-item-meta">
+                    <span
+                      className="farm-structure-item-tag"
+                      data-tone={
+                        row.error ? "danger" : row.matchesTarget === false ? "awaiting" : row.matchesTarget === true ? "live" : "idle"
+                      }
+                    >
+                      {row.error
+                        ? "Check failed"
+                        : row.matchesTarget === false
+                          ? "Mismatch"
+                          : row.matchesTarget === true
+                            ? "Matches setting"
+                            : "Unscored"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="farm-structure-empty-state">No mapped BinSentry refs were found for this barn.</p>
+          )}
+        </article>
+      ) : null}
 
       <article className="card farm-structure-card feed-bin-editor-board">
         <div className="farm-structure-card-header">
@@ -412,6 +477,16 @@ export async function FeedBinsView({
                         <span>{selectedBin.binSentryLastInventoryLbs ? `${selectedBin.binSentryLastInventoryLbs} lbs last synced` : "No BinSentry inventory yet"}</span>
                         <span>{selectedBin.binSentryLastSyncAt || "Not synced"}</span>
                         <span>{selectedBin.binSentrySyncNote || "Save a BinSentry ref, then sync this barn."}</span>
+                      </div>
+                      <div className="settings-action-row">
+                        <button
+                          className="button-secondary settings-action-button"
+                          disabled={!selectedBin.binSentryRef}
+                          formAction={syncFeedBinBulkDensityAction}
+                          type="submit"
+                        >
+                          Push App Density To BinSentry
+                        </button>
                       </div>
                     </div>
                   </div>
