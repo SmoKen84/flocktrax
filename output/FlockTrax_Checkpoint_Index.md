@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-07-12`
+Updated: `2026-07-13`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -12,6 +12,10 @@ Purpose:
 ### June 2026
 
 ### July 2026
+
+- `2026-07-13`
+  - [FlockTrax_Mobile_1_0_5_Production_Release_Checkpoint_2026-07-13.md](C:\dev\FlockTrax\output\FlockTrax_Mobile_1_0_5_Production_Release_Checkpoint_2026-07-13.md)
+  - production release checkpoint covering mobile `1.0.5`, commit `5e545eb`, the complete change list since the last confirmed store releases, successful local typecheck/export/admin build gates, live hosted release markers, completed iOS build `17` and scheduled App Store submission, queued Android build `11`, active mobile Edge Functions, and exact continuation steps for Android Play submission
 
 - `2026-07-12`
   - [FlockTrax_Action_Items_Admin_Rules_And_Report_Polish_Checkpoint_2026-07-12.md](C:\dev\FlockTrax\output\FlockTrax_Action_Items_Admin_Rules_And_Report_Polish_Checkpoint_2026-07-12.md)
