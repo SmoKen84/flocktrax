@@ -158,7 +158,7 @@ Deno.serve(async (req) => {
       return json(req, { ok: false, error: "You are not authorized to manage operational issues." }, 403);
     }
 
-    const { error: insertError } = await service
+    const { data: insertedIssue, error: insertError } = await service
       .from("issues")
       .insert({
         entity_type: entityType,
@@ -170,10 +170,30 @@ Deno.serve(async (req) => {
         related_placement_id: placement.id,
         reported_log_date: reportedLogDate,
         opened_by: userId,
-      });
+        updated_by: userId,
+      })
+      .select("id,title")
+      .single();
 
     if (insertError) {
       return json(req, { ok: false, error: insertError.message }, 400);
+    }
+
+    if (insertedIssue?.id) {
+      const openingText = description ?? `${insertedIssue.title ?? issueTypeLabel(issueType)} logged from mobile.`;
+      const { error: updateInsertError } = await service
+        .from("issue_updates")
+        .insert({
+          issue_id: insertedIssue.id,
+          entry_type: "opened",
+          entry_text: openingText,
+          effective_date: reportedLogDate,
+          created_by: userId,
+        });
+
+      if (updateInsertError) {
+        return json(req, { ok: false, error: updateInsertError.message }, 400);
+      }
     }
 
     const bundle = await loadOpenIssueBundle(service, placement.id, placement.barn_id);

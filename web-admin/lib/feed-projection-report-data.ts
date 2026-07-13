@@ -273,7 +273,7 @@ export async function getFeedProjectionReportData(options: {
     overallOnOrder: rows.reduce((sum, row) => sum + (row.onOrderLbs ?? 0), 0),
     overallRecommended: rows.reduce((sum, row) => sum + (row.recommendedOrderLbs ?? 0), 0),
     overallStarterRecommended: rows.reduce((sum, row) => sum + (row.starterRecommendedLbs ?? 0), 0),
-  overallGrowerRecommended: rows.reduce((sum, row) => sum + (row.growerRecommendedLbs ?? 0), 0),
+    overallGrowerRecommended: rows.reduce((sum, row) => sum + (row.growerRecommendedLbs ?? 0), 0),
   };
 }
 
@@ -534,37 +534,28 @@ function toReportRow({
     0,
     Math.round((placement.starterDeliveredLbs ?? 0) + windowStarterOnOrderLbs),
   );
+  const typedRecommendation = typedOrderingAvailable
+    ? calculateTypedFeedRecommendations({
+        daily: typedProjection.daily,
+        starterAccessibleLbs: placement.feedInventoryStarterAccessibleLbs ?? 0,
+        starterOnOrderLbs: windowStarterOnOrderLbs,
+        growerAccessibleLbs: placement.feedInventoryGrowerAccessibleLbs ?? 0,
+        growerOnOrderLbs: windowGrowerOnOrderLbs,
+      })
+    : null;
   const starterRecommendedLbs =
-    typedOrderingAvailable && starterWindowRequiredLbs !== null
+    typedRecommendation?.starterRecommendedLbs ??
+    (reportMode === "planning" && typedProjection.starterTotal !== null
       ? Math.max(
           0,
           Math.round(
-            starterWindowRequiredLbs -
+            typedProjection.starterTotal -
               (placement.feedInventoryStarterAccessibleLbs ?? 0) -
               windowStarterOnOrderLbs,
           ),
         )
-      : reportMode === "planning" && typedProjection.starterTotal !== null
-        ? Math.max(
-            0,
-            Math.round(
-              typedProjection.starterTotal -
-                (placement.feedInventoryStarterAccessibleLbs ?? 0) -
-                windowStarterOnOrderLbs,
-            ),
-          )
-        : null;
-  const growerRecommendedLbs =
-    typedOrderingAvailable && typedProjection.growerTotal !== null
-      ? Math.max(
-          0,
-          Math.round(
-            typedProjection.growerTotal -
-              (placement.feedInventoryGrowerAccessibleLbs ?? 0) -
-              windowGrowerOnOrderLbs,
-          ),
-        )
-      : null;
+      : null);
+  const growerRecommendedLbs = typedRecommendation?.growerRecommendedLbs ?? null;
   const typedRecommendedTotal =
     starterRecommendedLbs !== null && growerRecommendedLbs !== null
       ? starterRecommendedLbs + growerRecommendedLbs
@@ -1212,5 +1203,50 @@ function splitFeedProjectionByType({
     daily: typedDaily,
     starterTotal: typedDaily.some((entry) => entry.starterFeed !== null) ? starterTotal : null,
     growerTotal: typedDaily.some((entry) => entry.growerFeed !== null) ? growerTotal : null,
+  };
+}
+
+function calculateTypedFeedRecommendations({
+  daily,
+  starterAccessibleLbs,
+  starterOnOrderLbs,
+  growerAccessibleLbs,
+  growerOnOrderLbs,
+}: {
+  daily: Array<{
+    starterFeed: number | null;
+    growerFeed: number | null;
+  }>;
+  starterAccessibleLbs: number;
+  starterOnOrderLbs: number;
+  growerAccessibleLbs: number;
+  growerOnOrderLbs: number;
+}) {
+  let remainingStarterSupply = Math.max(0, starterAccessibleLbs) + Math.max(0, starterOnOrderLbs);
+  let remainingGrowerSupply = Math.max(0, growerAccessibleLbs) + Math.max(0, growerOnOrderLbs);
+  let starterRecommendedLbs = 0;
+  let growerRecommendedLbs = 0;
+
+  for (const entry of daily) {
+    const starterDemand = entry.starterFeed !== null && Number.isFinite(entry.starterFeed) ? Math.max(0, entry.starterFeed) : 0;
+    const growerDemand = entry.growerFeed !== null && Number.isFinite(entry.growerFeed) ? Math.max(0, entry.growerFeed) : 0;
+
+    const starterSupplyUsedForStarter = Math.min(starterDemand, remainingStarterSupply);
+    remainingStarterSupply = Math.max(0, remainingStarterSupply - starterSupplyUsedForStarter);
+    starterRecommendedLbs += Math.max(0, starterDemand - starterSupplyUsedForStarter);
+
+    const starterSupplyUsedForGrower = Math.min(growerDemand, remainingStarterSupply);
+    remainingStarterSupply = Math.max(0, remainingStarterSupply - starterSupplyUsedForGrower);
+
+    let remainingGrowerDemand = Math.max(0, growerDemand - starterSupplyUsedForGrower);
+    const growerSupplyUsed = Math.min(remainingGrowerDemand, remainingGrowerSupply);
+    remainingGrowerSupply = Math.max(0, remainingGrowerSupply - growerSupplyUsed);
+    remainingGrowerDemand = Math.max(0, remainingGrowerDemand - growerSupplyUsed);
+    growerRecommendedLbs += remainingGrowerDemand;
+  }
+
+  return {
+    starterRecommendedLbs: Math.round(starterRecommendedLbs),
+    growerRecommendedLbs: Math.round(growerRecommendedLbs),
   };
 }

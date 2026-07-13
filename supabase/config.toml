@@ -477,3 +477,14 @@ entrypoint = "./functions/adalo-placement-day-cache-fill/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/binsentry-sync-all/index.ts"
+
+
+[functions."action-items-list"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/action-items-list/index.ts"
+
+[functions."operations-calendar-list"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/operations-calendar-list/index.ts"

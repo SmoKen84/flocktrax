@@ -50,6 +50,7 @@ export async function createIssueAction(formData: FormData) {
   }
 
   const placementId = readTrimmedString(formData, "placement_id");
+  const entityType = readTrimmedString(formData, "entity_type");
   const issueType = readTrimmedString(formData, "issue_type");
   const title = readTrimmedString(formData, "title");
   const description = readMultilineString(formData, "description");
@@ -57,6 +58,10 @@ export async function createIssueAction(formData: FormData) {
 
   if (!placementId) {
     redirect(buildReturnLocation({ error: "Choose a live placement before opening an issue." }));
+  }
+
+  if (!title) {
+    redirect(buildReturnLocation({ placementId, error: "Describe the task before creating the Action Item." }));
   }
 
   const { data: placement, error: placementError } = await adminClient
@@ -74,8 +79,12 @@ export async function createIssueAction(formData: FormData) {
     redirect(buildReturnLocation({ placementId, error: "Choose a valid action-item type." }));
   }
 
+  if (entityType !== issueTypeLookup.entityType) {
+    redirect(buildReturnLocation({ placementId, error: "Choose a classification that matches the selected Item assignment." }));
+  }
+
   const entityId = issueTypeLookup.entityType === "barn" ? placement.barn_id : placement.id;
-  const normalizedTitle = title || issueTypeLookup.label;
+  const normalizedTitle = title;
 
   const { data: insertedIssue, error } = await adminClient
     .from("issues")
@@ -90,6 +99,7 @@ export async function createIssueAction(formData: FormData) {
       reported_log_date: reportedLogDate || null,
       opened_at: new Date().toISOString(),
       opened_by: user.id,
+      updated_by: user.id,
     })
     .select("id")
     .single();
@@ -113,6 +123,7 @@ export async function createIssueAction(formData: FormData) {
 
   revalidatePath("/admin/overview");
   revalidatePath("/admin/issues");
+  revalidatePath("/admin/issues/report");
 
   redirect(buildReturnLocation({ placementId, notice: `${normalizedTitle} opened.` }));
 }
@@ -155,31 +166,21 @@ export async function resolveIssueAction(formData: FormData) {
     redirect(buildReturnLocation({ placementId, issueId, notice: "This action item is already resolved." }));
   }
 
-  const { error } = await adminClient
-    .from("issues")
-    .update({
-      status: "resolved",
-      resolved_at: new Date().toISOString(),
-      resolved_by: user.id,
-      resolution_note: resolutionNote || null,
-    })
-    .eq("id", issueId)
-    .eq("status", "open");
+  const { error } = await adminClient.rpc("append_issue_memo", {
+    p_issue_id: issueId,
+    p_entry_text: resolutionNote || "Action Item resolved from admin console.",
+    p_effective_date: new Date().toISOString().slice(0, 10),
+    p_created_by: user.id,
+    p_resolved: true,
+  });
 
   if (error) {
     redirect(buildReturnLocation({ placementId, error: error.message }));
   }
 
-  await adminClient.from("issue_updates").insert({
-    issue_id: issueId,
-    entry_type: "resolved",
-    entry_text: resolutionNote || "Action item resolved from admin console.",
-    effective_date: new Date().toISOString().slice(0, 10),
-    created_by: user.id,
-  });
-
   revalidatePath("/admin/overview");
   revalidatePath("/admin/issues");
+  revalidatePath("/admin/issues/report");
 
   redirect(buildReturnLocation({ placementId, notice: "Action item resolved." }));
 }
@@ -202,9 +203,9 @@ export async function addIssueUpdateAction(formData: FormData) {
 
   const issueId = readTrimmedString(formData, "issue_id");
   const placementId = readTrimmedString(formData, "placement_id");
-  const entryType = readTrimmedString(formData, "entry_type");
   const entryText = readMultilineString(formData, "entry_text");
   const effectiveDate = readTrimmedString(formData, "effective_date");
+  const shouldResolve = readTrimmedString(formData, "resolved") === "1";
 
   if (!issueId) {
     redirect(buildReturnLocation({ placementId, error: "Action-item id is missing." }));
@@ -228,15 +229,12 @@ export async function addIssueUpdateAction(formData: FormData) {
     redirect(buildReturnLocation({ placementId, issueId, error: "Resolved action items cannot be updated." }));
   }
 
-  const allowedEntryTypes = new Set(["note", "progress", "parts_ordered"]);
-  const safeEntryType = allowedEntryTypes.has(entryType) ? entryType : "note";
-
-  const { error } = await adminClient.from("issue_updates").insert({
-    issue_id: issueId,
-    entry_type: safeEntryType,
-    entry_text: entryText,
-    effective_date: effectiveDate || new Date().toISOString().slice(0, 10),
-    created_by: user.id,
+  const { error } = await adminClient.rpc("append_issue_memo", {
+    p_issue_id: issueId,
+    p_entry_text: entryText,
+    p_effective_date: effectiveDate || new Date().toISOString().slice(0, 10),
+    p_created_by: user.id,
+    p_resolved: shouldResolve,
   });
 
   if (error) {
@@ -245,8 +243,15 @@ export async function addIssueUpdateAction(formData: FormData) {
 
   revalidatePath("/admin/overview");
   revalidatePath("/admin/issues");
+  revalidatePath("/admin/issues/report");
 
-  redirect(buildReturnLocation({ placementId, notice: "Update posted." }));
+  redirect(
+    buildReturnLocation({
+      placementId,
+      issueId: shouldResolve ? null : issueId,
+      notice: shouldResolve ? "Resolution memo saved and Action Item resolved." : "Memo saved.",
+    }),
+  );
 }
 
 export async function updateIssueAction(formData: FormData) {
@@ -339,6 +344,7 @@ export async function updateIssueAction(formData: FormData) {
 
   revalidatePath("/admin/overview");
   revalidatePath("/admin/issues");
+  revalidatePath("/admin/issues/report");
 
   redirect(buildReturnLocation({ placementId, issueId, notice: "Action item updated." }));
 }

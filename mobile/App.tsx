@@ -5,6 +5,7 @@ import {
   Modal,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -12,12 +13,15 @@ import {
 
 import {
   AuthError,
+  addIssueUpdate,
   createIssue,
   isAuthError,
   deleteCurrentAccount,
   getFeedTicket,
   getDashboardWeatherForecast,
+  listActionItems,
   listFeedTickets,
+  listOperationsCalendar,
   getPlacementDay,
   getProfile,
   getWeightEntry,
@@ -25,15 +29,16 @@ import {
   login,
   markChicksArrived,
   requestPasswordReset,
-  resolveIssue,
   submitFeedTicket,
   submitPlacementDay,
   submitWeightEntry,
 } from "./src/api/http";
 import { DashboardScreen, DeleteAccountModal } from "./src/screens/DashboardScreen";
+import { ActionItemsScreen } from "./src/screens/ActionItemsScreen";
 import { FeedTicketListScreen } from "./src/screens/FeedTicketListScreen";
 import { FeedTicketScreen } from "./src/screens/FeedTicketScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
+import { OperationsCalendarScreen } from "./src/screens/OperationsCalendarScreen";
 import { PlacementDayScreen } from "./src/screens/PlacementDayScreen";
 import { WeightEntryScreen } from "./src/screens/WeightEntryScreen";
 import {
@@ -42,6 +47,7 @@ import {
   persistSession,
 } from "./src/storage/session";
 import {
+  ActionItemWorkOrder,
   AuthSession,
   DashboardSettings,
   DashboardWeatherForecast,
@@ -52,6 +58,7 @@ import {
   PlacementFilterMeta,
   PlacementDayItem,
   PlacementSummary,
+  OperationsCalendarEvent,
   RecentMortalityHistoryDay,
   UserProfile,
   WeightEntryItem,
@@ -62,8 +69,11 @@ type Route =
   | { name: "dashboard" }
   | { name: "feed-ticket-list" }
   | { name: "feed-ticket" }
-  | { name: "placement-day"; placement: PlacementSummary }
+  | { name: "placement-day"; placement: PlacementSummary; initialTab?: PlacementFocusTab }
   | { name: "weight-entry"; placement: PlacementSummary };
+
+type PlacementFocusTab = "daily" | "mortality" | "grade" | "issues";
+type WeatherTab = "now" | "forecast" | "farm";
 
 type WeatherCacheEntry = {
   fetchedAt: number;
@@ -80,6 +90,12 @@ export default function App() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [placements, setPlacements] = useState<PlacementSummary[]>([]);
+  const [dashboardMode, setDashboardMode] = useState<"flocks" | "work-orders" | "calendar">("flocks");
+  const [actionItems, setActionItems] = useState<ActionItemWorkOrder[]>([]);
+  const [actionItemsLoading, setActionItemsLoading] = useState(false);
+  const [actionItemsIncludeResolved, setActionItemsIncludeResolved] = useState(false);
+  const [operationsCalendarEvents, setOperationsCalendarEvents] = useState<OperationsCalendarEvent[]>([]);
+  const [operationsCalendarLoading, setOperationsCalendarLoading] = useState(false);
   const [placementFilters, setPlacementFilters] = useState<PlacementFilterMeta | null>(null);
   const [dashboardSettings, setDashboardSettings] = useState<DashboardSettings | null>(null);
   const [selectedFarmGroupId, setSelectedFarmGroupId] = useState<string | null>(null);
@@ -99,6 +115,8 @@ export default function App() {
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherForecast, setWeatherForecast] = useState<DashboardWeatherForecast | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
+  const [weatherFarmId, setWeatherFarmId] = useState<string | null>(null);
+  const [weatherTab, setWeatherTab] = useState<WeatherTab>("now");
   const [reauthVisible, setReauthVisible] = useState(false);
   const [reauthMessage, setReauthMessage] = useState<string | null>(null);
   const [deleteAccountVisible, setDeleteAccountVisible] = useState(false);
@@ -113,11 +131,20 @@ export default function App() {
 
   const headerTitle = useMemo(() => {
     if (route.name === "login") return "FlockTrax";
-    if (route.name === "dashboard") return "Active Flocks";
+    if (route.name === "dashboard") {
+      if (dashboardMode === "work-orders") return "Farm Work Orders";
+      if (dashboardMode === "calendar") return "Operations Calendar";
+      return "Active Flocks";
+    }
     if (route.name === "feed-ticket-list") return "Feed Tickets";
     if (route.name === "feed-ticket") return "Feed Ticket";
     return `${route.placement.farm_name} - ${route.placement.barn_code}`;
-  }, [route]);
+  }, [route, dashboardMode]);
+
+  const weatherFarmOptions = useMemo(() => {
+    const displayedFarmIds = new Set(placements.map((placement) => placement.farm_id));
+    return (placementFilters?.available_farms ?? []).filter((farm) => displayedFarmIds.has(farm.farm_id));
+  }, [placementFilters?.available_farms, placements]);
 
   const mobileAccess = useMemo(
     () => ({
@@ -259,6 +286,44 @@ export default function App() {
     }
   }
 
+  async function refreshActionItems(
+    accessToken = session?.accessToken,
+    includeResolved = actionItemsIncludeResolved,
+  ) {
+    if (!accessToken) return;
+    setActionItemsLoading(true);
+    setErrorMessage(null);
+    try {
+      setActionItems(await listActionItems(accessToken, includeResolved));
+    } catch (error) {
+      await handleAppError(error);
+    } finally {
+      setActionItemsLoading(false);
+    }
+  }
+
+  async function refreshOperationsCalendar(accessToken = session?.accessToken) {
+    if (!accessToken) return;
+    setOperationsCalendarLoading(true);
+    setErrorMessage(null);
+    try {
+      setOperationsCalendarEvents(await listOperationsCalendar(accessToken));
+    } catch (error) {
+      await handleAppError(error);
+    } finally {
+      setOperationsCalendarLoading(false);
+    }
+  }
+
+  function selectDashboardMode(mode: "flocks" | "work-orders" | "calendar") {
+    setDashboardMode(mode);
+    if (mode === "work-orders") {
+      void refreshActionItems();
+    } else if (mode === "calendar") {
+      void refreshOperationsCalendar();
+    }
+  }
+
   async function handleMarkChicksArrived(placement: PlacementSummary) {
     if (!session?.accessToken) {
       throw new Error("You must be signed in to change placement state.");
@@ -286,7 +351,7 @@ export default function App() {
   async function openPlacement(
     placement: PlacementSummary,
     logDate = todayIso(),
-    options: { preserveExisting?: boolean } = {},
+    options: { initialTab?: PlacementFocusTab; preserveExisting?: boolean } = {},
   ) {
     if (!session?.accessToken) return;
 
@@ -305,7 +370,7 @@ export default function App() {
       );
       const hydratedItem = await hydratePlacementDayWeather(placement, logDate, item);
       setPlacementDay(hydratedItem);
-      setRoute({ name: "placement-day", placement });
+      setRoute({ name: "placement-day", placement, initialTab: options.initialTab });
     } catch (error) {
       await handleAppError(error);
     } finally {
@@ -337,6 +402,16 @@ export default function App() {
     barn_issues: IssueItem[];
     placement_issues: IssueItem[];
   }) {
+    setPlacementDay((current) =>
+      current
+        ? {
+            ...current,
+            barn_id: bundle.barn_id,
+            barn_issues: bundle.barn_issues,
+            placement_issues: bundle.placement_issues,
+          }
+        : current,
+    );
     await refreshPlacements();
     return bundle;
   }
@@ -362,16 +437,17 @@ export default function App() {
     }
   }
 
-  async function handleResolveIssue(input: {
+  async function handleAddIssueUpdate(input: {
     issueId: string;
-    resolutionNote?: string | null;
+    entryText: string;
+    resolved?: boolean;
   }) {
     if (!session?.accessToken) {
-      throw new Error("You must be signed in to resolve an issue.");
+      throw new Error("You must be signed in to post an issue update.");
     }
 
     try {
-      const bundle = await resolveIssue(session.accessToken, input);
+      const bundle = await addIssueUpdate(session.accessToken, input);
       return await syncPlacementIssueBundle(bundle);
     } catch (error) {
       await handleAppError(error);
@@ -497,6 +573,10 @@ export default function App() {
     setSession(null);
     setProfile(null);
     setPlacements([]);
+    setActionItems([]);
+    setActionItemsIncludeResolved(false);
+    setOperationsCalendarEvents([]);
+    setDashboardMode("flocks");
     setPlacementFilters(null);
     setDashboardSettings(null);
     setSelectedFarmGroupId(null);
@@ -538,20 +618,30 @@ export default function App() {
 
   async function openDashboardWeather() {
     setWeatherVisible(true);
+    setWeatherTab("now");
+    const initialFarm =
+      weatherFarmOptions.find((farm) => farm.farm_id === selectedFarmId) ??
+      weatherFarmOptions[0] ??
+      null;
+    setWeatherFarmId(initialFarm?.farm_id ?? null);
+    if (initialFarm) {
+      await loadDashboardWeather(initialFarm.farm_id);
+      return;
+    }
+    setWeatherForecast(null);
+    setWeatherError("No displayed farm has weather coordinates available.");
+  }
+
+  async function loadDashboardWeather(farmId: string) {
     setWeatherLoading(true);
     setWeatherForecast(null);
     setWeatherError(null);
 
     try {
-      const availableFarms = placementFilters?.available_farms ?? [];
-      const farm =
-        availableFarms.find((item) => item.farm_id === selectedFarmId) ??
-        (availableFarms.length === 1 ? availableFarms[0] : null);
-
+      const farm = weatherFarmOptions.find((item) => item.farm_id === farmId);
       if (!farm) {
-        throw new Error("Select a farm to view the local forecast.");
+        throw new Error("The selected farm is not available on this dashboard.");
       }
-
       if (typeof farm.latitude !== "number" || typeof farm.longitude !== "number") {
         throw new Error(`Farm coordinates are missing for ${farm.farm_name}.`);
       }
@@ -752,33 +842,85 @@ export default function App() {
         ) : null}
 
         {route.name === "dashboard" ? (
-          <DashboardScreen
-            canViewRecentMortality={
-              mobileAccess.canSaveMortality ||
-              mobileAccess.canSaveDailyLogs ||
-              mobileAccess.canSaveGradeBirds
-            }
-            filters={placementFilters}
-            loading={placementsLoading}
-            onOpenRecentMortalityHistory={loadRecentMortalityHistory}
-            placements={placements}
-            selectedFarmId={selectedFarmId}
-            settings={dashboardSettings}
-            selectedFarmGroupId={selectedFarmGroupId}
-            onOpenFeedTicket={() => {
-              void openFeedTicketList();
-            }}
-            onLogout={handleLockSession}
-            onMarkChicksArrived={handleMarkChicksArrived}
-            onOpenPlacement={openPlacement}
-            onRefresh={() => refreshPlacements()}
-            onSelectFarm={setSelectedFarmId}
-            onSelectFarmGroup={(farmGroupId) => {
-              setSelectedFarmGroupId(farmGroupId);
-              setSelectedFarmId(null);
-              void refreshPlacements(session?.accessToken, farmGroupId);
-            }}
-          />
+          <View style={styles.dashboardWorkspace}>
+            <View style={styles.dashboardModeSwitch}>
+              <Pressable
+                onPress={() => selectDashboardMode("flocks")}
+                style={[styles.dashboardModeButton, dashboardMode === "flocks" && styles.dashboardModeButtonActive]}
+              >
+                <Text style={[styles.dashboardModeButtonText, dashboardMode === "flocks" && styles.dashboardModeButtonTextActive]}>
+                  Barn Care
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => selectDashboardMode("work-orders")}
+                style={[styles.dashboardModeButton, dashboardMode === "work-orders" && styles.dashboardModeButtonActive]}
+              >
+                <Text style={[styles.dashboardModeButtonText, dashboardMode === "work-orders" && styles.dashboardModeButtonTextActive]}>
+                  Work Orders{actionItems.length > 0 ? `  ${actionItems.length}` : ""}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => selectDashboardMode("calendar")}
+                style={[styles.dashboardModeButton, dashboardMode === "calendar" && styles.dashboardModeButtonActive]}
+              >
+                <Text style={[styles.dashboardModeButtonText, dashboardMode === "calendar" && styles.dashboardModeButtonTextActive]}>
+                  Calendar
+                </Text>
+              </Pressable>
+            </View>
+            {dashboardMode === "flocks" ? (
+              <DashboardScreen
+                canViewRecentMortality={
+                  mobileAccess.canSaveMortality ||
+                  mobileAccess.canSaveDailyLogs ||
+                  mobileAccess.canSaveGradeBirds
+                }
+                filters={placementFilters}
+                loading={placementsLoading}
+                onOpenRecentMortalityHistory={loadRecentMortalityHistory}
+                placements={placements}
+                selectedFarmId={selectedFarmId}
+                settings={dashboardSettings}
+                selectedFarmGroupId={selectedFarmGroupId}
+                onOpenFeedTicket={() => void openFeedTicketList()}
+                onLogout={handleLockSession}
+                onMarkChicksArrived={handleMarkChicksArrived}
+                onOpenBarnIssues={(placement) => {
+                  void openPlacement(placement, todayIso(), { initialTab: "issues" });
+                }}
+                onOpenPlacement={openPlacement}
+                onRefresh={() => refreshPlacements()}
+                onSelectFarm={setSelectedFarmId}
+                onSelectFarmGroup={(farmGroupId) => {
+                  setSelectedFarmGroupId(farmGroupId);
+                  setSelectedFarmId(null);
+                  void refreshPlacements(session?.accessToken, farmGroupId);
+                }}
+              />
+            ) : dashboardMode === "work-orders" ? (
+              <ActionItemsScreen
+                includeResolved={actionItemsIncludeResolved}
+                items={actionItems}
+                loading={actionItemsLoading}
+                onAddUpdate={async (input) => {
+                  await handleAddIssueUpdate(input);
+                  await refreshActionItems();
+                }}
+                onIncludeResolvedChange={(includeResolved) => {
+                  setActionItemsIncludeResolved(includeResolved);
+                  void refreshActionItems(session?.accessToken, includeResolved);
+                }}
+                onRefresh={() => void refreshActionItems()}
+              />
+            ) : (
+              <OperationsCalendarScreen
+                events={operationsCalendarEvents}
+                loading={operationsCalendarLoading}
+                onRefresh={() => void refreshOperationsCalendar()}
+              />
+            )}
+          </View>
         ) : null}
 
         {route.name === "feed-ticket-list" ? (
@@ -806,6 +948,8 @@ export default function App() {
             item={placementDay}
             loading={placementDayLoading}
             logDate={activeLogDate}
+            initialTab={route.initialTab}
+            onAddIssueUpdate={handleAddIssueUpdate}
             onCreateIssue={handleCreateIssue}
             placement={route.placement}
             settings={dashboardSettings}
@@ -818,7 +962,6 @@ export default function App() {
             onOpenWeightEntry={() => {
               void openWeightEntry(route.placement, activeLogDate);
             }}
-            onResolveIssue={handleResolveIssue}
             onSave={savePlacementDay}
           />
         ) : null}
@@ -876,10 +1019,46 @@ export default function App() {
         >
           <View style={styles.weatherModalScrim}>
             <View style={styles.weatherModalCard}>
+              <ScrollView contentContainerStyle={styles.weatherModalContent} showsVerticalScrollIndicator={false}>
               <Text style={styles.weatherModalEyebrow}>Local Weather</Text>
               <Text style={styles.weatherModalTitle}>
                 {weatherForecast?.farmName ?? "Farm Forecast"}
               </Text>
+
+              <View style={styles.weatherFarmSelector}>
+                <Text style={styles.weatherFarmSelectorLabel}>Farm</Text>
+                <View style={styles.weatherFarmSelectorOptions}>
+                  {weatherFarmOptions.map((farm) => {
+                    const active = farm.farm_id === weatherFarmId;
+                    return (
+                      <Pressable
+                        key={farm.farm_id}
+                        onPress={() => {
+                          setWeatherFarmId(farm.farm_id);
+                          void loadDashboardWeather(farm.farm_id);
+                        }}
+                        style={[styles.weatherFarmOption, active && styles.weatherFarmOptionActive]}
+                      >
+                        <Text style={[styles.weatherFarmOptionText, active && styles.weatherFarmOptionTextActive]}>
+                          {farm.farm_name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <View style={styles.weatherTabs}>
+                {(["now", "forecast", "farm"] as const).map((tab) => {
+                  const active = weatherTab === tab;
+                  const label = tab === "now" ? "Now" : tab === "forecast" ? "Forecast" : "Farm Details";
+                  return (
+                    <Pressable key={tab} onPress={() => setWeatherTab(tab)} style={[styles.weatherTab, active && styles.weatherTabActive]}>
+                      <Text style={[styles.weatherTabText, active && styles.weatherTabTextActive]}>{label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
 
               {weatherLoading ? (
                 <View style={styles.weatherLoadingBlock}>
@@ -892,35 +1071,77 @@ export default function App() {
                 </View>
               ) : weatherForecast ? (
                 <>
-                  <View style={styles.weatherSummaryRow}>
-                    <WeatherMetric label="Current" value={formatTemperature(weatherForecast.currentTemperature)} />
-                    <WeatherMetric label="Humidity" value={formatPercent(weatherForecast.currentRelativeHumidity)} />
-                    <WeatherMetric label="Low" value={formatTemperature(weatherForecast.dailyLow)} />
-                    <WeatherMetric label="High" value={formatTemperature(weatherForecast.dailyHigh)} />
-                  </View>
-
-                  <View style={styles.weatherNarrativeCard}>
-                    <Text style={styles.weatherNarrativeTitle}>Today</Text>
-                    <Text style={styles.weatherNarrativeText}>
-                      {describeWeatherCode(weatherForecast.dailyWeatherCode)}
-                    </Text>
-                    <Text style={styles.weatherNarrativeMeta}>
-                      {weatherForecast.precipitationProbabilityMax !== null
-                        ? `Precipitation chance up to ${Math.round(weatherForecast.precipitationProbabilityMax)}%`
-                        : "Precipitation chance unavailable"}
-                    </Text>
-                    {weatherForecast.timezone ? (
-                      <Text style={styles.weatherNarrativeMeta}>
-                        Time zone: {weatherForecast.timezone}
+                  {weatherTab === "now" ? (
+                    <>
+                      <View style={styles.weatherSummaryRow}>
+                        <WeatherMetric label="Current" value={formatTemperature(weatherForecast.currentTemperature)} />
+                        <WeatherMetric label="Feels" value={formatTemperature(weatherForecast.currentApparentTemperature)} />
+                        <WeatherMetric label="Humidity" value={formatPercent(weatherForecast.currentRelativeHumidity)} />
+                      </View>
+                      <Text style={styles.weatherWindLine}>
+                        Wind {formatSpeed(weatherForecast.currentWindSpeed)}
                       </Text>
-                    ) : null}
-                  </View>
+                      <View style={styles.weatherNarrativeCard}>
+                        <Text style={styles.weatherNarrativeTitle}>{describeWeatherCode(weatherForecast.currentWeatherCode)}</Text>
+                        <Text style={styles.weatherNarrativeText}>{buildFarmWeatherSummary(weatherForecast)}</Text>
+                        <Text style={styles.weatherNarrativeMeta}>
+                          Today {formatTemperature(weatherForecast.dailyLow)} to {formatTemperature(weatherForecast.dailyHigh)} · Rain {formatPercent(weatherForecast.precipitationProbabilityMax)}
+                        </Text>
+                      </View>
+                    </>
+                  ) : null}
+
+                  {weatherTab === "forecast" ? (
+                    <View style={styles.weatherForecastSection}>
+                      <Text style={styles.weatherSectionTitle}>Next 12 Hours</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weatherHourlyRow}>
+                        {(weatherForecast.hourly ?? []).map((hour) => (
+                          <View key={hour.time} style={styles.weatherHourlyCard}>
+                            <Text style={styles.weatherHourlyTime}>{formatWeatherHour(hour.time)}</Text>
+                            <Text style={styles.weatherHourlyTemp}>{formatTemperature(hour.temperature)}</Text>
+                            <Text style={styles.weatherHourlyCondition}>{describeWeatherCode(hour.weatherCode)}</Text>
+                            <Text style={styles.weatherHourlyMeta}>Rain {formatPercent(hour.precipitationProbability)}</Text>
+                            <Text style={styles.weatherHourlyMeta}>Gust {formatSpeed(hour.windGust)}</Text>
+                          </View>
+                        ))}
+                      </ScrollView>
+                      <Text style={styles.weatherSectionTitle}>Seven Days</Text>
+                      {(weatherForecast.daily ?? []).map((day) => (
+                        <View key={day.date} style={styles.weatherDailyRow}>
+                          <View style={styles.weatherDailyCopy}>
+                            <Text style={styles.weatherDailyDay}>{formatWeatherDay(day.date)}</Text>
+                            <Text style={styles.weatherDailyCondition}>{describeWeatherCode(day.weatherCode)}</Text>
+                          </View>
+                          <Text style={styles.weatherDailyRain}>{formatPercent(day.precipitationProbabilityMax)}</Text>
+                          <Text style={styles.weatherDailyTemps}>{formatTemperature(day.low)} / {formatTemperature(day.high)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  {weatherTab === "farm" ? (
+                    <View style={styles.weatherDetailsCard}>
+                      <WeatherDetailRow label="Dew point" value={formatTemperature(weatherForecast.currentDewPoint)} />
+                      <WeatherDetailRow label="Wind direction" value={formatWindDirection(weatherForecast.currentWindDirection)} />
+                      <WeatherDetailRow label="Current gust" value={formatSpeed(weatherForecast.currentWindGust)} />
+                      <WeatherDetailRow label="Cloud cover" value={formatPercent(weatherForecast.currentCloudCover)} />
+                      <WeatherDetailRow label="Visibility" value={formatVisibility(weatherForecast.currentVisibility)} />
+                      <WeatherDetailRow label="Sea-level pressure" value={formatPressure(weatherForecast.currentPressure)} />
+                      <WeatherDetailRow label="Rain now" value={formatPrecipitation(weatherForecast.currentPrecipitation)} />
+                      <WeatherDetailRow label="Rain total today" value={formatPrecipitation(weatherForecast.daily[0]?.precipitationSum ?? null)} />
+                      <WeatherDetailRow label="Peak wind / gust" value={`${formatSpeed(weatherForecast.daily[0]?.windSpeedMax ?? null)} / ${formatSpeed(weatherForecast.daily[0]?.windGustMax ?? null)}`} />
+                      <WeatherDetailRow label="Sunrise / sunset" value={`${formatClockTime(weatherForecast.daily[0]?.sunrise ?? null)} / ${formatClockTime(weatherForecast.daily[0]?.sunset ?? null)}`} />
+                      <WeatherDetailRow label="UV index" value={formatNumber(weatherForecast.daily[0]?.uvIndexMax ?? null)} />
+                      {weatherForecast.timezone ? <WeatherDetailRow label="Time zone" value={weatherForecast.timezone} /> : null}
+                    </View>
+                  ) : null}
                 </>
               ) : null}
 
               <Pressable onPress={() => setWeatherVisible(false)} style={styles.weatherCloseButton}>
                 <Text style={styles.weatherCloseButtonText}>Close</Text>
               </Pressable>
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -1032,6 +1253,62 @@ function formatPercent(value: number | null) {
   return `${Math.round(value)}%`;
 }
 
+function formatSpeed(value: number | null) {
+  return value === null ? "--" : `${Math.round(value)} mph`;
+}
+
+function formatPrecipitation(value: number | null) {
+  return value === null ? "--" : `${value.toFixed(value < 0.1 ? 2 : 1)} in`;
+}
+
+function formatVisibility(value: number | null) {
+  return value === null ? "--" : `${(value / 1609.344).toFixed(1)} mi`;
+}
+
+function formatPressure(value: number | null) {
+  return value === null ? "--" : `${Math.round(value)} hPa`;
+}
+
+function formatNumber(value: number | null) {
+  return value === null ? "--" : value.toFixed(1);
+}
+
+function formatWindDirection(value: number | null) {
+  if (value === null) return "--";
+  const labels = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  return `${labels[Math.round(value / 45) % labels.length]} · ${Math.round(value)}°`;
+}
+
+function formatClockTime(value: string | null) {
+  if (!value) return "--";
+  const time = value.split("T")[1];
+  if (!time) return value;
+  const [hourText, minute = "00"] = time.split(":");
+  const hour = Number(hourText);
+  if (!Number.isFinite(hour)) return time;
+  const suffix = hour >= 12 ? "PM" : "AM";
+  return `${hour % 12 || 12}:${minute} ${suffix}`;
+}
+
+function formatWeatherHour(value: string) {
+  return formatClockTime(value);
+}
+
+function formatWeatherDay(value: string) {
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+function buildFarmWeatherSummary(forecast: DashboardWeatherForecast) {
+  const alerts: string[] = [];
+  if ((forecast.currentWindGust ?? 0) >= 30) alerts.push("strong gusts may affect outdoor work");
+  if ((forecast.precipitationProbabilityMax ?? 0) >= 60) alerts.push("plan around likely rain");
+  if ((forecast.currentTemperature ?? 0) >= 90) alerts.push("watch heat load and ventilation");
+  if ((forecast.currentTemperature ?? 100) <= 32) alerts.push("protect exposed water systems from freezing");
+  if ((forecast.currentRelativeHumidity ?? 0) >= 80) alerts.push("high humidity may reduce cooling efficiency");
+  return alerts.length > 0 ? `${alerts.join("; ")}.` : "No immediate weather-related farm warning is indicated.";
+}
+
 function describeWeatherCode(code: number | null) {
   switch (code) {
     case 0:
@@ -1090,6 +1367,15 @@ function WeatherMetric({ label, value }: WeatherMetricProps) {
   );
 }
 
+function WeatherDetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.weatherDetailRow}>
+      <Text style={styles.weatherDetailLabel}>{label}</Text>
+      <Text style={styles.weatherDetailValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -1100,6 +1386,34 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEE4D7",
     paddingHorizontal: 20,
     paddingTop: 8,
+  },
+  dashboardWorkspace: {
+    flex: 1,
+  },
+  dashboardModeSwitch: {
+    flexDirection: "row",
+    padding: 4,
+    marginTop: 10,
+    marginBottom: 4,
+    borderRadius: 14,
+    backgroundColor: "#D9CCB8",
+  },
+  dashboardModeButton: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 11,
+  },
+  dashboardModeButtonActive: {
+    backgroundColor: "#2E4639",
+  },
+  dashboardModeButtonText: {
+    color: "#514B43",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  dashboardModeButtonTextActive: {
+    color: "#FFF9EC",
   },
   header: {
     flexDirection: "row",
@@ -1225,8 +1539,12 @@ const styles = StyleSheet.create({
   weatherModalCard: {
     width: "100%",
     maxWidth: 360,
+    maxHeight: "92%",
     borderRadius: 22,
     backgroundColor: "#FFF8EF",
+    overflow: "hidden",
+  },
+  weatherModalContent: {
     padding: 18,
     gap: 12,
   },
@@ -1241,6 +1559,68 @@ const styles = StyleSheet.create({
     color: "#1F2A1F",
     fontSize: 20,
     fontWeight: "800",
+  },
+  weatherFarmSelector: {
+    gap: 6,
+  },
+  weatherFarmSelectorLabel: {
+    color: "#7E776E",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  weatherFarmSelectorOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+  },
+  weatherFarmOption: {
+    borderWidth: 1,
+    borderColor: "#D2B892",
+    borderRadius: 999,
+    backgroundColor: "#FFFDF8",
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+  },
+  weatherFarmOptionActive: {
+    borderColor: "#2E4639",
+    backgroundColor: "#2E4639",
+  },
+  weatherFarmOptionText: {
+    color: "#514B43",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  weatherFarmOptionTextActive: {
+    color: "#FFF9EC",
+  },
+  weatherTabs: {
+    flexDirection: "row",
+    gap: 5,
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: "#E7DAC7",
+  },
+  weatherTab: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 34,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+  },
+  weatherTabActive: {
+    backgroundColor: "#2E4639",
+  },
+  weatherTabText: {
+    color: "#625C52",
+    fontSize: 11,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  weatherTabTextActive: {
+    color: "#FFF9EC",
   },
   weatherSummaryRow: {
     flexDirection: "row",
@@ -1266,6 +1646,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
   },
+  weatherWindLine: {
+    color: "#2E4639",
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 18,
+    textAlign: "center",
+  },
   weatherNarrativeCard: {
     borderRadius: 18,
     borderWidth: 1,
@@ -1288,6 +1675,107 @@ const styles = StyleSheet.create({
     color: "#7E776E",
     fontSize: 13,
     fontWeight: "600",
+  },
+  weatherForecastSection: {
+    gap: 9,
+  },
+  weatherSectionTitle: {
+    color: "#1F2A1F",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  weatherHourlyRow: {
+    gap: 8,
+    paddingRight: 8,
+  },
+  weatherHourlyCard: {
+    width: 108,
+    borderWidth: 1,
+    borderColor: "#DCC9AF",
+    borderRadius: 14,
+    backgroundColor: "#FFFDFC",
+    padding: 10,
+    gap: 3,
+  },
+  weatherHourlyTime: {
+    color: "#7B4B2A",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  weatherHourlyTemp: {
+    color: "#1F2A1F",
+    fontSize: 19,
+    fontWeight: "900",
+  },
+  weatherHourlyCondition: {
+    color: "#4E5550",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  weatherHourlyMeta: {
+    color: "#7E776E",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  weatherDailyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E6D8C4",
+    paddingVertical: 8,
+  },
+  weatherDailyCopy: {
+    flex: 1,
+  },
+  weatherDailyDay: {
+    color: "#1F2A1F",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  weatherDailyCondition: {
+    color: "#777166",
+    fontSize: 11,
+  },
+  weatherDailyRain: {
+    color: "#547D88",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  weatherDailyTemps: {
+    minWidth: 76,
+    color: "#73491F",
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "right",
+  },
+  weatherDetailsCard: {
+    borderWidth: 1,
+    borderColor: "#DCC9AF",
+    borderRadius: 16,
+    backgroundColor: "#FFFDFC",
+    paddingHorizontal: 12,
+  },
+  weatherDetailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEE3D3",
+    paddingVertical: 10,
+  },
+  weatherDetailLabel: {
+    flex: 1,
+    color: "#6F685D",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  weatherDetailValue: {
+    color: "#1F2A1F",
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "right",
   },
   weatherLoadingBlock: {
     alignItems: "center",

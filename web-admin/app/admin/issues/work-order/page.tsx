@@ -168,7 +168,7 @@ export default async function ActionItemWorkOrderPage({ searchParams }: ActionIt
           </div>
           <div className="action-item-work-order-badge-block">
             <span className={`action-item-work-order-status${issue.status === "resolved" ? " is-resolved" : ""}`}>
-              {issue.status === "resolved" ? "Closed" : "Open"}
+              {issue.status === "resolved" ? "Resolved" : "Open"}
             </span>
             <strong className="action-item-work-order-id">{issue.id.slice(0, 8).toUpperCase()}</strong>
           </div>
@@ -251,7 +251,7 @@ export default async function ActionItemWorkOrderPage({ searchParams }: ActionIt
               </div>
               <div className="action-item-work-order-signoff-grid">
                 <div className="action-item-work-order-field-card">
-                  <span>Completed By</span>
+                  <span>Resolved By</span>
                   <div className="action-item-work-order-sign-line" />
                 </div>
                 <div className="action-item-work-order-field-card">
@@ -310,9 +310,8 @@ function formatEntryType(value: string | null) {
     case "resolved":
       return "Resolved";
     case "parts_ordered":
-      return "Parts Ordered";
     case "progress":
-      return "Progress";
+      return "Memo";
     default:
       return "Update";
   }

@@ -44,7 +44,7 @@ type SirenAction = {
 type SirenEntity = {
   properties?: Record<string, unknown>;
   links?: SirenLink[];
-  entities?: Array<{ rel?: string[]; href?: string; properties?: Record<string, unknown>; links?: SirenLink[] }>;
+  entities?: Array<{ rel?: string[]; href?: string; properties?: Record<string, unknown>; links?: SirenLink[]; entities?: Array<{ rel?: string[]; href?: string }> }>;
   actions?: SirenAction[];
   error?: unknown;
 };
@@ -385,10 +385,51 @@ async function fetchBestInventoryPayload(entityUrl: string) {
   return await fetchBinSentryEntity(latestLevelUrl);
 }
 
-function extractInventorySnapshot(
+async function fetchCurrentFeedTypeFromOrderHistory(entityUrl: string) {
+  const binPayload = (await fetchBinSentryEntity(entityUrl)) as SirenEntity;
+  const ordersUrl =
+    findHrefByRel(binPayload, ["/v2/orders", "v2/orders"]) ??
+    findHrefByRel(binPayload, ["/orders", "orders"]);
+  if (!ordersUrl) {
+    return null;
+  }
+
+  const collectionUrl = new URL(ordersUrl);
+  collectionUrl.searchParams.set("limit", "10");
+  const ordersPayload = (await fetchBinSentryEntity(collectionUrl.toString())) as SirenEntity;
+  const candidates = (ordersPayload.entities ?? [])
+    .map((entity) => {
+      const properties = entity.properties ?? {};
+      const state = normalize(String(properties.state ?? "")).toLowerCase();
+      const feedHref = findHrefByRel(entity as SirenEntity, ["/feed", "feed"]);
+      const deliveryDate = normalize(String(properties.deliveryDate ?? ""));
+      const updatedAt = normalize(String(properties.updatedAt ?? ""));
+
+      return {
+        state,
+        feedHref,
+        sortValue: deliveryDate || updatedAt,
+      };
+    })
+    .filter((entry) => entry.feedHref && (entry.state === "delivered" || entry.state === "closed"))
+    .sort((left, right) => right.sortValue.localeCompare(left.sortValue));
+
+  for (const candidate of candidates) {
+    const feedPayload = (await fetchBinSentryEntity(candidate.feedHref!)) as SirenEntity;
+    const feedType = normalizeFeedType(String(feedPayload.properties?.feedType ?? ""));
+    if (feedType) {
+      return feedType;
+    }
+  }
+
+  return null;
+}
+
+async function extractInventorySnapshot(
   payload: SirenEntity | Record<string, unknown>,
   mapping: FeedBinMapping,
-): InventorySnapshotWrite | null {
+  entityUrl: string,
+): Promise<InventorySnapshotWrite | null> {
   const properties =
     "properties" in payload && payload.properties && typeof payload.properties === "object"
       ? (payload.properties as Record<string, unknown>)
@@ -431,7 +472,8 @@ function extractInventorySnapshot(
     ]) ?? new Date().toISOString();
 
   const feedName = pickFirstString(properties, ["feed_name", "feedName", "ration_name", "rationName", "product_name", "productName"]);
-  const accessibleFeedType = normalizeFeedType(mapping.accessible_feed_type) ?? normalizeFeedType(feedName);
+  const currentOrderFeedType = await fetchCurrentFeedTypeFromOrderHistory(entityUrl);
+  const accessibleFeedType = currentOrderFeedType ?? normalizeFeedType(mapping.accessible_feed_type) ?? normalizeFeedType(feedName);
 
   return {
     farmId: mapping.farm_id,
@@ -499,7 +541,7 @@ async function syncBarnInventory(
 
     try {
       const payload = await fetchBestInventoryPayload(entityUrl);
-      const snapshot = extractInventorySnapshot(payload, mapping);
+      const snapshot = await extractInventorySnapshot(payload, mapping, entityUrl);
       if (!snapshot) {
         syncErrors.push(`Bin ${mapping.bin_num ?? "?"}: inventory pounds were not found in the BinSentry payload.`);
         await supabase

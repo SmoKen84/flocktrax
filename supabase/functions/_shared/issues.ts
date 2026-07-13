@@ -15,6 +15,24 @@ export type IssueType =
 
 export type IssueStatus = "open" | "resolved";
 
+export type IssueUpdateEntryType =
+  | "opened"
+  | "note"
+  | "progress"
+  | "parts_ordered"
+  | "resolved";
+
+export type IssueUpdateItem = {
+  id: string;
+  issue_id: string;
+  entry_type: IssueUpdateEntryType;
+  entry_text: string;
+  effective_date: string | null;
+  created_at: string;
+  created_by: string | null;
+  created_by_name?: string | null;
+};
+
 export type IssueItem = {
   id: string;
   entity_type: IssueEntityType;
@@ -28,6 +46,9 @@ export type IssueItem = {
   resolution_note: string | null;
   related_placement_id: string | null;
   reported_log_date: string | null;
+  opened_by: string | null;
+  updated_by: string | null;
+  updates: IssueUpdateItem[];
 };
 
 const BARN_ISSUE_TYPES: IssueType[] = [
@@ -111,6 +132,30 @@ export function mapIssueRow(row: Record<string, unknown>): IssueItem {
     resolution_note: typeof row.resolution_note === "string" ? row.resolution_note : null,
     related_placement_id: typeof row.related_placement_id === "string" ? row.related_placement_id : null,
     reported_log_date: typeof row.reported_log_date === "string" ? row.reported_log_date : null,
+    opened_by: typeof row.opened_by === "string" ? row.opened_by : null,
+    updated_by: typeof row.updated_by === "string" ? row.updated_by : null,
+    updates: [],
+  };
+}
+
+export function mapIssueUpdateRow(row: Record<string, unknown>): IssueUpdateItem {
+  const rawEntryType = typeof row.entry_type === "string" ? row.entry_type : "note";
+  const entryType: IssueUpdateEntryType =
+    rawEntryType === "opened" ||
+      rawEntryType === "progress" ||
+      rawEntryType === "parts_ordered" ||
+      rawEntryType === "resolved"
+      ? rawEntryType
+      : "note";
+
+  return {
+    id: String(row.id ?? ""),
+    issue_id: String(row.issue_id ?? ""),
+    entry_type: entryType,
+    entry_text: typeof row.entry_text === "string" ? row.entry_text : "",
+    effective_date: typeof row.effective_date === "string" ? row.effective_date : null,
+    created_at: typeof row.created_at === "string" ? row.created_at : "",
+    created_by: typeof row.created_by === "string" ? row.created_by : null,
   };
 }
 
@@ -141,14 +186,14 @@ export async function loadOpenIssueBundle(
   const [placementResult, barnResult] = await Promise.all([
     service
       .from("issues")
-      .select("id,entity_type,entity_id,issue_type,title,description,status,opened_at,resolved_at,resolution_note,related_placement_id,reported_log_date")
+      .select("id,entity_type,entity_id,issue_type,title,description,status,opened_at,resolved_at,resolution_note,related_placement_id,reported_log_date,opened_by,updated_by")
       .eq("entity_type", "placement")
       .eq("entity_id", placementId)
       .eq("status", "open")
       .order("opened_at", { ascending: false }),
     service
       .from("issues")
-      .select("id,entity_type,entity_id,issue_type,title,description,status,opened_at,resolved_at,resolution_note,related_placement_id,reported_log_date")
+      .select("id,entity_type,entity_id,issue_type,title,description,status,opened_at,resolved_at,resolution_note,related_placement_id,reported_log_date,opened_by,updated_by")
       .eq("entity_type", "barn")
       .eq("entity_id", barnId)
       .eq("status", "open")
@@ -168,6 +213,32 @@ export async function loadOpenIssueBundle(
   const barnIssues = (barnResult.data ?? []).map((row) =>
     mapIssueRow(row as Record<string, unknown>)
   );
+  const allIssues = [...barnIssues, ...placementIssues];
+  const issueIds = allIssues.map((issue) => issue.id);
+
+  if (issueIds.length > 0) {
+    const { data: updateRows, error: updatesError } = await service
+      .from("issue_updates")
+      .select("id,issue_id,entry_type,entry_text,effective_date,created_at,created_by")
+      .in("issue_id", issueIds)
+      .order("created_at", { ascending: true });
+
+    if (updatesError) {
+      throw new Error(updatesError.message);
+    }
+
+    const updatesByIssueId = new Map<string, IssueUpdateItem[]>();
+    for (const row of updateRows ?? []) {
+      const update = mapIssueUpdateRow(row as Record<string, unknown>);
+      const list = updatesByIssueId.get(update.issue_id) ?? [];
+      list.push(update);
+      updatesByIssueId.set(update.issue_id, list);
+    }
+
+    for (const issue of allIssues) {
+      issue.updates = updatesByIssueId.get(issue.id) ?? [];
+    }
+  }
 
   return {
     barn_id: barnId,

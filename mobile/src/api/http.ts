@@ -1,6 +1,8 @@
 import { apiConfig } from "./config";
 import { Platform } from "react-native";
 import {
+  ActionItemsListResponse,
+  ActionItemWorkOrder,
   AuthSession,
   DashboardSettings,
   DashboardWeatherForecast,
@@ -18,6 +20,8 @@ import {
   PlacementDayResponse,
   PlacementSummary,
   PlacementSummaryResponse,
+  OperationsCalendarEvent,
+  OperationsCalendarResponse,
   SaveFeedTicketResponse,
   SavePlacementResponse,
   SaveWeightEntryResponse,
@@ -122,6 +126,23 @@ export async function listPlacements(
   };
 }
 
+export async function listActionItems(token: string, includeResolved = false): Promise<ActionItemWorkOrder[]> {
+  const path = includeResolved ? "action-items-list?include_resolved=1" : "action-items-list";
+  const payload = await request<ActionItemsListResponse>(path, { token });
+  if (!payload.ok) {
+    throw new Error(payload.error ?? "Unable to load action items.");
+  }
+  return payload.items ?? [];
+}
+
+export async function listOperationsCalendar(token: string): Promise<OperationsCalendarEvent[]> {
+  const payload = await request<OperationsCalendarResponse>("operations-calendar-list", { token });
+  if (!payload.ok) {
+    throw new Error(payload.error ?? "Unable to load operations calendar.");
+  }
+  return payload.events ?? [];
+}
+
 export async function getDashboardWeatherForecast(input: {
   farmName: string;
   latitude: number;
@@ -130,11 +151,14 @@ export async function getDashboardWeatherForecast(input: {
   const params = new URLSearchParams({
     latitude: String(input.latitude),
     longitude: String(input.longitude),
-    current: "temperature_2m,relative_humidity_2m,weather_code",
-    daily: "temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max",
+    current: "temperature_2m,relative_humidity_2m,apparent_temperature,dew_point_2m,precipitation,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility,weather_code",
+    hourly: "temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m,wind_gusts_10m",
+    daily: "temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,sunrise,sunset,uv_index_max",
     timezone: "auto",
-    forecast_days: "1",
+    forecast_days: "7",
     temperature_unit: "fahrenheit",
+    wind_speed_unit: "mph",
+    precipitation_unit: "inch",
   });
 
   const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
@@ -144,7 +168,12 @@ export async function getDashboardWeatherForecast(input: {
 
   const payload = safeJsonParse<Record<string, unknown>>(await response.text());
   const current = isRecord(payload.current) ? payload.current : null;
+  const hourly = isRecord(payload.hourly) ? payload.hourly : null;
   const daily = isRecord(payload.daily) ? payload.daily : null;
+  const hourlyTimes = readStringArray(hourly?.time);
+  const currentTime = typeof current?.time === "string" ? current.time : "";
+  const nextHourIndex = Math.max(0, hourlyTimes.findIndex((time) => time >= currentTime));
+  const dailyDates = readStringArray(daily?.time);
 
   return {
     farmName: input.farmName,
@@ -152,11 +181,45 @@ export async function getDashboardWeatherForecast(input: {
     longitude: input.longitude,
     currentTemperature: coerceNumber(current?.temperature_2m),
     currentRelativeHumidity: coerceNumber(current?.relative_humidity_2m),
+    currentApparentTemperature: coerceNumber(current?.apparent_temperature),
+    currentDewPoint: coerceNumber(current?.dew_point_2m),
+    currentPrecipitation: coerceNumber(current?.precipitation),
+    currentCloudCover: coerceNumber(current?.cloud_cover),
+    currentPressure: coerceNumber(current?.pressure_msl),
+    currentWindSpeed: coerceNumber(current?.wind_speed_10m),
+    currentWindDirection: coerceNumber(current?.wind_direction_10m),
+    currentWindGust: coerceNumber(current?.wind_gusts_10m),
+    currentVisibility: coerceNumber(current?.visibility),
     currentWeatherCode: coerceNumber(current?.weather_code),
     dailyHigh: coerceNumber(readArrayValue(daily?.temperature_2m_max, 0)),
     dailyLow: coerceNumber(readArrayValue(daily?.temperature_2m_min, 0)),
     dailyWeatherCode: coerceNumber(readArrayValue(daily?.weather_code, 0)),
     precipitationProbabilityMax: coerceNumber(readArrayValue(daily?.precipitation_probability_max, 0)),
+    hourly: hourlyTimes.slice(nextHourIndex, nextHourIndex + 12).map((time, offset) => {
+      const index = nextHourIndex + offset;
+      return {
+        time,
+        temperature: coerceNumber(readArrayValue(hourly?.temperature_2m, index)),
+        apparentTemperature: coerceNumber(readArrayValue(hourly?.apparent_temperature, index)),
+        precipitationProbability: coerceNumber(readArrayValue(hourly?.precipitation_probability, index)),
+        weatherCode: coerceNumber(readArrayValue(hourly?.weather_code, index)),
+        windSpeed: coerceNumber(readArrayValue(hourly?.wind_speed_10m, index)),
+        windGust: coerceNumber(readArrayValue(hourly?.wind_gusts_10m, index)),
+      };
+    }),
+    daily: dailyDates.map((date, index) => ({
+      date,
+      weatherCode: coerceNumber(readArrayValue(daily?.weather_code, index)),
+      high: coerceNumber(readArrayValue(daily?.temperature_2m_max, index)),
+      low: coerceNumber(readArrayValue(daily?.temperature_2m_min, index)),
+      precipitationProbabilityMax: coerceNumber(readArrayValue(daily?.precipitation_probability_max, index)),
+      precipitationSum: coerceNumber(readArrayValue(daily?.precipitation_sum, index)),
+      windSpeedMax: coerceNumber(readArrayValue(daily?.wind_speed_10m_max, index)),
+      windGustMax: coerceNumber(readArrayValue(daily?.wind_gusts_10m_max, index)),
+      sunrise: readStringArray(daily?.sunrise)[index] ?? null,
+      sunset: readStringArray(daily?.sunset)[index] ?? null,
+      uvIndexMax: coerceNumber(readArrayValue(daily?.uv_index_max, index)),
+    })),
     timezone: typeof payload.timezone === "string" ? payload.timezone : null,
   };
 }
@@ -411,6 +474,31 @@ export async function resolveIssue(
   return payload.bundle;
 }
 
+export async function addIssueUpdate(
+  token: string,
+  input: {
+    issueId: string;
+    entryText: string;
+    resolved?: boolean;
+  },
+): Promise<PlacementIssueBundle> {
+  const payload = await request<PlacementIssueBundleResponse>("issue-update", {
+    method: "POST",
+    token,
+    body: {
+      issue_id: input.issueId,
+      entry_text: input.entryText,
+      resolved: input.resolved === true,
+    },
+  });
+
+  if (!payload.ok || !payload.bundle) {
+    throw new Error(payload.error ?? "Unable to post issue update.");
+  }
+
+  return payload.bundle;
+}
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const method = options.method ?? "GET";
   const headers: Record<string, string> = {
@@ -596,6 +684,10 @@ function readArrayValue(value: unknown, index: number) {
   }
 
   return value[index] ?? null;
+}
+
+function readStringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
 function coerceNumber(value: unknown) {

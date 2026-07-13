@@ -69,6 +69,24 @@ export type IssueEntityType = "barn" | "placement";
 
 export type IssueStatus = "open" | "resolved";
 
+export type IssueUpdateEntryType =
+  | "opened"
+  | "note"
+  | "progress"
+  | "parts_ordered"
+  | "resolved";
+
+export type IssueUpdateItem = {
+  id: string;
+  issue_id: string;
+  entry_type: IssueUpdateEntryType;
+  entry_text: string;
+  effective_date: string | null;
+  created_at: string;
+  created_by: string | null;
+  created_by_name?: string | null;
+};
+
 export type IssueType =
   | "maintenance"
   | "feedlines"
@@ -93,6 +111,51 @@ export type IssueItem = {
   resolution_note: string | null;
   related_placement_id: string | null;
   reported_log_date: string | null;
+  updates: IssueUpdateItem[];
+  opened_by?: string | null;
+  updated_by?: string | null;
+};
+
+export type ActionItemWorkOrder = IssueItem & {
+  farm_id: string | null;
+  farm_name: string;
+  farm_group_id: string | null;
+  barn_id: string | null;
+  barn_code: string;
+  placement_code: string | null;
+  created_by_name: string | null;
+  updated_by_name: string | null;
+};
+
+export type ActionItemsListResponse = {
+  ok: boolean;
+  items?: ActionItemWorkOrder[];
+  farms?: Array<{ id: string; farm_name: string; farm_group_id: string | null }>;
+  barns?: Array<{ id: string; barn_code: string; farm_id: string }>;
+  error?: string;
+};
+
+export type OperationsCalendarEvent = {
+  id: string;
+  type: "placement" | "livehaul";
+  date: string;
+  farm_id: string;
+  farm_name: string;
+  barn_id: string;
+  barn_code: string;
+  placement_id: string;
+  placement_code: string;
+  head_count: number | null;
+  target_sex: "male" | "female" | null;
+  sequence_num?: number | null;
+};
+
+export type OperationsCalendarResponse = {
+  ok: boolean;
+  events?: OperationsCalendarEvent[];
+  start_date?: string;
+  end_date?: string;
+  error?: string;
 };
 
 export type DailyAgeTask = {
@@ -144,11 +207,42 @@ export type DashboardWeatherForecast = {
   longitude: number;
   currentTemperature: number | null;
   currentRelativeHumidity: number | null;
+  currentApparentTemperature: number | null;
+  currentDewPoint: number | null;
+  currentPrecipitation: number | null;
+  currentCloudCover: number | null;
+  currentPressure: number | null;
+  currentWindSpeed: number | null;
+  currentWindDirection: number | null;
+  currentWindGust: number | null;
+  currentVisibility: number | null;
   currentWeatherCode: number | null;
   dailyHigh: number | null;
   dailyLow: number | null;
   dailyWeatherCode: number | null;
   precipitationProbabilityMax: number | null;
+  hourly: Array<{
+    time: string;
+    temperature: number | null;
+    apparentTemperature: number | null;
+    precipitationProbability: number | null;
+    weatherCode: number | null;
+    windSpeed: number | null;
+    windGust: number | null;
+  }>;
+  daily: Array<{
+    date: string;
+    weatherCode: number | null;
+    high: number | null;
+    low: number | null;
+    precipitationProbabilityMax: number | null;
+    precipitationSum: number | null;
+    windSpeedMax: number | null;
+    windGustMax: number | null;
+    sunrise: string | null;
+    sunset: string | null;
+    uvIndexMax: number | null;
+  }>;
   timezone: string | null;
 };
 

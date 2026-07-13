@@ -32,6 +32,7 @@ type Props = {
   selectedFarmId: string | null;
   selectedFarmGroupId: string | null;
   onOpenFeedTicket: () => void;
+  onOpenBarnIssues: (placement: PlacementSummary) => void;
   onRefresh: () => void;
   onOpenPlacement: (placement: PlacementSummary) => void;
   onLogout: () => void;
@@ -57,6 +58,7 @@ export function DashboardScreen({
   selectedFarmId,
   selectedFarmGroupId,
   onOpenFeedTicket,
+  onOpenBarnIssues,
   onRefresh,
   onOpenPlacement,
   onLogout,
@@ -242,71 +244,81 @@ export function DashboardScreen({
           data={filteredPlacements}
           keyExtractor={(item) => item.placement_id}
           renderItem={({ item }) => (
-            <Pressable onPress={() => handlePlacementPress(item)} style={[styles.card, cardStyle(item)]}>
-              <View style={styles.cardHeader}>
-                <View style={styles.cardHeaderCopy}>
-                  <Text style={styles.cardBarn}>{item.barn_code}</Text>
-                  <Text style={styles.cardFarm}>{item.farm_name}</Text>
-                  <Text style={styles.cardGroup}>
-                    {item.farm_group_name ?? "Assigned Group"}
-                  </Text>
-                </View>
-
-                <View style={styles.cardStatusStack}>
-                  <Text style={styles.cardDate}>
-                    {formatShortDate(item.placed_date, settings?.short_date)}
-                  </Text>
-                  <View style={[styles.statusBadge, badgeStyle(item)]}>
-                    <Text style={[styles.statusText, badgeTextStyle(item)]}>
-                      {badgeLabel(item)}
+            <View style={[styles.card, cardStyle(item)]}>
+              <Pressable onPress={() => handlePlacementPress(item)} style={styles.cardBodyButton}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardHeaderCopy}>
+                    <Text style={styles.cardBarn}>{item.barn_code}</Text>
+                    <Text style={styles.cardFarm}>{item.farm_name}</Text>
+                    <Text style={styles.cardGroup}>
+                      {item.farm_group_name ?? "Assigned Group"}
                     </Text>
                   </View>
-                </View>
-              </View>
 
-              <View style={styles.cardMetricsRow}>
-                <MetricCell value={item.placement_code} />
-                <MetricCell value={`${item.age_days ?? "--"} days`} align="center" />
-              </View>
-
-              <View style={styles.cardBirdCountBlock}>
-                <Text style={styles.cardBirdCount}>{formatCount(item.current_total_count)}</Text>
-                <View style={styles.cardBirdBreakdown}>
-                  <View style={styles.cardBirdBreakdownRow}>
-                    <Text style={styles.cardBirdCount}>{formatCount(item.current_male_count)}</Text>
-                    <Text style={styles.cardBirdBreakdownLabel}>Males</Text>
-                  </View>
-                  <View style={styles.cardBirdBreakdownRow}>
-                    <Text style={styles.cardBirdCount}>{formatCount(item.current_female_count)}</Text>
-                    <Text style={styles.cardBirdBreakdownLabel}>Females</Text>
+                  <View style={styles.cardStatusStack}>
+                    <Text style={styles.cardDate}>
+                      {formatShortDate(item.placed_date, settings?.short_date)}
+                    </Text>
+                    <View style={[styles.statusBadge, badgeStyle(item)]}>
+                      <Text style={[styles.statusText, badgeTextStyle(item)]}>
+                        {badgeLabel(item)}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-              <Text style={styles.cardBirdMeta}>
-                <Text style={styles.cardBirdMetaAccent}>
-                  {formatDateByPattern(item.est_first_catch, settings?.dow_date, "not scheduled")}
+
+                <View style={styles.cardMetricsRow}>
+                  <MetricCell value={item.placement_code} />
+                  <MetricCell value={`${item.age_days ?? "--"} days`} align="center" />
+                </View>
+
+                <View style={styles.cardBirdCountBlock}>
+                  <Text style={styles.cardBirdCount}>{formatCount(item.current_total_count)}</Text>
+                  <View style={styles.cardBirdBreakdown}>
+                    <View style={styles.cardBirdBreakdownRow}>
+                      <Text style={styles.cardBirdCount}>{formatCount(item.current_male_count)}</Text>
+                      <Text style={styles.cardBirdBreakdownLabel}>Males</Text>
+                    </View>
+                    <View style={styles.cardBirdBreakdownRow}>
+                      <Text style={styles.cardBirdCount}>{formatCount(item.current_female_count)}</Text>
+                      <Text style={styles.cardBirdBreakdownLabel}>Females</Text>
+                    </View>
+                  </View>
+                </View>
+                <Text style={styles.cardBirdMeta}>
+                  <Text style={styles.cardBirdMetaAccent}>
+                    {formatDateByPattern(item.est_first_catch, settings?.dow_date, "not scheduled")}
+                  </Text>
+                  {" "}Estimated First Livehaul{" "}
+                  <Text style={styles.cardBirdMetaAccent}>
+                    ({item.first_livehaul_days ?? "--"} days)
+                  </Text>
                 </Text>
-                {" "}Estimated First Livehaul{" "}
-                <Text style={styles.cardBirdMetaAccent}>
-                  ({item.first_livehaul_days ?? "--"} days)
+                <Text style={[styles.cardHint, cardHintStyle(item)]}>
+                  {isPendingPlacement(item)
+                    ? "Pending placement. Mobile barn data will open once the flock is near arrival."
+                    : shouldPromptForArrival(item)
+                    ? "Tap to confirm chicks have arrived before collecting mobile data"
+                    : "Tap to open and collect data for this barn"}
                 </Text>
-              </Text>
-              <Text style={[styles.cardHint, cardHintStyle(item)]}>
-                {isPendingPlacement(item)
-                  ? "Pending placement. Mobile barn data will open once the flock is near arrival."
-                  : shouldPromptForArrival(item)
-                  ? "Tap to confirm chicks have arrived before collecting mobile data"
-                  : "Tap to open and collect data for this barn"}
-              </Text>
-              {canViewRecentMortality ? (
-                <Pressable
-                  onPress={() => void openRecentMortalityHistory(item)}
-                  style={styles.historyButton}
-                >
-                  <Text style={styles.historyButtonText}>Recent Mortality</Text>
+              </Pressable>
+
+              <View style={styles.cardActionRow}>
+                <Pressable onPress={() => onOpenBarnIssues(item)} style={styles.cardShortcutButton}>
+                  <Text style={styles.cardShortcutButtonText}>
+                    Barn Repairs ({item.open_barn_issue_count ?? 0})
+                  </Text>
                 </Pressable>
-              ) : null}
-            </Pressable>
+                {canViewRecentMortality ? (
+                  <Pressable
+                    onPress={() => void openRecentMortalityHistory(item)}
+                    style={styles.historyButton}
+                  >
+                    <Text style={styles.historyButtonText}>Recent Mortality</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
@@ -927,6 +939,9 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 8,
   },
+  cardBodyButton: {
+    gap: 8,
+  },
   cardInBarn: {
     backgroundColor: "#FFF8EF",
     borderColor: "#DCC9AF",
@@ -1087,8 +1102,29 @@ const styles = StyleSheet.create({
   cardHintInBarn: {
     color: "#9E6330",
   },
-  historyButton: {
+  cardActionRow: {
+    flexDirection: "row",
+    gap: 10,
     marginTop: 8,
+  },
+  cardShortcutButton: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#C7B18B",
+    backgroundColor: "#F6EFE3",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  cardShortcutButtonText: {
+    color: "#6E3218",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  historyButton: {
+    flex: 1,
     minHeight: 40,
     borderRadius: 12,
     borderWidth: 1,

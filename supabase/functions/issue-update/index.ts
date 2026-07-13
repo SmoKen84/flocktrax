@@ -94,10 +94,11 @@ Deno.serve(async (req) => {
 
   const payload = await readBody(req);
   const issueId = typeof payload.issue_id === "string" ? payload.issue_id : null;
-  const resolutionNote = normalizeNullableText(payload.resolution_note);
+  const entryText = normalizeNullableText(payload.entry_text);
+  const shouldResolve = payload.resolved === true;
 
-  if (!isUuid(issueId)) {
-    return json(req, { ok: false, error: "Invalid or missing issue_id." }, 400);
+  if (!isUuid(issueId) || !entryText) {
+    return json(req, { ok: false, error: "Invalid or missing issue_id or entry_text." }, 400);
   }
 
   try {
@@ -121,15 +122,15 @@ Deno.serve(async (req) => {
     }
 
     if (issue.status !== "open") {
-      return json(req, { ok: false, error: "Issue is already resolved." }, 400);
+      return json(req, { ok: false, error: "Resolved issues cannot be updated." }, 400);
     }
 
     const placementContextId =
       typeof issue.related_placement_id === "string" && issue.related_placement_id.length > 0
         ? issue.related_placement_id
         : issue.entity_type === "placement" && typeof issue.entity_id === "string"
-        ? issue.entity_id
-        : null;
+          ? issue.entity_id
+          : null;
 
     if (!placementContextId || !isUuid(placementContextId)) {
       return json(req, { ok: false, error: "Issue is missing placement context." }, 400);
@@ -155,16 +156,16 @@ Deno.serve(async (req) => {
       return json(req, { ok: false, error: "You are not authorized to manage operational issues." }, 403);
     }
 
-    const { error: updateError } = await service.rpc("append_issue_memo", {
+    const { error: insertError } = await service.rpc("append_issue_memo", {
       p_issue_id: issueId,
-      p_entry_text: resolutionNote ?? "Action Item resolved from mobile.",
+      p_entry_text: entryText,
       p_effective_date: new Date().toISOString().slice(0, 10),
       p_created_by: userId,
-      p_resolved: true,
+      p_resolved: shouldResolve,
     });
 
-    if (updateError) {
-      return json(req, { ok: false, error: updateError.message }, 400);
+    if (insertError) {
+      return json(req, { ok: false, error: insertError.message }, 400);
     }
 
     const bundle = await loadOpenIssueBundle(service, placement.id, placement.barn_id);

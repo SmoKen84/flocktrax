@@ -29,9 +29,19 @@ type Props = {
   canSaveDailyLogs: boolean;
   canSaveGradeBirds: boolean;
   canSaveMortality: boolean;
+  initialTab?: PlacementTab;
   item: PlacementDayItem | null;
   loading: boolean;
   logDate: string;
+  onAddIssueUpdate: (input: {
+    issueId: string;
+    entryText: string;
+    resolved?: boolean;
+  }) => Promise<{
+    barn_id: string;
+    barn_issues: IssueItem[];
+    placement_issues: IssueItem[];
+  }>;
   onCreateIssue: (input: {
     entityType: IssueEntityType;
     entityId: string;
@@ -45,14 +55,6 @@ type Props = {
     placement_issues: IssueItem[];
   }>;
   placement: PlacementSummary;
-  onResolveIssue: (input: {
-    issueId: string;
-    resolutionNote?: string | null;
-  }) => Promise<{
-    barn_id: string;
-    barn_issues: IssueItem[];
-    placement_issues: IssueItem[];
-  }>;
   settings: DashboardSettings | null;
   onBack: () => void;
   onChangeDate: (nextDate: string) => void;
@@ -61,7 +63,7 @@ type Props = {
   onSave: (item: PlacementDayItem) => Promise<PlacementDayItem | void>;
 };
 
-type PlacementTab = "daily" | "mortality" | "grade";
+type PlacementTab = "daily" | "mortality" | "grade" | "issues";
 
 type FutureFields = {
 };
@@ -89,12 +91,13 @@ export function PlacementDayScreen({
   canSaveDailyLogs,
   canSaveGradeBirds,
   canSaveMortality,
+  initialTab = "daily",
   item,
   loading,
   logDate,
+  onAddIssueUpdate,
   onCreateIssue,
   placement,
-  onResolveIssue,
   settings,
   onBack,
   onChangeDate,
@@ -106,7 +109,7 @@ export function PlacementDayScreen({
   const [futureFields, setFutureFields] = useState<FutureFields>(defaultFutureFields);
   const [saving, setSaving] = useState(false);
   const [localMessage, setLocalMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<PlacementTab>("daily");
+  const [activeTab, setActiveTab] = useState<PlacementTab>(initialTab);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [calendarCursor, setCalendarCursor] = useState(() => getMonthStart(logDate));
@@ -116,17 +119,19 @@ export function PlacementDayScreen({
   const [issueTypeDraft, setIssueTypeDraft] = useState<IssueType>("maintenance");
   const [issueDescriptionDraft, setIssueDescriptionDraft] = useState("");
   const [issueSubmitting, setIssueSubmitting] = useState(false);
-  const [resolveIssueTarget, setResolveIssueTarget] = useState<IssueItem | null>(null);
-  const [resolutionNoteDraft, setResolutionNoteDraft] = useState("");
+  const [updateIssueTarget, setUpdateIssueTarget] = useState<IssueItem | null>(null);
+  const [issueUpdateTextDraft, setIssueUpdateTextDraft] = useState("");
+  const [issueUpdateResolved, setIssueUpdateResolved] = useState(false);
 
   useEffect(() => {
     setDraft(item);
     setLocalMessage(null);
     setHasUnsavedChanges(false);
     setTaskChecks([false, false, false, false]);
+    setActiveTab(initialTab);
     setIssueComposerTarget(null);
-    setResolveIssueTarget(null);
-  }, [item]);
+    setUpdateIssueTarget(null);
+  }, [initialTab, item]);
 
   useEffect(() => {
     setCalendarCursor(getMonthStart(logDate));
@@ -341,24 +346,33 @@ export function PlacementDayScreen({
     }
   }
 
-  async function submitIssueResolution() {
-    if (!resolveIssueTarget) return;
+  async function submitIssueUpdate() {
+    if (!updateIssueTarget) return;
+
+    const trimmedText = issueUpdateTextDraft.trim();
+    if (!trimmedText) {
+      setLocalMessage("Enter an update before posting it.");
+      return;
+    }
 
     try {
       setIssueSubmitting(true);
-      const bundle = await onResolveIssue({
-        issueId: resolveIssueTarget.id,
-        resolutionNote: resolutionNoteDraft || null,
+      setLocalMessage(null);
+      const nextBundle = await onAddIssueUpdate({
+        issueId: updateIssueTarget.id,
+        entryText: trimmedText,
+        resolved: issueUpdateResolved,
       });
-      mergeIssueBundle(bundle);
-      setResolveIssueTarget(null);
-      setResolutionNoteDraft("");
-      setLocalMessage("Issue resolved.");
+      mergeIssueBundle(nextBundle);
+      setUpdateIssueTarget(null);
+      setIssueUpdateTextDraft("");
+      setIssueUpdateResolved(false);
+      setLocalMessage(issueUpdateResolved ? "Resolution memo saved." : "Memo saved.");
     } catch (error) {
       if (isAuthError(error)) {
         return;
       }
-      setLocalMessage(error instanceof Error ? error.message : "Issue could not be resolved.");
+      setLocalMessage(error instanceof Error ? error.message : "Issue update failed.");
     } finally {
       setIssueSubmitting(false);
     }
@@ -513,6 +527,11 @@ export function PlacementDayScreen({
             label="Grade"
             onPress={() => setActiveTab("grade")}
           />
+          <TabButton
+            active={activeTab === "issues"}
+            label="Issues"
+            onPress={() => setActiveTab("issues")}
+          />
         </View>
 
         {activeTab === "daily" ? (
@@ -552,16 +571,24 @@ export function PlacementDayScreen({
           />
         ) : null}
 
-        <IssuesPanel
-          barnIssues={draft.barn_issues}
-          placementIssues={draft.placement_issues}
-          onAddBarnIssue={() => openIssueComposer("barn")}
-          onAddPlacementIssue={() => openIssueComposer("placement")}
-          onResolveIssue={(issue) => {
-            setResolveIssueTarget(issue);
-            setResolutionNoteDraft("");
-          }}
-        />
+        {activeTab === "issues" ? (
+          <IssuesPanel
+            barnIssues={draft.barn_issues}
+            placementIssues={draft.placement_issues}
+            onAddBarnIssue={() => openIssueComposer("barn")}
+            onAddPlacementIssue={() => openIssueComposer("placement")}
+            onResolveIssue={(issue) => {
+              setUpdateIssueTarget(issue);
+              setIssueUpdateTextDraft("");
+              setIssueUpdateResolved(true);
+            }}
+            onUpdateIssue={(issue) => {
+              setUpdateIssueTarget(issue);
+              setIssueUpdateTextDraft("");
+              setIssueUpdateResolved(false);
+            }}
+          />
+        ) : null}
 
         {localMessage ? <Text style={styles.message}>{localMessage}</Text> : null}
         {hasUnsavedChanges ? (
@@ -605,17 +632,20 @@ export function PlacementDayScreen({
         onSubmit={() => void submitIssue()}
       />
 
-      <IssueResolveModal
-        issue={resolveIssueTarget}
-        resolutionNote={resolutionNoteDraft}
+      <IssueUpdateModal
+        entryText={issueUpdateTextDraft}
+        issue={updateIssueTarget}
+        resolved={issueUpdateResolved}
         submitting={issueSubmitting}
         onCancel={() => {
           if (issueSubmitting) return;
-          setResolveIssueTarget(null);
-          setResolutionNoteDraft("");
+          setUpdateIssueTarget(null);
+          setIssueUpdateTextDraft("");
+          setIssueUpdateResolved(false);
         }}
-        onChangeResolutionNote={setResolutionNoteDraft}
-        onSubmit={() => void submitIssueResolution()}
+        onChangeEntryText={setIssueUpdateTextDraft}
+        onChangeResolved={setIssueUpdateResolved}
+        onSubmit={() => void submitIssueUpdate()}
       />
     </KeyboardAvoidingView>
   );
@@ -844,6 +874,7 @@ type IssuesPanelProps = {
   onAddBarnIssue: () => void;
   onAddPlacementIssue: () => void;
   onResolveIssue: (issue: IssueItem) => void;
+  onUpdateIssue: (issue: IssueItem) => void;
 };
 
 function IssuesPanel({
@@ -852,6 +883,7 @@ function IssuesPanel({
   onAddBarnIssue,
   onAddPlacementIssue,
   onResolveIssue,
+  onUpdateIssue,
 }: IssuesPanelProps) {
   return (
     <View style={styles.panel}>
@@ -867,12 +899,14 @@ function IssuesPanel({
         issues={barnIssues}
         onAdd={onAddBarnIssue}
         onResolveIssue={onResolveIssue}
+        onUpdateIssue={onUpdateIssue}
       />
       <IssueGroup
         title="Placement Issues"
         issues={placementIssues}
         onAdd={onAddPlacementIssue}
         onResolveIssue={onResolveIssue}
+        onUpdateIssue={onUpdateIssue}
       />
     </View>
   );
@@ -883,9 +917,10 @@ type IssueGroupProps = {
   issues: IssueItem[];
   onAdd: () => void;
   onResolveIssue: (issue: IssueItem) => void;
+  onUpdateIssue: (issue: IssueItem) => void;
 };
 
-function IssueGroup({ title, issues, onAdd, onResolveIssue }: IssueGroupProps) {
+function IssueGroup({ title, issues, onAdd, onResolveIssue, onUpdateIssue }: IssueGroupProps) {
   return (
     <View style={styles.issueGroup}>
       <View style={styles.issueGroupHeader}>
@@ -913,9 +948,14 @@ function IssueGroup({ title, issues, onAdd, onResolveIssue }: IssueGroupProps) {
                   {issue.reported_log_date ? ` · Log ${issue.reported_log_date}` : ""}
                 </Text>
               </View>
-              <Pressable onPress={() => onResolveIssue(issue)} style={styles.issueResolveButton}>
-                <Text style={styles.issueResolveButtonText}>Resolve</Text>
-              </Pressable>
+              <View style={styles.issueCardButtonRow}>
+                <Pressable onPress={() => onUpdateIssue(issue)} style={styles.issueUpdateButton}>
+                  <Text style={styles.issueUpdateButtonText}>Update</Text>
+                </Pressable>
+                <Pressable onPress={() => onResolveIssue(issue)} style={styles.issueResolveButton}>
+                  <Text style={styles.issueResolveButtonText}>Resolve</Text>
+                </Pressable>
+              </View>
             </View>
             {issue.description ? (
               <Text style={styles.issueCardDescription}>{issue.description}</Text>
@@ -1078,6 +1118,69 @@ function IssueResolveModal({
                   {submitting ? <ActivityIndicator color="#FFF8EF" /> : (
                     <Text style={styles.arrivalModalPrimaryText}>Resolve</Text>
                   )}
+                </Pressable>
+              </View>
+            </View>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+type IssueUpdateModalProps = {
+  entryText: string;
+  issue: IssueItem | null;
+  resolved: boolean;
+  submitting: boolean;
+  onCancel: () => void;
+  onChangeEntryText: (value: string) => void;
+  onChangeResolved: (value: boolean) => void;
+  onSubmit: () => void;
+};
+
+function IssueUpdateModal({
+  entryText,
+  issue,
+  resolved,
+  submitting,
+  onCancel,
+  onChangeEntryText,
+  onChangeResolved,
+  onSubmit,
+}: IssueUpdateModalProps) {
+  return (
+    <Modal animationType="fade" transparent visible={issue !== null} onRequestClose={onCancel}>
+      <KeyboardAvoidingView
+        behavior={Platform.select({ ios: "padding", default: undefined })}
+        style={styles.modalScrim}
+      >
+        <ScrollView contentContainerStyle={styles.issueModalScrollContent} keyboardShouldPersistTaps="handled">
+          <Pressable onPress={() => Keyboard.dismiss()} style={styles.issueModalDismissZone}>
+            <View style={styles.issueModalCard}>
+              <Text style={styles.historyModalEyebrow}>Dated Memo</Text>
+              <Text style={styles.issueModalTitle}>{issue?.title ?? "Add Memo"}</Text>
+              <Text style={styles.issueModalCopy}>Record what was checked, repaired, learned, or completed. Saved memos cannot be edited.</Text>
+              <TextInput
+                multiline
+                onChangeText={onChangeEntryText}
+                placeholder="Enter memo."
+                placeholderTextColor="#A39A89"
+                style={styles.issueNoteInput}
+                value={entryText}
+              />
+              <Pressable onPress={() => onChangeResolved(!resolved)} style={styles.issueResolvedCheckRow}>
+                <View style={[styles.issueResolvedCheckBox, resolved && styles.issueResolvedCheckBoxActive]}>
+                  <Text style={styles.issueResolvedCheckMark}>{resolved ? "X" : ""}</Text>
+                </View>
+                <Text style={styles.issueResolvedCheckLabel}>Resolved</Text>
+              </Pressable>
+              <View style={styles.issueModalActions}>
+                <Pressable disabled={submitting} onPress={onCancel} style={styles.arrivalModalSecondaryButton}>
+                  <Text style={styles.arrivalModalSecondaryText}>Cancel</Text>
+                </Pressable>
+                <Pressable disabled={submitting || !entryText.trim()} onPress={onSubmit} style={styles.arrivalModalPrimaryButton}>
+                  {submitting ? <ActivityIndicator color="#FFF8EF" /> : <Text style={styles.arrivalModalPrimaryText}>{resolved ? "Save & Resolve" : "Save Memo"}</Text>}
                 </Pressable>
               </View>
             </View>
@@ -2117,6 +2220,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  issueCardButtonRow: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  issueUpdateButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#8B572A",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  issueUpdateButtonText: {
+    color: "#8B572A",
+    fontSize: 12,
+    fontWeight: "800",
+  },
   issueResolveButton: {
     borderRadius: 12,
     backgroundColor: "#8B572A",
@@ -2373,6 +2492,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     textAlignVertical: "top",
+  },
+  issueResolvedCheckRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+  },
+  issueResolvedCheckBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: "#8B572A",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF8EF",
+  },
+  issueResolvedCheckBoxActive: {
+    backgroundColor: "#8B572A",
+  },
+  issueResolvedCheckMark: {
+    color: "#FFF8EF",
+    fontWeight: "900",
+  },
+  issueResolvedCheckLabel: {
+    color: "#4E3422",
+    fontSize: 15,
+    fontWeight: "800",
   },
   issueKeyboardDismissButton: {
     alignSelf: "flex-start",

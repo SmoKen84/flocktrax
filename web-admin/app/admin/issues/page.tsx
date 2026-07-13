@@ -3,10 +3,10 @@ import Link from "next/link";
 import {
   addIssueUpdateAction,
   createIssueAction,
-  resolveIssueAction,
   updateIssueAction,
 } from "@/app/admin/issues/actions";
 import { IssuesBackButton } from "@/app/admin/issues/back-button";
+import { ActionItemClassificationFields } from "@/app/admin/issues/action-item-classification-fields";
 import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
 import { getUserAccessBundle, resolveRoleTemplate } from "@/lib/access-control";
 import { getAdminData } from "@/lib/admin-data";
@@ -33,6 +33,7 @@ type IssueRow = {
   reported_log_date: string | null;
   opened_at: string | null;
   opened_by: string | null;
+  updated_by: string | null;
   resolved_at: string | null;
   resolution_note: string | null;
 };
@@ -76,12 +77,24 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
     farmId: firstParam(params.farmId),
     barnId: firstParam(params.barnId),
     flockCode: firstParam(params.flockCode),
+    assignedTo: paramArray(params.assignedTo),
     issueType: firstParam(params.issueType),
     dateStart: firstParam(params.dateStart),
     dateEnd: firstParam(params.dateEnd),
     statuses: paramArray(params.status),
     sortBy: parseIssueSortKey(firstParam(params.sortBy)),
   };
+  const filterFormKey = [
+    filters.farmId,
+    filters.barnId,
+    filters.flockCode,
+    filters.assignedTo.join(","),
+    filters.issueType,
+    filters.dateStart,
+    filters.dateEnd,
+    filters.statuses.join(","),
+    filters.sortBy,
+  ].join("|");
 
   const adminClient = createSupabaseAdminClient();
   const serverClient = await createSupabaseServerClient();
@@ -102,7 +115,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
     adminClient
       .from("issues")
       .select(
-        "id,entity_type,entity_id,issue_type,title,description,status,related_placement_id,reported_log_date,opened_at,opened_by,resolved_at,resolution_note",
+        "id,entity_type,entity_id,issue_type,title,description,status,related_placement_id,reported_log_date,opened_at,opened_by,updated_by,resolved_at,resolution_note",
       )
       .order("opened_at", { ascending: false })
       .limit(300),
@@ -191,6 +204,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
         if (!flockText.includes(flockNeedle)) return false;
       }
       if (filters.issueType && issue.issue_type !== filters.issueType) return false;
+      if (filters.assignedTo.length > 0 && !filters.assignedTo.includes(issue.entity_type)) return false;
       if (filters.statuses.length > 0 && !filters.statuses.includes(issue.status)) return false;
       if (filters.dateStart && issue.reported_log_date && issue.reported_log_date < filters.dateStart) return false;
       if (filters.dateEnd && issue.reported_log_date && issue.reported_log_date > filters.dateEnd) return false;
@@ -198,15 +212,11 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
     })
     .sort((left, right) => compareIssuesForSort(left, right, filters.sortBy));
 
-  const selectedIssue =
-    (selectedIssueId ? filteredIssues.find((issue) => issue.id === selectedIssueId) : null) ??
-    filteredIssues[0] ??
-    null;
+  const selectedIssue = selectedIssueId ? filteredIssues.find((issue) => issue.id === selectedIssueId) ?? null : null;
 
   const selectedPlacement =
     (selectedPlacementId ? placementById.get(selectedPlacementId) : null) ??
     selectedIssue?.placementContext ??
-    placements[0] ??
     null;
 
   const selectedUpdate =
@@ -217,8 +227,6 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
   const counts = {
     open: filteredIssues.filter((issue) => issue.status === "open").length,
     resolved: filteredIssues.filter((issue) => issue.status === "resolved").length,
-    inProgress: 0,
-    waiting: 0,
     total: filteredIssues.length,
   };
 
@@ -240,6 +248,14 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
     (item) => item.id,
   ).sort((left, right) => left.label.localeCompare(right.label));
 
+  const flockOptions = dedupeBy(
+    placements.map((placement) => ({
+      value: placement.placementCode || placement.flockCode,
+      label: placement.placementCode || placement.flockCode,
+    })),
+    (item) => item.value,
+  ).filter((item) => item.value).sort((left, right) => left.label.localeCompare(right.label));
+
   const selectedContext = selectedIssue?.placementContext ?? selectedPlacement;
   const detailMode = selectedIssue ? panelMode : "create";
 
@@ -253,8 +269,11 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
           </div>
           <h1 className="hero-title action-items-hero-title">Action Items Console</h1>
           <p className="hero-body action-items-hero-body">
-            Create, track and monitor the progress of any task related to a farm, barn or flock placement from
-            start to completion.
+            Add and update actionable tasks linked to a Barn or a specific Placement. <strong>Barn Items</strong> can
+            document needed repairs, maintenance work, or a situation that should be monitored. <strong>Placement
+            Items</strong> can document an environmental or flock-health concern that needs further attention.
+            Workers can create Action Items during Daily Flock Inspections in <strong>FlockTrax-Mobile</strong>, then
+            use its <strong>Work Orders Dashboard</strong> to review and process those Action Items.
           </p>
         </div>
         <div className="action-items-hero-actions">
@@ -262,7 +281,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
         </div>
         {canMaintainActionTypes ? (
           <Link className="action-items-manage-link" href="/admin/issues/types">
-            Manage Action Types
+            Edit Classification Categories
           </Link>
         ) : null}
       </section>
@@ -273,15 +292,15 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
       <section className="panel action-items-filter-band">
         <article className="action-items-filter-panel">
           <div className="action-items-panel-header">
-            <h2>Action Items Filter:</h2>
+            <h2>Action Item Filter:</h2>
           </div>
 
-          <form className="action-items-filter-form action-items-filter-form--band" method="get">
+          <form className="action-items-filter-form action-items-filter-form--band" key={filterFormKey} method="get">
             <input name="issueId" type="hidden" value={selectedIssue?.id ?? ""} />
             <input name="updateId" type="hidden" value={selectedUpdate?.id ?? ""} />
             <input name="mode" type="hidden" value={selectedIssue ? detailMode : "create"} />
 
-            <label className="sync-engine-field">
+            <label className="sync-engine-field action-items-filter-farm">
               <span>Farm:</span>
               <select defaultValue={filters.farmId ?? ""} name="farmId">
                 <option value="">All farms</option>
@@ -293,7 +312,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
               </select>
             </label>
 
-            <label className="sync-engine-field">
+            <label className="sync-engine-field action-items-filter-barn">
               <span>Barn:</span>
               <select defaultValue={filters.barnId ?? ""} name="barnId">
                 <option value="">All barns</option>
@@ -305,15 +324,56 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
               </select>
             </label>
 
-            <label className="sync-engine-field">
+            <label className="sync-engine-field action-items-filter-flock">
               <span>Flock Code:</span>
-              <input defaultValue={filters.flockCode ?? ""} name="flockCode" type="text" />
+              <select defaultValue={filters.flockCode ?? ""} name="flockCode">
+                <option value="">All flocks</option>
+                {flockOptions.map((flock) => (
+                  <option key={flock.value} value={flock.value}>
+                    {flock.label}
+                  </option>
+                ))}
+              </select>
             </label>
 
-            <label className="sync-engine-field">
-              <span>Action Type:</span>
+            <fieldset className="action-items-filter-check-box action-items-filter-assigned">
+              <legend>Assigned To:</legend>
+              <label>
+                <input defaultChecked={filters.assignedTo.includes("barn")} name="assignedTo" type="checkbox" value="barn" />
+                <span>Barn</span>
+              </label>
+              <label>
+                <input defaultChecked={filters.assignedTo.includes("placement")} name="assignedTo" type="checkbox" value="placement" />
+                <span>Placement</span>
+              </label>
+            </fieldset>
+
+            <fieldset className="action-items-filter-check-box action-items-filter-status">
+              <legend>Status:</legend>
+              <label>
+                <input defaultChecked={filters.statuses.includes("open")} name="status" type="checkbox" value="open" />
+                <span>Open</span>
+              </label>
+              <label>
+                <input defaultChecked={filters.statuses.includes("resolved")} name="status" type="checkbox" value="resolved" />
+                <span>Resolved</span>
+              </label>
+            </fieldset>
+
+            <label className="sync-engine-field action-items-filter-date-field action-items-filter-from">
+              <span>From:</span>
+              <input defaultValue={filters.dateStart ?? ""} name="dateStart" type="date" />
+            </label>
+
+            <label className="sync-engine-field action-items-filter-date-field action-items-filter-to">
+              <span>To:</span>
+              <input defaultValue={filters.dateEnd ?? ""} name="dateEnd" type="date" />
+            </label>
+
+            <label className="sync-engine-field action-items-filter-classification">
+              <span>Classification:</span>
               <select defaultValue={filters.issueType ?? ""} name="issueType">
-                <option value="">All action types</option>
+                <option value="">Include All</option>
                 {issueTypeRows.map((option) => (
                   <option key={option.code} value={option.code}>
                     {option.label}
@@ -321,45 +381,6 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                 ))}
               </select>
             </label>
-
-            <label className="sync-engine-field action-items-filter-date-field">
-              <span>Date Start:</span>
-              <input defaultValue={filters.dateStart ?? ""} name="dateStart" type="date" />
-            </label>
-
-            <label className="sync-engine-field action-items-filter-date-field">
-              <span>Date End:</span>
-              <input defaultValue={filters.dateEnd ?? ""} name="dateEnd" type="date" />
-            </label>
-
-            <fieldset className="action-items-status-box action-items-status-box--band">
-              <legend>Status:</legend>
-              <label>
-                <input defaultChecked={filters.statuses.includes("open")} name="status" type="checkbox" value="open" />
-                <span>Open</span>
-              </label>
-              <label>
-                <input
-                  defaultChecked={filters.statuses.includes("resolved")}
-                  name="status"
-                  type="checkbox"
-                  value="resolved"
-                />
-                <span>Completed</span>
-              </label>
-              <label>
-                <input disabled type="checkbox" />
-                <span>In-Progress</span>
-              </label>
-              <label>
-                <input disabled type="checkbox" />
-                <span>Waiting</span>
-              </label>
-              <label>
-                <input disabled type="checkbox" />
-                <span>Pending Approval</span>
-              </label>
-            </fieldset>
 
             <label className="sync-engine-field action-items-filter-sort-field">
               <span>Sort By:</span>
@@ -373,14 +394,14 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
             </label>
 
             <div className="action-items-filter-buttons action-items-filter-buttons--band">
-              <Link className="button" href="/admin/issues">
-                Clear
-              </Link>
               <button className="button" type="submit">
-                Apply
+                Apply Filters
               </button>
+              <Link className="button" href="/admin/issues">
+                Clear Filters
+              </Link>
               <Link className="button action-items-report-launch" href={buildIssuesReportHref(params)} target="_blank">
-                Action List
+                Preview/Print<br />Report
               </Link>
             </div>
           </form>
@@ -392,11 +413,15 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
           <div className="action-items-panel-header action-items-list-header">
             <div className="action-items-panel-title-stack">
               <h2>Action Items</h2>
-              <p className="action-items-panel-context">
-                <span className="action-items-context-farm">{selectedContext?.farmName ?? "Current Farm"}</span>
-                <span className="action-items-context-label">Barn:</span>
-                <span className="action-items-context-barn">{selectedContext?.barnCode ?? "—"}</span>
-              </p>
+              {selectedContext ? (
+                <p className="action-items-panel-context">
+                  <span className="action-items-context-farm">{selectedContext.farmName}</span>
+                  <span className="action-items-context-label">Barn:</span>
+                  <span className="action-items-context-barn">{selectedContext.barnCode}</span>
+                </p>
+              ) : (
+                <p className="action-items-panel-context">No Action Item selected</p>
+              )}
             </div>
 
             <Link
@@ -420,8 +445,8 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                   <th>Status</th>
                   <th>Description</th>
                   <th>Flock</th>
-                  <th>Opened By</th>
-                  <th>Resolved Status</th>
+                  <th>Created By</th>
+                  <th>Updated By</th>
                   <th>Work Order</th>
                 </tr>
               </thead>
@@ -455,22 +480,15 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                         </td>
                         <td>
                           <Link className="action-items-row-link action-items-row-description" href={href}>
-                            <strong>{issue.title || getIssueLabel(issue.issue_type)}</strong>
+                            <strong>{issue.typeDefinition?.label ?? getIssueLabel(issue.issue_type)}</strong>
                             <em className="action-items-row-update-preview">
-                              {issue.updates.length > 0
-                                ? `${formatShortDate(
-                                    issue.updates[issue.updates.length - 1]?.effective_date ??
-                                      issue.updates[issue.updates.length - 1]?.created_at,
-                                  )} ${formatEntryType(issue.updates[issue.updates.length - 1]?.entry_type)} ${
-                                    issue.updates[issue.updates.length - 1]?.entry_text || "Update"
-                                  }`
-                                : issue.description || "No description entered yet."}
+                              {issue.title || "No Action Title/Subject entered."}
                             </em>
                           </Link>
                         </td>
                         <td>{context?.placementCode ?? "—"}</td>
                         <td>{formatActor(issue.opened_by, userDisplayNameById, issue)}</td>
-                        <td>{issue.status === "resolved" ? "Complete" : "Waiting"}</td>
+                        <td>{formatActor(resolveLatestActorId(issue), userDisplayNameById, issue)}</td>
                         <td>
                           {issue.status === "open" ? (
                             <Link
@@ -502,8 +520,18 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
         </article>
 
         <article className="panel action-items-list-panel action-items-list-panel--updates">
-          <div className="action-items-panel-header action-items-list-header">
-            <h2>Update History:</h2>
+          <div className="action-items-panel-header action-items-list-header action-items-update-history-header">
+            <div>
+              <div className="action-items-update-history-title-line">
+                <h2>Update History:</h2>
+                {selectedIssue ? <strong>{selectedIssue.title}</strong> : null}
+              </div>
+              {selectedIssue ? (
+                <p className="action-items-selected-thread-details">
+                  {selectedIssue.description || "No Action Details entered."}
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <div className="action-items-table-shell action-items-table-shell--updates">
@@ -511,8 +539,8 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Type</th>
-                  <th>Update</th>
+                  <th>Created By</th>
+                  <th>Memo</th>
                 </tr>
               </thead>
               <tbody>
@@ -529,10 +557,10 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                       <tr className={selectedUpdate?.id === update.id ? "is-selected" : undefined} key={update.id}>
                         <td>
                           <Link className="action-items-row-link" href={href}>
-                            {formatShortDate(update.effective_date ?? update.created_at)}
+                            {formatDateTime(update.created_at)}
                           </Link>
                         </td>
-                        <td>{formatEntryType(update.entry_type)}</td>
+                        <td>{formatActor(update.created_by, userDisplayNameById)}</td>
                         <td>
                           <Link className="action-items-row-link action-items-update-row-link" href={href}>
                             {update.entry_text || "No update text entered."}
@@ -544,7 +572,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                 ) : (
                   <tr>
                     <td colSpan={3}>
-                      <p className="table-subtitle">Select an action item to review its update thread.</p>
+                      <p className="table-subtitle">Select an Action Item to display its linked memo thread.</p>
                     </td>
                   </tr>
                 )}
@@ -558,17 +586,6 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                 <>
                   {selectedIssue.status === "open" ? (
                     <>
-                      <Link
-                        className="button"
-                        href={buildIssuesHref(params, {
-                          issueId: selectedIssue.id,
-                          updateId: selectedUpdate?.id ?? null,
-                          placementId: selectedIssue.placementContext?.placementId ?? null,
-                          mode: "edit",
-                        })}
-                      >
-                        Edit
-                      </Link>
                       <Link
                         className="button"
                         href={buildIssuesHref(params, {
@@ -604,13 +621,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                 Open <strong>{counts.open}</strong>
               </p>
               <p>
-                In-Progress <strong>{counts.inProgress}</strong>
-              </p>
-              <p>
-                Waiting <strong>{counts.waiting}</strong>
-              </p>
-              <p>
-                Completed <strong>{counts.resolved}</strong>
+                Resolved <strong>{counts.resolved}</strong>
               </p>
             </div>
           </div>
@@ -623,8 +634,11 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
             <div className="action-items-detail-main">
               <div className="action-items-detail-fields">
                 <label className="sync-engine-field">
-                  <span>Live placement</span>
+                  <span>Link Action To:</span>
                   <select defaultValue={selectedPlacement?.placementId ?? ""} name="placement_id" required>
+                    <option disabled value="">
+                      Select a barn / placement
+                    </option>
                     {placements.map((placement) => (
                       <option key={placement.placementId} value={placement.placementId}>
                         {placement.farmName} · Barn {placement.barnCode} · {placement.placementCode}
@@ -632,19 +646,10 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                     ))}
                   </select>
                 </label>
+                <ActionItemClassificationFields options={issueTypeRows} />
                 <label className="sync-engine-field">
-                  <span>Action Type</span>
-                  <select name="issue_type" required>
-                    {issueTypeRows.map((option) => (
-                      <option key={option.code} value={option.code}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="sync-engine-field">
-                  <span>Title</span>
-                  <input name="title" placeholder="Short action title" type="text" />
+                  <span>Action Title/Subject</span>
+                  <input name="title" placeholder="Repair, installation, calibration, or observation" required type="text" />
                 </label>
                 <label className="sync-engine-field">
                   <span>Date</span>
@@ -652,7 +657,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                 </label>
               </div>
               <label className="sync-engine-field action-items-detail-copy-field">
-                <span>Description</span>
+                <span>Action Details</span>
                 <textarea
                   className="issues-console-textarea"
                   name="description"
@@ -672,7 +677,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                 <strong>{todayIso()}</strong>
               </div>
               <div className="action-items-detail-meta-row">
-                <span>Status Change?:</span>
+                <span>Status:</span>
                 <strong>Opened</strong>
               </div>
               <div className="action-items-detail-meta-row">
@@ -711,7 +716,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                       </select>
                     </label>
                     <label className="sync-engine-field">
-                      <span>Title</span>
+                      <span>Action Title/Subject</span>
                       <input defaultValue={selectedIssue.title ?? ""} name="title" type="text" />
                     </label>
                     <label className="sync-engine-field">
@@ -724,7 +729,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                     </div>
                   </div>
                   <label className="sync-engine-field action-items-detail-copy-field">
-                    <span>Description</span>
+                    <span>Action Details</span>
                     <textarea
                       className="issues-console-textarea"
                       defaultValue={selectedIssue.description ?? ""}
@@ -744,48 +749,52 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
                   <input name="placement_id" type="hidden" value={selectedIssue.placementContext?.placementId ?? ""} />
                   <div className="action-items-detail-fields">
                     <label className="sync-engine-field">
-                      <span>Update Type</span>
-                      <select defaultValue="progress" name="entry_type">
-                        <option value="note">Update</option>
-                        <option value="progress">Progress</option>
-                        <option value="parts_ordered">Parts Ordered</option>
-                      </select>
-                    </label>
-                    <label className="sync-engine-field">
-                      <span>Date</span>
+                      <span>Memo Date</span>
                       <input defaultValue={todayIso()} name="effective_date" type="date" />
+                    </label>
+                    <label className="action-items-resolved-checkbox">
+                      <input name="resolved" type="checkbox" value="1" />
+                      <span>Resolved</span>
                     </label>
                   </div>
                   <label className="sync-engine-field action-items-detail-copy-field">
-                    <span>Update Entry</span>
+                    <span>Dated Memo</span>
                     <textarea
                       className="issues-console-textarea"
                       name="entry_text"
-                      placeholder="Describe what happened next."
+                      placeholder="Record what was checked, repaired, learned, or completed."
+                      required
                       rows={4}
                     />
                   </label>
                   <button className="button" type="submit">
-                    Add Update
+                    Save Memo
                   </button>
                 </form>
               ) : null}
 
               {detailMode === "resolve" ? (
-                <form action={resolveIssueAction} className="action-items-inline-editor">
+                <form action={addIssueUpdateAction} className="action-items-inline-editor">
                   <input name="issue_id" type="hidden" value={selectedIssue.id} />
                   <input name="placement_id" type="hidden" value={selectedIssue.placementContext?.placementId ?? ""} />
+                  <input name="resolved" type="hidden" value="1" />
+                  <input name="effective_date" type="hidden" value={todayIso()} />
                   <label className="sync-engine-field action-items-detail-copy-field">
-                    <span>Resolution Note</span>
+                    <span>Resolution Memo</span>
                     <textarea
                       className="issues-console-textarea"
-                      name="resolution_note"
+                      name="entry_text"
                       placeholder="Describe the completed repair or resolution."
+                      required
                       rows={4}
                     />
                   </label>
+                  <label className="action-items-resolved-checkbox action-items-resolved-checkbox--locked">
+                    <input checked readOnly type="checkbox" />
+                    <span>Resolved</span>
+                  </label>
                   <button className="button" type="submit">
-                    Resolve Item
+                    Save Memo &amp; Resolve
                   </button>
                 </form>
               ) : null}
@@ -793,28 +802,20 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
 
             <aside className="action-items-detail-meta">
               <div className="action-items-detail-meta-row">
-                <span>Entry By:</span>
+                <span>Created By:</span>
                 <strong>{formatActor(selectedIssue.opened_by, userDisplayNameById, selectedIssue)}</strong>
               </div>
               <div className="action-items-detail-meta-row">
-                <span>Date:</span>
-                <strong>{formatShortDate(selectedIssue.reported_log_date ?? selectedIssue.opened_at)}</strong>
+                <span>Created:</span>
+                <strong>{formatDateTime(selectedIssue.opened_at)}</strong>
               </div>
               <div className="action-items-detail-meta-row">
-                <span>Status Change?:</span>
-                <strong>
-                  {detailMode === "resolve"
-                    ? "Resolving Now"
-                    : detailMode === "update"
-                      ? "Updating"
-                      : detailMode === "edit"
-                        ? "Editing"
-                        : formatStatusLabel(selectedIssue.status)}
-                </strong>
+                <span>Updated By:</span>
+                <strong>{formatActor(resolveLatestActorId(selectedIssue), userDisplayNameById, selectedIssue)}</strong>
               </div>
               <div className="action-items-detail-meta-row">
-                <span>Is Resolved?:</span>
-                <strong>{selectedIssue.status === "resolved" ? "Yes" : "No"}</strong>
+                <span>Last Updated:</span>
+                <strong>{formatDateTime(resolveLatestTimestamp(selectedIssue))}</strong>
               </div>
               {detailMode === "detail" || detailMode === "edit" ? (
                 <div className="action-items-detail-meta-row action-items-detail-meta-row--linked">
@@ -880,6 +881,20 @@ function formatShortDate(value: string | null) {
   });
 }
 
+function formatDateTime(value: string | null) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("en-US", {
+    month: "numeric",
+    day: "numeric",
+    year: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Chicago",
+  });
+}
+
 function formatEntryType(value: string | null) {
   switch (value) {
     case "opened":
@@ -898,7 +913,15 @@ function formatEntryType(value: string | null) {
 }
 
 function formatStatusLabel(value: IssueStatus) {
-  return value === "resolved" ? "Closed" : "Open";
+  return value === "resolved" ? "Resolved" : "Open";
+}
+
+function resolveLatestActorId(issue: EnrichedIssue) {
+  return issue.updated_by ?? issue.updates[issue.updates.length - 1]?.created_by ?? issue.opened_by;
+}
+
+function resolveLatestTimestamp(issue: EnrichedIssue) {
+  return issue.updates[issue.updates.length - 1]?.created_at ?? issue.opened_at;
 }
 
 function formatActor(

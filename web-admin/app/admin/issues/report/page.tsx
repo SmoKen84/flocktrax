@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { ActionItemsReportActions } from "@/app/admin/issues/action-items-report-actions";
 import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
 import { getUserAccessBundle } from "@/lib/access-control";
@@ -55,6 +56,8 @@ type EnrichedIssue = IssueRow & {
 };
 
 export default async function ActionItemsReportPage({ searchParams }: ActionItemsReportPageProps) {
+  noStore();
+
   const params = (await searchParams) ?? {};
   const filters = {
     farmId: firstParam(params.farmId),
@@ -206,7 +209,7 @@ export default async function ActionItemsReportPage({ searchParams }: ActionItem
             <strong>{formatWhole(openCount)}</strong>
           </div>
           <div className="action-items-report-summary-card">
-            <span>Completed</span>
+            <span>Resolved</span>
             <strong>{formatWhole(resolvedCount)}</strong>
           </div>
           <div className="action-items-report-summary-card">
@@ -262,13 +265,8 @@ export default async function ActionItemsReportPage({ searchParams }: ActionItem
             {filteredIssues.length > 0 ? (
               <div className="action-items-report-list">
                 {filteredIssues.map((issue) => {
-                  const latestUpdate = issue.updates[issue.updates.length - 1] ?? null;
-                  const secondLine =
-                    formatCompactDetail(
-                      latestUpdate
-                        ? `${formatEntryType(latestUpdate.entry_type)} ${formatText(latestUpdate.entry_text)}`
-                        : issue.description,
-                    ) || "No detail entered yet.";
+                  const problemSummary = formatCompactDetail(resolveIssueProblemSummary(issue)) || "No detail entered yet.";
+                  const followupUpdates = getIssueFollowupUpdates(issue);
 
                   return (
                     <article className="action-items-report-row" data-status={issue.status} key={issue.id}>
@@ -292,7 +290,21 @@ export default async function ActionItemsReportPage({ searchParams }: ActionItem
                           {formatActor(issue.opened_by, userDisplayNameById, issue)}
                         </span>
                       </div>
-                      <p className="action-items-report-row-detail">{secondLine}</p>
+                      <p className="action-items-report-row-detail">{problemSummary}</p>
+                      {issue.status === "open" && followupUpdates.length > 0 ? (
+                        <div className="action-items-report-row-updates">
+                          {followupUpdates.map((update, index) => (
+                            <article className="action-items-report-row-update" key={update.id}>
+                              <div className="action-items-report-row-update-meta">
+                                <strong>{`${index + 1}. ${formatEntryType(update.entry_type)}`}</strong>
+                                <span>{formatDate(update.effective_date ?? update.created_at)}</span>
+                                <span>{formatActor(update.created_by, userDisplayNameById)}</span>
+                              </div>
+                              <p>{formatText(update.entry_text)}</p>
+                            </article>
+                          ))}
+                        </div>
+                      ) : null}
                     </article>
                   );
                 })}
@@ -387,7 +399,7 @@ function formatDateRange(start: string | null, end: string | null) {
 
 function formatStatusFilter(statuses: string[]) {
   if (statuses.length === 0) return "All statuses";
-  return statuses.map((status) => (status === "resolved" ? "Completed" : "Open")).join(", ");
+  return statuses.map((status) => (status === "resolved" ? "Resolved" : "Open")).join(", ");
 }
 
 function buildScopeLabel(
@@ -444,16 +456,15 @@ function formatEntryType(value: string | null) {
     case "resolved":
       return "Resolved";
     case "parts_ordered":
-      return "Parts Ordered";
     case "progress":
-      return "Progress";
+      return "Memo";
     default:
       return "Update";
   }
 }
 
 function formatStatus(value: IssueStatus) {
-  return value === "resolved" ? "Completed" : "Open";
+  return value === "resolved" ? "Resolved" : "Open";
 }
 
 function compareIssuesForSort(left: EnrichedIssue, right: EnrichedIssue, sortBy: IssueSortKey) {
@@ -490,6 +501,17 @@ function formatIssueLocation(issue: EnrichedIssue) {
     issue.placementContext?.placementCode || issue.placementContext?.flockCode,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" / ") : issue.entity_type === "barn" ? "Barn linked" : "Placement linked";
+}
+
+function resolveIssueProblemSummary(issue: EnrichedIssue) {
+  const openingUpdate = issue.updates.find((update) => (update.entry_type ?? "").trim().toLowerCase() === "opened") ?? null;
+  return openingUpdate?.entry_text?.trim() || issue.description?.trim() || "";
+}
+
+function getIssueFollowupUpdates(issue: EnrichedIssue) {
+  const openingUpdateId =
+    issue.updates.find((update) => (update.entry_type ?? "").trim().toLowerCase() === "opened")?.id ?? null;
+  return issue.updates.filter((update) => update.id !== openingUpdateId);
 }
 
 function formatCompactDetail(value: string | null | undefined) {

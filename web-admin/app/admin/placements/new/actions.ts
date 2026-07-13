@@ -852,6 +852,48 @@ export async function updatePlacementAction(formData: FormData) {
     );
   }
 
+  const nextLifecycleStage =
+    canOverridePlacementLifecycleStage && requestedLifecycleStage
+      ? requestedLifecycleStage
+      : currentPlacement.lifecycle_stage;
+
+  if (nextLifecycleStage === "awaiting_arrival") {
+    const { error: makeCurrentError } = await admin.rpc("make_placement_current", {
+      p_placement_id: placementId,
+    });
+
+    if (makeCurrentError) {
+      redirect(
+        buildLocation({
+          mode,
+          farm: farmId,
+          barn: barnId,
+          date: selectedDate || canonicalPrimaryDate,
+          month: month || canonicalPrimaryDate.slice(0, 7),
+          error: makeCurrentError.message,
+        }),
+      );
+    }
+  } else if (nextLifecycleStage === "in_barn_growing") {
+    const { error: arrivalError } = await admin.rpc("mark_chicks_arrived", {
+      p_placement_id: placementId,
+      p_arrival_date: canonicalPrimaryDate,
+    });
+
+    if (arrivalError) {
+      redirect(
+        buildLocation({
+          mode,
+          farm: farmId,
+          barn: barnId,
+          date: selectedDate || canonicalPrimaryDate,
+          month: month || canonicalPrimaryDate.slice(0, 7),
+          error: arrivalError.message,
+        }),
+      );
+    }
+  }
+
   await writeActivityLog(admin, {
     placementId,
     entryType: "functCall",

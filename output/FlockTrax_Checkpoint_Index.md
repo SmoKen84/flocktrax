@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-07-08`
+Updated: `2026-07-12`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -12,6 +12,18 @@ Purpose:
 ### June 2026
 
 ### July 2026
+
+- `2026-07-12`
+  - [FlockTrax_Action_Items_Admin_Rules_And_Report_Polish_Checkpoint_2026-07-12.md](C:\dev\FlockTrax\output\FlockTrax_Action_Items_Admin_Rules_And_Report_Polish_Checkpoint_2026-07-12.md)
+  - detailed admin-synchronization checkpoint covering the settled Open/Resolved append-only memo lifecycle, Barn Item vs Placement Item terminology, hosted audit-trail migration/functions, safe blank create/list state, Action Items Console hero/filter/list polish, corrected Clear Filters behavior, aligned and emphasized report locations, darker item/update blocks, landscape printing with larger type, the exact production-versus-local boundary, and the handoff to mobile Work Orders field testing
+
+- `2026-07-12`
+  - [FlockTrax_Mobile_Work_Orders_1_0_4_Test_Readiness_Checkpoint_2026-07-12.md](C:\dev\FlockTrax\output\FlockTrax_Mobile_Work_Orders_1_0_4_Test_Readiness_Checkpoint_2026-07-12.md)
+  - detailed pre-field-test checkpoint covering the two-mode Barn Care/Work Orders mobile design, farm-scoped Action Item queue and history workflow, hosted `action-items-list` function, completed iOS `1.0.4 (15)` and Android `1.0.4 (9)` builds, iOS TestFlight submission, Android Play credential blocker, verification and test checklist, humidity persistence confirmation, Git/GitHub backlog, and the agreed read-only calendars plus closed-flock performance scope before polish and release
+
+- `2026-07-10`
+  - [FlockTrax_Action_Items_Print_And_S2_Operational_State_Checkpoint_2026-07-10.md](C:\dev\FlockTrax\output\FlockTrax_Action_Items_Print_And_S2_Operational_State_Checkpoint_2026-07-10.md)
+  - detailed implementation + production-deploy checkpoint covering the Action List print nesting fix for open-item update threads, report-route cache/revalidation hardening, the live `319-S2` vs `337-S2` mobile-state mismatch root cause, direct S2 operational-state repair, and the placement-editor lifecycle fix that now reuses authoritative operational RPCs
 
 - `2026-07-08`
   - [FlockTrax_BinSentry_Density_Tools_And_Feed_Projection_Preflight_Checkpoint_2026-07-08.md](C:\dev\FlockTrax\output\FlockTrax_BinSentry_Density_Tools_And_Feed_Projection_Preflight_Checkpoint_2026-07-08.md)
