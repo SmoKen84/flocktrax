@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 
 import { CloseoutReportActions } from "@/app/admin/flock-closeout/closeout-report-actions";
 import { PageHeader } from "@/components/page-header";
+import { getUserAccessBundle } from "@/lib/access-control";
 import { getCloseoutQueueData } from "@/lib/closeout-data";
 import { getFeedTicketFlockReportBundle } from "@/lib/feed-ticket-data";
+import { getFlockHistoryReportBundle, type FlockHistoryActionItem } from "@/lib/flock-history-report";
 
 type CloseoutReportPageProps = {
   params: Promise<{
@@ -37,9 +39,20 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
     closeout.processedHeadFinal ?? closeout.derived.processedHead,
     item.finalHeadCount,
   );
-  const feedReport = await getFeedTicketFlockReportBundle({
-    flockCode: item.placementCode,
-  });
+  const [feedReport, flockHistory, accessBundle] = await Promise.all([
+    getFeedTicketFlockReportBundle({
+      flockCode: item.placementCode,
+    }),
+    getFlockHistoryReportBundle(item.flockId),
+    getUserAccessBundle(),
+  ]);
+  const placementIds = new Set(flockHistory?.placements.map((placement) => placement.placementId) ?? [placementId]);
+  const actionItems = flockHistory
+    ? [...flockHistory.actionItems.placementLinked, ...flockHistory.actionItems.barnLinked]
+        .filter((actionItem) => isActionItemLinkedToFlock(actionItem, placementIds))
+        .sort(compareActionItemsAscending)
+    : [];
+  const userDisplayNameById = new Map(accessBundle.users.map((user) => [user.id, user.displayName]));
 
   return (
     <div className="closeout-report-page">
@@ -52,7 +65,7 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
             <span>{`${item.farmName} | Barn ${item.barnCode}`}</span>
           </>
         }
-        body="Print-ready closeout summary with final closeout state, production metrics, and livehaul results for this placement."
+        body="Print-ready closeout summary with final production metrics, livehaul results, feed activity, and the complete linked Action Item ticket history."
         actions={<CloseoutReportActions />}
       />
 
@@ -366,9 +379,102 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
             </div>
           </div>
         </section>
+
+        <section className="closeout-report-section digital-archive-report-break">
+          <div className="closeout-report-section-header">
+            <div>
+              <p className="eyebrow">Action Items</p>
+              <h2>Linked Work Order History</h2>
+            </div>
+            <p>Open and resolved Action Item tickets linked to this flock, with each dated update retained beneath its original ticket.</p>
+          </div>
+
+          {actionItems.length > 0 ? (
+            <div className="action-items-report-list">
+              {actionItems.map((actionItem) => {
+                const openingUpdate = getOpeningUpdate(actionItem);
+                const followupUpdates = actionItem.updates.filter((update) => update.id !== openingUpdate?.id);
+                const detail = openingUpdate?.entryText?.trim() || actionItem.description?.trim() || "No detail entered yet.";
+
+                return (
+                  <article className="action-items-report-row" data-status={actionItem.status} key={actionItem.id}>
+                    <div className="action-items-report-row-top">
+                      <span className={`action-items-report-row-status action-items-report-row-status--${actionItem.status}`}>
+                        {actionItem.status === "resolved" ? "Resolved" : "Open"}
+                      </span>
+                      <strong className="action-items-report-row-title">{actionItem.title}</strong>
+                      <span className="action-items-report-row-type">{actionItem.issueTypeLabel}</span>
+                      <span className="action-items-report-row-location">
+                        {[item.farmName, `Barn ${actionItem.barnCode}`, actionItem.placementCode].filter(Boolean).join(" / ")}
+                      </span>
+                      <span className="action-items-report-row-date">
+                        {formatShortDate(actionItem.reportedLogDate ?? actionItem.openedAt)}
+                      </span>
+                      <span className="action-items-report-row-opened-by">
+                        {formatActionActor(actionItem.openedBy, userDisplayNameById)}
+                      </span>
+                    </div>
+                    <p className="action-items-report-row-detail">{detail}</p>
+                    {followupUpdates.length > 0 ? (
+                      <div className="action-items-report-row-updates">
+                        {followupUpdates.map((update, index) => (
+                          <article className="action-items-report-row-update" key={update.id}>
+                            <div className="action-items-report-row-update-meta">
+                              <strong>{`${index + 1}. ${formatActionEntryType(update.entryType)}`}</strong>
+                              <span>{formatShortDate(update.effectiveDate ?? update.createdAt)}</span>
+                              <span>{formatActionActor(update.createdBy, userDisplayNameById)}</span>
+                            </div>
+                            <p>{update.entryText?.trim() || "--"}</p>
+                          </article>
+                        ))}
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="helper-banner">No Action Items are linked to this flock.</div>
+          )}
+        </section>
       </section>
     </div>
   );
+}
+
+function isActionItemLinkedToFlock(actionItem: FlockHistoryActionItem, placementIds: Set<string>) {
+  if (actionItem.entityType === "placement") {
+    return placementIds.has(actionItem.entityId);
+  }
+
+  return Boolean(actionItem.relatedPlacementId && placementIds.has(actionItem.relatedPlacementId));
+}
+
+function compareActionItemsAscending(left: FlockHistoryActionItem, right: FlockHistoryActionItem) {
+  const leftDate = left.reportedLogDate ?? left.openedAt ?? "";
+  const rightDate = right.reportedLogDate ?? right.openedAt ?? "";
+  return leftDate.localeCompare(rightDate) || left.title.localeCompare(right.title, undefined, { numeric: true });
+}
+
+function getOpeningUpdate(actionItem: FlockHistoryActionItem) {
+  return actionItem.updates.find((update) => update.entryType?.trim().toLowerCase() === "opened") ?? null;
+}
+
+function formatActionEntryType(value: string | null) {
+  switch (value?.trim().toLowerCase()) {
+    case "resolved":
+      return "Resolved";
+    case "parts_ordered":
+    case "progress":
+      return "Memo";
+    default:
+      return "Update";
+  }
+}
+
+function formatActionActor(value: string | null, userDisplayNameById: Map<string, string>) {
+  if (!value) return "Unknown";
+  return userDisplayNameById.get(value) ?? (value.length > 10 ? `${value.slice(0, 6)}...` : value);
 }
 
 function formatCloseoutStatus(value: string) {

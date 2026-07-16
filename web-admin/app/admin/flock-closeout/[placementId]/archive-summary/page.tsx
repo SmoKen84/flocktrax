@@ -3,10 +3,12 @@ import { Fragment } from "react";
 import { notFound } from "next/navigation";
 
 import { ArchiveSummaryActions } from "@/app/admin/flock-closeout/archive-summary-actions";
+import { LogWeightReportSection } from "@/components/log-weight-report";
 import { PageHeader } from "@/components/page-header";
 import { getCloseoutQueueData } from "@/lib/closeout-data";
 import { getFeedTicketFlockReportBundle } from "@/lib/feed-ticket-data";
 import { getFlockHistoryReportBundle } from "@/lib/flock-history-report";
+import { getPlacementLogWeightReportBundle } from "@/lib/placement-log-weight-report";
 
 type ArchiveSummaryPageProps = {
   params: Promise<{
@@ -18,10 +20,10 @@ export async function generateMetadata({ params }: ArchiveSummaryPageProps): Pro
   const { placementId } = await params;
   const queue = await getCloseoutQueueData({ placement: placementId });
   const item = queue.items.find((entry) => entry.placementId === placementId) ?? null;
-  const placementCode = item?.placementCode ?? "Digital Archive Summary";
+  const placementCode = item?.placementCode ?? "Flock Detail Report";
 
   return {
-    title: `Digital Archive Summary | ${placementCode} | FlockTrax Admin`,
+    title: `Flock Detail Report | ${placementCode} | FlockTrax Admin`,
   };
 }
 
@@ -39,11 +41,12 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
     closeout.processedHeadFinal ?? closeout.derived.processedHead,
     item.finalHeadCount,
   );
-  const [feedReport, flockHistory] = await Promise.all([
+  const [feedReport, flockHistory, weightReport] = await Promise.all([
     getFeedTicketFlockReportBundle({
       flockCode: item.placementCode,
     }),
     getFlockHistoryReportBundle(item.flockId),
+    getPlacementLogWeightReportBundle(placementId),
   ]);
 
   if (!flockHistory) {
@@ -53,7 +56,7 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
   return (
     <>
       <PageHeader
-        eyebrow="Digital Archive Summary"
+        eyebrow="Flock Detail Report"
         title={
           <>
             <span>{item.placementCode}</span>
@@ -61,7 +64,7 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
             <span>{`${item.farmName} | Barn ${item.barnCode}`}</span>
           </>
         }
-        body="Combined print packet for grower settlement support, including closeout summary, first 7-day mortality archive, livehaul/load history, feed activity, and flock history matrices."
+        body="Combined archived flock packet including closeout summary, livehaul/load history, feed activity, weight comparisons, daily logs, and mortality history."
         actions={<ArchiveSummaryActions />}
       />
 
@@ -431,6 +434,16 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
             </div>
           </section>
         </section>
+
+        {weightReport ? (
+          <section className="panel card closeout-report-shell">
+            <LogWeightReportSection
+              bundle={weightReport}
+              description="Active male and female weight samples compared with the placement breed specification for each age day."
+              title="Log Weight Table And Breed-Spec Comparison"
+            />
+          </section>
+        ) : null}
 
         <section className="panel card flock-history-report-shell digital-archive-report-break">
           <div className="flock-history-report-summary-grid">

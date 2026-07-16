@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import {
   archivePlacementCloseoutAction,
   recalculatePlacementCloseoutTotalsAction,
+  saveArchivedCloseoutNotesAction,
   savePlacementCloseoutDraftAction,
   type CloseoutFormState,
 } from "@/app/admin/flock-closeout/actions";
@@ -17,9 +18,12 @@ const INITIAL_STATE: CloseoutFormState = {
   message: "",
 };
 
-export function CloseoutWorksheetForm({ item }: { item: CloseoutQueueItem }) {
+export function CloseoutWorksheetForm({ item, readOnly = false }: { item: CloseoutQueueItem; readOnly?: boolean }) {
   const closeout = item.closeout;
-  const [state, formAction, isPending] = useActionState(savePlacementCloseoutDraftAction, INITIAL_STATE);
+  const [state, formAction, isPending] = useActionState(
+    readOnly ? saveArchivedCloseoutNotesAction : savePlacementCloseoutDraftAction,
+    INITIAL_STATE,
+  );
   const [showFirst7Popup, setShowFirst7Popup] = useState(false);
 
   if (!closeout) {
@@ -36,9 +40,11 @@ export function CloseoutWorksheetForm({ item }: { item: CloseoutQueueItem }) {
       <div className="closeout-worksheet-header">
         <div>
           <p className="eyebrow">Closeout Worksheet</p>
-          <h3 className="closeout-worksheet-title">Finalize Production And Feed</h3>
+          <h3 className="closeout-worksheet-title">{readOnly ? "Archived Production And Feed" : "Finalize Production And Feed"}</h3>
           <p className="table-subtitle">
-            Save the confirmed final birds, final live weight, closeout task checks, and any notes. Feed delivered and breed comparison stay derived around that final closeout record.
+            {readOnly
+              ? "Final birds, live weight, feed totals, and closeout steps are locked. Closeout notes remain available for historical clarification."
+              : "Save the confirmed final birds, final live weight, closeout task checks, and any notes. Feed delivered and breed comparison stay derived around that final closeout record."}
           </p>
         </div>
         <div className="closeout-worksheet-pill-stack">
@@ -63,7 +69,7 @@ export function CloseoutWorksheetForm({ item }: { item: CloseoutQueueItem }) {
         <div className="closeout-worksheet-grid">
           <label className="field">
             <span className="field-label">Processed Head</span>
-            <input defaultValue={toFormValue(closeout.processedHeadFinal)} name="processed_head_final" type="number" />
+            <input defaultValue={toFormValue(closeout.processedHeadFinal)} disabled={readOnly} name="processed_head_final" type="number" />
             <span className="field-hint">
               {`Derived now: ${formatCount(closeout.derived.processedHead)} | Mort calc: ${formatCount(item.finalHeadCount)} | Var: ${formatSignedPercent(processedHeadVariancePercent)}`}
             </span>
@@ -71,7 +77,7 @@ export function CloseoutWorksheetForm({ item }: { item: CloseoutQueueItem }) {
 
           <label className="field">
             <span className="field-label">Live Weight</span>
-            <input defaultValue={toFormValue(closeout.liveWeightFinal)} name="live_weight_final" step="0.01" type="number" />
+            <input defaultValue={toFormValue(closeout.liveWeightFinal)} disabled={readOnly} name="live_weight_final" step="0.01" type="number" />
             <span className="field-hint">{`Derived now: ${formatWeight(closeout.derived.liveWeight)}`}</span>
           </label>
 
@@ -180,33 +186,33 @@ export function CloseoutWorksheetForm({ item }: { item: CloseoutQueueItem }) {
 
           <label className="field closeout-worksheet-field--wide">
             <span className="field-label">Manual Override Reason</span>
-            <input defaultValue={closeout.manualOverrideReason ?? ""} name="manual_override_reason" type="text" />
+            <input defaultValue={closeout.manualOverrideReason ?? ""} disabled={readOnly} name="manual_override_reason" type="text" />
           </label>
 
           <fieldset className="closeout-task-checks" name="closeout_task_checks">
             <legend className="field-label">Closeout Steps</legend>
             <label className="closeout-task-check closeout-task-check--left">
-              <input defaultChecked={closeout.livehaulComplete} name="livehaul_complete" type="checkbox" />
+              <input defaultChecked={closeout.livehaulComplete} disabled={readOnly} name="livehaul_complete" type="checkbox" />
               <span>LH Complete</span>
             </label>
             <label className="closeout-task-check closeout-task-check--left">
-              <input defaultChecked={closeout.feedVerified} name="feed_verified" type="checkbox" />
+              <input defaultChecked={closeout.feedVerified} disabled={readOnly} name="feed_verified" type="checkbox" />
               <span>Feed Verified</span>
             </label>
             <label className="closeout-task-check closeout-task-check--left">
-              <input defaultChecked={closeout.invoiceCreated} name="invoice_created" type="checkbox" />
+              <input defaultChecked={closeout.invoiceCreated} disabled={readOnly} name="invoice_created" type="checkbox" />
               <span>Invoice Created</span>
             </label>
             <label className="closeout-task-check closeout-task-check--right">
-              <input defaultChecked={closeout.submitted} name="submitted" type="checkbox" />
+              <input defaultChecked={closeout.submitted} disabled={readOnly} name="submitted" type="checkbox" />
               <span>Submitted</span>
             </label>
             <label className="closeout-task-check closeout-task-check--right">
-              <input defaultChecked={closeout.settlementReceived} name="settlement_received" type="checkbox" />
+              <input defaultChecked={closeout.settlementReceived} disabled={readOnly} name="settlement_received" type="checkbox" />
               <span>Settlement Received</span>
             </label>
             <label className="closeout-task-check closeout-task-check--right">
-              <input defaultChecked={closeout.closeoutCompleted} name="closeout_completed" type="checkbox" />
+              <input defaultChecked={closeout.closeoutCompleted} disabled={readOnly} name="closeout_completed" type="checkbox" />
               <span>Closeout Complete</span>
             </label>
           </fieldset>
@@ -225,7 +231,7 @@ export function CloseoutWorksheetForm({ item }: { item: CloseoutQueueItem }) {
               </span>
               <div className="closeout-worksheet-feedback-body">
                 <p>{state.message}</p>
-                {state.status === "success" && state.readyToArchive ? (
+                {!readOnly && state.status === "success" && state.readyToArchive ? (
                   <button className="button-secondary" formAction={archivePlacementCloseoutAction} type="submit">
                     Move To Archive
                   </button>
@@ -237,11 +243,13 @@ export function CloseoutWorksheetForm({ item }: { item: CloseoutQueueItem }) {
           )}
 
           <div className="closeout-action-links">
-            <button className="button-secondary" formAction={recalculatePlacementCloseoutTotalsAction} type="submit">
-              Recalculate Totals
-            </button>
+            {!readOnly ? (
+              <button className="button-secondary" formAction={recalculatePlacementCloseoutTotalsAction} type="submit">
+                Recalculate Totals
+              </button>
+            ) : null}
             <button className="button-primary" disabled={isPending} type="submit">
-              {isPending ? "Saving..." : "Save Closeout Draft"}
+              {isPending ? "Saving..." : readOnly ? "Save Closeout Notes" : "Save Closeout Draft"}
             </button>
           </div>
         </div>

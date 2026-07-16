@@ -183,6 +183,7 @@ export type FlockHistoryActionItem = {
   id: string;
   entityType: "barn" | "placement";
   entityId: string;
+  relatedPlacementId: string | null;
   linkedPlacementId: string | null;
   placementCode: string | null;
   barnCode: string;
@@ -502,6 +503,7 @@ export async function getFlockHistoryReportBundle(flockId: string): Promise<Floc
         id: issue.id,
         entityType: issue.entity_type,
         entityId: issue.entity_id,
+        relatedPlacementId: issue.related_placement_id,
         linkedPlacementId: placementContext?.placementId ?? null,
         placementCode: placementContext?.placementCode ?? null,
         barnCode: placementContext?.barnCode ?? barnById.get(issue.entity_id)?.barn_code ?? "Barn",

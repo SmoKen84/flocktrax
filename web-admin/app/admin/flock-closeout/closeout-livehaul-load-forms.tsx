@@ -28,9 +28,11 @@ const INITIAL_STATUS_ACTION_STATE: CloseoutLivehaulStatusFormState = {
 export function CloseoutLivehaulLoadsPanel({
   item,
   livehaul,
+  readOnly = false,
 }: {
   item: CloseoutQueueItem;
   livehaul: CloseoutLivehaulRow;
+  readOnly?: boolean;
 }) {
   const [showCreateRow, setShowCreateRow] = useState(false);
   const totalNetWeight = livehaul.loads.reduce((sum, load) => sum + (load.liveWeight ?? 0), 0);
@@ -49,7 +51,11 @@ export function CloseoutLivehaulLoadsPanel({
           {livehaul.breedAgeDays !== null ? (
             <p className="table-subtitle">{`Bird age on livehaul date: ${livehaul.breedAgeDays}d`}</p>
           ) : null}
-          <CloseoutLivehaulStatusControl item={item} livehaul={livehaul} />
+          {readOnly ? (
+            <span className="status-pill" data-tone="neutral">Archived / Read Only</span>
+          ) : (
+            <CloseoutLivehaulStatusControl item={item} livehaul={livehaul} />
+          )}
         </div>
         <div className="closeout-livehaul-summary">
           <span className="livehaul-summary-pill">
@@ -77,13 +83,15 @@ export function CloseoutLivehaulLoadsPanel({
 
       <div className="closeout-load-header">
         <p className="closeout-load-title">Loads:</p>
-        <button
-          className="button-secondary closeout-load-add-button"
-          onClick={() => setShowCreateRow((current) => !current)}
-          type="button"
-        >
-          {showCreateRow ? "Close" : "+ Add Load"}
-        </button>
+        {!readOnly ? (
+          <button
+            className="button-secondary closeout-load-add-button"
+            onClick={() => setShowCreateRow((current) => !current)}
+            type="button"
+          >
+            {showCreateRow ? "Close" : "+ Add Load"}
+          </button>
+        ) : null}
       </div>
 
       <div className="closeout-load-frame">
@@ -101,7 +109,7 @@ export function CloseoutLivehaulLoadsPanel({
             <span>Act</span>
           </div>
 
-          {showCreateRow ? (
+          {!readOnly && showCreateRow ? (
             <CloseoutLivehaulLoadCreateRow
               item={item}
               livehaul={livehaul}
@@ -110,32 +118,64 @@ export function CloseoutLivehaulLoadsPanel({
           ) : null}
 
           {livehaul.loads.length > 0 ? (
-            livehaul.loads.map((load, index) => (
-              <CloseoutLivehaulLoadEditorRow
-                item={item}
-                key={load.loadId}
-                livehaul={livehaul}
-                load={{
-                  id: load.loadId,
-                  truckNum: load.truckNum ?? "",
-                  trailerNum: load.trailerNum ?? "",
-                  headCount: toFormNumber(load.headCount),
-                  scaleLocation: load.scaleLocation ?? "",
-                  scaleEmpty: toFormNumber(load.scaleEmpty),
-                  scaleLoaded: toFormNumber(load.scaleLoaded),
-                  liveWeight: toFormNumber(load.liveWeight),
-                  comment: load.comment ?? "",
-                  doaCount: toFormNumber(load.doaCount),
-                }}
-                loadIndex={index}
-              />
-            ))
+            livehaul.loads.map((load, index) =>
+              readOnly ? (
+                <CloseoutLivehaulLoadReadOnlyRow key={load.loadId} load={load} loadIndex={index} />
+              ) : (
+                <CloseoutLivehaulLoadEditorRow
+                  item={item}
+                  key={load.loadId}
+                  livehaul={livehaul}
+                  load={{
+                    id: load.loadId,
+                    truckNum: load.truckNum ?? "",
+                    trailerNum: load.trailerNum ?? "",
+                    headCount: toFormNumber(load.headCount),
+                    scaleLocation: load.scaleLocation ?? "",
+                    scaleEmpty: toFormNumber(load.scaleEmpty),
+                    scaleLoaded: toFormNumber(load.scaleLoaded),
+                    liveWeight: toFormNumber(load.liveWeight),
+                    comment: load.comment ?? "",
+                    doaCount: toFormNumber(load.doaCount),
+                  }}
+                  loadIndex={index}
+                />
+              ),
+            )
           ) : (
             <div className="feed-ticket-editor-empty">No loads added yet.</div>
           )}
         </div>
       </div>
     </section>
+  );
+}
+
+function CloseoutLivehaulLoadReadOnlyRow({
+  load,
+  loadIndex,
+}: {
+  load: CloseoutLivehaulRow["loads"][number];
+  loadIndex: number;
+}) {
+  const liveWeight = load.liveWeight ?? Math.max(0, (load.scaleLoaded ?? 0) - (load.scaleEmpty ?? 0));
+  const averageWeight = load.headCount && load.headCount > 0 ? liveWeight / load.headCount : null;
+
+  return (
+    <div className="closeout-load-row-wrap">
+      <div className="closeout-load-row closeout-load-row--readonly">
+        <span className="feed-ticket-editor-ordinal closeout-load-ordinal">{loadIndex + 1}</span>
+        <span>{load.truckNum || "--"}</span>
+        <span>{load.trailerNum || "--"}</span>
+        <span>{formatCount(load.headCount)}</span>
+        <span>{load.scaleLocation || "--"}</span>
+        <span>{formatPlainNumber(load.scaleEmpty)}</span>
+        <span>{formatPlainNumber(load.scaleLoaded)}</span>
+        <span>{averageWeight === null ? formatPlainNumber(liveWeight) : `${formatPlainNumber(liveWeight)} (${averageWeight.toFixed(2)})`}</span>
+        <span>{load.comment || "--"}</span>
+        <span aria-label="Read only">Locked</span>
+      </div>
+    </div>
   );
 }
 
@@ -495,6 +535,11 @@ function formatSignedPercent(value: number | null) {
 function formatWeight(value: number | null) {
   if (value === null || Number.isNaN(value)) return "--";
   return `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} lb`;
+}
+
+function formatPlainNumber(value: number | null) {
+  if (value === null || Number.isNaN(value)) return "--";
+  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
 function deriveVariancePercent(percentOfTarget: number | null) {

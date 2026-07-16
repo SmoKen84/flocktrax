@@ -22,10 +22,13 @@ type CloseoutPlacementPageProps = {
   params: Promise<{
     placementId: string;
   }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function CloseoutPlacementPage({ params }: CloseoutPlacementPageProps) {
+export default async function CloseoutPlacementPage({ params, searchParams }: CloseoutPlacementPageProps) {
   const { placementId } = await params;
+  const query = (await searchParams) ?? {};
+  const openedFromFlocks = firstParam(query.source) === "flocks";
   const queue = await getCloseoutQueueData({ placement: placementId });
   const item = queue.items.find((entry) => entry.placementId === placementId) ?? null;
 
@@ -60,13 +63,18 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
   const closeoutSummary = item.closeout ? closeoutSummaryMap.get(placementId) ?? null : null;
   const livehaulPacketSummary = livehaulPacketSummaryMap.get(placementId) ?? null;
   const miscDocuments = miscDocumentMap.get(placementId) ?? [];
+  const isArchived = item.lifecycleStage === "archived" || item.closeout?.status === "archived";
 
   return (
     <>
       <PageHeader
-        eyebrow="Closeout"
+        eyebrow={isArchived ? "Flock Archive" : "Closeout"}
         title={item.placementCode}
-        body={`Focused closeout workspace for ${item.farmName}, Barn ${item.barnCode}. Enter actual livehaul detail, reconcile what has been done, and then return to the queue when this placement is ready for final submission.`}
+        body={
+          isArchived
+            ? `Complete historical flock record for ${item.farmName}, Barn ${item.barnCode}. Closeout totals and livehaul detail are locked; archived documents remain available and closeout notes may still be updated.`
+            : `Focused closeout workspace for ${item.farmName}, Barn ${item.barnCode}. Enter actual livehaul detail, reconcile what has been done, and then return to the queue when this placement is ready for final submission.`
+        }
         actions={
           <>
             <Link
@@ -83,24 +91,20 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
               rel="noreferrer"
               target="_blank"
             >
-              Save Digital Archive Summary
+              Flock Detail Report
             </Link>
-            <Link className="button-secondary" href={`/admin/placements/${item.placementId}/logs`}>
-              Log Matrix Editor
-            </Link>
-            <Link
-              className="button-secondary"
-              href={`/admin/placements/${item.placementId}/logs/weight-report`}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Log Weight Report
-            </Link>
-            <Link className="button-secondary" href={forceOpenLivehaulHref}>
-              Force Open Livehaul Scheduler
-            </Link>
-            <Link className="button-secondary" href="/admin/flock-closeout">
-              Return To Queue
+            {!isArchived ? (
+              <Link className="button-secondary" href={`/admin/placements/${item.placementId}/logs`}>
+                Log Matrix Editor
+              </Link>
+            ) : null}
+            {!isArchived ? (
+              <Link className="button-secondary" href={forceOpenLivehaulHref}>
+                Force Open Livehaul Scheduler
+              </Link>
+            ) : null}
+            <Link className="button-secondary" href={openedFromFlocks ? `/admin/flocks/${item.flockId}` : "/admin/flock-closeout"}>
+              {openedFromFlocks ? "Return To Flock" : "Return To Queue"}
             </Link>
           </>
         }
@@ -135,6 +139,15 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
       </section>
 
       <section className="closeout-detail-stack">
+        {isArchived ? (
+          <section className="panel card">
+            <div className="placement-scheduler-projection">
+              <span>Archived Flock Record</span>
+              <strong>This placement is preserved as a read-only production record.</strong>
+              <p>Reports and filed documents remain available. Only the closeout notes field below can be updated.</p>
+            </div>
+          </section>
+        ) : null}
         <CloseoutDocumentChecklist
           archiveWarning={archiveWarning}
           closeoutSummary={closeoutSummary}
@@ -145,11 +158,11 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
           placementId={item.placementId}
         />
 
-        <CloseoutWorksheetForm item={item} />
+        <CloseoutWorksheetForm item={item} readOnly={isArchived} />
 
         {item.livehauls.length > 0 ? (
           item.livehauls.map((livehaul) => (
-            <CloseoutLivehaulLoadsPanel item={item} key={livehaul.livehaulId} livehaul={livehaul} />
+            <CloseoutLivehaulLoadsPanel item={item} key={livehaul.livehaulId} livehaul={livehaul} readOnly={isArchived} />
           ))
         ) : (
           <section className="panel card">
@@ -157,11 +170,13 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
               <span>No scheduled livehauls</span>
               <strong>This placement does not yet have livehaul schedule rows available for closeout work.</strong>
               <p>Schedule the livehaul dates first in Placements &gt; Livehaul, then return here to complete the actual closeout detail.</p>
-              <div className="closeout-action-links">
-                <Link className="button" href={forceOpenLivehaulHref}>
-                  Force Open Livehaul Scheduler
-                </Link>
-              </div>
+              {!isArchived ? (
+                <div className="closeout-action-links">
+                  <Link className="button" href={forceOpenLivehaulHref}>
+                    Force Open Livehaul Scheduler
+                  </Link>
+                </div>
+              ) : null}
             </div>
           </section>
         )}
@@ -170,9 +185,14 @@ export default async function CloseoutPlacementPage({ params }: CloseoutPlacemen
   );
 }
 
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? null : value ?? null;
+}
+
 function formatStage(value: string) {
   if (value === "waiting_closeout") return "Waiting Closeout";
   if (value === "closeout_submitted") return "Closeout Submitted";
+  if (value === "archived") return "Archived";
   return "Closeout";
 }
 

@@ -2905,6 +2905,16 @@ tr:last-child td {
   color: #6f573c;
 }
 
+.closeout-load-row--readonly > span:not(.closeout-load-ordinal) {
+  min-height: 2.1rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid rgba(182, 162, 132, 0.32);
+  border-radius: 0.8rem;
+  background: rgba(246, 239, 229, 0.92);
+  color: #5f4c38;
+  overflow-wrap: anywhere;
+}
+
 .closeout-load-row input[type="number"]::-webkit-outer-spin-button,
 .closeout-load-row input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;

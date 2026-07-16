@@ -583,24 +583,14 @@ function PlacementEditorPopup({
 
             <div className="dashboard-placement-editor-actions">
               {canShowHistoryReport ? (
-                <>
-                  <Link
-                    className="tile-action-button tile-action-button--secondary"
-                    href={`/admin/flocks/${placement.flockId}/report`}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    {historyReportLabel}
-                  </Link>
-                  <Link
-                    className="tile-action-button tile-action-button--secondary"
-                    href={`/admin/flocks/${placement.flockId}/report?mode=micro`}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    Micro Archive Copy
-                  </Link>
-                </>
+                <Link
+                  className="tile-action-button tile-action-button--secondary"
+                  href={`/admin/flocks/${placement.flockId}/report`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {historyReportLabel}
+                </Link>
               ) : null}
               <button className="tile-action-button tile-action-button--secondary" disabled={isPending} onClick={onClose} type="button">
                 Cancel

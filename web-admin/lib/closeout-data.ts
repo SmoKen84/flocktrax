@@ -290,16 +290,23 @@ export async function getCloseoutQueueData(filters: CloseoutQueueFilters = {}): 
     throw new Error("Closeout queue could not connect to Supabase.");
   }
 
+  const requestedPlacementId = normalize(filters.placement);
   const stageFilter = normalizeStage(filters.stage);
   const stages: PlacementLifecycleStage[] =
     stageFilter === "all" ? ["waiting_closeout", "closeout_submitted"] : [stageFilter];
 
-  const { data: placementData, error: placementError } = await admin
+  let placementQuery = admin
     .from("placements")
     .select("id,farm_id,barn_id,flock_id,placement_key,lifecycle_stage,date_removed,active_start,created_at")
-    .in("lifecycle_stage", stages)
     .order("date_removed", { ascending: false, nullsFirst: false })
     .order("updated_at", { ascending: false });
+
+  // Direct historical lookups must bypass the active closeout-queue stage filter.
+  placementQuery = requestedPlacementId
+    ? placementQuery.eq("id", requestedPlacementId)
+    : placementQuery.in("lifecycle_stage", stages);
+
+  const { data: placementData, error: placementError } = await placementQuery;
 
   if (placementError) {
     throw new Error(`Closeout placements failed to load: ${placementError.message}`);
@@ -358,8 +365,8 @@ export async function getCloseoutQueueData(filters: CloseoutQueueFilters = {}): 
   const allPlacementCodes = unique(placementRows.map((row) => row.placement_key));
 
   const selectedPlacementIds = unique(
-    normalize(filters.placement)
-      ? placementRows.filter((row) => row.id === normalize(filters.placement)).map((row) => row.id)
+    requestedPlacementId
+      ? placementRows.filter((row) => row.id === requestedPlacementId).map((row) => row.id)
       : [],
   );
 

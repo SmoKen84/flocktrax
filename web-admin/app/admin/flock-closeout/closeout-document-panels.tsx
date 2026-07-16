@@ -410,7 +410,7 @@ function ArchiveUploadModal({
 
           <label className="feed-ticket-doc-field">
             <span>Source</span>
-            <select defaultValue="scanner_pdf" name="source_kind">
+            <select defaultValue="manual_upload" name="source_kind">
               <option value="scanner_pdf">Scanner PDF</option>
               <option value="manual_upload">Manual Upload</option>
               <option value="mobile_camera">Mobile Camera</option>

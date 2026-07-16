@@ -571,7 +571,15 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       supabase
         .from("app_settings")
         .select('group,name,value,updated_at')
-        .in("name", ["age_checkout_avail", "First_LH", "first_lh", "First-LH", "first-lh", "starter_lbs_per_chick"]),
+        .in("name", [
+          "age_checkout_avail",
+          "First_LH",
+          "first_lh",
+          "First-LH",
+          "first-lh",
+          "starter_lbs_per_chick",
+          "company_name",
+        ]),
       supabase
         .from("breeds")
         .select("id,code,breed_name,sex,is_active")
@@ -691,6 +699,15 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       })
       .map((row) => Number.parseFloat(String(row.value ?? "").trim()))
       .find((value) => Number.isFinite(value) && value > 0) ?? 2.5;
+    const integratorCompanyName = appSettingRows
+      .filter(
+        (row) =>
+          String(row.group ?? "").trim().toUpperCase() === "INTEGRATOR" &&
+          String(row.name ?? "").trim().toLowerCase() === "company_name",
+      )
+      .sort((left, right) => String(right.updated_at ?? "").localeCompare(String(left.updated_at ?? "")))
+      .map((row) => String(row.value ?? "").trim())
+      .find(Boolean) ?? "Not set";
 
     const activePlacementsRaw = placementRows.filter((row) =>
       row.lifecycle_stage === "awaiting_arrival" || row.lifecycle_stage === "in_barn_growing"
@@ -741,7 +758,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       id: row.id,
       groupName: row.group_name ?? "Unnamed Group",
       legalName: row.group_name ?? "Unnamed Group",
-      integrator: inferGroupIntegrator(row.id, farmRows, flockRows),
+      integrator: integratorCompanyName,
       homeBase: formatCityState(row.city, row.st),
       farmCount: farmRows.filter((farm) => farm.farm_group_id === row.id).length,
       activePlacements: activePlacementsByGroupId.get(row.id) ?? 0,
@@ -2548,15 +2565,6 @@ function deriveSubmissionStatus(latestLogDate: string | null, today: string): Ac
 
   const diff = daysSince(latestLogDate);
   return diff <= 1 ? "pending" : "attention";
-}
-
-function inferGroupIntegrator(farmGroupId: string, farms: FarmRow[], flocks: FlockRow[]) {
-  const relatedFarmIds = new Set(
-    farms.filter((farm) => farm.farm_group_id === farmGroupId).map((farm) => farm.id),
-  );
-
-  const hasFlocks = flocks.some((flock) => relatedFarmIds.has(flock.farm_id));
-  return hasFlocks ? "Active Grower Group" : "Not set";
 }
 
 function inferFlockIntegrator(farmId: string, farms: FarmRow[], farmGroups: FarmGroupRecord[]) {

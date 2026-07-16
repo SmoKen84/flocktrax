@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { GoBackButton } from "@/components/go-back-button";
 import { PageHeader } from "@/components/page-header";
 import { getFlockById } from "@/lib/admin-data";
 import { getFlockHistoryReportBundle } from "@/lib/flock-history-report";
-import { getAppSettingTextValues } from "@/lib/platform-content";
 
 type FlockDetailPageProps = {
   params: Promise<{ flockId: string }>;
@@ -12,66 +12,50 @@ type FlockDetailPageProps = {
 
 export default async function FlockDetailPage({ params }: FlockDetailPageProps) {
   const { flockId } = await params;
-  const [flock, report, appText] = await Promise.all([
+  const [flock, report] = await Promise.all([
     getFlockById(flockId),
     getFlockHistoryReportBundle(flockId),
-    getAppSettingTextValues(["flock_history_title"]),
   ]);
 
-  if (!flock || !report) {
+  if (!flock || !report || flock.status !== "complete") {
     notFound();
   }
 
-  const historyReportLabel = appText.get("flock_history_title")?.value || "History Report";
   const primaryPlacement = report.placements[0] ?? null;
-  const primaryForceLivehaulHref = primaryPlacement ? buildForceLivehaulHref(primaryPlacement) : null;
+  const archiveLabel = primaryPlacement?.placementCode ?? flock.flockCode;
 
   return (
     <>
       <PageHeader
         eyebrow="Flock Detail"
-        title={`Flock ${flock.flockCode} is the planning source for one or more placements.`}
-        body="This is where admins will eventually maintain flock-specific planning data such as placed date, estimated first live haul, bird counts, and allocation intent."
+        title={`Archived Flock ${archiveLabel}`}
+        body="This flock has been Completed & Archived. To preserve audit continuity; Documents may be attached for reference and Comments/Notes may be updated only. Final flock reports are also available to be reprinted."
         actions={
           <>
-            <Link className="button" href={`/admin/flocks/${flock.id}/report`} rel="noreferrer" target="_blank">
-              {historyReportLabel}
-            </Link>
-            <Link
-              className="button-secondary"
-              href={`/admin/flocks/${flock.id}/report?mode=micro`}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Micro Archive Copy
-            </Link>
-            {primaryForceLivehaulHref ? (
-              <Link className="button" href={primaryForceLivehaulHref as string}>
-                Force Open Livehaul Scheduler
-              </Link>
+            {primaryPlacement ? (
+              <>
+                <Link
+                  className="button"
+                  href={`/admin/flock-closeout/${primaryPlacement.placementId}/report`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Closeout Report
+                </Link>
+                <Link
+                  className="button"
+                  href={`/admin/flock-closeout/${primaryPlacement.placementId}/archive-summary`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Flock Detail Report
+                </Link>
+              </>
             ) : null}
+            <GoBackButton />
           </>
         }
       />
-
-      {primaryPlacement ? (
-        <section className="panel card">
-          <div className="section-header">
-            <div>
-              <p className="eyebrow">Quick Access</p>
-              <h2>Retroactive closeout shortcut</h2>
-            </div>
-            <p className="hero-body">
-              Use this shortcut to open the livehaul scheduler directly for {primaryPlacement.placementCode} and add prior livehaul rows needed for closeout work.
-            </p>
-          </div>
-          <div className="closeout-action-links">
-            <Link className="button" href={primaryForceLivehaulHref as string}>
-              Force Open Livehaul Scheduler For {primaryPlacement.placementCode}
-            </Link>
-          </div>
-        </section>
-      ) : null}
 
       <section className="panel card">
         <div className="section-header">
@@ -111,11 +95,11 @@ export default async function FlockDetailPage({ params }: FlockDetailPageProps) 
       <section className="panel card">
         <div className="section-header">
           <div>
-            <p className="eyebrow">Retroactive Closeout Tools</p>
-            <h2>Force open livehaul scheduler</h2>
+            <p className="eyebrow">Archived Placements</p>
+            <h2>Placement records and documents</h2>
           </div>
           <p className="hero-body">
-            Use this to create or repair livehaul rows for any placement tied to this flock, even when it never showed in the closeout queue.
+            Open a placement record to review its archived details, attach reference documents, or update its comments and notes.
           </p>
         </div>
 
@@ -130,8 +114,11 @@ export default async function FlockDetailPage({ params }: FlockDetailPageProps) 
                   {`Placed ${formatDate(placement.placedDate)} | Removed ${formatDate(placement.removedDate)}`}
                 </p>
                 <div className="closeout-action-links">
-                  <Link className="button" href={buildForceLivehaulHref(placement)}>
-                    Force Open Livehaul Scheduler
+                  <Link
+                    className="button"
+                    href={`/admin/flock-closeout/${placement.placementId}?source=flocks`}
+                  >
+                    Open Full Flock Record
                   </Link>
                 </div>
               </article>
@@ -140,7 +127,7 @@ export default async function FlockDetailPage({ params }: FlockDetailPageProps) 
         ) : (
           <div className="placement-scheduler-projection">
             <span>No placement context available</span>
-            <strong>This flock does not currently expose any placement rows to anchor a livehaul scheduler jump.</strong>
+            <strong>This archived flock does not currently expose any linked placement records.</strong>
           </div>
         )}
       </section>
@@ -157,29 +144,4 @@ function formatDate(value: string | null | undefined) {
     day: "numeric",
     year: "2-digit",
   });
-}
-
-function buildForceLivehaulHref(placement: {
-  placementId: string;
-  farmId: string;
-  barnId: string;
-  placedDate: string | null;
-  projectedEndDate: string | null;
-  removedDate: string | null;
-}) {
-  const anchorDate = placement.removedDate ?? placement.projectedEndDate ?? placement.placedDate;
-  const month = anchorDate ? anchorDate.slice(0, 7) : new Date().toISOString().slice(0, 7);
-  const query = new URLSearchParams();
-  if (placement.farmId) {
-    query.set("farm", placement.farmId);
-  }
-  if (placement.barnId) {
-    query.set("barn", placement.barnId);
-  }
-  query.set("placement", placement.placementId);
-  query.set("month", month);
-  if (anchorDate) {
-    query.set("date", anchorDate);
-  }
-  return `/admin/placements/livehaul?${query.toString()}`;
 }

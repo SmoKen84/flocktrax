@@ -623,24 +623,14 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
 
                   <div className="placement-scheduler-form-actions">
                     {canShowPlacementHistoryReport(selectedPlacement) ? (
-                      <>
-                        <Link
-                          className="button-secondary"
-                          href={`/admin/flocks/${selectedPlacement.flockId}/report`}
-                          rel="noreferrer"
-                          target="_blank"
-                        >
-                          {historyReportLabel}
-                        </Link>
-                        <Link
-                          className="button-secondary"
-                          href={`/admin/flocks/${selectedPlacement.flockId}/report?mode=micro`}
-                          rel="noreferrer"
-                          target="_blank"
-                        >
-                          Micro Archive Copy
-                        </Link>
-                      </>
+                      <Link
+                        className="button-secondary"
+                        href={`/admin/flocks/${selectedPlacement.flockId}/report`}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {historyReportLabel}
+                      </Link>
                     ) : null}
                     <button className="button" type="submit">
                       Save Placement
@@ -1027,24 +1017,14 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
 
               <div className="placement-scheduler-form-actions">
                 {canShowPlacementHistoryReport(selectedPlacement) ? (
-                  <>
-                    <Link
-                      className="button-secondary"
-                      href={`/admin/flocks/${selectedPlacement.flockId}/report`}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      {historyReportLabel}
-                    </Link>
-                    <Link
-                      className="button-secondary"
-                      href={`/admin/flocks/${selectedPlacement.flockId}/report?mode=micro`}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      Micro Archive Copy
-                    </Link>
-                  </>
+                  <Link
+                    className="button-secondary"
+                    href={`/admin/flocks/${selectedPlacement.flockId}/report`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {historyReportLabel}
+                  </Link>
                 ) : null}
                 <button className="button" type="submit">
                   Save Placement

@@ -504,6 +504,17 @@ export async function recalculatePlacementCloseoutTotalsAction(formData: FormDat
     throw new Error("Placement context was incomplete for closeout recalculation.");
   }
 
+  const { data: lockRow, error: lockError } = await admin
+    .from("placement_closeouts")
+    .select("status,archived_at")
+    .eq("placement_id", placementId)
+    .maybeSingle();
+
+  if (lockError) throw new Error(lockError.message);
+  if (lockRow?.status === "archived" || lockRow?.archived_at) {
+    throw new Error("Archived closeout totals are locked.");
+  }
+
   const { data: placementRow, error: placementError } = await admin
     .from("placements")
     .select("id,placement_key")
@@ -614,6 +625,19 @@ export async function saveCloseoutLivehaulStatusAction(
     return { status: "error", message: "Livehaul status details were incomplete." };
   }
 
+  const { data: placement, error: placementError } = await admin
+    .from("placements")
+    .select("lifecycle_stage")
+    .eq("id", placementId)
+    .maybeSingle();
+
+  if (placementError) {
+    return { status: "error", message: placementError.message };
+  }
+  if (placement?.lifecycle_stage === "archived") {
+    return { status: "error", message: "Archived livehaul detail is locked." };
+  }
+
   const allowedStatuses = new Set(["scheduled", "completed", "cancelled"]);
   if (!allowedStatuses.has(nextStatus)) {
     return { status: "error", message: "Livehaul status selection was invalid." };
@@ -661,6 +685,19 @@ export async function savePlacementCloseoutDraftAction(
 
   if (!placementId || !flockId || !farmId || !barnId || !placementCode) {
     return { status: "error", message: "Closeout placement context was incomplete." };
+  }
+
+  const { data: archiveLock, error: archiveLockError } = await admin
+    .from("placement_closeouts")
+    .select("status,archived_at")
+    .eq("placement_id", placementId)
+    .maybeSingle();
+
+  if (archiveLockError) {
+    return { status: "error", message: archiveLockError.message };
+  }
+  if (archiveLock?.status === "archived" || archiveLock?.archived_at) {
+    return { status: "error", message: "Archived closeout totals are locked. Only closeout notes may be updated." };
   }
 
   const processedHeadFinal = coerceNullableNumber(formData.get("processed_head_final"));
@@ -824,6 +861,50 @@ export async function savePlacementCloseoutDraftAction(
       : "Closeout worksheet saved.",
     readyToArchive,
   };
+}
+
+export async function saveArchivedCloseoutNotesAction(
+  _prevState: CloseoutFormState,
+  formData: FormData,
+): Promise<CloseoutFormState> {
+  const admin = createSupabaseAdminClient();
+  const actor = await getActor();
+
+  if (!admin || !actor) {
+    return { status: "error", message: "A signed-in admin user is required to update archived notes." };
+  }
+
+  const placementId = coerce(formData.get("placement_id"));
+  const notes = coerceNullableText(formData.get("notes"));
+  if (!placementId) {
+    return { status: "error", message: "Archived placement context was incomplete." };
+  }
+
+  const { data: closeout, error: closeoutError } = await admin
+    .from("placement_closeouts")
+    .select("status,archived_at")
+    .eq("placement_id", placementId)
+    .maybeSingle();
+
+  if (closeoutError) {
+    return { status: "error", message: closeoutError.message };
+  }
+  if (!closeout || (closeout.status !== "archived" && !closeout.archived_at)) {
+    return { status: "error", message: "This notes-only action is limited to archived closeouts." };
+  }
+
+  const { error } = await admin
+    .from("placement_closeouts")
+    .update({ notes, updated_by: actor.id })
+    .eq("placement_id", placementId);
+
+  if (error) {
+    return { status: "error", message: error.message };
+  }
+
+  revalidatePath(`/admin/flock-closeout/${placementId}`);
+  revalidatePath("/admin/flocks");
+  return { status: "success", message: "Archived closeout notes updated." };
 }
 
 export async function archivePlacementCloseoutAction(formData: FormData) {
