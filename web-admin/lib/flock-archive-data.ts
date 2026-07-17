@@ -135,10 +135,25 @@ export async function getFlockArchiveRecords(): Promise<FlockArchiveRecord[]> {
     ((closeoutResult.data ?? []) as CloseoutRow[]).map((row) => [row.placement_id, row]),
   );
 
-  return flockRows.map((flock) => {
-    const placements = placementRows.filter((row) => row.flock_id === flock.id);
+  return flockRows.flatMap((flock) => {
+    const placements = placementRows.filter((row) => {
+      if (row.flock_id !== flock.id) return false;
+
+      const closeout = closeoutByPlacementId.get(row.id);
+      return (
+        row.lifecycle_stage === "archived" ||
+        closeout?.status === "archived" ||
+        Boolean(closeout?.archived_at) ||
+        Boolean(closeout?.closeout_completed_at)
+      );
+    });
+
+    // A completed planning flock is not an archive record until its placement
+    // has actually completed the closeout workflow.
+    if (placements.length === 0) return [];
+
     const farms = unique(
-      placements.length > 0 ? placements.map((row) => row.farm_id) : [flock.farm_id],
+      placements.map((row) => row.farm_id),
     )
       .map((farmId) => farmById.get(farmId))
       .filter((farm): farm is FarmRow => Boolean(farm));
@@ -157,7 +172,7 @@ export async function getFlockArchiveRecords(): Promise<FlockArchiveRecord[]> {
       return placement.lifecycle_stage === "archived" || closeout?.status === "archived" || Boolean(closeout?.archived_at);
     });
 
-    return {
+    return [{
       id: flock.id,
       flockCode: flock.flock_number?.toString() ?? "Unknown",
       placementCode: placementCodes[0] ?? null,
@@ -177,7 +192,7 @@ export async function getFlockArchiveRecords(): Promise<FlockArchiveRecord[]> {
       femaleCount: flock.start_cnt_females ?? 0,
       maleCount: flock.start_cnt_males ?? 0,
       status: isArchived ? "archived" : "complete",
-    };
+    }];
   });
 }
 
