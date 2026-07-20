@@ -293,6 +293,12 @@ function derivePlacementLifecycle(placement: ActivePlacementRecord) {
         detail: "This flock has completed its operational lifecycle and now lives in history.",
         systemState,
       };
+    case "canceled":
+      return {
+        label: "Canceled",
+        detail: "This flock was canceled before arrival and is retained only for schedule and audit history.",
+        systemState,
+      };
   }
 
   return {

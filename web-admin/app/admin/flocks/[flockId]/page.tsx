@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { GoBackButton } from "@/components/go-back-button";
 import { PageHeader } from "@/components/page-header";
 import { getFlockById } from "@/lib/admin-data";
+import { getFlockArchiveRecords } from "@/lib/flock-archive-data";
 import { getFlockHistoryReportBundle } from "@/lib/flock-history-report";
 
 type FlockDetailPageProps = {
@@ -12,27 +13,32 @@ type FlockDetailPageProps = {
 
 export default async function FlockDetailPage({ params }: FlockDetailPageProps) {
   const { flockId } = await params;
-  const [flock, report] = await Promise.all([
+  const [flock, report, archiveRecords] = await Promise.all([
     getFlockById(flockId),
     getFlockHistoryReportBundle(flockId),
+    getFlockArchiveRecords(),
   ]);
+  const archiveRecord = archiveRecords.find((record) => record.id === flockId) ?? null;
 
-  if (!flock || !report || flock.status !== "complete") {
+  if (!flock || !report || !archiveRecord) {
     notFound();
   }
 
   const primaryPlacement = report.placements[0] ?? null;
   const archiveLabel = primaryPlacement?.placementCode ?? flock.flockCode;
+  const isCanceled = archiveRecord.status === "canceled";
 
   return (
     <>
       <PageHeader
         eyebrow="Flock Detail"
-        title={`Archived Flock ${archiveLabel}`}
-        body="This flock has been Completed & Archived. To preserve audit continuity; Documents may be attached for reference and Comments/Notes may be updated only. Final flock reports are also available to be reprinted."
+        title={`${isCanceled ? "Canceled" : "Archived"} Flock ${archiveLabel}`}
+        body={isCanceled
+          ? "This scheduled flock was canceled before placement. It is retained as a read-only historical record; no closeout, document, or editing actions are available."
+          : "This flock has been Completed & Archived. To preserve audit continuity; Documents may be attached for reference and Comments/Notes may be updated only. Final flock reports are also available to be reprinted."}
         actions={
           <>
-            {primaryPlacement ? (
+            {primaryPlacement && !isCanceled ? (
               <>
                 <Link
                   className="button"
@@ -79,7 +85,7 @@ export default async function FlockDetailPage({ params }: FlockDetailPageProps) 
           </div>
           <div className="detail-item">
             <dt>Status</dt>
-            <dd>{flock.status}</dd>
+            <dd>{isCanceled ? "CANCELED" : archiveRecord.status.toUpperCase()}</dd>
           </div>
           <div className="detail-item">
             <dt>Female Count</dt>
@@ -95,11 +101,13 @@ export default async function FlockDetailPage({ params }: FlockDetailPageProps) 
       <section className="panel card">
         <div className="section-header">
           <div>
-            <p className="eyebrow">Archived Placements</p>
-            <h2>Placement records and documents</h2>
+            <p className="eyebrow">{isCanceled ? "Canceled Placement" : "Archived Placements"}</p>
+            <h2>{isCanceled ? "Read-only scheduling record" : "Placement records and documents"}</h2>
           </div>
           <p className="hero-body">
-            Open a placement record to review its archived details, attach reference documents, or update its comments and notes.
+            {isCanceled
+              ? "The original scheduling details are preserved below for historical reference."
+              : "Open a placement record to review its archived details, attach reference documents, or update its comments and notes."}
           </p>
         </div>
 
@@ -113,14 +121,16 @@ export default async function FlockDetailPage({ params }: FlockDetailPageProps) 
                 <p className="table-subtitle">
                   {`Placed ${formatDate(placement.placedDate)} | Removed ${formatDate(placement.removedDate)}`}
                 </p>
-                <div className="closeout-action-links">
-                  <Link
-                    className="button"
-                    href={`/admin/flock-closeout/${placement.placementId}?source=flocks`}
-                  >
-                    Open Full Flock Record
-                  </Link>
-                </div>
+                {!isCanceled ? (
+                  <div className="closeout-action-links">
+                    <Link
+                      className="button"
+                      href={`/admin/flock-closeout/${placement.placementId}?source=flocks`}
+                    >
+                      Open Full Flock Record
+                    </Link>
+                  </div>
+                ) : null}
               </article>
             ))}
           </div>

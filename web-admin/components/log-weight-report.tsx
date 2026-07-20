@@ -64,7 +64,7 @@ export function LogWeightReportSection({
               <th>StdDev</th>
               <th>Procure</th>
               <th>Spec Wt</th>
-              <th>% Spec</th>
+              <th>Breed Spec %</th>
               <th>Delta</th>
               <th>Feed/Bird</th>
               <th>Sample Note</th>

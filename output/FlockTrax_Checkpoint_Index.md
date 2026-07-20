@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-07-13`
+Updated: `2026-07-17`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -9,9 +9,11 @@ Purpose:
 
 ## Chronological Index
 
-### June 2026
-
 ### July 2026
+
+- `2026-07-17`
+  - [FlockTrax_Admin_2_1_0_Flock_Archive_And_Closeout_Production_Checkpoint_2026-07-17.md](C:\dev\FlockTrax\output\FlockTrax_Admin_2_1_0_Flock_Archive_And_Closeout_Production_Checkpoint_2026-07-17.md)
+  - authoritative admin `2.1.0` production checkpoint covering release commit `9b1c033`, archive-filter hotfix/baseline `a4638e5`, hosted build `10` / label `5.7`, Vercel deployment `dpl_GbDLveXxx5SHqgesP8GPPi9gn76h`, archived-flock filters and read-only detail rules, consolidated Flock Detail and Closeout reports, linked Action Item histories, document behavior, the resolved release-label/code deployment mismatch, verified seven-record hosted archive set, validation gates, and exact resume guidance
 
 - `2026-07-13`
   - [FlockTrax_Mobile_1_0_5_Production_Release_Checkpoint_2026-07-13.md](C:\dev\FlockTrax\output\FlockTrax_Mobile_1_0_5_Production_Release_Checkpoint_2026-07-13.md)

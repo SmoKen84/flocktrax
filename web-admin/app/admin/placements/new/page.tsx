@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
-import { deleteScheduledPlacementAction, juggleScheduledPlacementAction, updatePlacementAction } from "@/app/admin/placements/new/actions";
+import { cancelScheduledPlacementAction, deleteScheduledPlacementAction, updatePlacementAction } from "@/app/admin/placements/new/actions";
+import { CancelScheduledPlacementControl } from "@/app/admin/placements/new/cancel-scheduled-placement-control";
 import { PlacementMonthPicker } from "@/app/admin/placements/new/placement-month-picker";
 import { SchedulePlacementForm } from "@/app/admin/placements/new/schedule-placement-form";
 import { SchedulerFilters } from "@/app/admin/placements/new/scheduler-filters";
@@ -225,15 +226,20 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
         ? windows.find((window) => selectedDate === window.startDate) ?? null
         : windows.find((window) => selectedDate >= window.startDate && selectedDate <= window.endDate) ?? null
       : null);
+  const canCancelSelectedPlacement = Boolean(
+    selectedPlacement &&
+      !selectedPlacement.flockIsInBarn &&
+      !selectedPlacement.actualEndDate &&
+      (selectedPlacement.lifecycleStage === "scheduled" || selectedPlacement.lifecycleStage === "awaiting_arrival"),
+  );
+  const selectedPlacementIsCanceled = selectedPlacement?.lifecycleStage === "canceled";
   const canDeleteSelectedPlacement = Boolean(
-    selectedPlacement && !selectedPlacement.flockIsInBarn && !selectedPlacement.actualEndDate,
+    canCancelSelectedPlacement &&
+      selectedPlacement &&
+      selectedPlacement.feedDropCount === 0 &&
+      selectedPlacement.feedOrderCount === 0,
   );
-  const canJuggleSelectedPlacement = Boolean(
-    selectedPlacement && !selectedPlacement.flockIsInBarn && !selectedPlacement.actualEndDate,
-  );
-  const forceJuggleForKnownCanceledPlacement = selectedPlacement?.placementCode === "310-W5";
-  const showJuggleSection = canJuggleSelectedPlacement || forceJuggleForKnownCanceledPlacement;
-  const jugglePlacementOptions = selectedPlacement
+  const cancellationTargets = selectedPlacement
     ? bundle.farms
         .flatMap((farm) =>
           (bundle.barnsByFarmId[farm.id] ?? []).flatMap((barn) =>
@@ -246,18 +252,27 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
         )
         .filter(
           (window) =>
-            window.id !== selectedPlacement.id &&
-            !window.isComplete &&
-            !window.actualEndDate &&
-            !window.flockIsInBarn,
+             window.id !== selectedPlacement.id &&
+             window.startDate > selectedPlacement.startDate &&
+             !window.actualEndDate &&
+            !window.flockIsInBarn &&
+            (window.lifecycleStage === "scheduled" || window.lifecycleStage === "awaiting_arrival") &&
+            (selectedPlacement.feedDropCount === 0 || window.barnId === selectedPlacement.barnId),
         )
         .sort(
-          (left, right) =>
-            left.farmName.localeCompare(right.farmName) ||
-            left.barnCode.localeCompare(right.barnCode, undefined, { numeric: true }) ||
-            left.startDate.localeCompare(right.startDate),
+          (left, right) => {
+            const leftRank = getCancellationTargetRank(selectedPlacement, left);
+            const rightRank = getCancellationTargetRank(selectedPlacement, right);
+            return (
+              leftRank - rightRank ||
+              left.startDate.localeCompare(right.startDate) ||
+              left.farmName.localeCompare(right.farmName) ||
+              left.barnCode.localeCompare(right.barnCode, undefined, { numeric: true })
+            );
+          },
         )
     : [];
+  const suggestedCancellationTargetId = cancellationTargets[0]?.id ?? null;
   const todayIso = new Date().toISOString().slice(0, 10);
   const selectedDateIsPast = Boolean(selectedDate && selectedDate < todayIso);
   const canCreateForSelectedDate = Boolean(selectedBarn && selectedDate && (!selectedDateIsPast || allowHistoricalEntry));
@@ -352,16 +367,19 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                             <span
                               className="placement-scheduler-board-code"
                               data-active={item.isActive}
+                              data-canceled={item.lifecycleStage === "canceled"}
                               data-tone={item.tone}
                               data-selected={selectedBarn?.id === item.barnId && selectedDate === day.date}
                               key={item.id}
                             >
-                              {item.placementCode}
+                              <strong>{item.placementCode}</strong>
+                              {item.lifecycleStage === "canceled" ? <small>Canceled</small> : null}
                             </span>
                           ) : (
                             <Link
                               className="placement-scheduler-board-code"
                               data-active={item.isActive}
+                              data-canceled={item.lifecycleStage === "canceled"}
                               data-tone={item.tone}
                               data-selected={selectedBarn?.id === item.barnId && selectedDate === day.date}
                               href={buildHref({
@@ -373,7 +391,8 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                               })}
                               key={item.id}
                             >
-                              {item.placementCode}
+                              <strong>{item.placementCode}</strong>
+                              {item.lifecycleStage === "canceled" ? <small>Canceled</small> : null}
                             </Link>
                           ),
                         )}
@@ -434,8 +453,14 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                     {day.items.length > 0 || day.secondaryArrivals.length > 0 ? (
                       <div className="placement-scheduler-day-stack">
                         {day.items.slice(0, 2).map((item) => (
-                          <span className="placement-scheduler-day-pill" data-active={item.isActive} data-tone={item.tone} key={item.id}>
-                            {item.placementCode}
+                          <span
+                            className="placement-scheduler-day-pill"
+                            data-active={item.isActive}
+                            data-canceled={item.lifecycleStage === "canceled"}
+                            data-tone={item.tone}
+                            key={item.id}
+                          >
+                            {item.lifecycleStage === "canceled" ? `${item.placementCode} | Canceled` : item.placementCode}
                           </span>
                         ))}
                         {day.items.length > 2 ? <span className="placement-scheduler-day-more">+{day.items.length - 2}</span> : null}
@@ -509,7 +534,9 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                   <input name="month" type="hidden" value={selectedMonth} />
 
                   <div className="helper-banner">
-                    {`Editing ${selectedPlacement.placementCode} from the farm board. You can update counts, flock dates, and actual live-haul dates without leaving this calendar.`}
+                    {selectedPlacementIsCanceled
+                      ? `${selectedPlacement.placementCode} was canceled and is retained here as a read-only scheduling record.`
+                      : `Editing ${selectedPlacement.placementCode} from the farm board. You can update counts, flock dates, and actual live-haul dates without leaving this calendar.`}
                   </div>
 
                   <div className="form-grid">
@@ -535,7 +562,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                       <span>Date Removed</span>
                       <input defaultValue={selectedPlacement.actualEndDate ?? ""} name="date_removed" type="date" />
                     </label>
-                    {canManagePlacementState ? (
+                    {canManagePlacementState && selectedPlacement.lifecycleStage !== "canceled" ? (
                       <label className="field">
                         <span>Placement State</span>
                         <select defaultValue={getEditablePlacementLifecycleStage(selectedPlacement)} name="placement_lifecycle_stage">
@@ -632,9 +659,23 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                         {historyReportLabel}
                       </Link>
                     ) : null}
-                    <button className="button" type="submit">
-                      Save Placement
-                    </button>
+                    {!selectedPlacementIsCanceled ? (
+                      <button className="button" type="submit">
+                        Save Placement
+                      </button>
+                    ) : null}
+                    {canCancelSelectedPlacement ? (
+                      <CancelScheduledPlacementControl
+                        action={cancelScheduledPlacementAction}
+                        feedDropCount={selectedPlacement.feedDropCount}
+                        feedDropLbs={selectedPlacement.feedDropLbs}
+                        feedOrderCount={selectedPlacement.feedOrderCount}
+                        feedOrderLbs={selectedPlacement.feedOrderLbs}
+                        placementCode={selectedPlacement.placementCode}
+                        suggestedTargetId={suggestedCancellationTargetId}
+                        targets={cancellationTargets}
+                      />
+                    ) : null}
                     {canDeleteSelectedPlacement ? (
                       <button
                         className="button button-ghost"
@@ -704,7 +745,9 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
               <input name="month" type="hidden" value={selectedMonth} />
 
               <div className="helper-banner">
-                {`This flock is still scheduled for a future barn turn. Use the scheduler fields below to move the planned date or adjust the projected grow-out window before the flock goes live.`}
+                {selectedPlacementIsCanceled
+                  ? `${selectedPlacement.placementCode} was canceled and is retained here as a read-only scheduling record.`
+                  : "This flock is still scheduled for a future barn turn. Use the scheduler fields below to move the planned date or adjust the projected grow-out window before the flock goes live."}
               </div>
 
               <div className="form-grid">
@@ -730,7 +773,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                   <span>Date Removed</span>
                   <input defaultValue={selectedPlacement.actualEndDate ?? ""} name="date_removed" type="date" />
                 </label>
-                {canManagePlacementState ? (
+                {canManagePlacementState && selectedPlacement.lifecycleStage !== "canceled" ? (
                   <label className="field">
                     <span>Placement State</span>
                     <select defaultValue={getEditablePlacementLifecycleStage(selectedPlacement)} name="placement_lifecycle_stage">
@@ -816,46 +859,28 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                 </p>
               </div>
 
-              {showJuggleSection ? (
-                <div className="placement-scheduler-projection">
-                  <span>Cancel And Juggle</span>
-                  <strong>Move a replacement flock into this barn slot</strong>
-                  <p>
-                    Use this when the integrator cancels the scheduled flock after feed has already been delivered. The replacement flock will take over this barn slot and the delivered feed will transfer with it.
-                  </p>
-                  {jugglePlacementOptions.length > 0 ? (
-                    <div className="placement-scheduler-inline-form">
-                      <label className="field">
-                        <span>Replacement Flock</span>
-                        <select defaultValue="" name="target_placement_id">
-                          <option value="">Select replacement flock</option>
-                          {jugglePlacementOptions.map((window) => (
-                            <option key={`juggle-${window.id}`} value={window.id}>
-                              {`${window.placementCode} · ${window.farmName} · Barn ${window.barnCode} · ${window.startDate}`}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <button className="button button-ghost" formAction={juggleScheduledPlacementAction} type="submit">
-                        Cancel And Transfer Feed
-                      </button>
-                    </div>
-                  ) : (
-                    <p>No replacement flock options are currently available for transfer.</p>
-                  )}
-                </div>
+              {!selectedPlacementIsCanceled ? (
+                <button className="button" type="submit">
+                  Update Scheduled Placement
+                </button>
               ) : null}
-
-              <button className="button" type="submit">
-                Update Scheduled Placement
-              </button>
-              <button
-                className="button button-ghost"
-                formAction={deleteScheduledPlacementAction}
-                type="submit"
-              >
-                Delete Scheduled Flock
-              </button>
+              {canCancelSelectedPlacement ? (
+                <CancelScheduledPlacementControl
+                  action={cancelScheduledPlacementAction}
+                  feedDropCount={selectedPlacement.feedDropCount}
+                  feedDropLbs={selectedPlacement.feedDropLbs}
+                  feedOrderCount={selectedPlacement.feedOrderCount}
+                  feedOrderLbs={selectedPlacement.feedOrderLbs}
+                  placementCode={selectedPlacement.placementCode}
+                  suggestedTargetId={suggestedCancellationTargetId}
+                  targets={cancellationTargets}
+                />
+              ) : null}
+              {canDeleteSelectedPlacement ? (
+                <button className="button button-ghost" formAction={deleteScheduledPlacementAction} type="submit">
+                  Delete Scheduled Flock
+                </button>
+              ) : null}
             </form>
           ) : selectedPlacement ? (
             <form action={updatePlacementAction} className="placement-scheduler-form" key={`placement-edit-${selectedPlacement.id}`}>
@@ -869,7 +894,9 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
               <input name="month" type="hidden" value={selectedMonth} />
 
               <div className="helper-banner">
-                {`Editing ${selectedPlacement.placementCode} in barn ${selectedBarn?.barnCode ?? ""}. Use this panel to update the flock profile, schedule dates, and live-haul dates.`}
+                {selectedPlacementIsCanceled
+                  ? `${selectedPlacement.placementCode} was canceled and is retained here as a read-only scheduling record.`
+                  : `Editing ${selectedPlacement.placementCode} in barn ${selectedBarn?.barnCode ?? ""}. Use this panel to update the flock profile, schedule dates, and live-haul dates.`}
               </div>
 
               <div className="form-grid">
@@ -895,7 +922,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                   <span>Date Removed</span>
                   <input defaultValue={selectedPlacement.actualEndDate ?? ""} name="date_removed" type="date" />
                 </label>
-                {canManagePlacementState ? (
+                {canManagePlacementState && selectedPlacement.lifecycleStage !== "canceled" ? (
                   <label className="field">
                     <span>Placement State</span>
                     <select defaultValue={getEditablePlacementLifecycleStage(selectedPlacement)} name="placement_lifecycle_stage">
@@ -977,43 +1004,15 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                 <span>Placement Editor</span>
                 <strong>{selectedPlacement.placementCode}</strong>
                 <p>
-                  This placement is currently {selectedPlacement.flockIsInBarn || selectedPlacement.isActive
-                    ? "live in the barn"
-                    : selectedPlacement.isFuture
-                      ? "scheduled for a future barn turn"
-                      : "awaiting barn arrival or pending cancellation"}.
+                  This placement is currently {selectedPlacementIsCanceled
+                    ? "canceled and retained for audit history"
+                    : selectedPlacement.flockIsInBarn || selectedPlacement.isActive
+                      ? "live in the barn"
+                      : selectedPlacement.isFuture
+                        ? "scheduled for a future barn turn"
+                        : "awaiting barn arrival or pending cancellation"}.
                 </p>
               </div>
-
-              {showJuggleSection ? (
-                <div className="placement-scheduler-projection">
-                  <span>Cancel And Juggle</span>
-                  <strong>Move a replacement flock into this barn slot</strong>
-                  <p>
-                    If this flock was canceled before arrival but already has delivered feed tied to it, select the replacement flock here and transfer that feed into the replacement slot.
-                  </p>
-                  {jugglePlacementOptions.length > 0 ? (
-                    <div className="placement-scheduler-inline-form">
-                      <label className="field">
-                        <span>Replacement Flock</span>
-                        <select defaultValue="" name="target_placement_id">
-                          <option value="">Select replacement flock</option>
-                          {jugglePlacementOptions.map((window) => (
-                            <option key={`juggle-${window.id}`} value={window.id}>
-                              {`${window.placementCode} · ${window.farmName} · Barn ${window.barnCode} · ${window.startDate}`}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <button className="button button-ghost" formAction={juggleScheduledPlacementAction} type="submit">
-                        Cancel And Transfer Feed
-                      </button>
-                    </div>
-                  ) : (
-                    <p>No replacement flock options are currently available for transfer.</p>
-                  )}
-                </div>
-              ) : null}
 
               <div className="placement-scheduler-form-actions">
                 {canShowPlacementHistoryReport(selectedPlacement) ? (
@@ -1026,9 +1025,23 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                     {historyReportLabel}
                   </Link>
                 ) : null}
-                <button className="button" type="submit">
-                  Save Placement
-                </button>
+                {!selectedPlacementIsCanceled ? (
+                  <button className="button" type="submit">
+                    Save Placement
+                  </button>
+                ) : null}
+                {canCancelSelectedPlacement ? (
+                  <CancelScheduledPlacementControl
+                    action={cancelScheduledPlacementAction}
+                    feedDropCount={selectedPlacement.feedDropCount}
+                    feedDropLbs={selectedPlacement.feedDropLbs}
+                    feedOrderCount={selectedPlacement.feedOrderCount}
+                    feedOrderLbs={selectedPlacement.feedOrderLbs}
+                    placementCode={selectedPlacement.placementCode}
+                    suggestedTargetId={suggestedCancellationTargetId}
+                    targets={cancellationTargets}
+                  />
+                ) : null}
                 {canDeleteSelectedPlacement ? (
                   <button
                     className="button button-ghost"
@@ -1131,6 +1144,11 @@ type CalendarWindow = {
   lh2Date?: string | null;
   lh3Date?: string | null;
   isFuture?: boolean;
+  lifecycleStage?: string | null;
+  feedDropCount?: number;
+  feedDropLbs?: number;
+  feedOrderCount?: number;
+  feedOrderLbs?: number;
   tone?: number;
 };
 
@@ -1145,6 +1163,8 @@ type SecondaryArrivalBadge = {
 function buildSecondaryArrivalBadges(window: CalendarWindow) {
   const badges: SecondaryArrivalBadge[] = [];
   const arrivalMap = new Map<string, number>();
+
+  if (window.lifecycleStage === "canceled") return badges;
 
   if (window.femalePlacedDate && window.femalePlacedDate > window.startDate && (window.femaleCount ?? 0) > 0) {
     arrivalMap.set(window.femalePlacedDate, (arrivalMap.get(window.femalePlacedDate) ?? 0) + (window.femaleCount ?? 0));
@@ -1184,7 +1204,11 @@ function buildCalendar(month: string, windows: CalendarWindow[], selectedDate: s
     const date = new Date(firstGridDay);
     date.setUTCDate(firstGridDay.getUTCDate() + index);
     const iso = date.toISOString().slice(0, 10);
-    const items = tonedWindows.filter((window) => iso >= window.startDate && iso <= window.endDate);
+    const items = tonedWindows.filter((window) =>
+      window.lifecycleStage === "canceled"
+        ? iso === window.startDate
+        : iso >= window.startDate && iso <= window.endDate,
+    );
     const secondaryArrivals = tonedWindows.flatMap((window) => buildSecondaryArrivalBadges(window).filter((badge) => badge.id.endsWith(iso)));
     const hasLiveHaulScheduled = items.some(
       (item) => item.lh1Date === iso || item.lh2Date === iso || item.lh3Date === iso,
@@ -1308,11 +1332,13 @@ function formatShortDate(dateString: string | null | undefined) {
 }
 
 function getPlacementStateLabel(window: {
+  lifecycleStage?: string | null;
   isFuture?: boolean;
   isComplete?: boolean;
   isActive?: boolean;
   flockIsInBarn?: boolean;
 }) {
+  if (window.lifecycleStage === "canceled") return "Canceled";
   if (window.isComplete) return "Closed";
   if (window.isActive || window.flockIsInBarn) return "Active";
   if (window.isFuture) return "Scheduled";
@@ -1320,11 +1346,13 @@ function getPlacementStateLabel(window: {
 }
 
 function getPlacementStateTone(window: {
+  lifecycleStage?: string | null;
   isFuture?: boolean;
   isComplete?: boolean;
   isActive?: boolean;
   flockIsInBarn?: boolean;
 }) {
+  if (window.lifecycleStage === "canceled") return "canceled";
   if (window.isComplete) return "closed";
   if (window.isActive || window.flockIsInBarn) return "active";
   if (window.isFuture) return "scheduled";
@@ -1379,4 +1407,17 @@ function allowsGlobalSchedulerScope(roleKey: string | null) {
     normalized.includes("grower") ||
     normalized.includes("group")
   );
+}
+
+function getCancellationTargetRank(
+  source: { barnId: string; farmId: string; startDate: string },
+  target: { barnId: string; farmId: string; startDate: string },
+) {
+  const isLater = target.startDate > source.startDate;
+  if (target.barnId === source.barnId && isLater) return 0;
+  if (target.farmId === source.farmId && isLater) return 1;
+  if (isLater) return 2;
+  if (target.barnId === source.barnId) return 3;
+  if (target.farmId === source.farmId) return 4;
+  return 5;
 }

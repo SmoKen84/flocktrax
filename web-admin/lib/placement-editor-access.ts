@@ -290,6 +290,14 @@ export function buildPlacementLogEditorAccess(
     };
   }
 
+  if (placement.lifecycleStage === "canceled") {
+    return {
+      canOpen: false,
+      canView: true,
+      message: "Canceled placements are retained for audit history and cannot be edited.",
+    };
+  }
+
   if (!canUseCloseoutLogEditor(actor)) {
     return {
       canOpen: false,

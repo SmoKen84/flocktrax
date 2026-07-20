@@ -20,6 +20,7 @@ type PlacementRow = {
   placement_key: string | null;
   lifecycle_stage: string | null;
   date_removed: string | null;
+  canceled_at: string | null;
   created_at: string | null;
 };
 
@@ -62,7 +63,7 @@ export type FlockArchiveRecord = {
   estimatedFirstCatch: string;
   femaleCount: number;
   maleCount: number;
-  status: "complete" | "archived";
+  status: "complete" | "archived" | "canceled";
 };
 
 export async function getFlockArchiveRecords(): Promise<FlockArchiveRecord[]> {
@@ -73,12 +74,17 @@ export async function getFlockArchiveRecords(): Promise<FlockArchiveRecord[]> {
     throw new Error("Flock archive could not connect to Supabase.");
   }
 
-  const [flockResult, integratorResult] = await Promise.all([
+  const [completedFlockResult, canceledPlacementResult, integratorResult] = await Promise.all([
     admin
       .from("flocks")
       .select("id,farm_id,flock_number,date_placed,max_date,start_cnt_females,start_cnt_males")
       .eq("is_complete", true)
       .order("date_placed", { ascending: false }),
+    admin
+      .from("placements")
+      .select("id,flock_id,farm_id,barn_id,placement_key,lifecycle_stage,date_removed,canceled_at,created_at")
+      .eq("lifecycle_stage", "canceled")
+      .order("created_at", { ascending: true }),
     admin
       .from("app_settings")
       .select("value,updated_at")
@@ -87,15 +93,32 @@ export async function getFlockArchiveRecords(): Promise<FlockArchiveRecord[]> {
       .order("updated_at", { ascending: false }),
   ]);
 
-  if (flockResult.error) throw new Error(`Archived flocks failed to load: ${flockResult.error.message}`);
+  if (completedFlockResult.error) throw new Error(`Archived flocks failed to load: ${completedFlockResult.error.message}`);
+  if (canceledPlacementResult.error) throw new Error(`Canceled flocks failed to load: ${canceledPlacementResult.error.message}`);
   if (integratorResult.error) throw new Error(`Integrator setting failed to load: ${integratorResult.error.message}`);
 
-  const flockRows = (flockResult.data ?? []) as FlockRow[];
+  const completedFlockRows = (completedFlockResult.data ?? []) as FlockRow[];
+  const canceledPlacementRows = (canceledPlacementResult.data ?? []) as PlacementRow[];
+  const completedFlockIds = new Set(completedFlockRows.map((row) => row.id));
+  const additionalCanceledFlockIds = unique(
+    canceledPlacementRows.map((row) => row.flock_id).filter((id) => !completedFlockIds.has(id)),
+  );
+  const canceledFlockResult = additionalCanceledFlockIds.length
+    ? await admin
+        .from("flocks")
+        .select("id,farm_id,flock_number,date_placed,max_date,start_cnt_females,start_cnt_males")
+        .in("id", additionalCanceledFlockIds)
+        .order("date_placed", { ascending: false })
+    : { data: [], error: null };
+
+  if (canceledFlockResult.error) throw new Error(`Canceled flock profiles failed to load: ${canceledFlockResult.error.message}`);
+
+  const flockRows = [...completedFlockRows, ...((canceledFlockResult.data ?? []) as FlockRow[])];
   const flockIds = flockRows.map((row) => row.id);
   const placementResult = flockIds.length
     ? await admin
         .from("placements")
-        .select("id,flock_id,farm_id,barn_id,placement_key,lifecycle_stage,date_removed,created_at")
+        .select("id,flock_id,farm_id,barn_id,placement_key,lifecycle_stage,date_removed,canceled_at,created_at")
         .in("flock_id", flockIds)
         .order("created_at", { ascending: true })
     : { data: [], error: null };
@@ -142,14 +165,14 @@ export async function getFlockArchiveRecords(): Promise<FlockArchiveRecord[]> {
       const closeout = closeoutByPlacementId.get(row.id);
       return (
         row.lifecycle_stage === "archived" ||
+        row.lifecycle_stage === "canceled" ||
         closeout?.status === "archived" ||
         Boolean(closeout?.archived_at) ||
         Boolean(closeout?.closeout_completed_at)
       );
     });
 
-    // A completed planning flock is not an archive record until its placement
-    // has actually completed the closeout workflow.
+    // Planning flocks enter this historical view only after closeout or cancellation.
     if (placements.length === 0) return [];
 
     const farms = unique(
@@ -163,7 +186,7 @@ export async function getFlockArchiveRecords(): Promise<FlockArchiveRecord[]> {
     const closeDates = placements
       .map((placement) => {
         const closeout = closeoutByPlacementId.get(placement.id);
-        return closeout?.archived_at ?? closeout?.closeout_completed_at ?? placement.date_removed;
+        return placement.canceled_at ?? closeout?.archived_at ?? closeout?.closeout_completed_at ?? placement.date_removed;
       })
       .filter((value): value is string => Boolean(value))
       .sort();
@@ -171,6 +194,7 @@ export async function getFlockArchiveRecords(): Promise<FlockArchiveRecord[]> {
       const closeout = closeoutByPlacementId.get(placement.id);
       return placement.lifecycle_stage === "archived" || closeout?.status === "archived" || Boolean(closeout?.archived_at);
     });
+    const isCanceled = placements.some((placement) => placement.lifecycle_stage === "canceled");
 
     return [{
       id: flock.id,
@@ -191,7 +215,7 @@ export async function getFlockArchiveRecords(): Promise<FlockArchiveRecord[]> {
       estimatedFirstCatch: flock.max_date ?? "",
       femaleCount: flock.start_cnt_females ?? 0,
       maleCount: flock.start_cnt_males ?? 0,
-      status: isArchived ? "archived" : "complete",
+      status: isCanceled ? "canceled" : isArchived ? "archived" : "complete",
     }];
   });
 }

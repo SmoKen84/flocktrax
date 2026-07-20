@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { GoBackButton } from "@/components/go-back-button";
 import { PageHeader } from "@/components/page-header";
 import { getFlockArchiveRecords } from "@/lib/flock-archive-data";
 import { getPlatformScreenTextValues } from "@/lib/platform-content";
@@ -34,10 +35,10 @@ export default async function FlocksPage({ searchParams }: FlocksPageProps) {
   const heroTitle = screenText.get("archive_flocks_title") || "Flock Archive";
   const heroBody =
     screenText.get("archive_flocks_desc") ||
-    "This archive keeps completed flock history available without mixing it into the live scheduling workflow.";
+    "This archive keeps completed and canceled flock history available without mixing it into the live scheduling workflow.";
   const filterBody =
     screenText.get("archive_flocks_filter") ||
-    "Narrow completed flock history by placement, operating location, placed month, or closeout month.";
+    "Narrow completed or canceled flock history by placement, operating location, placed month, or closeout month.";
 
   const visibleFlocks = archiveRecords.slice().sort((left, right) => {
     const leftDate = left.placedDate || "";
@@ -91,7 +92,7 @@ export default async function FlocksPage({ searchParams }: FlocksPageProps) {
 
   return (
     <>
-      <PageHeader eyebrow="Flocks" title={heroTitle} body={heroBody} />
+      <PageHeader eyebrow="Flocks" title={heroTitle} body={heroBody} actions={<GoBackButton />} />
 
       <section className="panel table-card">
         <div className="flock-archive-shell-top">
@@ -155,7 +156,7 @@ export default async function FlocksPage({ searchParams }: FlocksPageProps) {
                 <th>Flock</th>
                 <th>Integrator</th>
                 <th>Placed</th>
-                <th>Closed</th>
+                <th>Closed / Canceled</th>
                 <th>Bird Count</th>
                 <th>Status</th>
               </tr>
@@ -193,7 +194,7 @@ export default async function FlocksPage({ searchParams }: FlocksPageProps) {
 
         <div className="flock-archive-pagination">
           <p className="flock-archive-pagination-copy">
-            Page {safePage} of {totalPages} · {totalCount} archived flocks
+            Page {safePage} of {totalPages} · {totalCount} historical flocks
           </p>
           <div className="flock-archive-pagination-actions">
             {safePage > 1 ? (
@@ -280,6 +281,7 @@ function formatArchiveDate(value: string) {
 }
 
 function formatStatusLabel(value: string) {
+  if (value === "canceled") return "CANCELED";
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 

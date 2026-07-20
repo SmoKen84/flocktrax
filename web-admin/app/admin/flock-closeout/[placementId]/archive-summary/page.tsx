@@ -3,9 +3,11 @@ import { Fragment } from "react";
 import { notFound } from "next/navigation";
 
 import { ArchiveSummaryActions } from "@/app/admin/flock-closeout/archive-summary-actions";
+import { FlockDocumentReportSection } from "@/components/flock-document-report";
 import { LogWeightReportSection } from "@/components/log-weight-report";
 import { PageHeader } from "@/components/page-header";
 import { getCloseoutQueueData } from "@/lib/closeout-data";
+import { getFlockDocumentInventory } from "@/lib/document-archive";
 import { getFeedTicketFlockReportBundle } from "@/lib/feed-ticket-data";
 import { getFlockHistoryReportBundle } from "@/lib/flock-history-report";
 import { getPlacementLogWeightReportBundle } from "@/lib/placement-log-weight-report";
@@ -52,6 +54,12 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
   if (!flockHistory) {
     notFound();
   }
+  const flockDocuments = await getFlockDocumentInventory({
+    placementIds: flockHistory.placements.map((placement) => placement.placementId),
+    feedTicketIds: feedReport.rows.map((row) => row.ticketId),
+    livehaulScheduleIds: item.livehauls.map((livehaul) => livehaul.livehaulId),
+    livehaulLoadIds: item.livehauls.flatMap((livehaul) => livehaul.loads.map((load) => load.loadId)),
+  });
 
   return (
     <>
@@ -433,6 +441,10 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
               </div>
             </div>
           </section>
+        </section>
+
+        <section className="panel card closeout-report-shell">
+          <FlockDocumentReportSection documents={flockDocuments} />
         </section>
 
         {weightReport ? (

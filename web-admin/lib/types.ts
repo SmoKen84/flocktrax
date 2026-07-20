@@ -100,7 +100,8 @@ export type PlacementLifecycleStage =
   | "in_barn_growing"
   | "waiting_closeout"
   | "closeout_submitted"
-  | "archived";
+  | "archived"
+  | "canceled";
 
 export type ActivityLogRecord = {
   id: string;

@@ -285,7 +285,8 @@ export async function schedulePlacementAction(formData: FormData) {
     admin
       .from("placements")
       .select("id,flock_id,date_removed,placement_key,active_start,active_end")
-      .eq("barn_id", barnId),
+      .eq("barn_id", barnId)
+      .neq("lifecycle_stage", "canceled"),
     submittedGrowOutDays ? Promise.resolve(submittedGrowOutDays) : getSchedulerGrowOutDaysDefault(admin),
   ]);
 
@@ -525,6 +526,7 @@ export async function updatePlacementAction(formData: FormData) {
     | "waiting_closeout"
     | "closeout_submitted"
     | "archived"
+    | "canceled"
     | null;
 
   if (!farmId || !barnId || !placementId || !flockId || !datePlaced || !flockNumber) {
@@ -569,6 +571,20 @@ export async function updatePlacementAction(formData: FormData) {
           currentPlacementResult.error?.message ??
           currentFlockResult.error?.message ??
           "The current placement could not be loaded for update.",
+      }),
+    );
+  }
+
+  if (currentPlacement.lifecycle_stage === "canceled") {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || currentFlock.date_placed || currentPlacement.active_start || null,
+        month: month || currentFlock.date_placed?.slice(0, 7) || currentPlacement.active_start?.slice(0, 7) || null,
+        error: "Canceled placements are retained for audit history and cannot be edited.",
       }),
     );
   }
@@ -696,7 +712,12 @@ export async function updatePlacementAction(formData: FormData) {
 
   const [duplicateFlockResult, placementsResult] = await Promise.all([
     admin.from("flocks").select("id", { head: true, count: "exact" }).eq("farm_id", farmId).eq("flock_number", flockNumber).neq("id", flockId),
-    admin.from("placements").select("id,flock_id,date_removed,placement_key,active_start,active_end").eq("barn_id", barnId).neq("id", placementId),
+    admin
+      .from("placements")
+      .select("id,flock_id,date_removed,placement_key,active_start,active_end")
+      .eq("barn_id", barnId)
+      .neq("id", placementId)
+      .neq("lifecycle_stage", "canceled"),
   ]);
 
   if (duplicateFlockResult.error || placementsResult.error) {
@@ -971,7 +992,7 @@ export async function deleteScheduledPlacementAction(formData: FormData) {
     await Promise.all([
       admin
         .from("placements")
-        .select("id,farm_id,barn_id,flock_id,is_active,date_removed,active_start,active_end,placement_key")
+        .select("id,farm_id,barn_id,flock_id,is_active,lifecycle_stage,date_removed,active_start,active_end,placement_key")
         .eq("id", placementId)
         .maybeSingle(),
       admin.from("flocks").select("id,farm_id,flock_number,date_placed,max_date,is_active,is_in_barn").eq("id", flockId).maybeSingle(),
@@ -1015,7 +1036,12 @@ export async function deleteScheduledPlacementAction(formData: FormData) {
   const todayIso = new Date().toISOString().slice(0, 10);
   const startDate = coerceNullableDate(placement.active_start as unknown as FormDataEntryValue | null) || flock.date_placed;
 
-  if (!startDate || flock.is_in_barn || placement.date_removed) {
+  if (
+    !startDate ||
+    flock.is_in_barn ||
+    placement.date_removed ||
+    !["scheduled", "awaiting_arrival"].includes(placement.lifecycle_stage)
+  ) {
     redirect(
       buildLocation({
         mode,
@@ -1137,6 +1163,120 @@ export async function deleteScheduledPlacementAction(formData: FormData) {
   );
 }
 
+export async function cancelScheduledPlacementAction(formData: FormData) {
+  const { admin, actorId, actorName, actorRole } = await getAdminContext();
+  if (!canSchedulePlacements(actorRole)) {
+    redirect(buildLocation({ error: "Only authorized admin accounts can cancel scheduled placements." }));
+  }
+
+  if (!actorId) {
+    redirect(buildLocation({ error: "A signed-in user is required to cancel a scheduled placement." }));
+  }
+
+  const mode = coerce(formData.get("mode")) || "blocked";
+  const farmId = coerce(formData.get("farm_id"));
+  const barnId = coerce(formData.get("barn_id"));
+  const placementId = coerce(formData.get("placement_id"));
+  const flockId = coerce(formData.get("flock_id"));
+  const selectedDate = coerce(formData.get("selected_date"));
+  const month = coerce(formData.get("month"));
+  const targetPlacementId = coerce(formData.get("cancel_target_placement_id")) || null;
+
+  if (!farmId || !barnId || !placementId || !flockId) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId || null,
+        barn: barnId || null,
+        placement: placementId || null,
+        date: selectedDate || null,
+        month: month || null,
+        error: "Placement cancellation is missing its placement or flock reference.",
+      }),
+    );
+  }
+
+  const cancellationResult = await admin.rpc("cancel_scheduled_placement", {
+    p_source_placement_id: placementId,
+    p_target_placement_id: targetPlacementId,
+    p_actor_id: actorId,
+  });
+
+  if (cancellationResult.error) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || null,
+        month: month || selectedDate?.slice(0, 7) || null,
+        error: cancellationResult.error.message,
+      }),
+    );
+  }
+
+  const result = (cancellationResult.data ?? {}) as {
+    source_placement_key?: string | null;
+    source_flock_id?: string | null;
+    target_placement_id?: string | null;
+    target_placement_key?: string | null;
+    feed_drop_count?: number | null;
+    feed_drop_lbs?: number | null;
+    queued_feed_drop_count?: number | null;
+    queued_feed_drop_lbs?: number | null;
+    feed_order_count?: number | null;
+    feed_order_lbs?: number | null;
+  };
+  const feedDropCount = (result.feed_drop_count ?? 0) + (result.queued_feed_drop_count ?? 0);
+  const feedDropLbs = (result.feed_drop_lbs ?? 0) + (result.queued_feed_drop_lbs ?? 0);
+  const feedOrderCount = result.feed_order_count ?? 0;
+  const feedOrderLbs = result.feed_order_lbs ?? 0;
+  const sourcePlacementKey = result.source_placement_key ?? placementId;
+
+  await writeActivityLog(admin, {
+    placementId,
+    entryType: "functCall",
+    actionKey: "cancelScheduledPlacementAction",
+    details: result.target_placement_key
+      ? `Canceled scheduled flock ${sourcePlacementKey} and reassigned its feed to ${result.target_placement_key}.`
+      : `Canceled scheduled flock ${sourcePlacementKey} with no feed reassignment required.`,
+    source: "web-admin.placement_wizard",
+    actorUserId: actorId,
+    actorName,
+    farmId,
+    barnId,
+    flockId,
+    meta: {
+      target_placement_id: result.target_placement_id ?? null,
+      target_placement_key: result.target_placement_key ?? null,
+      transferred_feed_drop_count: feedDropCount,
+      transferred_feed_drop_lbs: feedDropLbs,
+      transferred_feed_order_count: feedOrderCount,
+      transferred_feed_order_lbs: feedOrderLbs,
+    },
+  });
+
+  revalidatePath("/admin/placements/new");
+  revalidatePath("/admin/overview");
+  revalidatePath("/admin/feed-tickets");
+  revalidatePath("/admin/reports/feed-projection");
+  revalidatePath("/admin/reports/feed-projection-custom");
+  redirect(
+    buildLocation({
+      mode,
+      farm: farmId,
+      barn: barnId,
+      placement: placementId,
+      date: selectedDate || null,
+      month: month || selectedDate?.slice(0, 7) || null,
+      notice: result.target_placement_key
+        ? `Canceled ${sourcePlacementKey}. Associated feed was moved to ${result.target_placement_key}.`
+        : `Canceled ${sourcePlacementKey}. No associated feed required reassignment.`,
+    }),
+  );
+}
+
 export async function juggleScheduledPlacementAction(formData: FormData) {
   const { admin, actorId, actorName, actorRole } = await getAdminContext();
   if (!canSchedulePlacements(actorRole)) {
@@ -1236,7 +1376,11 @@ export async function juggleScheduledPlacementAction(formData: FormData) {
     );
   }
 
-  if (sourceFlock.is_in_barn || sourcePlacement.date_removed) {
+  if (
+    sourceFlock.is_in_barn ||
+    sourcePlacement.date_removed ||
+    !["scheduled", "awaiting_arrival"].includes(sourcePlacement.lifecycle_stage)
+  ) {
     redirect(
       buildLocation({
         mode,
@@ -1323,7 +1467,12 @@ export async function juggleScheduledPlacementAction(formData: FormData) {
     admin.from("log_mortality").select("id", { head: true, count: "exact" }).eq("placement_id", targetPlacementId),
     admin.from("log_weight").select("id", { head: true, count: "exact" }).eq("placement_id", targetPlacementId),
     admin.from("feed_drops").select("id", { head: true, count: "exact" }).eq("placement_id", targetPlacementId),
-    admin.from("placements").select("id,flock_id,date_removed,active_start,active_end").eq("barn_id", barnId).neq("id", placementId),
+    admin
+      .from("placements")
+      .select("id,flock_id,date_removed,active_start,active_end")
+      .eq("barn_id", barnId)
+      .neq("id", placementId)
+      .neq("lifecycle_stage", "canceled"),
     admin.from("flocks").select("id", { head: true, count: "exact" }).eq("farm_id", farmId).eq("flock_number", sourceFlock.flock_number ?? -1).neq("id", targetFlockId),
   ]);
 

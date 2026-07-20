@@ -166,7 +166,6 @@ export async function getPlacementLogWeightReportBundle(
       ? admin
           .from("stdbreedspec")
           .select("breedid,geneticname,age,dayfeedperbird,targetweight,note")
-          .in("breedid", breedIds)
           .eq("is_active", true)
       : Promise.resolve({ data: [], error: null }),
   ]);
@@ -177,15 +176,7 @@ export async function getPlacementLogWeightReportBundle(
   }
 
   const breedById = new Map(((breedResult.data ?? []) as BreedRow[]).map((row) => [row.id, row]));
-  const breedSpecByAgeAndBreed = new Map<string, BreedSpecRow>();
-  for (const row of (breedSpecResult.data ?? []) as BreedSpecRow[]) {
-    const breedId = normalizeText(row.breedid);
-    if (!breedId || row.age === null) continue;
-    const key = `${breedId}:${row.age}`;
-    if (!breedSpecByAgeAndBreed.has(key)) {
-      breedSpecByAgeAndBreed.set(key, row);
-    }
-  }
+  const breedSpecs = (breedSpecResult.data ?? []) as BreedSpecRow[];
 
   const rows = ((weightResult.data ?? []) as WeightLogRow[])
     .map((row) => {
@@ -194,8 +185,7 @@ export async function getPlacementLogWeightReportBundle(
       const breedId =
         normalizedSex === "male" ? flock?.breed_males ?? null : normalizedSex === "female" ? flock?.breed_females ?? null : null;
       const breed = breedId ? breedById.get(breedId) ?? null : null;
-      const benchmark =
-        breedId && ageDays !== null ? breedSpecByAgeAndBreed.get(`${normalizeText(breedId)}:${ageDays}`) ?? null : null;
+      const benchmark = ageDays !== null ? resolveBreedSpecForAge(breed, normalizedSex, ageDays, breedSpecs) : null;
       const benchmarkTargetWeight = benchmark?.targetweight ?? null;
       const benchmarkDayFeedPerBird = benchmark?.dayfeedperbird ?? null;
       const benchmarkNote = benchmark?.note ?? null;
@@ -258,6 +248,54 @@ export async function getPlacementLogWeightReportBundle(
     latestMaleRow,
     latestFemaleRow,
   };
+}
+
+function resolveBreedSpecForAge(
+  breed: BreedRow | null,
+  sampleSex: PlacementLogWeightReportRow["sex"],
+  ageDays: number,
+  specs: BreedSpecRow[],
+) {
+  const breedName = normalizeText(breed?.breed_name).toLowerCase();
+  if (!breedName) return null;
+
+  const expectedSex = normalizeWeightSex(breed?.sex ?? sampleSex);
+  const nameMatches = specs.filter((spec) => normalizeText(spec.geneticname).toLowerCase() === breedName && spec.age !== null);
+  const sexMatches = nameMatches.filter((spec) => normalizeWeightSex(spec.breedid) === expectedSex);
+  const candidates = (sexMatches.length > 0 ? sexMatches : nameMatches)
+    .slice()
+    .sort((left, right) => (left.age ?? 0) - (right.age ?? 0));
+
+  if (candidates.length === 0) return null;
+  const exact = candidates.find((spec) => spec.age === ageDays);
+  if (exact) return exact;
+
+  const lower = [...candidates].reverse().find((spec) => (spec.age ?? Number.NEGATIVE_INFINITY) < ageDays) ?? null;
+  const upper = candidates.find((spec) => (spec.age ?? Number.POSITIVE_INFINITY) > ageDays) ?? null;
+  if (!lower) return upper;
+  if (!upper) return lower;
+
+  const lowerAge = lower.age ?? ageDays;
+  const upperAge = upper.age ?? ageDays;
+  const span = upperAge - lowerAge;
+  if (span <= 0) return lower;
+  const position = (ageDays - lowerAge) / span;
+
+  return {
+    breedid: lower.breedid ?? upper.breedid,
+    geneticname: lower.geneticname ?? upper.geneticname,
+    age: ageDays,
+    dayfeedperbird: interpolateMetric(lower.dayfeedperbird, upper.dayfeedperbird, position),
+    targetweight: interpolateMetric(lower.targetweight, upper.targetweight, position),
+    note: `Interpolated from breed-spec days ${lowerAge} and ${upperAge}.`,
+  } satisfies BreedSpecRow;
+}
+
+function interpolateMetric(lower: number | null, upper: number | null, position: number) {
+  if (lower !== null && upper !== null && Number.isFinite(lower) && Number.isFinite(upper)) {
+    return lower + (upper - lower) * position;
+  }
+  return lower ?? upper;
 }
 
 function normalizeText(value: string | null | undefined) {

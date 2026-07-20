@@ -42,6 +42,10 @@ export type PlacementSchedulerWindow = {
   lh1Date: string | null;
   lh2Date: string | null;
   lh3Date: string | null;
+  feedDropCount: number;
+  feedDropLbs: number;
+  feedOrderCount: number;
+  feedOrderLbs: number;
 };
 
 export type PlacementSchedulerSettings = {
@@ -140,6 +144,18 @@ type BreedSpecRow = {
   geneticname: string | null;
   breedid: string | null;
   is_active: boolean | null;
+};
+
+type FeedDropRow = {
+  placement_id: string | null;
+  queued_from_placement_id: string | null;
+  drop_weight: number | null;
+};
+
+type FeedOrderCommitmentRow = {
+  placement_id: string | null;
+  ordered_lbs: number | null;
+  received_lbs: number | null;
 };
 
 function normalize(value: string | null | undefined) {
@@ -249,6 +265,41 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
   });
   const flockRows = (flocksResult.data ?? []) as FlockRow[];
   const placementRows = (placementsResult.data ?? []) as PlacementRow[];
+  const placementIds = placementRows.map((row) => row.id);
+  const [directFeedDropsResult, queuedFeedDropsResult, feedOrdersResult] = placementIds.length
+    ? await Promise.all([
+        supabase
+          .from("feed_drops")
+          .select("placement_id,queued_from_placement_id,drop_weight")
+          .in("placement_id", placementIds),
+        supabase
+          .from("feed_drops")
+          .select("placement_id,queued_from_placement_id,drop_weight")
+          .in("queued_from_placement_id", placementIds),
+        supabase
+          .from("feed_order_commitments")
+          .select("placement_id,ordered_lbs,received_lbs")
+          .in("placement_id", placementIds)
+          .neq("status", "cancelled"),
+      ])
+    : [
+        { data: [], error: null },
+        { data: [], error: null },
+        { data: [], error: null },
+      ];
+
+  if (directFeedDropsResult.error || queuedFeedDropsResult.error || feedOrdersResult.error) {
+    throw new Error(
+      directFeedDropsResult.error?.message ??
+        queuedFeedDropsResult.error?.message ??
+        feedOrdersResult.error?.message ??
+        "Placement feed associations could not be loaded.",
+    );
+  }
+
+  const directFeedDropRows = (directFeedDropsResult.data ?? []) as FeedDropRow[];
+  const queuedFeedDropRows = (queuedFeedDropsResult.data ?? []) as FeedDropRow[];
+  const feedOrderRows = (feedOrdersResult.data ?? []) as FeedOrderCommitmentRow[];
   const platformSettingRows = (platformSettingsResult.data ?? []) as PlatformSettingRow[];
   const appSettingRows = (appSettingsResult.data ?? []) as AppSettingRow[];
   const breedRows = (breedsResult.data ?? []) as BreedRow[];
@@ -373,7 +424,13 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
     const flockIsInBarn = flock?.is_in_barn === true;
     const isFuture = startDate > today;
     const isActive = row.is_active !== false && !row.date_removed && flockIsInBarn;
-    const isComplete = !!row.date_removed || flock?.is_complete === true || (!isActive && projectedEnd < today);
+    const isCanceled = row.lifecycle_stage === "canceled";
+    const isComplete = !isCanceled && (!!row.date_removed || flock?.is_complete === true || (!isActive && projectedEnd < today));
+    const directFeedDrops = directFeedDropRows.filter((drop) => drop.placement_id === row.id);
+    const queuedFeedDrops = queuedFeedDropRows.filter(
+      (drop) => drop.queued_from_placement_id === row.id && drop.placement_id !== row.id,
+    );
+    const feedOrders = feedOrderRows.filter((order) => order.placement_id === row.id);
     const window: PlacementSchedulerWindow = {
       id: row.id,
       barnId: row.barn_id,
@@ -402,6 +459,16 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
       lh1Date: normalize(row.lh1_date) || null,
       lh2Date: normalize(row.lh2_date) || null,
       lh3Date: normalize(row.lh3_date) || null,
+      feedDropCount: directFeedDrops.length + queuedFeedDrops.length,
+      feedDropLbs: [...directFeedDrops, ...queuedFeedDrops].reduce(
+        (sum, drop) => sum + Math.abs(drop.drop_weight ?? 0),
+        0,
+      ),
+      feedOrderCount: feedOrders.length,
+      feedOrderLbs: feedOrders.reduce(
+        (sum, order) => sum + Math.max((order.ordered_lbs ?? 0) - (order.received_lbs ?? 0), 0),
+        0,
+      ),
     };
 
     acc[row.barn_id] ??= [];
@@ -411,7 +478,9 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
 
   const recommendedStartByBarnId = Object.fromEntries(
     Object.entries(windowsByBarnId).map(([barnId, windows]) => {
-      const latestPredictedStart = windows.reduce((latest, window) => maxDate(latest, addDays(window.startDate, nextPlaceOffsetDays)), today);
+      const latestPredictedStart = windows
+        .filter((window) => window.lifecycleStage !== "canceled")
+        .reduce((latest, window) => maxDate(latest, addDays(window.startDate, nextPlaceOffsetDays)), today);
       return [barnId, latestPredictedStart];
     }),
   );

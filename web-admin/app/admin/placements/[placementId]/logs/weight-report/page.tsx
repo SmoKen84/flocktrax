@@ -69,7 +69,7 @@ export default async function PlacementWeightReportPage({ params }: PlacementWei
       <section className="panel card closeout-report-shell">
         <LogWeightReportSection
           bundle={bundle}
-          description="Each active male and female weight sample is matched to the placement breed's active `stdbreedspec` target for the same age day."
+          description="Each active male and female weight sample is matched to the placement breed's active specification by genetic name, sex, and age day."
           title="Log Weight Table And Breed-Spec Comparison"
         />
       </section>

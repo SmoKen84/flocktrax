@@ -4394,6 +4394,12 @@ tr:last-child td {
   color: #356b47;
 }
 
+.placement-scheduler-day-pill[data-canceled="true"] {
+  background: rgba(176, 72, 66, 0.16);
+  color: #8f3934;
+  text-decoration: line-through;
+}
+
 .placement-scheduler-board-code {
   display: block;
   padding: 8px 10px;
@@ -4419,6 +4425,24 @@ tr:last-child td {
 
 .placement-scheduler-board-code[data-active="true"] {
   color: #356b47;
+}
+
+.placement-scheduler-board-code[data-canceled="true"] {
+  display: grid;
+  gap: 2px;
+  background: rgba(176, 72, 66, 0.13);
+  color: #8f3934;
+}
+
+.placement-scheduler-board-code[data-canceled="true"] strong {
+  text-decoration: line-through;
+}
+
+.placement-scheduler-board-code[data-canceled="true"] small {
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .placement-scheduler-board-code[data-selected="true"] {
@@ -4521,6 +4545,156 @@ tr:last-child td {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.placement-cancel-open {
+  border-color: rgba(150, 66, 66, 0.28);
+  color: #8f3934;
+}
+
+.placement-cancel-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(40, 32, 25, 0.38);
+  backdrop-filter: blur(9px);
+}
+
+.placement-cancel-panel {
+  display: grid;
+  gap: 16px;
+  width: min(680px, 100%);
+  max-height: min(88vh, 860px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid rgba(150, 66, 66, 0.2);
+  border-radius: 22px;
+  background:
+    linear-gradient(145deg, rgba(255, 252, 247, 0.99), rgba(247, 238, 225, 0.97)),
+    radial-gradient(circle at top right, rgba(176, 72, 66, 0.12), transparent 38%);
+  box-shadow: 0 30px 90px rgba(48, 41, 29, 0.24);
+}
+
+.placement-cancel-header,
+.placement-cancel-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.placement-cancel-header h3 {
+  margin: 2px 0 0;
+  color: #25374f;
+  font-size: 1.75rem;
+}
+
+.placement-cancel-warning,
+.placement-cancel-clear,
+.placement-cancel-blocked {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 15px;
+}
+
+.placement-cancel-warning {
+  border: 1px solid rgba(190, 128, 67, 0.24);
+  background: rgba(250, 241, 215, 0.86);
+  color: #6f5222;
+}
+
+.placement-cancel-clear {
+  border: 1px solid rgba(77, 141, 90, 0.22);
+  background: rgba(236, 246, 239, 0.9);
+  color: #335f3d;
+}
+
+.placement-cancel-blocked {
+  border: 1px solid rgba(150, 66, 66, 0.22);
+  background: rgba(253, 239, 235, 0.92);
+  color: #8f3934;
+  line-height: 1.45;
+}
+
+.placement-cancel-warning p,
+.placement-cancel-clear p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.placement-cancel-feed-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.placement-cancel-feed-grid div {
+  display: grid;
+  gap: 4px;
+  padding: 13px 14px;
+  border: 1px solid rgba(49, 67, 51, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.placement-cancel-feed-grid span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.placement-cancel-feed-grid strong {
+  color: #25374f;
+  font-size: 1rem;
+}
+
+.placement-cancel-panel .field small {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.placement-cancel-actions {
+  align-items: center;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.placement-cancel-confirm {
+  background: #9b453d;
+  border-color: #9b453d;
+}
+
+.placement-cancel-confirm:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+@media (max-width: 620px) {
+  .placement-cancel-shell {
+    align-items: end;
+    padding: 10px;
+  }
+
+  .placement-cancel-panel {
+    padding: 18px;
+    border-radius: 20px 20px 12px 12px;
+  }
+
+  .placement-cancel-feed-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .placement-cancel-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
 }
 
 .placement-scheduler-window-list {
@@ -4641,6 +4815,12 @@ tr:last-child td {
 .placement-scheduler-recap-link[data-state="interim"] {
   background: rgba(216, 177, 92, 0.18);
   border-color: rgba(179, 135, 48, 0.2);
+}
+
+.placement-scheduler-recap-link[data-state="canceled"] {
+  background: rgba(176, 72, 66, 0.13);
+  border-color: rgba(150, 66, 66, 0.2);
+  color: #8f3934;
 }
 
 .placement-scheduler-recap-link:hover {

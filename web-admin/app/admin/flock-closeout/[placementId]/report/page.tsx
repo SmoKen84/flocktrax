@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { CloseoutReportActions } from "@/app/admin/flock-closeout/closeout-report-actions";
+import { FlockDocumentReportSection } from "@/components/flock-document-report";
 import { PageHeader } from "@/components/page-header";
 import { getUserAccessBundle } from "@/lib/access-control";
 import { getCloseoutQueueData } from "@/lib/closeout-data";
 import { getFeedTicketFlockReportBundle } from "@/lib/feed-ticket-data";
 import { getFlockHistoryReportBundle, type FlockHistoryActionItem } from "@/lib/flock-history-report";
+import { getFlockDocumentInventory } from "@/lib/document-archive";
 
 type CloseoutReportPageProps = {
   params: Promise<{
@@ -47,6 +49,12 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
     getUserAccessBundle(),
   ]);
   const placementIds = new Set(flockHistory?.placements.map((placement) => placement.placementId) ?? [placementId]);
+  const flockDocuments = await getFlockDocumentInventory({
+    placementIds: [...placementIds],
+    feedTicketIds: feedReport.rows.map((row) => row.ticketId),
+    livehaulScheduleIds: item.livehauls.map((livehaul) => livehaul.livehaulId),
+    livehaulLoadIds: item.livehauls.flatMap((livehaul) => livehaul.loads.map((load) => load.loadId)),
+  });
   const actionItems = flockHistory
     ? [...flockHistory.actionItems.placementLinked, ...flockHistory.actionItems.barnLinked]
         .filter((actionItem) => isActionItemLinkedToFlock(actionItem, placementIds))
@@ -379,6 +387,8 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
             </div>
           </div>
         </section>
+
+        <FlockDocumentReportSection documents={flockDocuments} />
 
         <section className="closeout-report-section digital-archive-report-break">
           <div className="closeout-report-section-header">

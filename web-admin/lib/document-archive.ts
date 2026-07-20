@@ -28,17 +28,100 @@ export type DocumentArchiveListItem = {
   title: string | null;
 };
 
+export type FlockDocumentInventoryItem = {
+  documentId: string;
+  documentRole: string;
+  documentLabel: string;
+  originalFilename: string | null;
+  title: string | null;
+  uploadedAt: string | null;
+  sourceKind: string | null;
+  linkedBy: "Placement" | "Closeout" | "Feed Ticket" | "Livehaul" | "Livehaul Load";
+};
+
+export type FlockDocumentInventoryRequest = {
+  placementIds: string[];
+  feedTicketIds?: string[];
+  livehaulScheduleIds?: string[];
+  livehaulLoadIds?: string[];
+};
+
 type DocumentArchiveRow = {
   id: string;
+  document_role?: string | null;
   placement_id: string | null;
   feed_ticket_id: string | null;
   livehaul_schedule_id: string | null;
+  livehaul_load_id?: string | null;
   placement_closeout_id: string | null;
   original_filename: string | null;
   created_at: string | null;
   source_kind: string | null;
   notes: string | null;
 };
+
+export async function getFlockDocumentInventory({
+  placementIds,
+  feedTicketIds = [],
+  livehaulScheduleIds = [],
+  livehaulLoadIds = [],
+}: FlockDocumentInventoryRequest): Promise<FlockDocumentInventoryItem[]> {
+  noStore();
+
+  const admin = createSupabaseAdminClient();
+  if (!admin) {
+    throw new Error("Document archive could not connect to Supabase.");
+  }
+
+  const selectColumns =
+    "id,document_role,placement_id,feed_ticket_id,livehaul_schedule_id,livehaul_load_id,placement_closeout_id,original_filename,created_at,source_kind,notes";
+  const normalizedPlacementIds = normalizeIds(placementIds);
+  const queries = [
+    normalizedPlacementIds.length
+      ? admin.from("document_archives").select(selectColumns).eq("is_current", true).in("placement_id", normalizedPlacementIds)
+      : Promise.resolve({ data: [], error: null }),
+    normalizedPlacementIds.length
+      ? admin.from("document_archives").select(selectColumns).eq("is_current", true).in("placement_closeout_id", normalizedPlacementIds)
+      : Promise.resolve({ data: [], error: null }),
+    normalizeIds(feedTicketIds).length
+      ? admin.from("document_archives").select(selectColumns).eq("is_current", true).in("feed_ticket_id", normalizeIds(feedTicketIds))
+      : Promise.resolve({ data: [], error: null }),
+    normalizeIds(livehaulScheduleIds).length
+      ? admin.from("document_archives").select(selectColumns).eq("is_current", true).in("livehaul_schedule_id", normalizeIds(livehaulScheduleIds))
+      : Promise.resolve({ data: [], error: null }),
+    normalizeIds(livehaulLoadIds).length
+      ? admin.from("document_archives").select(selectColumns).eq("is_current", true).in("livehaul_load_id", normalizeIds(livehaulLoadIds))
+      : Promise.resolve({ data: [], error: null }),
+  ];
+  const results = await Promise.all(queries);
+  const firstError = results.find((result) => result.error)?.error;
+  if (firstError) {
+    throw new Error(firstError.message);
+  }
+
+  const rowsById = new Map<string, DocumentArchiveRow>();
+  for (const result of results) {
+    for (const row of (result.data ?? []) as DocumentArchiveRow[]) {
+      rowsById.set(row.id, row);
+    }
+  }
+
+  return [...rowsById.values()]
+    .map((row) => ({
+      documentId: row.id,
+      documentRole: String(row.document_role ?? "").trim(),
+      documentLabel: formatDocumentRole(row.document_role),
+      originalFilename: row.original_filename?.trim() || null,
+      title: row.document_role === MISC_DOCUMENT_ROLE ? firstLine(row.notes) || null : null,
+      uploadedAt: row.created_at,
+      sourceKind: row.source_kind?.trim() || null,
+      linkedBy: resolveDocumentLinkType(row),
+    }))
+    .sort((left, right) =>
+      left.documentLabel.localeCompare(right.documentLabel) ||
+      (left.uploadedAt ?? "").localeCompare(right.uploadedAt ?? ""),
+    );
+}
 
 export async function getFeedTicketDocumentSummaryMap(ticketIds: string[]) {
   noStore();
@@ -265,4 +348,32 @@ export async function getPlacementDocumentListMap(placementIds: string[], docume
   }
 
   return listByPlacementId;
+}
+
+function normalizeIds(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function firstLine(value: string | null | undefined) {
+  return String(value ?? "").split(/\r?\n/, 1)[0]?.trim() ?? "";
+}
+
+function formatDocumentRole(value: string | null | undefined) {
+  const labels: Record<string, string> = {
+    [FEED_TICKET_DOCUMENT_ROLE]: "Feed Ticket Original",
+    [HATCH_TICKET_DOCUMENT_ROLE]: "Hatch Ticket",
+    [BILL_OF_LADING_DOCUMENT_ROLE]: "Livehaul Packet",
+    [CLOSEOUT_SHEET_SNAPSHOT_DOCUMENT_ROLE]: "Closeout Summary Snapshot",
+    [MISC_DOCUMENT_ROLE]: "Supporting Document",
+  };
+  const normalized = String(value ?? "").trim();
+  return labels[normalized] ?? (normalized.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Document");
+}
+
+function resolveDocumentLinkType(row: DocumentArchiveRow): FlockDocumentInventoryItem["linkedBy"] {
+  if (row.placement_id) return "Placement";
+  if (row.placement_closeout_id) return "Closeout";
+  if (row.feed_ticket_id) return "Feed Ticket";
+  if (row.livehaul_schedule_id) return "Livehaul";
+  return "Livehaul Load";
 }
