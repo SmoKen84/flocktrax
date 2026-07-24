@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ReportsFilterPanel } from "@/app/admin/reports/reports-filter-panel";
 import { PageHeader } from "@/components/page-header";
 import { getAdminData } from "@/lib/admin-data";
+import { getMortalityReportFilterOptions } from "@/lib/mortality-report-data";
 
 type ReportsHubPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -24,6 +25,7 @@ const reportCategories = [
     reports: [
       { key: "detailed_placements_report", label: "Placements Report" },
       { key: "detailed_livehaul_report", label: "Livehaul Report" },
+      { key: "detailed_mortality_report", label: "Mortality" },
     ],
   },
   {
@@ -63,7 +65,12 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
       ? addDays(today, 30)
       : today);
 
-  const adminData = await getAdminData();
+  const [adminData, mortalityFilterOptions] = await Promise.all([
+    getAdminData(),
+    reportKey === "detailed_mortality_report"
+      ? getMortalityReportFilterOptions()
+      : Promise.resolve(null),
+  ]);
   const activeFarmGroups = dedupeBy(
     adminData.activePlacements.map((placement) => ({
       id: placement.farmGroupId,
@@ -102,6 +109,10 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
     })),
     (entry) => entry.id,
   ).sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true }));
+  const filterFarmGroups = mortalityFilterOptions?.farmGroups ?? activeFarmGroups;
+  const filterFarms = mortalityFilterOptions?.farms ?? activeFarms;
+  const filterBarns = mortalityFilterOptions?.barns ?? activeBarns;
+  const filterFlocks = mortalityFilterOptions?.flocks ?? activeFlocks;
 
   const selectedCategory =
     reportCategories.find((category) => category.key === categoryKey) ?? reportCategories[0];
@@ -212,9 +223,10 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
             selectedReport?.key === "quick_placements_report" ||
             selectedReport?.key === "quick_livehaul_report" ||
             selectedReport?.key === "detailed_placements_report" ||
-            selectedReport?.key === "detailed_livehaul_report" ? (
+            selectedReport?.key === "detailed_livehaul_report" ||
+            selectedReport?.key === "detailed_mortality_report" ? (
               <ReportsFilterPanel
-                barns={activeBarns}
+                barns={filterBarns}
                 categoryKey={selectedCategory.key}
                 currentBarnId={barnId}
                 currentDays={days}
@@ -225,9 +237,9 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                 currentReportDate={reportDate}
                 currentStartDate={reportStartDate}
                 currentEndDate={reportEndDate}
-                farmGroups={activeFarmGroups}
-                farms={activeFarms}
-                flocks={activeFlocks}
+                farmGroups={filterFarmGroups}
+                farms={filterFarms}
+                flocks={filterFlocks}
                 reportKey={selectedReport.key}
               />
             ) : null}

@@ -87,6 +87,7 @@ export function ReportsFilterPanel({
     "quick_livehaul_report",
     "detailed_placements_report",
     "detailed_livehaul_report",
+    "detailed_mortality_report",
   ].includes(reportKey);
   const showBinSentryOnOrderToggle =
     reportKey === "ten_day_feed_requirements" || reportKey === "custom_feed_projection";
@@ -482,7 +483,7 @@ function buildFeedProjectionPreviewHref({
     params.set("includeBinSentryOnOrder", "1");
   }
   if (reportKey === "at_a_glance" && reportDate) params.set("reportDate", reportDate);
-  if (["quick_placements_report", "quick_livehaul_report", "detailed_placements_report", "detailed_livehaul_report"].includes(reportKey)) {
+  if (["quick_placements_report", "quick_livehaul_report", "detailed_placements_report", "detailed_livehaul_report", "detailed_mortality_report"].includes(reportKey)) {
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
   }
@@ -500,6 +501,8 @@ function buildFeedProjectionPreviewHref({
               ? "/admin/reports/placements-detailed"
               : reportKey === "detailed_livehaul_report"
                 ? "/admin/reports/livehaul-detailed"
+                : reportKey === "detailed_mortality_report"
+                  ? "/admin/reports/mortality"
         : "/admin/reports/feed-projection";
   return query ? `${pathname}?${query}` : pathname;
 }

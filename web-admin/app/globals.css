@@ -14761,6 +14761,209 @@ tr:last-child td {
   gap: 0.18rem;
 }
 
+.mortality-report-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.mortality-report-shell {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.mortality-report-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.mortality-report-title {
+  display: grid;
+  gap: 0.25rem;
+  text-align: center;
+}
+
+.mortality-report-title h1,
+.mortality-report-title p {
+  margin: 0;
+}
+
+.mortality-report-title h1 {
+  color: #273a2a;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+}
+
+.mortality-report-title > p:last-child {
+  color: rgba(43, 57, 44, 0.82);
+}
+
+.mortality-report-summary-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.mortality-report-summary-card {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(49, 78, 51, 0.2);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(246, 248, 239, 0.98), rgba(230, 238, 219, 0.92));
+}
+
+.mortality-report-summary-card span {
+  color: rgba(43, 72, 46, 0.74);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mortality-report-summary-card strong {
+  color: #263e2a;
+  font-size: 1.1rem;
+}
+
+.mortality-report-summary-card small {
+  color: rgba(43, 57, 44, 0.78);
+}
+
+.mortality-report-sections {
+  display: grid;
+  gap: 1rem;
+}
+
+.mortality-report-section {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.95rem;
+  border: 1.5px solid rgba(55, 81, 56, 0.32);
+  border-radius: 18px;
+  background: rgba(250, 251, 246, 0.98);
+  box-shadow: 0 10px 24px rgba(37, 58, 38, 0.08);
+}
+
+.mortality-report-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mortality-report-section-head h2 {
+  margin: 0;
+  color: #23402a;
+  font-size: 1.22rem;
+}
+
+.mortality-report-section-meta {
+  display: grid;
+  gap: 0.15rem;
+  flex: 0 0 auto;
+  text-align: right;
+  color: rgba(43, 57, 44, 0.78);
+  font-size: 0.82rem;
+}
+
+.mortality-report-section-meta strong {
+  color: #263e2a;
+}
+
+.mortality-report-table-wrap {
+  overflow-x: auto;
+}
+
+.mortality-report-table {
+  width: 100%;
+  min-width: 1140px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mortality-report-table th,
+.mortality-report-table td {
+  padding: 0.42rem 0.38rem;
+  border-right: 1px solid rgba(55, 81, 56, 0.12);
+  border-bottom: 1px solid rgba(55, 81, 56, 0.14);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.mortality-report-table thead th {
+  background: #dce8d5;
+  color: #1e3824;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.mortality-report-table thead tr:first-child th {
+  border-top: 1px solid rgba(55, 81, 56, 0.2);
+  text-align: center;
+}
+
+.mortality-report-table thead tr:first-child th:first-child {
+  border-top-left-radius: 10px;
+}
+
+.mortality-report-table thead tr:first-child th:last-child {
+  border-top-right-radius: 10px;
+}
+
+.mortality-report-table tbody th {
+  color: #263e2a;
+  text-align: left;
+}
+
+.mortality-report-table tbody tr:nth-child(even):not(.mortality-report-ending-row) {
+  background: rgba(233, 240, 225, 0.46);
+}
+
+.mortality-report-balance-row {
+  background: #edf3e8;
+  font-weight: 800;
+}
+
+.mortality-report-ending-row {
+  background: #dce8d5;
+  color: #1e3824;
+  font-weight: 900;
+}
+
+.mortality-report-ending-row td[colspan] {
+  text-align: center;
+}
+
+.mortality-report-empty {
+  padding: 1rem;
+  border: 1px solid rgba(55, 81, 56, 0.2);
+  border-radius: 16px;
+  background: rgba(233, 240, 225, 0.72);
+  color: #263e2a;
+}
+
+@media (max-width: 980px) {
+  .mortality-report-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mortality-report-section-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mortality-report-section-meta {
+    text-align: left;
+  }
+}
+
 .calendar-report-page {
   display: grid;
   gap: 1rem;
@@ -14768,6 +14971,7 @@ tr:last-child td {
 
 .admin-shell:has(.feed-projection-report-page),
 .admin-shell:has(.calendar-report-page),
+.admin-shell:has(.mortality-report-page),
 .admin-shell:has(.action-items-report-page),
 .admin-shell:has(.feed-ticket-print-page),
 .admin-shell:has(.closeout-report-page) {
@@ -14777,6 +14981,7 @@ tr:last-child td {
 
 .admin-shell:has(.feed-projection-report-page) .splash-sidebar-stack,
 .admin-shell:has(.calendar-report-page) .splash-sidebar-stack,
+.admin-shell:has(.mortality-report-page) .splash-sidebar-stack,
 .admin-shell:has(.action-items-report-page) .splash-sidebar-stack,
 .admin-shell:has(.feed-ticket-print-page) .splash-sidebar-stack,
 .admin-shell:has(.closeout-report-page) .splash-sidebar-stack {
@@ -15055,6 +15260,95 @@ tr:last-child td {
 }
 
 @media print {
+  @page mortality-report {
+    size: letter landscape;
+    margin: 0.35in;
+  }
+
+  .mortality-report-page {
+    page: mortality-report;
+  }
+
+  .mortality-report-toolbar {
+    display: none;
+  }
+
+  .mortality-report-shell {
+    display: block;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    background: #fff;
+  }
+
+  .mortality-report-title {
+    margin-bottom: 0.18in;
+  }
+
+  .mortality-report-title h1 {
+    font-size: 24pt;
+  }
+
+  .mortality-report-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-bottom: 0.18in;
+  }
+
+  .mortality-report-summary-card {
+    padding: 0.1in;
+    border-color: #7b8d7c;
+    background: #eef3ea;
+  }
+
+  .mortality-report-sections {
+    display: block;
+  }
+
+  .mortality-report-section {
+    margin-bottom: 0.18in;
+    padding: 0.12in;
+    break-inside: auto;
+    border-color: #6f7d70;
+    box-shadow: none;
+    background: #fff;
+  }
+
+  .mortality-report-section + .mortality-report-section {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .mortality-report-table-wrap {
+    overflow: visible;
+  }
+
+  .mortality-report-table {
+    min-width: 0;
+    font-size: 8pt;
+  }
+
+  .mortality-report-table thead {
+    display: table-header-group;
+  }
+
+  .mortality-report-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .mortality-report-table th,
+  .mortality-report-table td {
+    padding: 0.045in 0.035in;
+    border-color: #aab4aa;
+  }
+
+  .mortality-report-table thead th,
+  .mortality-report-ending-row,
+  .mortality-report-balance-row {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
   .calendar-report-toolbar {
     display: none;
   }
