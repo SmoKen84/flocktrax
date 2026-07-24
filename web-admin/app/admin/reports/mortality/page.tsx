@@ -97,7 +97,7 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                   </div>
                 </div>
 
-                <div className="mortality-report-table-wrap">
+                <div className="mortality-report-table-wrap mortality-report-table-wrap--screen">
                   <table className="mortality-report-table">
                     <thead>
                       <tr>
@@ -161,6 +161,73 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                         <td>{formatWhole(section.endingFemalePopulation)}</td>
                         <td colSpan={3}>Male Loss: {formatWhole(section.maleLossInRange)}</td>
                         <td>--</td>
+                        <td>{formatWhole(section.endingMalePopulation)}</td>
+                        <td>{formatWhole(section.totalLossInRange)}</td>
+                        <td>{formatWhole(section.endingTotalPopulation)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mortality-report-print-table-wrap">
+                  <table className="mortality-report-print-table">
+                    <colgroup>
+                      <col className="mortality-report-print-date-column" />
+                      <col className="mortality-report-print-loss-column" />
+                      <col className="mortality-report-print-population-column" />
+                      <col className="mortality-report-print-loss-column" />
+                      <col className="mortality-report-print-population-column" />
+                      <col className="mortality-report-print-loss-column" />
+                      <col className="mortality-report-print-total-column" />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th rowSpan={2}>Date</th>
+                        <th colSpan={2}>Female</th>
+                        <th colSpan={2}>Male</th>
+                        <th colSpan={2}>Combined</th>
+                      </tr>
+                      <tr>
+                        <th>Mortality</th>
+                        <th>Population</th>
+                        <th>Mortality</th>
+                        <th>Population</th>
+                        <th>Mortality</th>
+                        <th>Population</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="mortality-report-balance-row">
+                        <th>Day 1 - Balance Forward</th>
+                        <td>--</td>
+                        <td>{formatWhole(section.openingFemalePopulation)}</td>
+                        <td>--</td>
+                        <td>{formatWhole(section.openingMalePopulation)}</td>
+                        <td>--</td>
+                        <td>{formatWhole(section.openingTotalPopulation)}</td>
+                      </tr>
+                      {section.days.map((day) => (
+                        <tr key={day.date}>
+                          <th>{formatDate(day.date)}</th>
+                          <td>{formatActivity(day.femaleLoss)}</td>
+                          <td>
+                            {formatWhole(day.femalePopulation)}
+                            {day.femalePlaced > 0 ? <small>Placed +{formatWhole(day.femalePlaced)}</small> : null}
+                          </td>
+                          <td>{formatActivity(day.maleLoss)}</td>
+                          <td>
+                            {formatWhole(day.malePopulation)}
+                            {day.malePlaced > 0 ? <small>Placed +{formatWhole(day.malePlaced)}</small> : null}
+                          </td>
+                          <td>{formatActivity(day.totalLoss)}</td>
+                          <td>{formatWhole(day.totalPopulation)}</td>
+                        </tr>
+                      ))}
+                      <tr className="mortality-report-ending-row">
+                        <th>Ending Population</th>
+                        <td>{formatWhole(section.femaleLossInRange)}</td>
+                        <td>{formatWhole(section.endingFemalePopulation)}</td>
+                        <td>{formatWhole(section.maleLossInRange)}</td>
                         <td>{formatWhole(section.endingMalePopulation)}</td>
                         <td>{formatWhole(section.totalLossInRange)}</td>
                         <td>{formatWhole(section.endingTotalPopulation)}</td>

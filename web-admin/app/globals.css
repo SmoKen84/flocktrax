@@ -14877,6 +14877,10 @@ tr:last-child td {
   overflow-x: auto;
 }
 
+.mortality-report-print-table-wrap {
+  display: none;
+}
+
 .mortality-report-table {
   width: 100%;
   min-width: 1140px;
@@ -15261,8 +15265,8 @@ tr:last-child td {
 
 @media print {
   @page mortality-report {
-    size: letter landscape;
-    margin: 0.35in;
+    size: letter portrait;
+    margin: 0.4in;
   }
 
   .mortality-report-page {
@@ -15320,6 +15324,87 @@ tr:last-child td {
 
   .mortality-report-table-wrap {
     overflow: visible;
+  }
+
+  .mortality-report-table-wrap--screen {
+    display: none;
+  }
+
+  .mortality-report-print-table-wrap {
+    display: block;
+  }
+
+  .mortality-report-print-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: #1f2f22;
+    font-size: 10.5pt;
+    font-variant-numeric: tabular-nums;
+    table-layout: fixed;
+  }
+
+  .mortality-report-print-date-column {
+    width: 22%;
+  }
+
+  .mortality-report-print-loss-column {
+    width: 11%;
+  }
+
+  .mortality-report-print-population-column {
+    width: 15%;
+  }
+
+  .mortality-report-print-total-column {
+    width: 15%;
+  }
+
+  .mortality-report-print-table th,
+  .mortality-report-print-table td {
+    padding: 0.06in 0.04in;
+    border-right: 1px solid #aab4aa;
+    border-bottom: 1px solid #aab4aa;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .mortality-report-print-table thead th {
+    background: #dce8d5;
+    color: #1e3824;
+    font-size: 8.5pt;
+    font-weight: 900;
+    letter-spacing: 0.03em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .mortality-report-print-table tbody th {
+    font-weight: 800;
+    text-align: left;
+  }
+
+  .mortality-report-print-table tbody td {
+    font-weight: 800;
+  }
+
+  .mortality-report-print-table tbody tr:nth-child(even):not(.mortality-report-ending-row) {
+    background: #f2f6ef;
+  }
+
+  .mortality-report-print-table td small {
+    display: block;
+    color: #3e5a42;
+    font-size: 7pt;
+    font-weight: 800;
+  }
+
+  .mortality-report-print-table thead th,
+  .mortality-report-print-table tbody tr:nth-child(even),
+  .mortality-report-print-table .mortality-report-ending-row,
+  .mortality-report-print-table .mortality-report-balance-row {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 
   .mortality-report-table {
