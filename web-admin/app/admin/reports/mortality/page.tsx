@@ -139,7 +139,7 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                       </tr>
                       {section.days.map((day) => (
                         <tr key={day.date}>
-                          <th>{formatDate(day.date)}</th>
+                          <th>{formatDayDate(day.date)}</th>
                           <td>{formatActivity(day.femalePlaced)}</td>
                           <td>{formatActivity(day.femaleDead)}</td>
                           <td>{formatActivity(day.femaleCull)}</td>
@@ -208,7 +208,7 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                       </tr>
                       {section.days.map((day) => (
                         <tr key={day.date}>
-                          <th>{formatDate(day.date)}</th>
+                          <th>{formatDayDate(day.date)}</th>
                           <td>{formatActivity(day.femaleLoss)}</td>
                           <td>
                             {formatWhole(day.femalePopulation)}
@@ -303,4 +303,15 @@ function formatDate(value: string) {
   const date = new Date(`${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
+}
+
+function formatDayDate(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+  });
 }

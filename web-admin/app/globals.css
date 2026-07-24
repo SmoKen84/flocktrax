@@ -15311,15 +15311,16 @@ tr:last-child td {
   .mortality-report-section {
     margin-bottom: 0.18in;
     padding: 0.12in;
-    break-inside: auto;
+    break-inside: avoid;
+    page-break-inside: avoid;
     border-color: #6f7d70;
     box-shadow: none;
     background: #fff;
   }
 
   .mortality-report-section + .mortality-report-section {
-    break-before: page;
-    page-break-before: always;
+    break-before: auto;
+    page-break-before: auto;
   }
 
   .mortality-report-table-wrap {
