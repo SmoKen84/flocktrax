@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-07-17`
+Updated: `2026-07-28`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### July 2026
+
+- `2026-07-28`
+  - [FlockTrax_Placement_Cancellation_And_Detailed_Mortality_Report_Production_Checkpoint_2026-07-28.md](C:\dev\FlockTrax\output\FlockTrax_Placement_Cancellation_And_Detailed_Mortality_Report_Production_Checkpoint_2026-07-28.md)
+  - authoritative production checkpoint covering scheduled-placement cancellation and feed reassignment from commit `41f1fcb`, canceled-flock archive handling, the new Detailed Reports -> Mortality population ledger from commits `3780f46`, `ccb22f2`, and `73ed866`, dead-plus-culls calculation rules, partial-range Day 1 balance forward, split-sex arrival dates, legacy missing-removal-date inference, compact portrait printing, page-filling placement-safe pagination, weekday dates, successful hosted-data verification, and final Vercel deployment `dpl_DGzjyELY2uoj7aviYS7vxzxsCzM8`
 
 - `2026-07-17`
   - [FlockTrax_Admin_2_1_0_Flock_Archive_And_Closeout_Production_Checkpoint_2026-07-17.md](C:\dev\FlockTrax\output\FlockTrax_Admin_2_1_0_Flock_Archive_And_Closeout_Production_Checkpoint_2026-07-17.md)
