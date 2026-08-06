@@ -307,7 +307,7 @@ export function FeedProjectionReportTable({
           <div className="feed-projection-report-math-modal-panel">
             <div className="feed-projection-report-math-modal-header">
               <div>
-                <span>Starter 10-Day Math</span>
+                <span>Lifetime Starter Math</span>
                 <strong id="starter-obligation-math-title">{selectedStarterMathRow.placementCode}</strong>
               </div>
               <button className="button-secondary" type="button" onClick={() => setSelectedStarterMathRowId(null)}>
@@ -316,34 +316,34 @@ export function FeedProjectionReportTable({
             </div>
             <div className="feed-projection-report-math-grid">
               <div>
-                <span>Starter Required</span>
+                <span>Lifetime Starter Required</span>
                 <strong>{formatWeight(selectedStarterMathRow.starterTotalLbs)}</strong>
                 <small>
-                  Projected starter consumption inside the current report window
+                  Head placed multiplied by the configured starter pounds per chick
                 </small>
               </div>
               <div>
-                <span>Starter Accessible</span>
-                <strong>{formatWeight(selectedStarterMathRow.starterAccessibleLbs)}</strong>
+                <span>Starter Delivered</span>
+                <strong>{formatWeight(selectedStarterMathRow.starterDeliveredLbs)}</strong>
                 <small>
-                  Starter inventory already on hand for this barn
+                  Scale-ticket starter pounds already delivered to this flock
                 </small>
               </div>
               <div>
                 <span>Starter On Order</span>
                 <strong>{formatWeight(selectedStarterMathRow.starterOnOrderLbs)}</strong>
-                <small>Open starter orders counted inside the same window</small>
+                <small>All open starter orders counted against the flock requirement</small>
               </div>
               <div>
                 <span>Starter Gap</span>
                 <strong>{formatWeight(selectedStarterMathRow.starterRecommendedLbs)}</strong>
-                <small>Additional starter still needed for the window</small>
+                <small>Additional starter still needed for the flock</small>
               </div>
             </div>
             <div className="feed-projection-report-math-formula">
               <span>Formula</span>
               <strong>
-                {formatWeight(selectedStarterMathRow.starterTotalLbs)} - {formatWeight(selectedStarterMathRow.starterAccessibleLbs)} -{" "}
+                {formatWeight(selectedStarterMathRow.starterTotalLbs)} - {formatWeight(selectedStarterMathRow.starterDeliveredLbs)} -{" "}
                 {formatWeight(selectedStarterMathRow.starterOnOrderLbs)} = {formatWeight(selectedStarterMathRow.starterRecommendedLbs)}
               </strong>
             </div>

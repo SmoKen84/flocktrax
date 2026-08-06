@@ -39,14 +39,18 @@ type ReportsFilterPanelProps = {
   currentFarmGroupId: string;
   currentBarnId: string;
   currentFarmId: string;
+  currentFeedMill: string;
   currentFlockCode: string;
   currentDays: string;
   currentReportDate: string;
   currentStartDate: string;
   currentEndDate: string;
+  currentSortOrder: string;
+  currentUseDefaultTypeDensity: boolean;
   currentIncludeBinSentryOnOrder: boolean;
   farmGroups: FarmGroupOption[];
   farms: FarmOption[];
+  feedMills: string[];
   barns: BarnOption[];
   flocks: FlockOption[];
 };
@@ -57,14 +61,18 @@ export function ReportsFilterPanel({
   currentFarmGroupId,
   currentBarnId,
   currentFarmId,
+  currentFeedMill,
   currentFlockCode,
   currentDays,
   currentReportDate,
   currentStartDate,
   currentEndDate,
+  currentSortOrder,
+  currentUseDefaultTypeDensity,
   currentIncludeBinSentryOnOrder,
   farmGroups,
   farms,
+  feedMills,
   barns,
   flocks,
 }: ReportsFilterPanelProps) {
@@ -73,12 +81,15 @@ export function ReportsFilterPanel({
 
   const [farmGroupId, setFarmGroupId] = useState(currentFarmGroupId);
   const [farmId, setFarmId] = useState(currentFarmId);
+  const [feedMill, setFeedMill] = useState(currentFeedMill);
   const [barnId, setBarnId] = useState(currentBarnId);
   const [flockCode, setFlockCode] = useState(currentFlockCode);
   const [days, setDays] = useState(currentDays);
   const [reportDate, setReportDate] = useState(currentReportDate);
   const [startDate, setStartDate] = useState(currentStartDate);
   const [endDate, setEndDate] = useState(currentEndDate);
+  const [sortOrder, setSortOrder] = useState(currentSortOrder);
+  const [useDefaultTypeDensity, setUseDefaultTypeDensity] = useState(currentUseDefaultTypeDensity);
   const [includeBinSentryOnOrder, setIncludeBinSentryOnOrder] = useState(currentIncludeBinSentryOnOrder);
   const showDaysField = reportKey === "custom_feed_projection";
   const showDateField = reportKey === "at_a_glance";
@@ -88,7 +99,13 @@ export function ReportsFilterPanel({
     "detailed_placements_report",
     "detailed_livehaul_report",
     "detailed_mortality_report",
+    "feed_drops_report",
+    "queued_feed_deliveries",
   ].includes(reportKey);
+  const showBarnField = reportKey !== "feed_drops_report";
+  const showFlockField = reportKey !== "feed_drops_report" && reportKey !== "queued_feed_deliveries";
+  const showFeedMillField = reportKey === "queued_feed_deliveries";
+  const showSortOrderField = reportKey === "feed_drops_report";
   const showBinSentryOnOrderToggle =
     reportKey === "ten_day_feed_requirements" || reportKey === "custom_feed_projection";
   const limitToTodayForward = categoryKey === "quick_access_reports" && showDateRangeField;
@@ -141,6 +158,9 @@ export function ReportsFilterPanel({
     if (showDateField && nextReportDate) params.set("reportDate", nextReportDate);
     if (showDateRangeField && nextStartDate) params.set("startDate", nextStartDate);
     if (showDateRangeField && nextEndDate) params.set("endDate", nextEndDate);
+    if (showSortOrderField && sortOrder) params.set("sortOrder", sortOrder);
+    if (showSortOrderField && useDefaultTypeDensity) params.set("useDefaultTypeDensity", "1");
+    if (showFeedMillField && feedMill) params.set("feedMill", feedMill);
     if (showBinSentryOnOrderToggle && nextIncludeBinSentryOnOrder) params.set("includeBinSentryOnOrder", "1");
 
     const query = params.toString();
@@ -258,6 +278,48 @@ export function ReportsFilterPanel({
     pushFilters(farmGroupId, farmId, barnId, flockCode, days, reportDate, startDate, endDate, nextValue);
   }
 
+  function handleSortOrderChange(nextSortOrder: string) {
+    setSortOrder(nextSortOrder);
+    const params = new URLSearchParams();
+    params.set("category", categoryKey);
+    params.set("report", reportKey);
+    if (farmGroupId) params.set("farmGroupId", farmGroupId);
+    if (farmId) params.set("farmId", farmId);
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+    params.set("sortOrder", nextSortOrder);
+    if (useDefaultTypeDensity) params.set("useDefaultTypeDensity", "1");
+    startTransition(() => router.replace(`${pathname}?${params.toString()}`, { scroll: false }));
+  }
+
+  function handleUseDefaultTypeDensityChange(nextValue: boolean) {
+    setUseDefaultTypeDensity(nextValue);
+    const params = new URLSearchParams();
+    params.set("category", categoryKey);
+    params.set("report", reportKey);
+    if (farmGroupId) params.set("farmGroupId", farmGroupId);
+    if (farmId) params.set("farmId", farmId);
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+    if (sortOrder) params.set("sortOrder", sortOrder);
+    if (nextValue) params.set("useDefaultTypeDensity", "1");
+    startTransition(() => router.replace(`${pathname}?${params.toString()}`, { scroll: false }));
+  }
+
+  function handleFeedMillChange(nextFeedMill: string) {
+    setFeedMill(nextFeedMill);
+    const params = new URLSearchParams();
+    params.set("category", categoryKey);
+    params.set("report", reportKey);
+    if (farmGroupId) params.set("farmGroupId", farmGroupId);
+    if (farmId) params.set("farmId", farmId);
+    if (barnId) params.set("barnId", barnId);
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+    if (nextFeedMill) params.set("feedMill", nextFeedMill);
+    startTransition(() => router.replace(`${pathname}?${params.toString()}`, { scroll: false }));
+  }
+
   const clearHref = buildReportsHubHref({
     category: categoryKey,
     report: reportKey,
@@ -271,6 +333,9 @@ export function ReportsFilterPanel({
     reportDate,
     startDate,
     endDate,
+    sortOrder,
+    useDefaultTypeDensity,
+    feedMill,
     includeBinSentryOnOrder,
     reportKey,
   });
@@ -301,29 +366,43 @@ export function ReportsFilterPanel({
         </select>
       </label>
 
-      <label>
-        <span>Barn</span>
-        <select onChange={(event) => handleBarnChange(event.target.value)} value={barnId}>
-          <option value="">All barns</option>
-          {filteredBarns.map((barn) => (
-            <option key={barn.id} value={barn.id}>
-              {barn.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      {showFeedMillField ? (
+        <label>
+          <span>Feed Mill</span>
+          <select onChange={(event) => handleFeedMillChange(event.target.value)} value={feedMill}>
+            <option value="">All feed mills</option>
+            {feedMills.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+      ) : null}
 
-      <label>
-        <span>Flock Code</span>
-        <select onChange={(event) => handleFlockChange(event.target.value)} value={flockCode}>
-          <option value="">All flocks</option>
-          {filteredFlocks.map((flock) => (
-            <option key={flock.id} value={flock.value}>
-              {flock.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      {showBarnField ? (
+          <label>
+            <span>Barn</span>
+            <select onChange={(event) => handleBarnChange(event.target.value)} value={barnId}>
+              <option value="">All barns</option>
+              {filteredBarns.map((barn) => (
+                <option key={barn.id} value={barn.id}>
+                  {barn.label}
+                </option>
+              ))}
+            </select>
+          </label>
+      ) : null}
+
+      {showFlockField ? (
+          <label>
+            <span>Flock Code</span>
+            <select onChange={(event) => handleFlockChange(event.target.value)} value={flockCode}>
+              <option value="">All flocks</option>
+              {filteredFlocks.map((flock) => (
+                <option key={flock.id} value={flock.value}>
+                  {flock.label}
+                </option>
+              ))}
+            </select>
+          </label>
+      ) : null}
 
       {showDateField ? (
         <label>
@@ -386,6 +465,30 @@ export function ReportsFilterPanel({
         </label>
       ) : null}
 
+      {showSortOrderField ? (
+        <>
+          <label>
+            <span>Sort Order</span>
+            <select onChange={(event) => handleSortOrderChange(event.target.value)} value={sortOrder}>
+              <option value="date">Date</option>
+              <option value="bin">Bin Number</option>
+              <option value="feed_type">Feed Type</option>
+            </select>
+          </label>
+          <label className="reports-hub-checkbox-field">
+            <input
+              checked={useDefaultTypeDensity}
+              onChange={(event) => handleUseDefaultTypeDensityChange(event.target.checked)}
+              type="checkbox"
+            />
+            <div>
+              <span>Use default type density values</span>
+              <small>Estimate Starter and Grower refill weight with their configured default densities instead of the density stored on the BinSentry refill.</small>
+            </div>
+          </label>
+        </>
+      ) : null}
+
       {showBinSentryOnOrderToggle ? (
         <label className="reports-hub-checkbox-field">
           <input
@@ -422,6 +525,9 @@ function buildReportsHubHref({
   reportDate,
   startDate,
   endDate,
+  sortOrder,
+  useDefaultTypeDensity,
+  feedMill,
   includeBinSentryOnOrder,
 }: {
   category: string;
@@ -433,6 +539,9 @@ function buildReportsHubHref({
   reportDate?: string;
   startDate?: string;
   endDate?: string;
+  sortOrder?: string;
+  useDefaultTypeDensity?: boolean;
+  feedMill?: string;
   includeBinSentryOnOrder?: boolean;
 }) {
   const params = new URLSearchParams();
@@ -445,6 +554,9 @@ function buildReportsHubHref({
   if (reportDate) params.set("reportDate", reportDate);
   if (startDate) params.set("startDate", startDate);
   if (endDate) params.set("endDate", endDate);
+  if (sortOrder) params.set("sortOrder", sortOrder);
+  if (useDefaultTypeDensity) params.set("useDefaultTypeDensity", "1");
+  if (feedMill) params.set("feedMill", feedMill);
   if (includeBinSentryOnOrder) params.set("includeBinSentryOnOrder", "1");
   const query = params.toString();
   return query ? `/admin/reports?${query}` : "/admin/reports";
@@ -459,6 +571,9 @@ function buildFeedProjectionPreviewHref({
   reportDate,
   startDate,
   endDate,
+  sortOrder,
+  useDefaultTypeDensity,
+  feedMill,
   includeBinSentryOnOrder,
   reportKey,
 }: {
@@ -470,6 +585,9 @@ function buildFeedProjectionPreviewHref({
   reportDate?: string;
   startDate?: string;
   endDate?: string;
+  sortOrder?: string;
+  useDefaultTypeDensity?: boolean;
+  feedMill?: string;
   includeBinSentryOnOrder?: boolean;
   reportKey: string;
 }) {
@@ -483,10 +601,13 @@ function buildFeedProjectionPreviewHref({
     params.set("includeBinSentryOnOrder", "1");
   }
   if (reportKey === "at_a_glance" && reportDate) params.set("reportDate", reportDate);
-  if (["quick_placements_report", "quick_livehaul_report", "detailed_placements_report", "detailed_livehaul_report", "detailed_mortality_report"].includes(reportKey)) {
+  if (["quick_placements_report", "quick_livehaul_report", "detailed_placements_report", "detailed_livehaul_report", "detailed_mortality_report", "feed_drops_report", "queued_feed_deliveries"].includes(reportKey)) {
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
   }
+  if (reportKey === "feed_drops_report" && sortOrder) params.set("sortOrder", sortOrder);
+  if (reportKey === "feed_drops_report" && useDefaultTypeDensity) params.set("useDefaultTypeDensity", "1");
+  if (reportKey === "queued_feed_deliveries" && feedMill) params.set("feedMill", feedMill);
   const query = params.toString();
   const pathname =
     reportKey === "custom_feed_projection"
@@ -503,6 +624,10 @@ function buildFeedProjectionPreviewHref({
                 ? "/admin/reports/livehaul-detailed"
                 : reportKey === "detailed_mortality_report"
                   ? "/admin/reports/mortality"
+                  : reportKey === "feed_drops_report"
+                    ? "/admin/reports/feed-drops"
+                    : reportKey === "queued_feed_deliveries"
+                      ? "/admin/reports/queued-feed-deliveries"
         : "/admin/reports/feed-projection";
   return query ? `${pathname}?${query}` : pathname;
 }

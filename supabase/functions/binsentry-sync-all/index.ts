@@ -449,10 +449,18 @@ async function extractInventorySnapshot(
   ]);
   const kilogramEntry = pickFirstNumberEntry(properties, ["estimatedWeight", "weight"]);
   const tonsEntry = pickFirstNumber(properties, ["inventory_tons", "inventoryTons", "current_inventory_tons", "currentInventoryTons"]);
+  const estimatedVolumeM3 = pickFirstNumber(properties, ["estimatedVolume", "estimated_volume"]);
+  const bulkDensityKgPerM3 = pickFirstNumber(properties, ["bulkDensity", "bulk_density"]);
+  const densityDerivedKilograms =
+    estimatedVolumeM3 !== null && bulkDensityKgPerM3 !== null
+      ? estimatedVolumeM3 * bulkDensityKgPerM3
+      : null;
 
+  // BinSentry owns the volume-to-weight conversion; never substitute a FlockTrax density constant.
   const inventoryLbs =
     poundsEntry?.value ??
     (kilogramEntry ? kilogramEntry.value * 2.20462 : null) ??
+    (densityDerivedKilograms !== null ? densityDerivedKilograms * 2.20462 : null) ??
     (tonsEntry !== null ? tonsEntry * 2000 : null);
 
   if (inventoryLbs === null || !mapping.barn_id) {

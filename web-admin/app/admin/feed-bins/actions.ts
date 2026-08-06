@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 
 import { getUserAccessBundle, resolveRoleTemplate } from "@/lib/access-control";
 import { syncBinSentryInventoryForBarn } from "@/lib/binsentry";
-import { buildBinSentryEntityUrl, performBinSentryEntityAction } from "@/lib/binsentry-http";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 
 function coerce(value: FormDataEntryValue | null) {
@@ -25,10 +24,6 @@ function coerceNullableNumber(value: FormDataEntryValue | null) {
 function coerceFeedType(value: FormDataEntryValue | null) {
   const normalized = String(value ?? "").trim().toLowerCase();
   return normalized === "starter" || normalized === "grower" ? normalized : null;
-}
-
-function poundsPerCubicFootToKgPerCubicMeter(value: number) {
-  return value / 0.0624279606;
 }
 
 function buildSelectionLocation(
@@ -250,67 +245,6 @@ export async function syncFeedBinInventoryAction(formData: FormData) {
   }
 
   bounce(formData, { notice: result.message });
-}
-
-export async function syncFeedBinBulkDensityAction(formData: FormData) {
-  const { admin, actorRole } = await getAdminContext(formData);
-  if (!canEditFeedBins(actorRole)) {
-    bounce(formData, { error: "Only authorized admin accounts can update BinSentry bulk density." });
-    unreachable("Actor cannot update BinSentry bulk density");
-  }
-
-  const feedBinId = coerce(formData.get("feed_bin_id"));
-  if (!feedBinId) {
-    bounce(formData, { error: "Select a feed bin before updating BinSentry density." });
-    unreachable("Missing feed bin id");
-  }
-
-  const [feedBinResult, settingResult] = await Promise.all([
-    admin
-      .from("feedbins")
-      .select("id,binsentry_bin_ref,bin_num")
-      .eq("id", feedBinId)
-      .maybeSingle(),
-    admin
-      .from("app_settings")
-      .select("name,value")
-      .eq("name", "BulkDensity")
-      .limit(1)
-      .maybeSingle(),
-  ]);
-
-  if (feedBinResult.error) {
-    bounce(formData, { error: feedBinResult.error.message });
-  }
-
-  const binRef = coerce(feedBinResult.data?.binsentry_bin_ref ?? null);
-  if (!binRef) {
-    bounce(formData, { error: "This feed bin does not have a BinSentry ref yet." });
-  }
-
-  const targetDensityLbFt3 = Number(String(settingResult.data?.value ?? "").trim());
-  if (!Number.isFinite(targetDensityLbFt3) || targetDensityLbFt3 <= 0) {
-    bounce(formData, { error: "App setting BulkDensity is missing or invalid." });
-  }
-
-  const targetDensityKgM3 = poundsPerCubicFootToKgPerCubicMeter(targetDensityLbFt3);
-
-  try {
-    await performBinSentryEntityAction(buildBinSentryEntityUrl(binRef), "update-bulk-density", {
-      bulkDensity: targetDensityKgM3,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "BinSentry bulk density update failed.";
-    bounce(formData, { error: message });
-  }
-
-  revalidateFeedBins(coerce(formData.get("route_base")) || "/admin/feed-bins");
-  bounce(
-    formData,
-    {
-      notice: `BinSentry density updated to ${targetDensityLbFt3} lb/ft³ for bin ${feedBinResult.data?.bin_num ?? "?"}.`,
-    },
-  );
 }
 
 export async function deleteFeedBinAction(formData: FormData) {

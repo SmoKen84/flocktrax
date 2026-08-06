@@ -115,7 +115,13 @@ export function FeedTicketConsole({
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const ticketRows = useMemo(() => groupTicketRows(bundle.rows), [bundle.rows]);
-  const baseRows = listMode === "drop" ? bundle.rows : ticketRows;
+  const dropRows = useMemo(
+    () => hasQueuedDropsOnly
+      ? bundle.rows.filter((row) => row.queuedForReconciliation)
+      : bundle.rows,
+    [bundle.rows, hasQueuedDropsOnly],
+  );
+  const baseRows = listMode === "drop" ? dropRows : ticketRows;
   const displayedRows = useMemo(
     () => sortRows(baseRows, sortKey, sortDirection, listMode),
     [baseRows, sortDirection, sortKey, listMode],
@@ -347,7 +353,7 @@ export function FeedTicketConsole({
 
               <label className="feed-ticket-flat-check">
                 <input checked={hasQueuedDropsOnly} onChange={(event) => setHasQueuedDropsOnly(event.target.checked)} type="checkbox" />
-                <span>Show only tickets with Queued drops.</span>
+                <span>{listMode === "drop" ? "Show only Queued drops." : "Show only tickets with Queued drops."}</span>
               </label>
 
               <div className="feed-ticket-flat-field-grid">
@@ -445,7 +451,11 @@ export function FeedTicketConsole({
           </div>
 
           <p className="feed-ticket-flat-summary-text">
-            {buildSummaryText({ farm, barn, bin, flockCode, ticketNumber, hasRedirectedDropsOnly, hasQueuedDropsOnly }, displayedRows.length)}
+            {buildSummaryText(
+              { farm, barn, bin, flockCode, ticketNumber, hasRedirectedDropsOnly, hasQueuedDropsOnly },
+              displayedRows.length,
+              listMode,
+            )}
           </p>
 
           <div className="feed-ticket-flat-table-shell">
@@ -1051,6 +1061,7 @@ function buildSummaryText(
     hasQueuedDropsOnly: boolean;
   },
   rowCount: number,
+  listMode: "ticket" | "drop" = "ticket",
 ) {
   if (filters.flockCode) {
     return `Includes all feed_drops for Flock ${filters.flockCode}`;
@@ -1062,7 +1073,9 @@ function buildSummaryText(
     return `Includes ${rowCount} records from tickets with redirected drops.`;
   }
   if (filters.hasQueuedDropsOnly) {
-    return `Includes ${rowCount} records from tickets with queued drops.`;
+    return listMode === "drop"
+      ? `Includes ${rowCount} queued drop records.`
+      : `Includes ${rowCount} records from tickets with queued drops.`;
   }
   if (filters.farm || filters.barn || filters.bin) {
     const parts = [filters.farm, filters.barn, filters.bin].filter(Boolean);

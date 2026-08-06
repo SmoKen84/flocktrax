@@ -860,3 +860,39 @@ export async function disableUserAccessAction(formData: FormData) {
     selected: target.id,
   });
 }
+
+export async function reactivateUserAccessAction(formData: FormData) {
+  const { admin, bundle, actor, target } = await getTargetWriteContext(formData);
+  const actorRole = resolveRoleTemplate(bundle.roles, actor.role);
+
+  if (!isSuperAdminRole(actorRole)) {
+    bounce(formData, { error: "Only super admins can reactivate users.", selected: target.id });
+    unreachable("Reactivate user not allowed");
+  }
+
+  if (target.status !== "inactive") {
+    bounce(formData, { error: `${target.displayName} is not currently retired.`, selected: target.id });
+    unreachable("Target is not inactive");
+  }
+
+  if (target.assignedRoles.length === 0 || target.memberships.length === 0) {
+    bounce(formData, {
+      error: "Restore at least one role and farm or farm-group membership before reactivating this user.",
+      selected: target.id,
+    });
+    unreachable("Reactivate assignments missing");
+  }
+
+  const reactivateResult = await admin.auth.admin.updateUserById(target.id, {
+    ban_duration: "none",
+  });
+  if (reactivateResult.error) {
+    bounce(formData, { error: reactivateResult.error.message, selected: target.id });
+  }
+
+  revalidatePath("/admin/user-access");
+  bounce(formData, {
+    notice: `${target.displayName} was reactivated. Existing roles and farm access remain assigned.`,
+    selected: target.id,
+  });
+}

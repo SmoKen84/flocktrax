@@ -3,7 +3,9 @@ import Link from "next/link";
 import { ReportsFilterPanel } from "@/app/admin/reports/reports-filter-panel";
 import { PageHeader } from "@/components/page-header";
 import { getAdminData } from "@/lib/admin-data";
+import { getFeedDropsReportFilterOptions } from "@/lib/feed-drops-report-data";
 import { getMortalityReportFilterOptions } from "@/lib/mortality-report-data";
+import { getQueuedFeedDeliveriesFilterOptions } from "@/lib/queued-feed-deliveries-report-data";
 
 type ReportsHubPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -34,6 +36,8 @@ const reportCategories = [
     reports: [
       { key: "ten_day_feed_requirements", label: "10-Day Feed Requirements" },
       { key: "custom_feed_projection", label: "Feed Projection (Custom Days)" },
+      { key: "feed_drops_report", label: "BinSentryAPI-Drops" },
+      { key: "queued_feed_deliveries", label: "Queued Feed Deliveries Not Received" },
     ],
   },
 ];
@@ -48,6 +52,9 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
   const flockCode = firstParam(params.flockCode) ?? "";
   const days = firstParam(params.days) ?? "14";
   const includeBinSentryOnOrderParam = firstParam(params.includeBinSentryOnOrder);
+  const sortOrder = firstParam(params.sortOrder) ?? "date";
+  const useDefaultTypeDensity = firstParam(params.useDefaultTypeDensity) === "1";
+  const feedMill = firstParam(params.feedMill) ?? "";
   const includeBinSentryOnOrder =
     includeBinSentryOnOrderParam === null
       ? reportKey === "ten_day_feed_requirements" || reportKey === "custom_feed_projection"
@@ -65,10 +72,16 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
       ? addDays(today, 30)
       : today);
 
-  const [adminData, mortalityFilterOptions] = await Promise.all([
+  const [adminData, mortalityFilterOptions, feedDropsFilterOptions, queuedFeedFilterOptions] = await Promise.all([
     getAdminData(),
     reportKey === "detailed_mortality_report"
       ? getMortalityReportFilterOptions()
+      : Promise.resolve(null),
+    reportKey === "feed_drops_report"
+      ? getFeedDropsReportFilterOptions()
+      : Promise.resolve(null),
+    reportKey === "queued_feed_deliveries"
+      ? getQueuedFeedDeliveriesFilterOptions()
       : Promise.resolve(null),
   ]);
   const activeFarmGroups = dedupeBy(
@@ -109,10 +122,11 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
     })),
     (entry) => entry.id,
   ).sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true }));
-  const filterFarmGroups = mortalityFilterOptions?.farmGroups ?? activeFarmGroups;
-  const filterFarms = mortalityFilterOptions?.farms ?? activeFarms;
-  const filterBarns = mortalityFilterOptions?.barns ?? activeBarns;
-  const filterFlocks = mortalityFilterOptions?.flocks ?? activeFlocks;
+  const filterFarmGroups = queuedFeedFilterOptions?.farmGroups ?? feedDropsFilterOptions?.farmGroups ?? mortalityFilterOptions?.farmGroups ?? activeFarmGroups;
+  const filterFarms = queuedFeedFilterOptions?.farms ?? feedDropsFilterOptions?.farms ?? mortalityFilterOptions?.farms ?? activeFarms;
+  const filterBarns = queuedFeedFilterOptions?.barns ?? feedDropsFilterOptions?.barns ?? mortalityFilterOptions?.barns ?? activeBarns;
+  const filterFlocks = queuedFeedFilterOptions?.flocks ?? feedDropsFilterOptions?.flocks ?? mortalityFilterOptions?.flocks ?? activeFlocks;
+  const filterFeedMills = queuedFeedFilterOptions?.feedMills ?? [];
 
   const selectedCategory =
     reportCategories.find((category) => category.key === categoryKey) ?? reportCategories[0];
@@ -153,6 +167,9 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                 flockCode,
                 startDate: reportStartDate,
                 endDate: reportEndDate,
+                sortOrder,
+                useDefaultTypeDensity,
+                feedMill,
                 includeBinSentryOnOrder,
               });
 
@@ -191,6 +208,9 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                   flockCode,
                   startDate: reportStartDate,
                   endDate: reportEndDate,
+                  sortOrder,
+                  useDefaultTypeDensity,
+                  feedMill,
                   includeBinSentryOnOrder,
                 });
 
@@ -224,7 +244,9 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
             selectedReport?.key === "quick_livehaul_report" ||
             selectedReport?.key === "detailed_placements_report" ||
             selectedReport?.key === "detailed_livehaul_report" ||
-            selectedReport?.key === "detailed_mortality_report" ? (
+            selectedReport?.key === "detailed_mortality_report" ||
+            selectedReport?.key === "feed_drops_report" ||
+            selectedReport?.key === "queued_feed_deliveries" ? (
               <ReportsFilterPanel
                 barns={filterBarns}
                 categoryKey={selectedCategory.key}
@@ -232,13 +254,17 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                 currentDays={days}
                 currentFarmGroupId={farmGroupId}
                 currentFarmId={farmId}
+                currentFeedMill={feedMill}
                 currentFlockCode={flockCode}
                 currentIncludeBinSentryOnOrder={includeBinSentryOnOrder}
                 currentReportDate={reportDate}
+                currentSortOrder={sortOrder}
+                currentUseDefaultTypeDensity={useDefaultTypeDensity}
                 currentStartDate={reportStartDate}
                 currentEndDate={reportEndDate}
                 farmGroups={filterFarmGroups}
                 farms={filterFarms}
+                feedMills={filterFeedMills}
                 flocks={filterFlocks}
                 reportKey={selectedReport.key}
               />
@@ -273,6 +299,9 @@ function buildReportsHubHref({
   flockCode,
   startDate,
   endDate,
+  sortOrder,
+  useDefaultTypeDensity,
+  feedMill,
   includeBinSentryOnOrder,
 }: {
   category: string;
@@ -283,6 +312,9 @@ function buildReportsHubHref({
   flockCode?: string;
   startDate?: string;
   endDate?: string;
+  sortOrder?: string;
+  useDefaultTypeDensity?: boolean;
+  feedMill?: string;
   includeBinSentryOnOrder?: boolean;
 }) {
   const params = new URLSearchParams();
@@ -294,6 +326,9 @@ function buildReportsHubHref({
   if (flockCode) params.set("flockCode", flockCode);
   if (startDate) params.set("startDate", startDate);
   if (endDate) params.set("endDate", endDate);
+  if (sortOrder) params.set("sortOrder", sortOrder);
+  if (useDefaultTypeDensity) params.set("useDefaultTypeDensity", "1");
+  if (feedMill) params.set("feedMill", feedMill);
   if (includeBinSentryOnOrder) params.set("includeBinSentryOnOrder", "1");
   const query = params.toString();
   return query ? `/admin/reports?${query}` : "/admin/reports";

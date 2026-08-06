@@ -35,6 +35,7 @@ type FeedOrderCommitmentRow = {
 type FeedOrderWindowBucket = {
   pounds: number;
   starterLbs: number;
+  allOpenStarterLbs: number;
   growerLbs: number;
   typedCount: number;
   untypedCount: number;
@@ -44,22 +45,7 @@ type FeedOrderWindowBucket = {
 
 type FeedBinMappingRow = {
   barn_id: string | null;
-  bin_num?: number | null;
   binsentry_bin_ref: string | null;
-};
-
-export type FeedProjectionDensityWarningRow = {
-  barnId: string;
-  barnCode: string;
-  binNumber: string;
-  liveBulkDensityLbFt3: number | null;
-  binSentryRef: string;
-  error: string | null;
-};
-
-export type FeedProjectionDensityWarning = {
-  targetBulkDensityLbFt3: number | null;
-  mismatches: FeedProjectionDensityWarningRow[];
 };
 
 type SirenEntity = {
@@ -277,132 +263,6 @@ export async function getFeedProjectionReportData(options: {
   };
 }
 
-export async function getFeedProjectionDensityWarning(options: {
-  windowDays: number;
-  farmGroupId?: string | null;
-  farmId?: string | null;
-  barnId?: string | null;
-  flockCode?: string | null;
-  reportMode?: "operational" | "planning";
-}) {
-  const windowDays = clampWindowDays(options.windowDays);
-  const reportMode = options.reportMode ?? (windowDays === 10 ? "operational" : "planning");
-  const adminData = await getAdminData();
-  const supabase = createSupabaseAdminClient();
-  const farmGroupId = normalizeOptionalId(options.farmGroupId);
-  const farmId = normalizeOptionalId(options.farmId);
-  const barnId = normalizeOptionalId(options.barnId);
-  const flockCode = normalizeOptionalText(options.flockCode);
-
-  if (!supabase) {
-    return {
-      targetBulkDensityLbFt3: null,
-      mismatches: [],
-    } satisfies FeedProjectionDensityWarning;
-  }
-
-  const filteredPlacements = filterPlacementsForFeedProjection({
-    placements: adminData.activePlacements,
-    farmGroupId,
-    farmId,
-    barnId,
-    flockCode,
-    reportMode,
-    windowDays,
-  });
-  const barnCodeByBarnId = new Map(
-    filteredPlacements
-      .map((placement) => [placement.barnId, placement.barnCode] as const)
-      .filter(([currentBarnId]) => Boolean(currentBarnId)),
-  );
-  const uniqueBarnIds = Array.from(new Set(filteredPlacements.map((placement) => placement.barnId).filter(Boolean)));
-
-  if (uniqueBarnIds.length === 0) {
-    return {
-      targetBulkDensityLbFt3: null,
-      mismatches: [],
-    } satisfies FeedProjectionDensityWarning;
-  }
-
-  const [binsResult, settingResult] = await Promise.all([
-    supabase
-      .from("feedbins")
-      .select("barn_id,bin_num,binsentry_bin_ref")
-      .in("barn_id", uniqueBarnIds)
-      .not("binsentry_bin_ref", "is", null),
-    supabase
-      .from("app_settings")
-      .select("name,value")
-      .eq("name", "BulkDensity")
-      .limit(1)
-      .maybeSingle(),
-  ]);
-
-  const targetBulkDensityLbFt3 = parseNullableNumber(settingResult.data?.value);
-  const rows = ((binsResult.data ?? []) as FeedBinMappingRow[]).filter((row) => normalizeOptionalText(row.binsentry_bin_ref));
-  if (rows.length === 0 || targetBulkDensityLbFt3 === null) {
-    return {
-      targetBulkDensityLbFt3,
-      mismatches: [],
-    } satisfies FeedProjectionDensityWarning;
-  }
-
-  try {
-    const token = await getBinSentryAccessToken();
-    const mismatches = await Promise.all(
-      rows.map(async (row) => {
-        const binRef = normalizeOptionalText(row.binsentry_bin_ref);
-        const currentBarnId = normalizeOptionalId(row.barn_id);
-        if (!binRef || !currentBarnId) {
-          return null;
-        }
-
-        try {
-          const payload = await fetchBinSentrySirenEntity(buildBinSentryEntityUrl(binRef), token);
-          const bulkDensityKgPerM3 =
-            typeof payload.properties?.bulkDensity === "number" && Number.isFinite(payload.properties.bulkDensity)
-              ? payload.properties.bulkDensity
-              : null;
-          const liveBulkDensityLbFt3 =
-            bulkDensityKgPerM3 === null ? null : Math.round(bulkDensityKgPerM3 * 0.0624279606 * 100) / 100;
-
-          if (liveBulkDensityLbFt3 !== null && Math.abs(liveBulkDensityLbFt3 - targetBulkDensityLbFt3) < 0.01) {
-            return null;
-          }
-
-          return {
-            barnId: currentBarnId,
-            barnCode: barnCodeByBarnId.get(currentBarnId) ?? currentBarnId,
-            binNumber: typeof row.bin_num === "number" && Number.isFinite(row.bin_num) ? String(row.bin_num) : "--",
-            liveBulkDensityLbFt3,
-            binSentryRef: binRef,
-            error: liveBulkDensityLbFt3 === null ? "Bulk density was not present on the BinSentry payload." : null,
-          } satisfies FeedProjectionDensityWarningRow;
-        } catch (error) {
-          return {
-            barnId: currentBarnId,
-            barnCode: barnCodeByBarnId.get(currentBarnId) ?? currentBarnId,
-            binNumber: typeof row.bin_num === "number" && Number.isFinite(row.bin_num) ? String(row.bin_num) : "--",
-            liveBulkDensityLbFt3: null,
-            binSentryRef: binRef,
-            error: error instanceof Error ? error.message : "BinSentry density preflight failed.",
-          } satisfies FeedProjectionDensityWarningRow;
-        }
-      }),
-    );
-
-    return {
-      targetBulkDensityLbFt3,
-      mismatches: mismatches.filter((row): row is FeedProjectionDensityWarningRow => row !== null),
-    } satisfies FeedProjectionDensityWarning;
-  } catch {
-    return {
-      targetBulkDensityLbFt3,
-      mismatches: [],
-    } satisfies FeedProjectionDensityWarning;
-  }
-}
-
 function filterPlacementsForFeedProjection({
   placements,
   farmGroupId,
@@ -491,8 +351,6 @@ function toReportRow({
     daily: projection.daily,
     starterRemainingObligationLbs: placement.starterRemainingObligationLbs,
   });
-  const starterWindowRequiredLbs =
-    typedProjection.starterTotal !== null ? Math.max(0, Math.round(typedProjection.starterTotal)) : null;
   const windowStarterOnOrderLbs = Math.round(
     Math.max(0, feedOrdersForPlacement?.starterLbs ?? 0) +
       Math.max(0, feedOrdersForBarn?.starterLbs ?? 0) +
@@ -502,6 +360,11 @@ function toReportRow({
     Math.max(0, feedOrdersForPlacement?.growerLbs ?? 0) +
       Math.max(0, feedOrdersForBarn?.growerLbs ?? 0) +
       Math.max(0, binSentryOrdersForBarn?.growerLbs ?? 0),
+  );
+  const allOpenStarterOnOrderLbs = Math.round(
+    Math.max(0, feedOrdersForPlacement?.allOpenStarterLbs ?? 0) +
+      Math.max(0, feedOrdersForBarn?.allOpenStarterLbs ?? 0) +
+      Math.max(0, binSentryOrdersForBarn?.allOpenStarterLbs ?? 0),
   );
   const windowOnOrderLbs = Math.round(
     Math.max(0, feedOrdersForPlacement?.pounds ?? 0) +
@@ -532,7 +395,7 @@ function toReportRow({
       typedProjection.growerTotal !== null);
   const starterDeliveredPlusOnOrderLbs = Math.max(
     0,
-    Math.round((placement.starterDeliveredLbs ?? 0) + windowStarterOnOrderLbs),
+    Math.round((placement.starterDeliveredLbs ?? 0) + allOpenStarterOnOrderLbs),
   );
   const typedRecommendation = typedOrderingAvailable
     ? calculateTypedFeedRecommendations({
@@ -543,27 +406,20 @@ function toReportRow({
         growerOnOrderLbs: windowGrowerOnOrderLbs,
       })
     : null;
-  const starterRecommendedLbs =
-    typedRecommendation?.starterRecommendedLbs ??
-    (reportMode === "planning" && typedProjection.starterTotal !== null
-      ? Math.max(
-          0,
-          Math.round(
-            typedProjection.starterTotal -
-              (placement.feedInventoryStarterAccessibleLbs ?? 0) -
-              windowStarterOnOrderLbs,
-          ),
-        )
-      : null);
+  const starterRecommendedLbs = Math.max(
+    0,
+    Math.round((placement.starterRemainingObligationLbs ?? 0) - allOpenStarterOnOrderLbs),
+  );
   const growerRecommendedLbs = typedRecommendation?.growerRecommendedLbs ?? null;
   const typedRecommendedTotal =
     starterRecommendedLbs !== null && growerRecommendedLbs !== null
       ? starterRecommendedLbs + growerRecommendedLbs
       : null;
-  const recommendedOrderLbs =
-    reportMode === "operational"
-      ? Math.max(legacyRecommended ?? 0, typedRecommendedTotal ?? 0, starterRecommendedLbs ?? 0)
-      : legacyRecommended;
+  const recommendedOrderLbs = Math.max(
+    legacyRecommended ?? 0,
+    typedRecommendedTotal ?? 0,
+    starterRecommendedLbs,
+  );
   const orderingMode =
     typedRecommendedTotal !== null
       ? ("typed" as const)
@@ -590,7 +446,7 @@ function toReportRow({
           ? "awaiting"
           : "live",
     headCount: placement.headCount,
-    starterTotalLbs: starterWindowRequiredLbs,
+    starterTotalLbs: placement.starterTargetLbs,
     growerTotalLbs: typedProjection.growerTotal,
     starterTargetLbs: placement.starterTargetLbs,
     starterDeliveredLbs: placement.starterDeliveredLbs,
@@ -612,7 +468,7 @@ function toReportRow({
     growerAccessibleLbs: placement.feedInventoryGrowerAccessibleLbs,
     starterQueuedLbs: placement.feedInventoryStarterQueuedLbs,
     growerQueuedLbs: placement.feedInventoryGrowerQueuedLbs,
-    starterOnOrderLbs: windowStarterOnOrderLbs,
+    starterOnOrderLbs: allOpenStarterOnOrderLbs,
     growerOnOrderLbs: windowGrowerOnOrderLbs,
     starterRecommendedLbs,
     growerRecommendedLbs,
@@ -632,10 +488,6 @@ function buildFeedOrderWindowMap(
     if (!key) continue;
 
     const expectedDate = String(row.expected_delivery_date ?? "").trim();
-    if (expectedDate && expectedDate > windowEnd) {
-      continue;
-    }
-
     const orderedLbs = Math.max(0, row.ordered_lbs ?? 0);
     const receivedLbs = Math.max(0, row.received_lbs ?? 0);
     const remainingLbs = Math.max(0, orderedLbs - receivedLbs);
@@ -644,6 +496,7 @@ function buildFeedOrderWindowMap(
     const bucket = map.get(key) ?? {
       pounds: 0,
       starterLbs: 0,
+      allOpenStarterLbs: 0,
       growerLbs: 0,
       typedCount: 0,
       untypedCount: 0,
@@ -651,6 +504,12 @@ function buildFeedOrderWindowMap(
       nextEta: null,
     };
     const feedType = normalizeFeedType(row.feed_type);
+    if (feedType === "starter") bucket.allOpenStarterLbs += remainingLbs;
+
+    if (expectedDate && expectedDate > windowEnd) {
+      map.set(key, bucket);
+      continue;
+    }
 
     bucket.pounds += remainingLbs;
     if (feedType === "starter") bucket.starterLbs += remainingLbs;
@@ -753,9 +612,6 @@ async function fetchBinSentryScheduledOrdersSafe(
       const deliveryDate = normalizeOptionalText(
         typeof orderProperties.deliveryDate === "string" ? orderProperties.deliveryDate.slice(0, 10) : null,
       );
-      if (deliveryDate && deliveryDate > windowEnd) {
-        continue;
-      }
       const feedHref = findSirenHref(detailedOrder, ["/feed", "feed"]);
       let feedMeta = feedHref ? feedMetaByHref.get(feedHref) : undefined;
 
@@ -772,6 +628,7 @@ async function fetchBinSentryScheduledOrdersSafe(
         feedMetaByHref.set(feedHref, feedMeta);
       }
 
+      // Scheduled quantities are volumes; use the density on BinSentry's feed record for that order.
       const pounds = feedMeta?.bulkDensityKgPerM3
         ? Math.max(0, Math.round(quantity * feedMeta.bulkDensityKgPerM3 * 2.20462))
         : 0;
@@ -783,12 +640,19 @@ async function fetchBinSentryScheduledOrdersSafe(
       const bucket = bucketByBarnId.get(barnId) ?? {
         pounds: 0,
         starterLbs: 0,
+        allOpenStarterLbs: 0,
         growerLbs: 0,
         typedCount: 0,
         untypedCount: 0,
         count: 0,
         nextEta: null,
       };
+      if (feedType === "starter") bucket.allOpenStarterLbs += pounds;
+
+      if (deliveryDate && deliveryDate > windowEnd) {
+        bucketByBarnId.set(barnId, bucket);
+        continue;
+      }
 
       bucket.pounds += pounds;
       if (feedType === "starter") bucket.starterLbs += pounds;
@@ -900,11 +764,6 @@ function normalizeOptionalText(value: string | null | undefined) {
 
 function normalizeOptionalId(value: string | null | undefined) {
   return normalizeOptionalText(value);
-}
-
-function parseNullableNumber(value: unknown) {
-  const parsed = Number(String(value ?? "").trim());
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function isoDate(value: Date) {

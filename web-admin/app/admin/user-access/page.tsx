@@ -6,6 +6,7 @@ import {
   assignUserRoleAction,
   disableUserAccessAction,
   inviteUserAccessAction,
+  reactivateUserAccessAction,
   removeFarmGroupMembershipAction,
   removeFarmMembershipAction,
   removeUserRoleAction,
@@ -137,7 +138,12 @@ export default async function UserAccessPage({ searchParams }: UserAccessPagePro
   }));
   const canInviteUsers = actorCanManageUsers(actingRole) && inviteRoleOptions.length > 0;
   const hasActiveFilters = Boolean(groupFilter || farmFilter || statusFilter);
-  const canDisableSelectedUser = Boolean(selectedTarget && actorIsSuperAdmin && !isSelfSelected);
+  const canReactivateSelectedUser = Boolean(
+    selectedTarget && actorIsSuperAdmin && !isSelfSelected && selectedTarget.status === "inactive",
+  );
+  const canDisableSelectedUser = Boolean(
+    selectedTarget && actorIsSuperAdmin && !isSelfSelected && selectedTarget.status !== "inactive",
+  );
   const canResendSelectedInvite = Boolean(
     selectedTarget &&
     canManageLiveAssignments &&
@@ -461,6 +467,16 @@ export default async function UserAccessPage({ searchParams }: UserAccessPagePro
                           <input name="target_user_id" type="hidden" value={selectedTarget.id} />
                           <button className="button-secondary" type="submit">
                             Resend Setup Link
+                          </button>
+                        </form>
+                      ) : null}
+
+                      {canReactivateSelectedUser && selectedTarget ? (
+                        <form action={reactivateUserAccessAction}>
+                          <input name="return_to" type="hidden" value={buildUserAccessHref(selectedTarget.id, null)} />
+                          <input name="target_user_id" type="hidden" value={selectedTarget.id} />
+                          <button className="button-secondary" type="submit">
+                            Reactivate User
                           </button>
                         </form>
                       ) : null}
