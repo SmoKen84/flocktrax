@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-07-28`
+Updated: `2026-08-06`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -8,6 +8,12 @@ Purpose:
 - flag which notes were recovered from Codex local session history instead of already existing as repo files
 
 ## Chronological Index
+
+### August 2026
+
+- `2026-08-06`
+  - [FlockTrax_Admin_2_1_0_Build_5_9_Feed_Reconciliation_Production_Checkpoint_2026-08-06.md](C:\dev\FlockTrax\output\FlockTrax_Admin_2_1_0_Build_5_9_Feed_Reconciliation_Production_Checkpoint_2026-08-06.md)
+  - authoritative Admin `2.1.0` build `12` / label `5.9` production checkpoint covering release commit `9d4ffbe`, Vercel deployment `dpl_FcN5R68z2YRrfvWpq4NVVYL4sLyd`, BinSentry-owned density conversion and Edge Function version `5`, revised lifetime starter ordering, corrected refill delta calculations, the BinSentry API feed-received polling report, the Queued Feed Deliveries Not Received report, queued-only drop filtering, employee reactivation, captured mobile 1.0.5 release-support assets, validation gates, operational boundaries, and exact resume guidance
 
 ### July 2026
 
