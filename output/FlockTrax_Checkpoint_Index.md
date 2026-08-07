@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-08-06`
+Updated: `2026-08-07`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### August 2026
+
+- `2026-08-07`
+  - [FlockTrax_Admin_BinSentry_Polling_Rollups_And_Feed_Drop_Usability_Production_Checkpoint_2026-08-07.md](C:\dev\FlockTrax\output\FlockTrax_Admin_BinSentry_Polling_Rollups_And_Feed_Drop_Usability_Production_Checkpoint_2026-08-07.md)
+  - authoritative production checkpoint covering intentional-null mortality and cull semantics, the BinSentry polling Barn filter, the optional summary page with feed-type/barn/bin/overall rollups, the wider and darker feed-ticket drop Bin selector, release commits `84c78c6`, `a5f69de`, and `e504e6e`, Vercel deployment `dpl_F4vLg9p7B5JwDw5bbaPiKFwr2wUX`, validation gates, operational boundaries, and exact resume guidance
 
 - `2026-08-06`
   - [FlockTrax_Admin_2_1_0_Build_5_9_Feed_Reconciliation_Production_Checkpoint_2026-08-06.md](C:\dev\FlockTrax\output\FlockTrax_Admin_2_1_0_Build_5_9_Feed_Reconciliation_Production_Checkpoint_2026-08-06.md)
