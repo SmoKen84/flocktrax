@@ -750,6 +750,7 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                 <div className="feed-ticket-editor-drop-row" key={`${drop.id ?? "new"}-${index}`}>
                   <span className="feed-ticket-editor-ordinal">{index + 1}</span>
                   <select
+                    className="feed-ticket-editor-bin-select"
                     disabled={isOffFarmRedirect || isQueuedForReconciliation}
                     onChange={(event) => {
                       const nextBin = item.bins.find((bin) => bin.feed_bin_id === event.target.value) ?? null;
@@ -766,6 +767,15 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                         manual_flock_override: false,
                       });
                     }}
+                    title={
+                      isOffFarmRedirect
+                        ? "Off Farm Redirect"
+                        : isQueuedForReconciliation
+                          ? buildQueuedBinLabel(drop) ?? "Queued"
+                          : currentBin
+                            ? formatBinLabel(currentBin)
+                            : "Select Bin"
+                    }
                     value={drop.feed_bin_id ?? ""}
                   >
                     <option value="">

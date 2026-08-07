@@ -44,6 +44,7 @@ export type FeedDropReportRow = {
   id: string;
   occurredAt: string;
   farmName: string;
+  barnCode: string;
   binNumber: number | null;
   volumeCubicMeters: number;
   volumeCubicFeet: number;
@@ -135,6 +136,7 @@ export async function getFeedDropsReportData(options: {
     return true;
   });
   const farmById = new Map(selectedFarms.map((farm) => [farm.id, farm]));
+  const barnById = new Map(barns.map((barn) => [barn.id, barn]));
   const scopeLabel = buildScopeLabel(selectedFarms, barns, options.farmGroupId, options.farmId, options.barnId);
   const supabase = createSupabaseAdminClient();
 
@@ -163,6 +165,9 @@ export async function getFeedDropsReportData(options: {
       return await loadBinRefills({
         bin,
         farmName: farmById.get(bin.farm_id!)?.farm_name?.trim() || "Unnamed farm",
+        barnCode: bin.barn_id
+          ? barnById.get(bin.barn_id)?.barn_code?.trim() || "Unnamed barn"
+          : "Unassigned barn",
         startDate,
         endDate,
         defaultDensities,
@@ -184,6 +189,7 @@ export async function getFeedDropsReportData(options: {
 async function loadBinRefills(options: {
   bin: FeedBinRow;
   farmName: string;
+  barnCode: string;
   startDate: string;
   endDate: string;
   defaultDensities: { starter: number | null; grower: number | null };
@@ -244,6 +250,7 @@ async function loadBinRefills(options: {
       id: `${options.bin.id}-${occurredAt}-${index}`,
       occurredAt,
       farmName: options.farmName,
+      barnCode: options.barnCode,
       binNumber: options.bin.bin_num,
       volumeCubicMeters,
       volumeCubicFeet: volumeCubicMeters * CUBIC_FEET_PER_CUBIC_METER,

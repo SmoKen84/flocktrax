@@ -54,6 +54,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
   const includeBinSentryOnOrderParam = firstParam(params.includeBinSentryOnOrder);
   const sortOrder = firstParam(params.sortOrder) ?? "date";
   const useDefaultTypeDensity = firstParam(params.useDefaultTypeDensity) === "1";
+  const includeRollupSummary = firstParam(params.includeRollupSummary) === "1";
   const feedMill = firstParam(params.feedMill) ?? "";
   const includeBinSentryOnOrder =
     includeBinSentryOnOrderParam === null
@@ -169,6 +170,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                 endDate: reportEndDate,
                 sortOrder,
                 useDefaultTypeDensity,
+                includeRollupSummary,
                 feedMill,
                 includeBinSentryOnOrder,
               });
@@ -210,6 +212,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                   endDate: reportEndDate,
                   sortOrder,
                   useDefaultTypeDensity,
+                  includeRollupSummary,
                   feedMill,
                   includeBinSentryOnOrder,
                 });
@@ -260,6 +263,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                 currentReportDate={reportDate}
                 currentSortOrder={sortOrder}
                 currentUseDefaultTypeDensity={useDefaultTypeDensity}
+                currentIncludeRollupSummary={includeRollupSummary}
                 currentStartDate={reportStartDate}
                 currentEndDate={reportEndDate}
                 farmGroups={filterFarmGroups}
@@ -301,6 +305,7 @@ function buildReportsHubHref({
   endDate,
   sortOrder,
   useDefaultTypeDensity,
+  includeRollupSummary,
   feedMill,
   includeBinSentryOnOrder,
 }: {
@@ -314,6 +319,7 @@ function buildReportsHubHref({
   endDate?: string;
   sortOrder?: string;
   useDefaultTypeDensity?: boolean;
+  includeRollupSummary?: boolean;
   feedMill?: string;
   includeBinSentryOnOrder?: boolean;
 }) {
@@ -328,6 +334,7 @@ function buildReportsHubHref({
   if (endDate) params.set("endDate", endDate);
   if (sortOrder) params.set("sortOrder", sortOrder);
   if (useDefaultTypeDensity) params.set("useDefaultTypeDensity", "1");
+  if (includeRollupSummary) params.set("includeRollupSummary", "1");
   if (feedMill) params.set("feedMill", feedMill);
   if (includeBinSentryOnOrder) params.set("includeBinSentryOnOrder", "1");
   const query = params.toString();

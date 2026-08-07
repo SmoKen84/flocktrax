@@ -23,6 +23,7 @@ export default async function FeedDropsReportPage({ searchParams }: FeedDropsRep
   const endDate = firstParam(params.endDate) ?? today;
   const sortOrder = firstParam(params.sortOrder) ?? "date";
   const useDefaultTypeDensity = firstParam(params.useDefaultTypeDensity) === "1";
+  const includeRollupSummary = firstParam(params.includeRollupSummary) === "1";
   const report = await getFeedDropsReportData({
     farmGroupId,
     farmId,
@@ -49,6 +50,7 @@ export default async function FeedDropsReportPage({ searchParams }: FeedDropsRep
               endDate: report.endDate,
               sortOrder: report.sortOrder,
               useDefaultTypeDensity: report.useDefaultTypeDensity,
+              includeRollupSummary,
             })}
           >
             <span aria-hidden="true">&larr;</span>
@@ -161,12 +163,139 @@ export default async function FeedDropsReportPage({ searchParams }: FeedDropsRep
           Sorted by {sortLabel(report.sortOrder)}. Refill volume is reported from BinSentry. Density Applied is the
           exact density used for Estimated Weight: {report.useDefaultTypeDensity ? "configured feed-type defaults where the type is known" : "each refill's stored BinSentry density"}.
         </footer>
+
+        {includeRollupSummary ? <FeedDropsRollupSummary rows={report.rows} /> : null}
       </section>
     </div>
   );
 }
 
 type FeedDropRow = Awaited<ReturnType<typeof getFeedDropsReportData>>["rows"][number];
+
+type FeedDropRollup = {
+  id: string;
+  label: string;
+  detail?: string;
+  refillCount: number;
+  volumeCubicFeet: number;
+  estimatedWeightLbs: number;
+};
+
+function FeedDropsRollupSummary({ rows }: { rows: FeedDropRow[] }) {
+  const byBin = buildRollups(
+    rows,
+    (row) => `${row.farmName}\u0000${row.barnCode}\u0000${row.binNumber ?? "unknown"}`,
+    (row) => ({
+      label: `Bin ${row.binNumber ?? "Unknown"}`,
+      detail: `${row.farmName} / ${row.barnCode}`,
+    }),
+  );
+  const byBarn = buildRollups(
+    rows,
+    (row) => `${row.farmName}\u0000${row.barnCode}`,
+    (row) => ({ label: row.barnCode, detail: row.farmName }),
+  );
+  const byType = buildRollups(
+    rows,
+    (row) => row.feedType?.toLowerCase() || "unknown",
+    (row) => ({ label: titleCase(row.feedType ?? "Unknown") }),
+  );
+  const overall = summarizeRows(rows);
+
+  return (
+    <section className="feed-drops-rollup-page">
+      <header className="feed-drops-rollup-title">
+        <p className="eyebrow">Optional Summary</p>
+        <h2>Feed Received Rollup Summary</h2>
+        <p>Totals reflect the refill volume and density method used by this report.</p>
+      </header>
+
+      <div className="feed-drops-rollup-overall">
+        <div><span>Refills</span><strong>{overall.refillCount.toLocaleString("en-US")}</strong></div>
+        <div><span>Total Volume</span><strong>{formatDecimal(overall.volumeCubicFeet)} ft&sup3;</strong></div>
+        <div><span>Overall Estimated Weight</span><strong>{formatWhole(overall.estimatedWeightLbs)} lbs</strong></div>
+      </div>
+
+      <div className="feed-drops-rollup-grid">
+        <RollupTable heading="Totals by Feed Type" rows={byType} />
+        <RollupTable heading="Totals by Barn" rows={byBarn} />
+        <RollupTable className="feed-drops-rollup-bins" heading="Totals by Bin" rows={byBin} />
+      </div>
+    </section>
+  );
+}
+
+function RollupTable({
+  className = "",
+  heading,
+  rows,
+}: {
+  className?: string;
+  heading: string;
+  rows: FeedDropRollup[];
+}) {
+  return (
+    <section className={`feed-drops-rollup-block ${className}`.trim()}>
+      <h3>{heading}</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Group</th>
+            <th>Refills</th>
+            <th>Volume</th>
+            <th>Estimated Weight</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length > 0 ? rows.map((row) => (
+            <tr key={row.id}>
+              <td><strong>{row.label}</strong>{row.detail ? <small>{row.detail}</small> : null}</td>
+              <td>{row.refillCount.toLocaleString("en-US")}</td>
+              <td>{formatDecimal(row.volumeCubicFeet)} ft&sup3;</td>
+              <td><strong>{formatWhole(row.estimatedWeightLbs)} lbs</strong></td>
+            </tr>
+          )) : (
+            <tr><td colSpan={4}>No refill data in the selected report scope.</td></tr>
+          )}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function buildRollups(
+  rows: FeedDropRow[],
+  getKey: (row: FeedDropRow) => string,
+  getLabel: (row: FeedDropRow) => { label: string; detail?: string },
+) {
+  const groups = new Map<string, { label: string; detail?: string; rows: FeedDropRow[] }>();
+  for (const row of rows) {
+    const key = getKey(row);
+    const existing = groups.get(key);
+    if (existing) {
+      existing.rows.push(row);
+    } else {
+      groups.set(key, { ...getLabel(row), rows: [row] });
+    }
+  }
+  return [...groups.entries()].map(([id, group]) => ({
+    id,
+    label: group.label,
+    detail: group.detail,
+    ...summarizeRows(group.rows),
+  })).sort((left, right) =>
+    (left.detail ?? "").localeCompare(right.detail ?? "", undefined, { numeric: true })
+      || left.label.localeCompare(right.label, undefined, { numeric: true }),
+  );
+}
+
+function summarizeRows(rows: FeedDropRow[]) {
+  return {
+    refillCount: rows.length,
+    volumeCubicFeet: rows.reduce((sum, row) => sum + row.volumeCubicFeet, 0),
+    estimatedWeightLbs: rows.reduce((sum, row) => sum + row.estimatedWeightLbs, 0),
+  };
+}
 
 function buildDeliveryGroups(rows: FeedDropRow[], sortOrder: FeedDropsSortOrder) {
   const byFarmDate = new Map<string, FeedDropRow[]>();
@@ -353,6 +482,7 @@ function buildBackHref(options: {
   endDate: string;
   sortOrder: FeedDropsSortOrder;
   useDefaultTypeDensity: boolean;
+  includeRollupSummary: boolean;
 }) {
   const params = new URLSearchParams({
     category: "feed_reports",
@@ -365,5 +495,6 @@ function buildBackHref(options: {
   if (options.farmId) params.set("farmId", options.farmId);
   if (options.barnId) params.set("barnId", options.barnId);
   if (options.useDefaultTypeDensity) params.set("useDefaultTypeDensity", "1");
+  if (options.includeRollupSummary) params.set("includeRollupSummary", "1");
   return `/admin/reports?${params.toString()}`;
 }

@@ -47,6 +47,7 @@ type ReportsFilterPanelProps = {
   currentEndDate: string;
   currentSortOrder: string;
   currentUseDefaultTypeDensity: boolean;
+  currentIncludeRollupSummary: boolean;
   currentIncludeBinSentryOnOrder: boolean;
   farmGroups: FarmGroupOption[];
   farms: FarmOption[];
@@ -69,6 +70,7 @@ export function ReportsFilterPanel({
   currentEndDate,
   currentSortOrder,
   currentUseDefaultTypeDensity,
+  currentIncludeRollupSummary,
   currentIncludeBinSentryOnOrder,
   farmGroups,
   farms,
@@ -90,6 +92,7 @@ export function ReportsFilterPanel({
   const [endDate, setEndDate] = useState(currentEndDate);
   const [sortOrder, setSortOrder] = useState(currentSortOrder);
   const [useDefaultTypeDensity, setUseDefaultTypeDensity] = useState(currentUseDefaultTypeDensity);
+  const [includeRollupSummary, setIncludeRollupSummary] = useState(currentIncludeRollupSummary);
   const [includeBinSentryOnOrder, setIncludeBinSentryOnOrder] = useState(currentIncludeBinSentryOnOrder);
   const showDaysField = reportKey === "custom_feed_projection";
   const showDateField = reportKey === "at_a_glance";
@@ -106,6 +109,7 @@ export function ReportsFilterPanel({
   const showFlockField = reportKey !== "feed_drops_report" && reportKey !== "queued_feed_deliveries";
   const showFeedMillField = reportKey === "queued_feed_deliveries";
   const showSortOrderField = reportKey === "feed_drops_report";
+  const showRollupSummaryOption = reportKey === "feed_drops_report";
   const showBinSentryOnOrderToggle =
     reportKey === "ten_day_feed_requirements" || reportKey === "custom_feed_projection";
   const limitToTodayForward = categoryKey === "quick_access_reports" && showDateRangeField;
@@ -160,6 +164,7 @@ export function ReportsFilterPanel({
     if (showDateRangeField && nextEndDate) params.set("endDate", nextEndDate);
     if (showSortOrderField && sortOrder) params.set("sortOrder", sortOrder);
     if (showSortOrderField && useDefaultTypeDensity) params.set("useDefaultTypeDensity", "1");
+    if (showRollupSummaryOption && includeRollupSummary) params.set("includeRollupSummary", "1");
     if (showFeedMillField && feedMill) params.set("feedMill", feedMill);
     if (showBinSentryOnOrderToggle && nextIncludeBinSentryOnOrder) params.set("includeBinSentryOnOrder", "1");
 
@@ -290,6 +295,7 @@ export function ReportsFilterPanel({
     if (endDate) params.set("endDate", endDate);
     params.set("sortOrder", nextSortOrder);
     if (useDefaultTypeDensity) params.set("useDefaultTypeDensity", "1");
+    if (includeRollupSummary) params.set("includeRollupSummary", "1");
     startTransition(() => router.replace(`${pathname}?${params.toString()}`, { scroll: false }));
   }
 
@@ -305,7 +311,25 @@ export function ReportsFilterPanel({
     if (endDate) params.set("endDate", endDate);
     if (sortOrder) params.set("sortOrder", sortOrder);
     if (nextValue) params.set("useDefaultTypeDensity", "1");
+    if (includeRollupSummary) params.set("includeRollupSummary", "1");
     startTransition(() => router.replace(`${pathname}?${params.toString()}`, { scroll: false }));
+  }
+
+  function handleIncludeRollupSummaryChange(nextValue: boolean) {
+    setIncludeRollupSummary(nextValue);
+    const href = buildReportsHubHref({
+      category: categoryKey,
+      report: reportKey,
+      farmGroupId,
+      farmId,
+      barnId,
+      startDate,
+      endDate,
+      sortOrder,
+      useDefaultTypeDensity,
+      includeRollupSummary: nextValue,
+    });
+    startTransition(() => router.replace(href, { scroll: false }));
   }
 
   function handleFeedMillChange(nextFeedMill: string) {
@@ -337,6 +361,7 @@ export function ReportsFilterPanel({
     endDate,
     sortOrder,
     useDefaultTypeDensity,
+    includeRollupSummary,
     feedMill,
     includeBinSentryOnOrder,
     reportKey,
@@ -488,6 +513,17 @@ export function ReportsFilterPanel({
               <small>Estimate Starter and Grower refill weight with their configured default densities instead of the density stored on the BinSentry refill.</small>
             </div>
           </label>
+          <label className="reports-hub-checkbox-field">
+            <input
+              checked={includeRollupSummary}
+              onChange={(event) => handleIncludeRollupSummaryChange(event.target.checked)}
+              type="checkbox"
+            />
+            <div>
+              <span>Include rollup summary page</span>
+              <small>Append optional totals by bin, barn, and feed type plus the overall report total.</small>
+            </div>
+          </label>
         </>
       ) : null}
 
@@ -529,6 +565,7 @@ function buildReportsHubHref({
   endDate,
   sortOrder,
   useDefaultTypeDensity,
+  includeRollupSummary,
   feedMill,
   includeBinSentryOnOrder,
 }: {
@@ -543,6 +580,7 @@ function buildReportsHubHref({
   endDate?: string;
   sortOrder?: string;
   useDefaultTypeDensity?: boolean;
+  includeRollupSummary?: boolean;
   feedMill?: string;
   includeBinSentryOnOrder?: boolean;
 }) {
@@ -558,6 +596,7 @@ function buildReportsHubHref({
   if (endDate) params.set("endDate", endDate);
   if (sortOrder) params.set("sortOrder", sortOrder);
   if (useDefaultTypeDensity) params.set("useDefaultTypeDensity", "1");
+  if (includeRollupSummary) params.set("includeRollupSummary", "1");
   if (feedMill) params.set("feedMill", feedMill);
   if (includeBinSentryOnOrder) params.set("includeBinSentryOnOrder", "1");
   const query = params.toString();
@@ -575,6 +614,7 @@ function buildFeedProjectionPreviewHref({
   endDate,
   sortOrder,
   useDefaultTypeDensity,
+  includeRollupSummary,
   feedMill,
   includeBinSentryOnOrder,
   reportKey,
@@ -589,6 +629,7 @@ function buildFeedProjectionPreviewHref({
   endDate?: string;
   sortOrder?: string;
   useDefaultTypeDensity?: boolean;
+  includeRollupSummary?: boolean;
   feedMill?: string;
   includeBinSentryOnOrder?: boolean;
   reportKey: string;
@@ -609,6 +650,7 @@ function buildFeedProjectionPreviewHref({
   }
   if (reportKey === "feed_drops_report" && sortOrder) params.set("sortOrder", sortOrder);
   if (reportKey === "feed_drops_report" && useDefaultTypeDensity) params.set("useDefaultTypeDensity", "1");
+  if (reportKey === "feed_drops_report" && includeRollupSummary) params.set("includeRollupSummary", "1");
   if (reportKey === "queued_feed_deliveries" && feedMill) params.set("feedMill", feedMill);
   const query = params.toString();
   const pathname =
