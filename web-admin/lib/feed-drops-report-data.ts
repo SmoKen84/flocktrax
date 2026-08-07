@@ -18,9 +18,17 @@ type FarmRow = {
   farm_group_name: string | null;
 };
 
+type BarnRow = {
+  id: string;
+  farm_id: string;
+  barn_code: string | null;
+  sort_code: string | null;
+};
+
 type FeedBinRow = {
   id: string;
   farm_id: string | null;
+  barn_id: string | null;
   bin_num: number | null;
   binsentry_bin_ref: string | null;
 };
@@ -63,7 +71,7 @@ export type FeedDropsReportData = {
 export type FeedDropsReportFilterOptions = {
   farmGroups: Array<{ id: string; name: string }>;
   farms: Array<{ id: string; farmGroupId: string; name: string }>;
-  barns: [];
+  barns: Array<{ id: string; farmGroupId: string; farmId: string; label: string }>;
   flocks: [];
 };
 
@@ -72,7 +80,8 @@ const LB_PER_CUBIC_FOOT_PER_KG_PER_CUBIC_METER = 0.0624279606;
 
 export async function getFeedDropsReportFilterOptions(): Promise<FeedDropsReportFilterOptions> {
   noStore();
-  const farms = await loadFarms();
+  const [farms, barns] = await Promise.all([loadFarms(), loadBarns()]);
+  const farmById = new Map(farms.map((farm) => [farm.id, farm]));
 
   return {
     farmGroups: dedupeBy(
@@ -89,7 +98,16 @@ export async function getFeedDropsReportFilterOptions(): Promise<FeedDropsReport
         name: farm.farm_name?.trim() || "Unnamed farm",
       }))
       .sort((left, right) => left.name.localeCompare(right.name)),
-    barns: [],
+    barns: barns.flatMap((barn) => {
+      const farm = farmById.get(barn.farm_id);
+      if (!farm?.farm_group_id) return [];
+      return [{
+        id: barn.id,
+        farmGroupId: farm.farm_group_id,
+        farmId: barn.farm_id,
+        label: `${barn.barn_code?.trim() || "Unnamed barn"} - ${farm.farm_name?.trim() || "Unnamed farm"}`,
+      }];
+    }).sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true })),
     flocks: [],
   };
 }
@@ -97,6 +115,7 @@ export async function getFeedDropsReportFilterOptions(): Promise<FeedDropsReport
 export async function getFeedDropsReportData(options: {
   farmGroupId?: string | null;
   farmId?: string | null;
+  barnId?: string | null;
   startDate: string;
   endDate: string;
   sortOrder?: string | null;
@@ -109,14 +128,14 @@ export async function getFeedDropsReportData(options: {
   const endDate = endDateCandidate < startDate ? startDate : endDateCandidate;
   const sortOrder = normalizeSortOrder(options.sortOrder);
   const useDefaultTypeDensity = options.useDefaultTypeDensity === true;
-  const farms = await loadFarms();
+  const [farms, barns] = await Promise.all([loadFarms(), loadBarns()]);
   const selectedFarms = farms.filter((farm) => {
     if (options.farmGroupId && farm.farm_group_id !== options.farmGroupId) return false;
     if (options.farmId && farm.id !== options.farmId) return false;
     return true;
   });
   const farmById = new Map(selectedFarms.map((farm) => [farm.id, farm]));
-  const scopeLabel = buildScopeLabel(selectedFarms, options.farmGroupId, options.farmId);
+  const scopeLabel = buildScopeLabel(selectedFarms, barns, options.farmGroupId, options.farmId, options.barnId);
   const supabase = createSupabaseAdminClient();
 
   if (!supabase || selectedFarms.length === 0) {
@@ -125,10 +144,13 @@ export async function getFeedDropsReportData(options: {
 
   const defaultDensities = await loadDefaultTypeDensities(supabase);
 
-  const { data, error } = await supabase
+  let feedBinsQuery = supabase
     .from("feedbins")
-    .select("id,farm_id,bin_num,binsentry_bin_ref")
+    .select("id,farm_id,barn_id,bin_num,binsentry_bin_ref")
     .in("farm_id", selectedFarms.map((farm) => farm.id));
+  if (options.barnId) feedBinsQuery = feedBinsQuery.eq("barn_id", options.barnId);
+
+  const { data, error } = await feedBinsQuery;
 
   if (error) throw error;
 
@@ -311,6 +333,16 @@ async function loadFarms() {
   return (data ?? []) as FarmRow[];
 }
 
+async function loadBarns() {
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("barns")
+    .select("id,farm_id,barn_code,sort_code");
+  if (error) throw error;
+  return (data ?? []) as BarnRow[];
+}
+
 function findHrefByRel(entity: SirenEntity, needles: string[]) {
   const matches = (rels: string[] | undefined) =>
     (rels ?? []).some((rel) => {
@@ -371,7 +403,19 @@ function sortRows(rows: FeedDropReportRow[], sortOrder: FeedDropsSortOrder) {
   });
 }
 
-function buildScopeLabel(farms: FarmRow[], farmGroupId?: string | null, farmId?: string | null) {
+function buildScopeLabel(
+  farms: FarmRow[],
+  barns: BarnRow[],
+  farmGroupId?: string | null,
+  farmId?: string | null,
+  barnId?: string | null,
+) {
+  if (barnId) {
+    const barn = barns.find((row) => row.id === barnId);
+    const farm = farms.find((row) => row.id === barn?.farm_id);
+    const barnLabel = barn?.barn_code?.trim() || "Selected barn";
+    return farm ? `${farm.farm_name?.trim() || "Selected farm"} / ${barnLabel}` : barnLabel;
+  }
   if (farmId) return farms[0]?.farm_name?.trim() || "Selected farm";
   if (farmGroupId) return farms[0]?.farm_group_name?.trim() || "Selected farm group";
   return "All farm groups";

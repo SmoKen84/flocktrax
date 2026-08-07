@@ -102,7 +102,7 @@ export function ReportsFilterPanel({
     "feed_drops_report",
     "queued_feed_deliveries",
   ].includes(reportKey);
-  const showBarnField = reportKey !== "feed_drops_report";
+  const showBarnField = true;
   const showFlockField = reportKey !== "feed_drops_report" && reportKey !== "queued_feed_deliveries";
   const showFeedMillField = reportKey === "queued_feed_deliveries";
   const showSortOrderField = reportKey === "feed_drops_report";
@@ -285,6 +285,7 @@ export function ReportsFilterPanel({
     params.set("report", reportKey);
     if (farmGroupId) params.set("farmGroupId", farmGroupId);
     if (farmId) params.set("farmId", farmId);
+    if (barnId) params.set("barnId", barnId);
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
     params.set("sortOrder", nextSortOrder);
@@ -299,6 +300,7 @@ export function ReportsFilterPanel({
     params.set("report", reportKey);
     if (farmGroupId) params.set("farmGroupId", farmGroupId);
     if (farmId) params.set("farmId", farmId);
+    if (barnId) params.set("barnId", barnId);
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
     if (sortOrder) params.set("sortOrder", sortOrder);

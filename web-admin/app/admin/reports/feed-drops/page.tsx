@@ -18,6 +18,7 @@ export default async function FeedDropsReportPage({ searchParams }: FeedDropsRep
   const today = new Date().toISOString().slice(0, 10);
   const farmGroupId = firstParam(params.farmGroupId);
   const farmId = firstParam(params.farmId);
+  const barnId = firstParam(params.barnId);
   const startDate = firstParam(params.startDate) ?? `${today.slice(0, 7)}-01`;
   const endDate = firstParam(params.endDate) ?? today;
   const sortOrder = firstParam(params.sortOrder) ?? "date";
@@ -25,6 +26,7 @@ export default async function FeedDropsReportPage({ searchParams }: FeedDropsRep
   const report = await getFeedDropsReportData({
     farmGroupId,
     farmId,
+    barnId,
     startDate,
     endDate,
     sortOrder,
@@ -42,6 +44,7 @@ export default async function FeedDropsReportPage({ searchParams }: FeedDropsRep
             href={buildBackHref({
               farmGroupId,
               farmId,
+              barnId,
               startDate: report.startDate,
               endDate: report.endDate,
               sortOrder: report.sortOrder,
@@ -65,7 +68,7 @@ export default async function FeedDropsReportPage({ searchParams }: FeedDropsRep
             <strong>{formatDate(report.startDate)} - {formatDate(report.endDate)}</strong>
           </div>
           <div>
-            <span>Farm Scope</span>
+            <span>Farm / Barn Scope</span>
             <strong>{report.scopeLabel}</strong>
           </div>
           <div>
@@ -150,7 +153,7 @@ export default async function FeedDropsReportPage({ searchParams }: FeedDropsRep
           </div>
         ) : (
           <div className="feed-drops-report-empty">
-            No BinSentry refill events were detected for the selected farms and inclusive date range.
+            No BinSentry refill events were detected for the selected farm/barn scope and inclusive date range.
           </div>
         )}
 
@@ -345,6 +348,7 @@ function sortLabel(sortOrder: FeedDropsSortOrder) {
 function buildBackHref(options: {
   farmGroupId: string | null;
   farmId: string | null;
+  barnId: string | null;
   startDate: string;
   endDate: string;
   sortOrder: FeedDropsSortOrder;
@@ -359,6 +363,7 @@ function buildBackHref(options: {
   });
   if (options.farmGroupId) params.set("farmGroupId", options.farmGroupId);
   if (options.farmId) params.set("farmId", options.farmId);
+  if (options.barnId) params.set("barnId", options.barnId);
   if (options.useDefaultTypeDensity) params.set("useDefaultTypeDensity", "1");
   return `/admin/reports?${params.toString()}`;
 }
