@@ -333,10 +333,10 @@ export default async function FlockHistoryReportPage({ params, searchParams }: F
                             <tr key={`${row.placementId}-${row.logDate}`}>
                               <td className="flock-history-report-col-date">{formatDate(row.logDate)}</td>
                               <td className="flock-history-report-col-age">{formatNullableWhole(row.ageDays)}</td>
-                              <td>{formatWhole(row.deadMale)}</td>
-                              <td>{formatWhole(row.deadFemale)}</td>
-                              <td>{formatWhole(row.cullMale)}</td>
-                              <td>{formatWhole(row.cullFemale)}</td>
+                              <td>{formatMortalityCount(row.deadMale)}</td>
+                              <td>{formatMortalityCount(row.deadFemale)}</td>
+                              <td>{formatMortalityCount(row.cullMale)}</td>
+                              <td>{formatMortalityCount(row.cullFemale)}</td>
                               <td>{formatText(row.cullFemaleNote)}</td>
                               <td>{formatText(row.cullMaleNote)}</td>
                               <td>{formatText(row.deadReason)}</td>
@@ -554,6 +554,10 @@ function formatTimestamp(value: string) {
 
 function formatWhole(value: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+}
+
+function formatMortalityCount(value: number | null) {
+  return value === null ? "" : formatWhole(value);
 }
 
 function formatNullableWhole(value: number | null | undefined) {

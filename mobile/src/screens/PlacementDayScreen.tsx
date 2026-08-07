@@ -813,14 +813,14 @@ function MortalityTab({
         <View style={styles.mortalitySummaryRow}>
           <Text style={styles.mortalitySummaryLabel}>Dead Today</Text>
           <Text style={styles.mortalitySummaryValue}>
-            {(draft.dead_male ?? 0) + (draft.dead_female ?? 0)}
+            {formatNullableCountTotal(draft.dead_male, draft.dead_female)}
           </Text>
         </View>
         <View style={styles.mortalitySummaryDivider} />
         <View style={styles.mortalitySummaryRow}>
           <Text style={styles.mortalitySummaryLabel}>Culls Today</Text>
           <Text style={styles.mortalitySummaryValue}>
-            {(draft.cull_male ?? 0) + (draft.cull_female ?? 0)}
+            {formatNullableCountTotal(draft.cull_male, draft.cull_female)}
           </Text>
         </View>
       </View>
@@ -830,8 +830,8 @@ function MortalityTab({
         deadValue={draft.dead_male}
         cullValue={draft.cull_male}
         noteValue={draft.cull_male_note}
-        onDeadChange={(value) => onChangeDraft({ dead_male: toNullableNumber(value, 0) ?? 0 })}
-        onCullChange={(value) => onChangeDraft({ cull_male: toNullableNumber(value, 0) ?? 0 })}
+        onDeadChange={(value) => onChangeDraft({ dead_male: toNullableNumber(value) })}
+        onCullChange={(value) => onChangeDraft({ cull_male: toNullableNumber(value) })}
         onNoteChange={(value) => onChangeDraft({ cull_male_note: value || null })}
       />
 
@@ -840,8 +840,8 @@ function MortalityTab({
         deadValue={draft.dead_female}
         cullValue={draft.cull_female}
         noteValue={draft.cull_female_note}
-        onDeadChange={(value) => onChangeDraft({ dead_female: toNullableNumber(value, 0) ?? 0 })}
-        onCullChange={(value) => onChangeDraft({ cull_female: toNullableNumber(value, 0) ?? 0 })}
+        onDeadChange={(value) => onChangeDraft({ dead_female: toNullableNumber(value) })}
+        onCullChange={(value) => onChangeDraft({ cull_female: toNullableNumber(value) })}
         onNoteChange={(value) => onChangeDraft({ cull_female_note: value || null })}
       />
 
@@ -1530,8 +1530,8 @@ function UnsavedChangesModal({
 
 type MortalityRowProps = {
   label: string;
-  deadValue: number;
-  cullValue: number;
+  deadValue: number | null;
+  cullValue: number | null;
   noteValue: string | null;
   onDeadChange: (value: string) => void;
   onCullChange: (value: string) => void;
@@ -1564,13 +1564,13 @@ function MortalityRow({
           keyboardType="number-pad"
           onChangeText={onDeadChange}
           style={styles.mortalityCountInput}
-          value={String(deadValue ?? 0)}
+          value={deadValue === null ? "" : String(deadValue)}
         />
         <TextInput
           keyboardType="number-pad"
           onChangeText={onCullChange}
           style={styles.mortalityCountInput}
-          value={String(cullValue ?? 0)}
+          value={cullValue === null ? "" : String(cullValue)}
         />
         <TextInput
           onChangeText={onNoteChange}
@@ -1588,6 +1588,11 @@ function toNullableNumber(value: string, fallback?: number) {
   if (!value.trim()) return fallback ?? null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback ?? null;
+}
+
+function formatNullableCountTotal(...values: Array<number | null>) {
+  if (values.every((value) => value === null)) return "";
+  return String(values.reduce<number>((total, value) => total + (value ?? 0), 0));
 }
 
 function shouldReturnToDashboardAfterSave(settings: DashboardSettings | null) {
@@ -1616,7 +1621,7 @@ function validateDraft(
   }
 
   const counts = [draft.dead_female, draft.dead_male, draft.cull_female, draft.cull_male];
-  if (counts.some((value) => value < 0)) {
+  if (counts.some((value) => value !== null && value < 0)) {
     return "Mortality and cull counts cannot be negative.";
   }
 

@@ -28,10 +28,10 @@ export type UserProfile = {
 
 export type RecentMortalityHistoryDay = {
   log_date: string;
-  dead_male: number;
-  dead_female: number;
-  cull_male: number;
-  cull_female: number;
+  dead_male: number | null;
+  dead_female: number | null;
+  cull_male: number | null;
+  cull_female: number | null;
 };
 
 export type FarmGroupOption = {
@@ -282,10 +282,10 @@ export type PlacementDayItem = {
   oda_exception: string | null;
   naoh: string | null;
   comment: string | null;
-  dead_female: number;
-  dead_male: number;
-  cull_female: number;
-  cull_male: number;
+  dead_female: number | null;
+  dead_male: number | null;
+  cull_female: number | null;
+  cull_male: number | null;
   cull_female_note: string | null;
   cull_male_note: string | null;
   dead_reason: string | null;

@@ -50,16 +50,16 @@ type MortalityRow = {
 export type MortalityReportDay = {
   date: string;
   femalePlaced: number;
-  femaleDead: number;
-  femaleCull: number;
-  femaleLoss: number;
+  femaleDead: number | null;
+  femaleCull: number | null;
+  femaleLoss: number | null;
   femalePopulation: number;
   malePlaced: number;
-  maleDead: number;
-  maleCull: number;
-  maleLoss: number;
+  maleDead: number | null;
+  maleCull: number | null;
+  maleLoss: number | null;
   malePopulation: number;
-  totalLoss: number;
+  totalLoss: number | null;
   totalPopulation: number;
 };
 
@@ -184,15 +184,15 @@ export async function getMortalityReportData(options: {
           femalePlacedDate === date && femalePlacedDate > sectionStart ? flock.start_cnt_females ?? 0 : 0;
         const malePlaced =
           malePlacedDate === date && malePlacedDate > sectionStart ? flock.start_cnt_males ?? 0 : 0;
-        const femaleDead = daily?.dead_female ?? 0;
-        const femaleCull = daily?.cull_female ?? 0;
-        const maleDead = daily?.dead_male ?? 0;
-        const maleCull = daily?.cull_male ?? 0;
-        const femaleLoss = femaleDead + femaleCull;
-        const maleLoss = maleDead + maleCull;
+        const femaleDead = daily?.dead_female ?? null;
+        const femaleCull = daily?.cull_female ?? null;
+        const maleDead = daily?.dead_male ?? null;
+        const maleCull = daily?.cull_male ?? null;
+        const femaleLoss = sumNullableCounts(femaleDead, femaleCull);
+        const maleLoss = sumNullableCounts(maleDead, maleCull);
 
-        femalePopulation = Math.max(0, femalePopulation + femalePlaced - femaleLoss);
-        malePopulation = Math.max(0, malePopulation + malePlaced - maleLoss);
+        femalePopulation = Math.max(0, femalePopulation + femalePlaced - (femaleLoss ?? 0));
+        malePopulation = Math.max(0, malePopulation + malePlaced - (maleLoss ?? 0));
 
         days.push({
           date,
@@ -206,13 +206,13 @@ export async function getMortalityReportData(options: {
           maleCull,
           maleLoss,
           malePopulation,
-          totalLoss: femaleLoss + maleLoss,
+          totalLoss: sumNullableCounts(femaleLoss, maleLoss),
           totalPopulation: femalePopulation + malePopulation,
         });
       }
 
-      const femaleLossInRange = days.reduce((sum, day) => sum + day.femaleLoss, 0);
-      const maleLossInRange = days.reduce((sum, day) => sum + day.maleLoss, 0);
+      const femaleLossInRange = days.reduce((sum, day) => sum + (day.femaleLoss ?? 0), 0);
+      const maleLossInRange = days.reduce((sum, day) => sum + (day.maleLoss ?? 0), 0);
 
       return {
         placementId: placement.id,
@@ -381,10 +381,10 @@ function groupMortality(rows: MortalityRow[]) {
     const placementRows = grouped.get(row.placement_id) ?? [];
     const existing = placementRows.find((entry) => entry.log_date === row.log_date);
     if (existing) {
-      existing.dead_female = (existing.dead_female ?? 0) + (row.dead_female ?? 0);
-      existing.dead_male = (existing.dead_male ?? 0) + (row.dead_male ?? 0);
-      existing.cull_female = (existing.cull_female ?? 0) + (row.cull_female ?? 0);
-      existing.cull_male = (existing.cull_male ?? 0) + (row.cull_male ?? 0);
+      existing.dead_female = sumNullableCounts(existing.dead_female, row.dead_female);
+      existing.dead_male = sumNullableCounts(existing.dead_male, row.dead_male);
+      existing.cull_female = sumNullableCounts(existing.cull_female, row.cull_female);
+      existing.cull_male = sumNullableCounts(existing.cull_male, row.cull_male);
     } else {
       placementRows.push({ ...row });
     }
@@ -412,6 +412,11 @@ function calculateOpeningPopulation(
       0,
     );
   return Math.max(0, placedCount - priorLoss);
+}
+
+function sumNullableCounts(...values: Array<number | null | undefined>) {
+  const entered = values.filter((value): value is number => typeof value === "number");
+  return entered.length > 0 ? entered.reduce((sum, value) => sum + value, 0) : null;
 }
 
 function inferPlacementEndDates(placements: PlacementRow[], flockById: Map<string, FlockRow>) {

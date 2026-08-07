@@ -675,10 +675,10 @@ export default function App() {
         const item = await getPlacementDay(session.accessToken, placement.placement_id, logDate);
         return {
           log_date: logDate,
-          dead_male: item.dead_male ?? 0,
-          dead_female: item.dead_female ?? 0,
-          cull_male: item.cull_male ?? 0,
-          cull_female: item.cull_female ?? 0,
+          dead_male: item.dead_male,
+          dead_female: item.dead_female,
+          cull_male: item.cull_male,
+          cull_female: item.cull_female,
         } satisfies RecentMortalityHistoryDay;
       }),
     );

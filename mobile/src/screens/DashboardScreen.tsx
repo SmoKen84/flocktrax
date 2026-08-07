@@ -587,10 +587,10 @@ function RecentMortalityHistoryModal({
                   <Text numberOfLines={1} style={styles.historyDate}>
                     {formatMortalityHistoryDate(day.log_date, settings?.short_date)}
                   </Text>
-                  <Text style={styles.historyMetricValue}>{day.dead_male}</Text>
-                  <Text style={styles.historyMetricValue}>{day.cull_male}</Text>
-                  <Text style={styles.historyMetricValue}>{day.dead_female}</Text>
-                  <Text style={styles.historyMetricValue}>{day.cull_female}</Text>
+                  <Text style={styles.historyMetricValue}>{day.dead_male ?? ""}</Text>
+                  <Text style={styles.historyMetricValue}>{day.cull_male ?? ""}</Text>
+                  <Text style={styles.historyMetricValue}>{day.dead_female ?? ""}</Text>
+                  <Text style={styles.historyMetricValue}>{day.cull_female ?? ""}</Text>
                 </View>
               ))}
             </View>

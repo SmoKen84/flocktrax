@@ -184,10 +184,10 @@ function renderMortalityData(
   return (
     <div className="today-glance-cell-stack">
       <strong>
-        H {formatWhole(row.mortality.deadFemale)} / R {formatWhole(row.mortality.deadMale)}
+        H {formatMortalityCount(row.mortality.deadFemale)} / R {formatMortalityCount(row.mortality.deadMale)}
       </strong>
       <small>
-        Cull H {formatWhole(row.mortality.cullFemale)} · Cull R {formatWhole(row.mortality.cullMale)}
+        Cull H {formatMortalityCount(row.mortality.cullFemale)} · Cull R {formatMortalityCount(row.mortality.cullMale)}
       </small>
       {row.mortality.deadReason ? <small title={row.mortality.deadReason}>{truncateText(row.mortality.deadReason, 36)}</small> : null}
     </div>
@@ -244,6 +244,10 @@ function formatTimestamp(value: Date) {
 function formatWhole(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "--";
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+}
+
+function formatMortalityCount(value: number | null) {
+  return value === null ? "" : formatWhole(value);
 }
 
 function formatWeight(value: number | null | undefined) {

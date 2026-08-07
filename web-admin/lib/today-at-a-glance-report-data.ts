@@ -88,10 +88,10 @@ export type TodayAtAGlanceRow = {
   };
   mortality: {
     present: boolean;
-    deadFemale: number;
-    deadMale: number;
-    cullFemale: number;
-    cullMale: number;
+    deadFemale: number | null;
+    deadMale: number | null;
+    cullFemale: number | null;
+    cullMale: number | null;
     deadReason: string | null;
     reporter: ReporterStamp;
   };
@@ -261,10 +261,10 @@ export async function getTodayAtAGlanceReportData(filters: TodayAtAGlanceFilters
         },
         mortality: {
           present: Boolean(mortality),
-          deadFemale: mortality?.dead_female ?? 0,
-          deadMale: mortality?.dead_male ?? 0,
-          cullFemale: mortality?.cull_female ?? 0,
-          cullMale: mortality?.cull_male ?? 0,
+          deadFemale: mortality?.dead_female ?? null,
+          deadMale: mortality?.dead_male ?? null,
+          cullFemale: mortality?.cull_female ?? null,
+          cullMale: mortality?.cull_male ?? null,
           deadReason: normalize(mortality?.dead_reason) || null,
           reporter: buildReporterStamp(mortality, userNameById),
         },

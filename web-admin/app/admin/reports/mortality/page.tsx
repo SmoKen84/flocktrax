@@ -140,12 +140,12 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                       {section.days.map((day) => (
                         <tr key={day.date}>
                           <th>{formatDayDate(day.date)}</th>
-                          <td>{formatActivity(day.femalePlaced)}</td>
+                          <td>{formatPlacementActivity(day.femalePlaced)}</td>
                           <td>{formatActivity(day.femaleDead)}</td>
                           <td>{formatActivity(day.femaleCull)}</td>
                           <td>{formatActivity(day.femaleLoss)}</td>
                           <td>{formatWhole(day.femalePopulation)}</td>
-                          <td>{formatActivity(day.malePlaced)}</td>
+                          <td>{formatPlacementActivity(day.malePlaced)}</td>
                           <td>{formatActivity(day.maleDead)}</td>
                           <td>{formatActivity(day.maleCull)}</td>
                           <td>{formatActivity(day.maleLoss)}</td>
@@ -295,7 +295,11 @@ function formatWhole(value: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
 }
 
-function formatActivity(value: number) {
+function formatActivity(value: number | null) {
+  return value === null ? "" : formatWhole(value);
+}
+
+function formatPlacementActivity(value: number) {
   return value === 0 ? "--" : formatWhole(value);
 }
 

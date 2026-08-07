@@ -138,10 +138,10 @@ export type FlockHistoryMortalityRow = {
   farmName: string;
   logDate: string;
   ageDays: number | null;
-  deadFemale: number;
-  deadMale: number;
-  cullFemale: number;
-  cullMale: number;
+  deadFemale: number | null;
+  deadMale: number | null;
+  cullFemale: number | null;
+  cullMale: number | null;
   cullFemaleNote: string | null;
   cullMaleNote: string | null;
   deadReason: string | null;
@@ -382,10 +382,10 @@ export async function getFlockHistoryReportBundle(flockId: string): Promise<Floc
           farmName: farm?.farm_name ?? "Unknown Farm",
           logDate: row.log_date,
           ageDays: resolveAgeDays(row.log_date, flock.date_placed),
-          deadFemale: row.dead_female ?? 0,
-          deadMale: row.dead_male ?? 0,
-          cullFemale: row.cull_female ?? 0,
-          cullMale: row.cull_male ?? 0,
+          deadFemale: row.dead_female,
+          deadMale: row.dead_male,
+          cullFemale: row.cull_female,
+          cullMale: row.cull_male,
           cullFemaleNote: row.cull_female_note,
           cullMaleNote: row.cull_male_note,
           deadReason: row.dead_reason,
