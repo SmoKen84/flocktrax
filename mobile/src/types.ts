@@ -176,6 +176,8 @@ export type PlacementSummary = {
   placement_code: string;
   placed_date: string;
   est_first_catch: string | null;
+  has_first_livehaul_schedule: boolean;
+  livehaul_dates: string[];
   first_livehaul_days: number | null;
   age_days: number | null;
   placed_female_count: number;

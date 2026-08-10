@@ -221,10 +221,8 @@ export type ActivePlacementRecord = {
   breedFemales: string | null;
   breedMales: string | null;
   liveHaulDates: string[];
+  hasFirstLiveHaulSchedule: boolean;
   liveHaulSchedulerDate: string | null;
-  lh1Date: string | null;
-  lh2Date: string | null;
-  lh3Date: string | null;
   tileState: "live" | "awaiting" | "scheduled" | "empty";
   placementEditorAccess: PlacementEditorAccessRecord;
   closeoutLogEditorAccess?: PlacementLogEditorAccessRecord;

@@ -11,7 +11,6 @@ import {
   markBarnEmptyAction,
   markChicksArrivedAction,
   saveDashboardPlacementEditorAction,
-  savePlacementLhDatesAction,
   type LhDateActionResult,
 } from "@/app/admin/overview/actions";
 import { PlacementHatchTicketPanel } from "@/app/admin/placements/[placementId]/logs/placement-hatch-ticket-panel";
@@ -149,7 +148,7 @@ function shouldPrioritizeOperationalAction(
 }
 
 function needsLhDates(placement: ActivePlacementRecord) {
-  return placement.ageDays >= 42 && (!placement.lh1Date || !placement.lh3Date);
+  return placement.ageDays >= 42 && !placement.hasFirstLiveHaulSchedule;
 }
 
 function getPassiveTileActionLabel(placement: ActivePlacementRecord) {
@@ -331,9 +330,6 @@ function PlacementEditorPopup({
   const [startCntFemales, setStartCntFemales] = useState(String(placement.startedFemaleCount || ""));
   const [breedMales, setBreedMales] = useState(placement.breedMales ?? "");
   const [breedFemales, setBreedFemales] = useState(placement.breedFemales ?? "");
-  const [lh1Date, setLh1Date] = useState(formatDateInputValue(placement.lh1Date));
-  const [lh2Date, setLh2Date] = useState(formatDateInputValue(placement.lh2Date));
-  const [lh3Date, setLh3Date] = useState(formatDateInputValue(placement.lh3Date));
 
   useEffect(() => {
     setProjectedEndDate(formatDateInputValue(placement.projectedEndDate));
@@ -342,9 +338,6 @@ function PlacementEditorPopup({
     setStartCntFemales(String(placement.startedFemaleCount || ""));
     setBreedMales(placement.breedMales ?? "");
     setBreedFemales(placement.breedFemales ?? "");
-    setLh1Date(formatDateInputValue(placement.lh1Date));
-    setLh2Date(formatDateInputValue(placement.lh2Date));
-    setLh3Date(formatDateInputValue(placement.lh3Date));
     setActionState({ status: "idle", message: "" });
   }, [placement]);
 
@@ -387,9 +380,6 @@ function PlacementEditorPopup({
       formData.set("start_cnt_females", startCntFemales);
       formData.set("breed_males", breedMales);
       formData.set("breed_females", breedFemales);
-      formData.set("lh1_date", lh1Date);
-      formData.set("lh2_date", lh2Date);
-      formData.set("lh3_date", lh3Date);
 
       const result = await saveDashboardPlacementEditorAction(formData);
       setActionState(result);
@@ -522,35 +512,6 @@ function PlacementEditorPopup({
                       onChange={(event) => setStartCntFemales(event.target.value)}
                       type="number"
                       value={startCntFemales}
-                    />
-                  </label>
-                </div>
-                <div className="placement-scheduler-triplet dashboard-placement-editor-triplet-row">
-                  <label className="field field-third dashboard-placement-editor-field dashboard-placement-editor-field--tight">
-                    <span>LH 1 Date</span>
-                    <input
-                      disabled={!placement.placementEditorAccess.canEditPlacementFields || isPending}
-                      onChange={(event) => setLh1Date(event.target.value)}
-                      type="date"
-                      value={lh1Date}
-                    />
-                  </label>
-                  <label className="field field-third dashboard-placement-editor-field dashboard-placement-editor-field--tight">
-                    <span>LH 2 Date</span>
-                    <input
-                      disabled={!placement.placementEditorAccess.canEditPlacementFields || isPending}
-                      onChange={(event) => setLh2Date(event.target.value)}
-                      type="date"
-                      value={lh2Date}
-                    />
-                  </label>
-                  <label className="field field-third dashboard-placement-editor-field dashboard-placement-editor-field--tight">
-                    <span>LH 3 Date</span>
-                    <input
-                      disabled={!placement.placementEditorAccess.canEditPlacementFields || isPending}
-                      onChange={(event) => setLh3Date(event.target.value)}
-                      type="date"
-                      value={lh3Date}
                     />
                   </label>
                 </div>
@@ -1045,23 +1006,13 @@ function PlacementTile({
   historyReportLabel,
   onOpenPlacementEditor,
   placement,
-  editingPlacementId,
-  onBeginEdit,
-  onEndEdit,
 }: {
   historyReportLabel: string;
   onOpenPlacementEditor: (placementId: string) => void;
   placement: ActivePlacementRecord;
-  editingPlacementId: string | null;
-  onBeginEdit: (placementId: string) => void;
-  onEndEdit: () => void;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [lh1DateValue, setLh1DateValue] = useState(placement.lh1Date ?? "");
-  const [lh3DateValue, setLh3DateValue] = useState(placement.lh3Date ?? "");
-  const [savedLh1Date, setSavedLh1Date] = useState(placement.lh1Date ?? "");
-  const [savedLh3Date, setSavedLh3Date] = useState(placement.lh3Date ?? "");
   const [actionState, setActionState] = useState<LhDateActionResult>({
     status: "idle",
     message: "",
@@ -1070,19 +1021,6 @@ function PlacementTile({
   const [showFeedProjectionPopup, setShowFeedProjectionPopup] = useState(false);
   const [showCheckoutPopup, setShowCheckoutPopup] = useState(false);
   const [checkoutRemovedDate, setCheckoutRemovedDate] = useState(() => new Date().toISOString().slice(0, 10));
-
-  const isEditingLhDates = editingPlacementId === placement.id;
-  const anotherTileIsEditing = editingPlacementId !== null && editingPlacementId !== placement.id;
-
-  useEffect(() => {
-    setLh1DateValue(placement.lh1Date ?? "");
-    setLh3DateValue(placement.lh3Date ?? "");
-  }, [placement.lh1Date, placement.lh3Date]);
-
-  useEffect(() => {
-    setSavedLh1Date(placement.lh1Date ?? "");
-    setSavedLh3Date(placement.lh3Date ?? "");
-  }, [placement.lh1Date, placement.lh3Date]);
 
   const startedTotal = placement.startedMaleCount + placement.startedFemaleCount;
   const mortalityTotal = placement.mortalityMaleTotal + placement.mortalityFemaleTotal;
@@ -1103,49 +1041,12 @@ function PlacementTile({
   const shouldShowDefaultHeaderBadge = placement.tileState !== "live";
   const hasFeedProjection = placement.feedProjectionTenDayDaily.length > 0 && placement.feedProjectionTenDayTotal !== null;
 
-  function beginEdit() {
-    if (!canEditLhDates || anotherTileIsEditing) {
-      return;
-    }
-
-    setActionState({ status: "idle", message: "" });
-    setLh1DateValue(savedLh1Date);
-    setLh3DateValue(savedLh3Date);
-    onBeginEdit(placement.id);
-  }
-
-  function cancelEdit() {
-    setActionState({ status: "idle", message: "" });
-    setLh1DateValue(savedLh1Date);
-    setLh3DateValue(savedLh3Date);
-    onEndEdit();
-  }
-
   function closeCheckoutPopup() {
     if (isPending) {
       return;
     }
 
     setShowCheckoutPopup(false);
-  }
-
-  function saveDates() {
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.set("placement_id", placement.id);
-      formData.set("lh1_date", lh1DateValue);
-      formData.set("lh3_date", lh3DateValue);
-
-      const result = await savePlacementLhDatesAction(formData);
-      setActionState(result);
-
-      if (result.status === "success") {
-        setSavedLh1Date(lh1DateValue);
-        setSavedLh3Date(lh3DateValue);
-        onEndEdit();
-        router.refresh();
-      }
-    });
   }
 
   function runOperationalAction(overrideRemovedDate?: string) {
@@ -1336,19 +1237,10 @@ function PlacementTile({
       </section>
 
       <div className="tile-action-row">
-        {isEditingLhDates ? (
+        {prioritizeOperationalAction && operationalAction ? (
           <button
             className="tile-action-button"
             disabled={isPending}
-            onClick={saveDates}
-            type="button"
-          >
-            {isPending ? "Saving..." : "Save Dates"}
-          </button>
-        ) : prioritizeOperationalAction && operationalAction ? (
-          <button
-            className="tile-action-button"
-            disabled={isPending || anotherTileIsEditing}
             onClick={handleOperationalActionClick}
             type="button"
           >
@@ -1364,7 +1256,7 @@ function PlacementTile({
         ) : operationalAction ? (
           <button
             className="tile-action-button"
-            disabled={isPending || anotherTileIsEditing}
+            disabled={isPending}
             onClick={handleOperationalActionClick}
             type="button"
           >
@@ -1382,16 +1274,7 @@ function PlacementTile({
             {getPassiveTileActionLabel(placement)}
           </Link>
         )}
-        {isEditingLhDates ? (
-          <button
-            className="tile-action-button tile-action-button--secondary"
-            disabled={isPending}
-            onClick={cancelEdit}
-            type="button"
-          >
-            Cancel
-          </button>
-        ) : prioritizeOperationalAction && canEditLhDates ? (
+        {prioritizeOperationalAction && canEditLhDates ? (
           <Link
             className="tile-action-button tile-action-button--secondary"
             href={livehaulSchedulerHref}
@@ -1401,7 +1284,7 @@ function PlacementTile({
         ) : lhDatesNeeded && operationalAction ? (
           <button
             className="tile-action-button tile-action-button--secondary"
-            disabled={isPending || anotherTileIsEditing}
+            disabled={isPending}
             onClick={handleOperationalActionClick}
             type="button"
           >
@@ -1432,18 +1315,27 @@ function PlacementTile({
         <section className="tile-subpanel tile-subpanel--haul">
           <h4>Live Haul</h4>
           <dl className="tile-subpanel-list">
-            <div className="tile-subpanel-item">
-              <dt>Estimated</dt>
-              <dd className="tile-subpanel-value">{placement.estimatedFirstCatch || "Pending"}</dd>
-            </div>
-            <div className="tile-subpanel-item">
-              <dt>Dates</dt>
-              <dd className="tile-subpanel-value">
-                {placement.liveHaulDates.length > 0
-                  ? placement.liveHaulDates.map((date) => formatShortDate(date)).join(", ")
-                  : "No livehaul dates scheduled"}
-              </dd>
-            </div>
+            {placement.hasFirstLiveHaulSchedule && placement.liveHaulDates.length > 0 ? (
+              <>
+                <div className="tile-subpanel-item">
+                  <dt>First</dt>
+                  <dd className="tile-subpanel-value">{formatShortDate(placement.liveHaulDates[0])}</dd>
+                </div>
+                {placement.liveHaulDates.length > 1 ? (
+                  <div className="tile-subpanel-item">
+                    <dt>Additional</dt>
+                    <dd className="tile-subpanel-value">
+                      {placement.liveHaulDates.slice(1).map((date) => formatShortDate(date)).join(", ")}
+                    </dd>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div className="tile-subpanel-item">
+                <dt>Estimated First</dt>
+                <dd className="tile-subpanel-value">{formatShortDate(placement.estimatedFirstCatch) || "Pending"}</dd>
+              </div>
+            )}
           </dl>
           {actionState.status === "error" ? (
             <p className="tile-subpanel-feedback">{actionState.message}</p>
@@ -1551,7 +1443,6 @@ export function ActivePlacementDashboard({
   farmGroups,
   farms,
 }: ActivePlacementDashboardProps) {
-  const [editingPlacementId, setEditingPlacementId] = useState<string | null>(null);
   const [selectedPlacementId, setSelectedPlacementId] = useState<string | null>(null);
   const [farmGroupId, setFarmGroupId] = useState("all");
   const [farmId, setFarmId] = useState("all");
@@ -1684,11 +1575,8 @@ export function ActivePlacementDashboard({
       <div className="tile-grid" style={{ marginTop: 22 }}>
         {filteredPlacements.map((placement) => (
           <PlacementTile
-            editingPlacementId={editingPlacementId}
             historyReportLabel={historyReportLabel}
             key={placement.id}
-            onBeginEdit={setEditingPlacementId}
-            onEndEdit={() => setEditingPlacementId(null)}
             onOpenPlacementEditor={setSelectedPlacementId}
             placement={placement}
           />

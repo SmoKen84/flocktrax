@@ -285,15 +285,37 @@ export function DashboardScreen({
                     </View>
                   </View>
                 </View>
-                <Text style={styles.cardBirdMeta}>
-                  <Text style={styles.cardBirdMetaAccent}>
-                    {formatDateByPattern(item.est_first_catch, settings?.dow_date, "not scheduled")}
+                {item.has_first_livehaul_schedule && item.livehaul_dates.length > 0 ? (
+                  <>
+                    <Text style={styles.cardBirdMeta}>
+                      <Text style={styles.cardBirdMetaAccent}>
+                        {formatDateByPattern(item.livehaul_dates[0], settings?.dow_date, "not scheduled")}
+                      </Text>
+                      {" "}First Livehaul
+                    </Text>
+                    {item.livehaul_dates.length > 1 ? (
+                      <Text style={styles.cardBirdMeta}>
+                        <Text style={styles.cardBirdMetaAccent}>
+                          {item.livehaul_dates
+                            .slice(1)
+                            .map((date) => formatDateByPattern(date, settings?.dow_date, "not scheduled"))
+                            .join(", ")}
+                        </Text>
+                        {" "}Additional Livehauls
+                      </Text>
+                    ) : null}
+                  </>
+                ) : (
+                  <Text style={styles.cardBirdMeta}>
+                    <Text style={styles.cardBirdMetaAccent}>
+                      {formatDateByPattern(item.est_first_catch, settings?.dow_date, "not scheduled")}
+                    </Text>
+                    {" "}Estimated First Livehaul{" "}
+                    <Text style={styles.cardBirdMetaAccent}>
+                      ({item.first_livehaul_days ?? "--"} days)
+                    </Text>
                   </Text>
-                  {" "}Estimated First Livehaul{" "}
-                  <Text style={styles.cardBirdMetaAccent}>
-                    ({item.first_livehaul_days ?? "--"} days)
-                  </Text>
-                </Text>
+                )}
                 <Text style={[styles.cardHint, cardHintStyle(item)]}>
                   {isPendingPlacement(item)
                     ? "Pending placement. Mobile barn data will open once the flock is near arrival."

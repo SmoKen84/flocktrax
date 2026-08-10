@@ -33,68 +33,6 @@ function coerceNullableNumber(value: FormDataEntryValue | null) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export async function savePlacementLhDatesAction(formData: FormData): Promise<LhDateActionResult> {
-  const placementId = String(formData.get("placement_id") ?? "").trim();
-  const lh1Date = coerceNullableDate(formData.get("lh1_date"));
-  const lh3Date = coerceNullableDate(formData.get("lh3_date"));
-
-  if (!placementId) {
-    return { status: "error", message: "Placement is missing." };
-  }
-
-  const supabase = await createSupabaseServerClient();
-
-  if (!supabase) {
-    return { status: "error", message: "Supabase is not configured." };
-  }
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return { status: "error", message: "You must be signed in to save LH dates." };
-  }
-
-  const { error } = await supabase
-    .from("placements")
-    .update({
-      lh1_date: lh1Date,
-      lh3_date: lh3Date,
-      updated_by: user.id,
-    })
-    .eq("id", placementId);
-
-  if (error) {
-    return { status: "error", message: error.message };
-  }
-
-  const { error: activityError } = await supabase.rpc("write_activity_log", {
-    p_placement_id: placementId,
-    p_entry_type: "functCall",
-    p_action_key: "savePlacementLhDatesAction",
-    p_details: "LH dates saved from live dashboard.",
-    p_source: "web-admin.overview",
-    p_actor_user_id: user.id,
-    p_meta: {
-      lh1_date: lh1Date,
-      lh3_date: lh3Date,
-    },
-  });
-
-  if (activityError) {
-    console.error("activity_log write failed", activityError);
-  }
-
-  revalidatePath("/admin/overview");
-
-  return {
-    status: "success",
-    message: "LH dates saved.",
-  };
-}
-
 export async function saveDashboardPlacementEditorAction(formData: FormData): Promise<LhDateActionResult> {
   const placementId = String(formData.get("placement_id") ?? "").trim();
   const projectedEndDate = coerceNullableDate(formData.get("projected_end_date"));
@@ -103,9 +41,6 @@ export async function saveDashboardPlacementEditorAction(formData: FormData): Pr
   const startCntFemales = coerceNullableNumber(formData.get("start_cnt_females"));
   const breedMales = coerceNullableDate(formData.get("breed_males"));
   const breedFemales = coerceNullableDate(formData.get("breed_females"));
-  const lh1Date = coerceNullableDate(formData.get("lh1_date"));
-  const lh2Date = coerceNullableDate(formData.get("lh2_date"));
-  const lh3Date = coerceNullableDate(formData.get("lh3_date"));
 
   if (!placementId) {
     return { status: "error", message: "Placement is missing." };
@@ -193,9 +128,6 @@ export async function saveDashboardPlacementEditorAction(formData: FormData): Pr
     access.canEditPlacementFields
       ? {
           date_removed: dateRemoved,
-          lh1_date: lh1Date,
-          lh2_date: lh2Date,
-          lh3_date: lh3Date,
           updated_by: user.id,
         }
       : null;
@@ -237,9 +169,6 @@ export async function saveDashboardPlacementEditorAction(formData: FormData): Pr
     start_cnt_females: flockPatch ? startCntFemales : flockResult.data.start_cnt_females ?? null,
     breed_males: flockPatch ? breedMales : flockResult.data.breed_males ?? null,
     breed_females: flockPatch ? breedFemales : flockResult.data.breed_females ?? null,
-    lh1_date: placementPatch ? lh1Date : null,
-    lh2_date: placementPatch ? lh2Date : null,
-    lh3_date: placementPatch ? lh3Date : null,
   };
 
   const { error: activityError } = await admin.rpc("write_activity_log", {

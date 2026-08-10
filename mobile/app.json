@@ -3,7 +3,7 @@
     "name": "FlockTrax",
     "slug": "flocktrax-mobile",
     "scheme": "flocktrax",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "../output/MC_Favicon2-transparent.png",
@@ -17,7 +17,7 @@
     ],
     "ios": {
       "bundleIdentifier": "com.flocktrax.mobile",
-      "buildNumber": "17",
+      "buildNumber": "18",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -25,7 +25,7 @@
     },
     "android": {
       "package": "com.flocktrax.mobile",
-      "versionCode": 11,
+      "versionCode": 12,
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",

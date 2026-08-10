@@ -109,9 +109,6 @@ type PlacementRow = {
   date_removed: string | null;
   is_active: boolean | null;
   placement_key: string;
-  lh1_date: string | null;
-  lh2_date: string | null;
-  lh3_date: string | null;
   active_start?: string | null;
   active_end?: string | null;
   created_at?: string | null;
@@ -125,6 +122,7 @@ type PlacementLogRow = {
 type LivehaulScheduleDashboardRow = {
   placement_id: string;
   lh_date: string;
+  sequence_num: number | null;
   head_target: number | null;
   head_actual: number | null;
 };
@@ -548,11 +546,12 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         .order("date_placed", { ascending: false }),
       supabase
         .from("placements")
-        .select("id,farm_id,barn_id,flock_id,lifecycle_stage,date_removed,is_active,placement_key,lh1_date,lh2_date,lh3_date,active_start,active_end,created_at")
+        .select("id,farm_id,barn_id,flock_id,lifecycle_stage,date_removed,is_active,placement_key,active_start,active_end,created_at")
         .order("placement_key"),
       supabase
         .from("livehaul_schedule")
-        .select("placement_id,lh_date,head_target,head_actual")
+        .select("placement_id,lh_date,sequence_num,head_target,head_actual")
+        .order("sequence_num", { ascending: true, nullsFirst: false })
         .order("lh_date"),
       supabase
         .from("v_placement_daily")
@@ -854,6 +853,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       if (!bucket.some((event) => event.date === row.lh_date)) {
         bucket.push({
           date: row.lh_date,
+          sequenceNum: row.sequence_num,
           targetHead: row.head_target,
           actualHead: row.head_actual,
         });
@@ -862,7 +862,14 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     }
 
     for (const [placementId, events] of liveHaulEventsByPlacementId.entries()) {
-      events.sort((left, right) => left.date.localeCompare(right.date));
+      events.sort((left, right) => {
+        if (left.sequenceNum === null && right.sequenceNum !== null) return 1;
+        if (left.sequenceNum !== null && right.sequenceNum === null) return -1;
+        if (left.sequenceNum !== null && right.sequenceNum !== null && left.sequenceNum !== right.sequenceNum) {
+          return left.sequenceNum - right.sequenceNum;
+        }
+        return left.date.localeCompare(right.date);
+      });
       liveHaulEventsByPlacementId.set(placementId, events);
     }
 
@@ -1393,6 +1400,14 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const ageDays = daysRelativeToToday(placedDate);
       const canCheckoutByAge = ageDays >= checkoutAgeAvailability;
       const scheduledLiveHaulEvents = row ? liveHaulEventsByPlacementId.get(row.id) ?? [] : [];
+      const firstScheduledLiveHaulEvent =
+        scheduledLiveHaulEvents.find((event) => event.sequenceNum === 1) ?? null;
+      const dashboardLiveHaulEvents = firstScheduledLiveHaulEvent
+        ? [
+            firstScheduledLiveHaulEvent,
+            ...scheduledLiveHaulEvents.filter((event) => event !== firstScheduledLiveHaulEvent),
+          ]
+        : scheduledLiveHaulEvents;
       const feedProjection = row
         ? buildTenDayFeedProjection({
             today,
@@ -1538,7 +1553,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         placedDate,
         projectedEndDate: flock?.max_date ?? row?.active_end ?? "",
         dateRemoved: row?.date_removed ?? null,
-        estimatedFirstCatch: flock?.max_date ?? (placedDate ? addDays(placedDate, 38) : ""),
+        estimatedFirstCatch: placedDate ? addDays(placedDate, firstLivehaulOffsetDays) : "",
         ageDays,
         headCount: currentFemaleCount + currentMaleCount,
         completionPercent,
@@ -1602,14 +1617,12 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         latestMaleWeightDate: weightSummary.male.logDate,
         breedFemales: flock?.breed_females ?? null,
         breedMales: flock?.breed_males ?? null,
-        liveHaulDates: scheduledLiveHaulEvents.map((event) => event.date),
+        liveHaulDates: dashboardLiveHaulEvents.map((event) => event.date),
+        hasFirstLiveHaulSchedule: firstScheduledLiveHaulEvent !== null,
         liveHaulSchedulerDate:
-          scheduledLiveHaulEvents[0]?.date ??
+          dashboardLiveHaulEvents[0]?.date ??
           (placedDate ? addDays(placedDate, firstLivehaulOffsetDays) : null) ??
           null,
-        lh1Date: scheduledLiveHaulEvents[0]?.date ?? row?.lh1_date ?? null,
-        lh2Date: scheduledLiveHaulEvents[1]?.date ?? row?.lh2_date ?? null,
-        lh3Date: scheduledLiveHaulEvents[2]?.date ?? row?.lh3_date ?? null,
         tileState,
         placementEditorAccess: {
           canOpen: false,
@@ -2214,6 +2227,7 @@ function applyLiveHaulReduction({
 
 type FeedProjectionLiveHaulEvent = {
   date: string;
+  sequenceNum: number | null;
   targetHead: number | null;
   actualHead: number | null;
 };

@@ -172,6 +172,8 @@ Deno.serve(async (req) => {
           placement_code: "123-Barn-A",
           placed_date: "2026-02-01",
           est_first_catch: "2026-03-11",
+          has_first_livehaul_schedule: false,
+          livehaul_dates: [],
           age_days: 41,
           placed_female_count: 12345,
           placed_male_count: 12655,
@@ -569,6 +571,8 @@ Deno.serve(async (req) => {
       }
     >();
     const completedTodayLabelByPlacementId = new Map<string, string | null>();
+    const livehaulDatesByPlacementId = new Map<string, string[]>();
+    const placementsWithFirstLivehaulSchedule = new Set<string>();
 
     if (farmIds.length > 0) {
       const { data: farms, error: farmsError } = await supabase
@@ -622,6 +626,35 @@ Deno.serve(async (req) => {
     }
 
     if (placementIds.length > 0) {
+      const { data: livehaulRows, error: livehaulError } = await service
+        .from("livehaul_schedule")
+        .select("placement_id,lh_date,sequence_num")
+        .in("placement_id", placementIds)
+        .order("sequence_num", { ascending: true, nullsFirst: false })
+        .order("lh_date", { ascending: true });
+
+      if (livehaulError) {
+        return json(req, { ok: false, error: livehaulError.message }, 400);
+      }
+
+      for (const livehaulRow of livehaulRows ?? []) {
+        if (
+          typeof livehaulRow.placement_id !== "string" ||
+          typeof livehaulRow.lh_date !== "string"
+        ) {
+          continue;
+        }
+
+        const dates = livehaulDatesByPlacementId.get(livehaulRow.placement_id) ?? [];
+        if (livehaulRow.sequence_num === 1) {
+          placementsWithFirstLivehaulSchedule.add(livehaulRow.placement_id);
+          dates.unshift(livehaulRow.lh_date);
+        } else {
+          dates.push(livehaulRow.lh_date);
+        }
+        livehaulDatesByPlacementId.set(livehaulRow.placement_id, dates);
+      }
+
       const { data: dailyRows, error: dailyRowsError } = await supabase
         .from("log_daily")
         .select("placement_id,log_date,created_at,updated_at,maintenance_flag,feedlines_flag,nipple_lines_flag,bird_health_alert,is_active")
@@ -710,6 +743,9 @@ Deno.serve(async (req) => {
         openPlacementIssueCount,
         completedTodayLabel,
       });
+      const livehaulDates = typeof row.id === "string"
+        ? (livehaulDatesByPlacementId.get(row.id) ?? [])
+        : [];
 
       return {
         placement_id: row.id,
@@ -723,6 +759,9 @@ Deno.serve(async (req) => {
         placement_code: row.placement_key,
         placed_date: placedDate,
         est_first_catch: placedDate ? addDays(placedDate, firstLivehaulDaysSetting) : null,
+        has_first_livehaul_schedule:
+          typeof row.id === "string" && placementsWithFirstLivehaulSchedule.has(row.id),
+        livehaul_dates: livehaulDates,
         first_livehaul_days: firstLivehaulDays,
         age_days: placedDate ? daysSince(placedDate) : null,
         placed_female_count: femaleCount,
