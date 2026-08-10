@@ -14787,6 +14787,17 @@ tr:last-child td {
   vertical-align: top;
 }
 
+@media print {
+  @page today-glance-report {
+    size: letter landscape;
+    margin: 0.35in;
+  }
+
+  .today-glance-report-page {
+    page: today-glance-report;
+  }
+}
+
 .today-glance-cell-stack {
   display: grid;
   gap: 0.18rem;

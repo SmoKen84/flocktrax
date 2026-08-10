@@ -29,7 +29,7 @@ export default async function TodayAtAGlanceReportPage({ searchParams }: TodayAt
   });
 
   return (
-    <div className="feed-projection-report-page">
+    <div className="feed-projection-report-page today-glance-report-page">
       <PageHeader
         eyebrow="Reports"
         title="At-a-Glance"
