@@ -34,6 +34,10 @@ export function CloseoutWorksheetForm({ item, readOnly = false }: { item: Closeo
     closeout.processedHeadFinal ?? closeout.derived.processedHead,
     item.finalHeadCount,
   );
+  const liveWeightDifference = deriveLiveWeightDifference(
+    closeout.liveWeightFinal,
+    closeout.derived.liveWeight,
+  );
 
   return (
     <section className="panel card closeout-worksheet-card">
@@ -65,6 +69,18 @@ export function CloseoutWorksheetForm({ item, readOnly = false }: { item: Closeo
         <input name="breed_actual_avg_weight" type="hidden" value={toFormValue(closeout.breedActualAvgWeight)} />
         <input name="breed_weight_percent" type="hidden" value={toFormValue(closeout.breedWeightPercent)} />
         <input name="removed_age_days" type="hidden" value={toFormValue(closeout.removedAgeDays)} />
+
+        {liveWeightDifference !== null ? (
+          <div className="closeout-live-weight-warning" role="alert">
+            <strong>Live Weight does not match the current livehaul loads.</strong>
+            <span>
+              {`Closeout value: ${formatWeight(closeout.liveWeightFinal)} | Load total: ${formatWeight(closeout.derived.liveWeight)} | Difference: ${formatSignedWeight(liveWeightDifference)}`}
+            </span>
+            <span>
+              Clear the Live Weight field to use the load total, correct the value, or document an intentional Manual Override Reason before creating or submitting the invoice.
+            </span>
+          </div>
+        ) : null}
 
         <div className="closeout-worksheet-grid">
           <label className="field">
@@ -258,6 +274,20 @@ export function CloseoutWorksheetForm({ item, readOnly = false }: { item: Closeo
       {showFirst7Popup ? <First7MortalityPopup item={item} onClose={() => setShowFirst7Popup(false)} /> : null}
     </section>
   );
+}
+
+function deriveLiveWeightDifference(storedValue: number | null, loadTotal: number | null) {
+  if (storedValue === null || loadTotal === null) {
+    return null;
+  }
+
+  const difference = storedValue - loadTotal;
+  return Math.abs(difference) > 0.01 ? difference : null;
+}
+
+function formatSignedWeight(value: number) {
+  const prefix = value > 0 ? "+" : "";
+  return `${prefix}${value.toLocaleString(undefined, { maximumFractionDigits: 2 })} lb`;
 }
 
 function First7MortalityPopup({

@@ -2629,6 +2629,22 @@ tr:last-child td {
   gap: 0.9rem;
 }
 
+.closeout-live-weight-warning {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.9rem 1rem;
+  border: 2px solid rgba(164, 77, 63, 0.52);
+  border-radius: 1rem;
+  background: rgba(255, 238, 233, 0.96);
+  color: #71382f;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.closeout-live-weight-warning strong {
+  font-size: 0.96rem;
+}
+
 .closeout-worksheet-grid {
   display: grid;
   gap: 0.9rem;

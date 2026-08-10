@@ -715,13 +715,46 @@ export async function savePlacementCloseoutDraftAction(
   const breedWeightPercent = coerceNullableNumber(formData.get("breed_weight_percent"));
   const removedAgeDays = coerceNullableNumber(formData.get("removed_age_days"));
 
-  const { data: dropRows, error: feedError } = await admin
-    .from("feed_drops")
-    .select("drop_weight,type")
-    .eq("placement_code", placementCode);
+  const [feedResult, livehaulResult] = await Promise.all([
+    admin.from("feed_drops").select("drop_weight,type").eq("placement_code", placementCode),
+    admin.from("livehaul_schedule").select("livehaul_id").eq("placement_id", placementId),
+  ]);
 
-  if (feedError) {
-    return { status: "error", message: feedError.message };
+  if (feedResult.error) {
+    return { status: "error", message: feedResult.error.message };
+  }
+  if (livehaulResult.error) {
+    return { status: "error", message: livehaulResult.error.message };
+  }
+
+  const dropRows = feedResult.data ?? [];
+  const livehaulIds = (livehaulResult.data ?? []).map((row) => row.livehaul_id).filter(Boolean);
+  const loadResult = livehaulIds.length > 0
+    ? await admin.from("livehaul_loads").select("live_weight").in("livehaul_id", livehaulIds)
+    : { data: [], error: null };
+
+  if (loadResult.error) {
+    return { status: "error", message: loadResult.error.message };
+  }
+
+  const loadLiveWeightTotal = (loadResult.data ?? []).reduce(
+    (sum, row) => sum + (Number(row.live_weight) || 0),
+    0,
+  );
+  const hasLiveWeightDiscrepancy =
+    liveWeightFinal !== null &&
+    loadLiveWeightTotal > 0 &&
+    Math.abs(liveWeightFinal - loadLiveWeightTotal) > 0.01;
+
+  if (
+    hasLiveWeightDiscrepancy &&
+    (invoiceCreated || submitted) &&
+    !manualOverrideReason
+  ) {
+    return {
+      status: "error",
+      message: `Live Weight ${liveWeightFinal.toLocaleString()} lb does not match the current livehaul load total of ${loadLiveWeightTotal.toLocaleString()} lb. Clear or correct the field, or document a Manual Override Reason before marking the invoice created or submitted.`,
+    };
   }
 
   const feedDeliveredTotalLbs = (dropRows ?? []).reduce((sum, row) => sum + (Number(row.drop_weight) || 0), 0);

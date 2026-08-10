@@ -800,7 +800,6 @@ function deriveProcessedHeadCount(livehauls: CloseoutLivehaulRow[], persistedVal
 }
 
 function deriveLiveWeightTotal(livehauls: CloseoutLivehaulRow[], persistedValue: number | null) {
-  if (persistedValue !== null) return persistedValue;
   const total = livehauls.reduce((sum, row) => {
     return (
       sum +
@@ -809,7 +808,8 @@ function deriveLiveWeightTotal(livehauls: CloseoutLivehaulRow[], persistedValue:
       }, 0)
     );
   }, 0);
-  return total > 0 ? total : null;
+  if (total > 0) return total;
+  return persistedValue !== null ? persistedValue : null;
 }
 
 function calculateAgeDays(placedDate: string | null, removedDate: string | null) {
