@@ -12,6 +12,10 @@ Purpose:
 ### August 2026
 
 - `2026-08-10`
+  - [FlockTrax_Livehaul_Dashboard_Admin_Production_And_Mobile_1_0_6_Build_Checkpoint_2026-08-10.md](C:\dev\FlockTrax\output\FlockTrax_Livehaul_Dashboard_Admin_Production_And_Mobile_1_0_6_Build_Checkpoint_2026-08-10.md)
+  - production checkpoint for the authoritative livehaul dashboard display, Supabase dashboard API deployment, Admin deployment `dpl_J63zCDD3CsKQgNseWtJ8rRbCu3rN` on `flocktrax.com`, mobile `1.0.6` preparation, finished iOS build `18`, queued Android build `13`, and the store-release stopping point
+
+- `2026-08-10`
   - [FlockTrax_Supabase_Performance_Review_And_Index_Maintenance_Checkpoint_2026-08-10.md](C:\dev\FlockTrax\output\FlockTrax_Supabase_Performance_Review_And_Index_Maintenance_Checkpoint_2026-08-10.md)
   - detailed hosted-database checkpoint covering Weekly DB Performance Report run `10`, live confirmation that the `74` findings did not represent an emergency, connection/cache/bloat assessment, targeted consolidation of six duplicate `log_mortality` indexes and constraints, new workload-backed `activity_log(flock_id)` and `feed_drops(queued_from_placement_id)` indexes, safely isolated hosted migration `20260810143000`, post-deployment verification, deferred `log_daily` cleanup, the agreed recurring report-review method, and exact uncommitted stopping state
 

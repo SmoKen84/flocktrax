@@ -24,6 +24,6 @@ planning.
 
 - marketing version: `1.0.6`
 - next iOS build: `18`
-- next Android version code: `12`
+- Android version code: `13`
 - hosted published-version markers remain at `1.0.5` until store delivery is
   confirmed

@@ -25,7 +25,7 @@
     },
     "android": {
       "package": "com.flocktrax.mobile",
-      "versionCode": 12,
+      "versionCode": 13,
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",
