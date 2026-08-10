@@ -12,6 +12,10 @@ Purpose:
 ### August 2026
 
 - `2026-08-10`
+  - [FlockTrax_Admin_Closeout_Selectors_And_At_A_Glance_Print_Production_Checkpoint_2026-08-10.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Closeout_Selectors_And_At_A_Glance_Print_Production_Checkpoint_2026-08-10.md)
+  - latest Admin production checkpoint covering the `294-W2` stale closeout Live Weight diagnosis and invoice-stage discrepancy guard, removal of all seven archived placements from remaining operational Feed Ticket and Mortality selectors while preserving Archive access, Quick Access At-a-Glance US Letter landscape printing, removal of its inherited `1360px` width/scaling problem, compact full-width columns with larger/heavier print type, commits `491f940`, `3ec8670`, `640074d`, and `31ec578`, final Vercel deployment `dpl_47RB9zZw2PBUtMhuBy3rHruAxSTr`, validation gates, and exact resume guidance
+
+- `2026-08-10`
   - [FlockTrax_Livehaul_Dashboard_Admin_Production_And_Mobile_1_0_6_Build_Checkpoint_2026-08-10.md](C:\dev\FlockTrax\output\FlockTrax_Livehaul_Dashboard_Admin_Production_And_Mobile_1_0_6_Build_Checkpoint_2026-08-10.md)
   - production checkpoint for the authoritative livehaul dashboard display, Supabase dashboard API deployment, Admin deployment `dpl_J63zCDD3CsKQgNseWtJ8rRbCu3rN` on `flocktrax.com`, mobile `1.0.6` preparation, finished iOS build `18`, queued Android build `13`, and the store-release stopping point
 
