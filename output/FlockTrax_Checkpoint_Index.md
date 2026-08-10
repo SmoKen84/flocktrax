@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-08-07`
+Updated: `2026-08-10`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### August 2026
+
+- `2026-08-10`
+  - [FlockTrax_Supabase_Performance_Review_And_Index_Maintenance_Checkpoint_2026-08-10.md](C:\dev\FlockTrax\output\FlockTrax_Supabase_Performance_Review_And_Index_Maintenance_Checkpoint_2026-08-10.md)
+  - detailed hosted-database checkpoint covering Weekly DB Performance Report run `10`, live confirmation that the `74` findings did not represent an emergency, connection/cache/bloat assessment, targeted consolidation of six duplicate `log_mortality` indexes and constraints, new workload-backed `activity_log(flock_id)` and `feed_drops(queued_from_placement_id)` indexes, safely isolated hosted migration `20260810143000`, post-deployment verification, deferred `log_daily` cleanup, the agreed recurring report-review method, and exact uncommitted stopping state
 
 - `2026-08-07`
   - [FlockTrax_Admin_BinSentry_Polling_Rollups_And_Feed_Drop_Usability_Production_Checkpoint_2026-08-07.md](C:\dev\FlockTrax\output\FlockTrax_Admin_BinSentry_Polling_Rollups_And_Feed_Drop_Usability_Production_Checkpoint_2026-08-07.md)
