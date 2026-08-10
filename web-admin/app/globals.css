@@ -14787,6 +14787,29 @@ tr:last-child td {
   vertical-align: top;
 }
 
+.today-glance-report-table {
+  min-width: 980px;
+  table-layout: fixed;
+  font-size: 0.8rem;
+}
+
+.today-glance-report-table th,
+.today-glance-report-table td {
+  padding: 0.38rem 0.22rem;
+  overflow-wrap: anywhere;
+}
+
+.today-glance-report-table th:nth-child(1) { width: 6.5%; }
+.today-glance-report-table th:nth-child(2) { width: 4.5%; }
+.today-glance-report-table th:nth-child(3) { width: 7%; }
+.today-glance-report-table th:nth-child(4) { width: 4%; }
+.today-glance-report-table th:nth-child(5) { width: 15%; }
+.today-glance-report-table th:nth-child(6) { width: 11%; }
+.today-glance-report-table th:nth-child(7) { width: 14%; }
+.today-glance-report-table th:nth-child(8) { width: 11%; }
+.today-glance-report-table th:nth-child(9) { width: 16%; }
+.today-glance-report-table th:nth-child(10) { width: 11%; }
+
 @media print {
   @page today-glance-report {
     size: letter landscape;
@@ -14795,6 +14818,50 @@ tr:last-child td {
 
   .today-glance-report-page {
     page: today-glance-report;
+  }
+
+  .today-glance-report-page .feed-projection-report-table-wrap {
+    overflow: visible;
+    border-radius: 0;
+  }
+
+  .today-glance-report-table {
+    width: 100%;
+    min-width: 0;
+    font-size: 8.5pt;
+    line-height: 1.18;
+  }
+
+  .today-glance-report-table th,
+  .today-glance-report-table td {
+    padding: 3px 2px;
+    font-weight: 600;
+  }
+
+  .today-glance-report-table th {
+    font-size: 8pt;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  .today-glance-report-table td strong {
+    font-size: 9pt;
+    font-weight: 800;
+  }
+
+  .today-glance-report-table td small {
+    font-size: 7.5pt;
+    font-weight: 650;
+  }
+
+  .today-glance-report-table .feed-projection-report-header-cell small {
+    font-size: 7pt;
+    font-weight: 700;
+    letter-spacing: 0.015em;
+  }
+
+  .today-glance-cell-stack {
+    gap: 1px;
   }
 }
 
