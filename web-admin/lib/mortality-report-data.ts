@@ -267,7 +267,7 @@ export async function getMortalityReportFilterOptions(): Promise<MortalityReport
   if (!source) return { farmGroups: [], farms: [], barns: [], flocks: [] };
 
   const rows = source.placements
-    .filter((placement) => placement.lifecycle_stage !== "canceled")
+    .filter((placement) => placement.lifecycle_stage !== "archived" && placement.lifecycle_stage !== "canceled")
     .map((placement) => {
       const flock = source.flockById.get(placement.flock_id);
       const farm = source.farmById.get(placement.farm_id);

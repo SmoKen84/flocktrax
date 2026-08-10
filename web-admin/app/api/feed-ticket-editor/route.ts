@@ -756,7 +756,8 @@ async function listPlacementOptions(): Promise<PlacementOption[]> {
 
   const { data: placements, error: placementError } = await admin
     .from("placements")
-    .select("id,placement_key,barn_id,flock_id,is_active,date_removed,active_start,active_end")
+    .select("id,placement_key,barn_id,flock_id,is_active,date_removed,active_start,active_end,lifecycle_stage")
+    .or("lifecycle_stage.is.null,lifecycle_stage.neq.archived")
     .order("active_start", { ascending: false })
     .order("placement_key", { ascending: true })
     .limit(1000);

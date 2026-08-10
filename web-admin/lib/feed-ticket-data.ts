@@ -420,9 +420,24 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
         .map((row) => [normalize(row.binCode), normalize(row.binCode)]),
     ).values(),
   );
-  const flocks = Array.from(new Set(rows.map((row) => normalize(row.placementCode)).filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b, undefined, { numeric: true }),
+  const { data: selectablePlacementRows, error: selectablePlacementsError } = await admin
+    .from("placements")
+    .select("placement_key")
+    .or("lifecycle_stage.is.null,lifecycle_stage.neq.archived")
+    .limit(2000);
+  if (selectablePlacementsError) {
+    throw new Error(selectablePlacementsError.message);
+  }
+  const selectablePlacementCodes = new Set(
+    (selectablePlacementRows ?? []).map((placement) => normalize(placement.placement_key)).filter(Boolean),
   );
+  const flocks = Array.from(
+    new Set(
+      rows
+        .map((row) => normalize(row.placementCode))
+        .filter((placementCode) => placementCode && selectablePlacementCodes.has(placementCode)),
+    ),
+  ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
   const distinctTicketIds = new Set(
     rows.map((row) => {
