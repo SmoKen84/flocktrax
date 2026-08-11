@@ -14870,6 +14870,195 @@ tr:last-child td {
   gap: 0.18rem;
 }
 
+.closeout-queue-report-page,
+.closeout-queue-report-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.closeout-queue-report-summary-grid,
+.closeout-queue-report-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.closeout-queue-report-summary-grid article,
+.closeout-queue-report-meta > div {
+  display: grid;
+  gap: 0.18rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-strong);
+  padding: 0.72rem 0.8rem;
+}
+
+.closeout-queue-report-summary-grid span,
+.closeout-queue-report-meta span {
+  color: var(--muted-ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.closeout-queue-report-summary-grid strong {
+  color: var(--ink-strong);
+  font-size: 1.15rem;
+}
+
+.closeout-queue-report-meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.closeout-queue-report-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.closeout-queue-report-table {
+  width: 100%;
+  min-width: 1180px;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+}
+
+.closeout-queue-report-table th,
+.closeout-queue-report-table td {
+  border-bottom: 1px solid rgba(160, 122, 74, 0.14);
+  padding: 0.48rem 0.34rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.closeout-queue-report-table th {
+  background: var(--panel);
+  color: var(--ink-strong);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.closeout-queue-report-table th:nth-last-child(-n + 6),
+.closeout-queue-report-table td:nth-last-child(-n + 6) {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.closeout-queue-report-placement {
+  color: var(--accent-deep);
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.closeout-queue-report-mark {
+  display: inline-flex;
+  min-width: 1.8rem;
+  justify-content: center;
+  color: var(--muted-ink);
+  font-weight: 700;
+}
+
+.closeout-queue-report-mark[data-complete="true"] {
+  color: var(--good-strong, #3f6d49);
+  font-weight: 900;
+}
+
+.closeout-queue-report-empty {
+  padding: 1rem !important;
+  text-align: center !important;
+  color: var(--muted-ink);
+}
+
+.closeout-queue-report-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  color: var(--muted-ink);
+  font-size: 0.72rem;
+}
+
+@media (max-width: 900px) {
+  .closeout-queue-report-summary-grid,
+  .closeout-queue-report-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media print {
+  @page closeout-queue-report {
+    size: letter landscape;
+    margin: 0.3in;
+  }
+
+  .closeout-queue-report-page {
+    page: closeout-queue-report;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  .closeout-queue-report-shell {
+    gap: 0.35rem;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+
+  .closeout-queue-report-summary-grid,
+  .closeout-queue-report-meta {
+    gap: 0.25rem;
+  }
+
+  .closeout-queue-report-summary-grid article,
+  .closeout-queue-report-meta > div {
+    padding: 0.25rem 0.35rem;
+    border-radius: 0;
+    background: #fff !important;
+  }
+
+  .closeout-queue-report-table-wrap {
+    overflow: visible;
+    border-radius: 0;
+  }
+
+  .closeout-queue-report-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+    font-size: 7pt;
+    line-height: 1.15;
+  }
+
+  .closeout-queue-report-table th,
+  .closeout-queue-report-table td {
+    padding: 3px 2px;
+    overflow-wrap: anywhere;
+  }
+
+  .closeout-queue-report-table th {
+    font-size: 6.5pt;
+    letter-spacing: 0.01em;
+  }
+
+  .closeout-queue-report-table .status-pill {
+    padding: 2px 3px;
+    font-size: 6.5pt;
+  }
+
+  .closeout-queue-report-placement {
+    color: #000;
+  }
+
+  .closeout-queue-report-legend {
+    font-size: 6.5pt;
+  }
+}
+
 .mortality-report-page {
   display: grid;
   gap: 1rem;

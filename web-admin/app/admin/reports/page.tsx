@@ -3,15 +3,20 @@ import Link from "next/link";
 import { ReportsFilterPanel } from "@/app/admin/reports/reports-filter-panel";
 import { PageHeader } from "@/components/page-header";
 import { getAdminData } from "@/lib/admin-data";
+import { buildCloseoutQueueReportFilterOptions, getScopedCloseoutQueueItems } from "@/lib/closeout-queue-report-data";
 import { getFeedDropsReportFilterOptions } from "@/lib/feed-drops-report-data";
 import { getMortalityReportFilterOptions } from "@/lib/mortality-report-data";
+import { canAccessFarmManagerReport, getPlacementEditorActorAccess } from "@/lib/placement-editor-access";
 import { getQueuedFeedDeliveriesFilterOptions } from "@/lib/queued-feed-deliveries-report-data";
 
 type ReportsHubPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const reportCategories = [
+type ReportOption = { key: string; label: string; minimumRank?: number };
+type ReportCategory = { key: string; label: string; reports: ReportOption[] };
+
+const reportCategories: ReportCategory[] = [
   {
     key: "quick_access_reports",
     label: "Quick Access Reports",
@@ -31,6 +36,13 @@ const reportCategories = [
     ],
   },
   {
+    key: "closeout_reports",
+    label: "Closeout Reports",
+    reports: [
+      { key: "closeout_queue_status", label: "Closeout Queue Status", minimumRank: 200 },
+    ],
+  },
+  {
     key: "feed_reports",
     label: "Feed Reports",
     reports: [
@@ -44,15 +56,33 @@ const reportCategories = [
 
 export default async function ReportsHubPage({ searchParams }: ReportsHubPageProps) {
   const params = (await searchParams) ?? {};
-  const categoryKey = firstParam(params.category) ?? "quick_access_reports";
-  const reportKey = firstParam(params.report) ?? "at_a_glance";
+  const requestedCategoryKey = firstParam(params.category) ?? "quick_access_reports";
+  const requestedReportKey = firstParam(params.report) ?? "at_a_glance";
+  const returnTo = firstParam(params.returnTo) === "closeout" ? "closeout" : "";
+  const actor = await getPlacementEditorActorAccess();
+  const canViewCloseoutReport = canAccessFarmManagerReport(actor);
+  const availableCategories = reportCategories
+    .map((category) => ({
+      ...category,
+      reports: category.reports.filter((report) => !report.minimumRank || canViewCloseoutReport),
+    }))
+    .filter((category) => category.reports.length > 0);
+  const selectedCategory =
+    availableCategories.find((category) => category.key === requestedCategoryKey) ?? availableCategories[0];
+  const selectedReport =
+    selectedCategory.reports.find((report) => report.key === requestedReportKey) ?? selectedCategory.reports[0] ?? null;
+  const categoryKey = selectedCategory.key;
+  const reportKey = selectedReport?.key ?? "at_a_glance";
   const farmGroupId = firstParam(params.farmGroupId) ?? "";
   const farmId = firstParam(params.farmId) ?? "";
   const barnId = firstParam(params.barnId) ?? "";
   const flockCode = firstParam(params.flockCode) ?? "";
   const days = firstParam(params.days) ?? "14";
   const includeBinSentryOnOrderParam = firstParam(params.includeBinSentryOnOrder);
-  const sortOrder = firstParam(params.sortOrder) ?? "date";
+  const requestedSortOrder = firstParam(params.sortOrder) ?? "date";
+  const sortOrder = reportKey === "closeout_queue_status" && !["date", "placement", "state"].includes(requestedSortOrder)
+    ? "date"
+    : requestedSortOrder;
   const useDefaultTypeDensity = firstParam(params.useDefaultTypeDensity) === "1";
   const includeRollupSummary = firstParam(params.includeRollupSummary) === "1";
   const feedMill = firstParam(params.feedMill) ?? "";
@@ -64,16 +94,20 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
   const today = new Date().toISOString().slice(0, 10);
   const reportStartDate =
     firstParam(params.startDate) ??
-    (categoryKey === "quick_access_reports"
+    (reportKey === "closeout_queue_status"
+      ? ""
+      : categoryKey === "quick_access_reports"
       ? today
       : `${today.slice(0, 7)}-01`);
   const reportEndDate =
     firstParam(params.endDate) ??
-    (categoryKey === "quick_access_reports"
+    (reportKey === "closeout_queue_status"
+      ? ""
+      : categoryKey === "quick_access_reports"
       ? addDays(today, 30)
       : today);
 
-  const [adminData, mortalityFilterOptions, feedDropsFilterOptions, queuedFeedFilterOptions] = await Promise.all([
+  const [adminData, mortalityFilterOptions, feedDropsFilterOptions, queuedFeedFilterOptions, closeoutQueueItems] = await Promise.all([
     getAdminData(),
     reportKey === "detailed_mortality_report"
       ? getMortalityReportFilterOptions()
@@ -84,7 +118,11 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
     reportKey === "queued_feed_deliveries"
       ? getQueuedFeedDeliveriesFilterOptions()
       : Promise.resolve(null),
+    reportKey === "closeout_queue_status"
+      ? getScopedCloseoutQueueItems(actor)
+      : Promise.resolve(null),
   ]);
+  const closeoutFilterOptions = closeoutQueueItems ? buildCloseoutQueueReportFilterOptions(closeoutQueueItems) : null;
   const activeFarmGroups = dedupeBy(
     adminData.activePlacements.map((placement) => ({
       id: placement.farmGroupId,
@@ -123,16 +161,11 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
     })),
     (entry) => entry.id,
   ).sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true }));
-  const filterFarmGroups = queuedFeedFilterOptions?.farmGroups ?? feedDropsFilterOptions?.farmGroups ?? mortalityFilterOptions?.farmGroups ?? activeFarmGroups;
-  const filterFarms = queuedFeedFilterOptions?.farms ?? feedDropsFilterOptions?.farms ?? mortalityFilterOptions?.farms ?? activeFarms;
-  const filterBarns = queuedFeedFilterOptions?.barns ?? feedDropsFilterOptions?.barns ?? mortalityFilterOptions?.barns ?? activeBarns;
-  const filterFlocks = queuedFeedFilterOptions?.flocks ?? feedDropsFilterOptions?.flocks ?? mortalityFilterOptions?.flocks ?? activeFlocks;
+  const filterFarmGroups = closeoutFilterOptions?.farmGroups ?? queuedFeedFilterOptions?.farmGroups ?? feedDropsFilterOptions?.farmGroups ?? mortalityFilterOptions?.farmGroups ?? activeFarmGroups;
+  const filterFarms = closeoutFilterOptions?.farms ?? queuedFeedFilterOptions?.farms ?? feedDropsFilterOptions?.farms ?? mortalityFilterOptions?.farms ?? activeFarms;
+  const filterBarns = closeoutFilterOptions?.barns ?? queuedFeedFilterOptions?.barns ?? feedDropsFilterOptions?.barns ?? mortalityFilterOptions?.barns ?? activeBarns;
+  const filterFlocks = closeoutFilterOptions?.flocks ?? queuedFeedFilterOptions?.flocks ?? feedDropsFilterOptions?.flocks ?? mortalityFilterOptions?.flocks ?? activeFlocks;
   const filterFeedMills = queuedFeedFilterOptions?.feedMills ?? [];
-
-  const selectedCategory =
-    reportCategories.find((category) => category.key === categoryKey) ?? reportCategories[0];
-  const selectedReport =
-    selectedCategory.reports.find((report) => report.key === reportKey) ?? selectedCategory.reports[0] ?? null;
 
   return (
     <>
@@ -141,9 +174,9 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
         title="Reports"
         body="Operational reports and filters"
         actions={
-          <Link className="button-secondary" href="/admin/overview">
+          <Link className="button-secondary" href={returnTo === "closeout" ? "/admin/flock-closeout" : "/admin/overview"}>
             <span aria-hidden="true">←</span>
-            <span>Back</span>
+            <span>{returnTo === "closeout" ? "Return To Closeout Queue" : "Back"}</span>
           </Link>
         }
       />
@@ -157,8 +190,9 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
           </div>
 
           <div className="reports-hub-category-grid">
-            {reportCategories.map((category) => {
+            {availableCategories.map((category) => {
               const isSelected = category.key === selectedCategory.key;
+              const isCloseoutCategory = category.key === "closeout_reports";
               const categoryHref = buildReportsHubHref({
                 category: category.key,
                 report: category.reports[0]?.key ?? "",
@@ -166,13 +200,14 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                 farmId,
                 barnId,
                 flockCode,
-                startDate: reportStartDate,
-                endDate: reportEndDate,
-                sortOrder,
-                useDefaultTypeDensity,
-                includeRollupSummary,
+                startDate: isCloseoutCategory ? "" : reportStartDate,
+                endDate: isCloseoutCategory ? "" : reportEndDate,
+                sortOrder: isCloseoutCategory ? "date" : sortOrder,
+                useDefaultTypeDensity: isCloseoutCategory ? false : useDefaultTypeDensity,
+                includeRollupSummary: isCloseoutCategory ? false : includeRollupSummary,
                 feedMill,
                 includeBinSentryOnOrder,
+                returnTo,
               });
 
               return (
@@ -215,6 +250,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                   includeRollupSummary,
                   feedMill,
                   includeBinSentryOnOrder,
+                  returnTo,
                 });
 
                 return (
@@ -248,6 +284,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
             selectedReport?.key === "detailed_placements_report" ||
             selectedReport?.key === "detailed_livehaul_report" ||
             selectedReport?.key === "detailed_mortality_report" ||
+            selectedReport?.key === "closeout_queue_status" ||
             selectedReport?.key === "feed_drops_report" ||
             selectedReport?.key === "queued_feed_deliveries" ? (
               <ReportsFilterPanel
@@ -270,7 +307,9 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                 farms={filterFarms}
                 feedMills={filterFeedMills}
                 flocks={filterFlocks}
+                key={selectedReport.key}
                 reportKey={selectedReport.key}
+                returnTo={returnTo}
               />
             ) : null}
           </section>
@@ -308,6 +347,7 @@ function buildReportsHubHref({
   includeRollupSummary,
   feedMill,
   includeBinSentryOnOrder,
+  returnTo,
 }: {
   category: string;
   report: string;
@@ -322,6 +362,7 @@ function buildReportsHubHref({
   includeRollupSummary?: boolean;
   feedMill?: string;
   includeBinSentryOnOrder?: boolean;
+  returnTo?: string;
 }) {
   const params = new URLSearchParams();
   if (category) params.set("category", category);
@@ -337,6 +378,7 @@ function buildReportsHubHref({
   if (includeRollupSummary) params.set("includeRollupSummary", "1");
   if (feedMill) params.set("feedMill", feedMill);
   if (includeBinSentryOnOrder) params.set("includeBinSentryOnOrder", "1");
+  if (returnTo === "closeout") params.set("returnTo", "closeout");
   const query = params.toString();
   return query ? `/admin/reports?${query}` : "/admin/reports";
 }

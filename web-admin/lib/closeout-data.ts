@@ -128,6 +128,7 @@ export type CloseoutQueueItem = {
   lifecycleStage: PlacementLifecycleStage;
   farmId: string;
   farmName: string;
+  farmGroupId: string;
   farmGroupName: string;
   barnId: string;
   barnCode: string;
@@ -658,6 +659,7 @@ export async function getCloseoutQueueData(filters: CloseoutQueueFilters = {}): 
         lifecycleStage: row.lifecycle_stage,
         farmId: row.farm_id,
         farmName: farm?.farm_name ?? "Unnamed Farm",
+        farmGroupId: farm?.farm_group_id ?? "",
         farmGroupName: farm?.farm_group_name ?? "Ungrouped",
         barnId: row.barn_id,
         barnCode: barn?.barn_code ?? "Barn",
@@ -917,12 +919,12 @@ function deriveCloseoutQueueTasks(options: {
   const closeout = options.closeout;
 
   return {
-    livehaulComplete: closeout?.livehaul_complete_at !== null,
-    feedVerified: closeout?.feed_verified_at !== null,
-    invoiceCreated: closeout?.invoice_created_at !== null,
-    submitted: closeout?.submitted_at !== null,
-    settlementReceived: closeout?.settlement_received_at !== null,
-    closeoutDone: closeout?.closeout_completed_at !== null,
+    livehaulComplete: Boolean(closeout?.livehaul_complete_at),
+    feedVerified: Boolean(closeout?.feed_verified_at),
+    invoiceCreated: Boolean(closeout?.invoice_created_at),
+    submitted: Boolean(closeout?.submitted_at),
+    settlementReceived: Boolean(closeout?.settlement_received_at),
+    closeoutDone: Boolean(closeout?.closeout_completed_at),
   };
 }
 

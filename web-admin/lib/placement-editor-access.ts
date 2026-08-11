@@ -8,7 +8,7 @@ import type {
 } from "@/lib/types";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 
-type ActorPlacementAccess = {
+export type ActorPlacementAccess = {
   actorId: string | null;
   roleCodes: string[];
   permissionRows: Array<{
@@ -25,6 +25,17 @@ type ActorPlacementAccess = {
   bypassScope: boolean;
   hasDashboardView: boolean;
 };
+
+export function canAccessFarmManagerReport(actor: ActorPlacementAccess) {
+  return actor.roleCodes.some((roleCode) => rankRoleCode(roleCode) >= 200);
+}
+
+export function hasActorFarmScope(
+  actor: ActorPlacementAccess,
+  placement: { farmGroupId: string; farmId: string },
+) {
+  return hasScopeAccess(actor, placement);
+}
 
 type UserRoleRow = {
   role_id?: string | null;
@@ -53,6 +64,15 @@ type SysactionRow = {
 
 function normalizeKey(value: string | null | undefined) {
   return String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function rankRoleCode(value: string | null | undefined) {
+  const normalized = normalizeKey(value);
+  if (normalized === "super_admin" || normalized === "superadmin") return 500;
+  if (normalized.includes("integrator")) return 400;
+  if (normalized === "admin" || normalized.includes("grower")) return 300;
+  if (normalized === "farm_manager" || normalized === "farmmanager" || normalized === "manager") return 200;
+  return 0;
 }
 
 function hasPermission(

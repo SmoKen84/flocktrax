@@ -49,6 +49,7 @@ type ReportsFilterPanelProps = {
   currentUseDefaultTypeDensity: boolean;
   currentIncludeRollupSummary: boolean;
   currentIncludeBinSentryOnOrder: boolean;
+  returnTo: string;
   farmGroups: FarmGroupOption[];
   farms: FarmOption[];
   feedMills: string[];
@@ -72,6 +73,7 @@ export function ReportsFilterPanel({
   currentUseDefaultTypeDensity,
   currentIncludeRollupSummary,
   currentIncludeBinSentryOnOrder,
+  returnTo,
   farmGroups,
   farms,
   feedMills,
@@ -102,13 +104,15 @@ export function ReportsFilterPanel({
     "detailed_placements_report",
     "detailed_livehaul_report",
     "detailed_mortality_report",
+    "closeout_queue_status",
     "feed_drops_report",
     "queued_feed_deliveries",
   ].includes(reportKey);
   const showBarnField = true;
   const showFlockField = reportKey !== "feed_drops_report" && reportKey !== "queued_feed_deliveries";
   const showFeedMillField = reportKey === "queued_feed_deliveries";
-  const showSortOrderField = reportKey === "feed_drops_report";
+  const showSortOrderField = reportKey === "feed_drops_report" || reportKey === "closeout_queue_status";
+  const isCloseoutQueueReport = reportKey === "closeout_queue_status";
   const showRollupSummaryOption = reportKey === "feed_drops_report";
   const showBinSentryOnOrderToggle =
     reportKey === "ten_day_feed_requirements" || reportKey === "custom_feed_projection";
@@ -154,6 +158,7 @@ export function ReportsFilterPanel({
     const params = new URLSearchParams();
     params.set("category", categoryKey);
     params.set("report", reportKey);
+    if (returnTo === "closeout") params.set("returnTo", "closeout");
     if (nextFarmGroupId) params.set("farmGroupId", nextFarmGroupId);
     if (nextFarmId) params.set("farmId", nextFarmId);
     if (nextBarnId) params.set("barnId", nextBarnId);
@@ -288,9 +293,11 @@ export function ReportsFilterPanel({
     const params = new URLSearchParams();
     params.set("category", categoryKey);
     params.set("report", reportKey);
+    if (returnTo === "closeout") params.set("returnTo", "closeout");
     if (farmGroupId) params.set("farmGroupId", farmGroupId);
     if (farmId) params.set("farmId", farmId);
     if (barnId) params.set("barnId", barnId);
+    if (flockCode) params.set("flockCode", flockCode);
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
     params.set("sortOrder", nextSortOrder);
@@ -304,6 +311,7 @@ export function ReportsFilterPanel({
     const params = new URLSearchParams();
     params.set("category", categoryKey);
     params.set("report", reportKey);
+    if (returnTo === "closeout") params.set("returnTo", "closeout");
     if (farmGroupId) params.set("farmGroupId", farmGroupId);
     if (farmId) params.set("farmId", farmId);
     if (barnId) params.set("barnId", barnId);
@@ -328,6 +336,7 @@ export function ReportsFilterPanel({
       sortOrder,
       useDefaultTypeDensity,
       includeRollupSummary: nextValue,
+      returnTo,
     });
     startTransition(() => router.replace(href, { scroll: false }));
   }
@@ -337,6 +346,7 @@ export function ReportsFilterPanel({
     const params = new URLSearchParams();
     params.set("category", categoryKey);
     params.set("report", reportKey);
+    if (returnTo === "closeout") params.set("returnTo", "closeout");
     if (farmGroupId) params.set("farmGroupId", farmGroupId);
     if (farmId) params.set("farmId", farmId);
     if (barnId) params.set("barnId", barnId);
@@ -349,6 +359,7 @@ export function ReportsFilterPanel({
   const clearHref = buildReportsHubHref({
     category: categoryKey,
     report: reportKey,
+    returnTo,
   });
   const previewHref = buildFeedProjectionPreviewHref({
     farmGroupId,
@@ -365,6 +376,7 @@ export function ReportsFilterPanel({
     feedMill,
     includeBinSentryOnOrder,
     reportKey,
+    returnTo,
   });
 
   return (
@@ -498,11 +510,20 @@ export function ReportsFilterPanel({
             <span>Sort Order</span>
             <select onChange={(event) => handleSortOrderChange(event.target.value)} value={sortOrder}>
               <option value="date">Date</option>
-              <option value="bin">Bin Number</option>
-              <option value="feed_type">Feed Type</option>
+              {isCloseoutQueueReport ? (
+                <>
+                  <option value="placement">Flock / Placement</option>
+                  <option value="state">Current Closeout State</option>
+                </>
+              ) : (
+                <>
+                  <option value="bin">Bin Number</option>
+                  <option value="feed_type">Feed Type</option>
+                </>
+              )}
             </select>
           </label>
-          <label className="reports-hub-checkbox-field">
+          {!isCloseoutQueueReport ? <label className="reports-hub-checkbox-field">
             <input
               checked={useDefaultTypeDensity}
               onChange={(event) => handleUseDefaultTypeDensityChange(event.target.checked)}
@@ -512,8 +533,8 @@ export function ReportsFilterPanel({
               <span>Use default type density values</span>
               <small>Estimate Starter and Grower refill weight with their configured default densities instead of the density stored on the BinSentry refill.</small>
             </div>
-          </label>
-          <label className="reports-hub-checkbox-field">
+          </label> : null}
+          {!isCloseoutQueueReport ? <label className="reports-hub-checkbox-field">
             <input
               checked={includeRollupSummary}
               onChange={(event) => handleIncludeRollupSummaryChange(event.target.checked)}
@@ -523,7 +544,7 @@ export function ReportsFilterPanel({
               <span>Include rollup summary page</span>
               <small>Append optional totals by bin, barn, and feed type plus the overall report total.</small>
             </div>
-          </label>
+          </label> : null}
         </>
       ) : null}
 
@@ -568,6 +589,7 @@ function buildReportsHubHref({
   includeRollupSummary,
   feedMill,
   includeBinSentryOnOrder,
+  returnTo,
 }: {
   category: string;
   report: string;
@@ -583,6 +605,7 @@ function buildReportsHubHref({
   includeRollupSummary?: boolean;
   feedMill?: string;
   includeBinSentryOnOrder?: boolean;
+  returnTo?: string;
 }) {
   const params = new URLSearchParams();
   if (category) params.set("category", category);
@@ -599,6 +622,7 @@ function buildReportsHubHref({
   if (includeRollupSummary) params.set("includeRollupSummary", "1");
   if (feedMill) params.set("feedMill", feedMill);
   if (includeBinSentryOnOrder) params.set("includeBinSentryOnOrder", "1");
+  if (returnTo === "closeout") params.set("returnTo", "closeout");
   const query = params.toString();
   return query ? `/admin/reports?${query}` : "/admin/reports";
 }
@@ -618,6 +642,7 @@ function buildFeedProjectionPreviewHref({
   feedMill,
   includeBinSentryOnOrder,
   reportKey,
+  returnTo,
 }: {
   farmGroupId?: string;
   farmId?: string;
@@ -633,6 +658,7 @@ function buildFeedProjectionPreviewHref({
   feedMill?: string;
   includeBinSentryOnOrder?: boolean;
   reportKey: string;
+  returnTo?: string;
 }) {
   const params = new URLSearchParams();
   if (farmGroupId) params.set("farmGroupId", farmGroupId);
@@ -644,14 +670,15 @@ function buildFeedProjectionPreviewHref({
     params.set("includeBinSentryOnOrder", "1");
   }
   if (reportKey === "at_a_glance" && reportDate) params.set("reportDate", reportDate);
-  if (["quick_placements_report", "quick_livehaul_report", "detailed_placements_report", "detailed_livehaul_report", "detailed_mortality_report", "feed_drops_report", "queued_feed_deliveries"].includes(reportKey)) {
+  if (["quick_placements_report", "quick_livehaul_report", "detailed_placements_report", "detailed_livehaul_report", "detailed_mortality_report", "closeout_queue_status", "feed_drops_report", "queued_feed_deliveries"].includes(reportKey)) {
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
   }
-  if (reportKey === "feed_drops_report" && sortOrder) params.set("sortOrder", sortOrder);
+  if ((reportKey === "feed_drops_report" || reportKey === "closeout_queue_status") && sortOrder) params.set("sortOrder", sortOrder);
   if (reportKey === "feed_drops_report" && useDefaultTypeDensity) params.set("useDefaultTypeDensity", "1");
   if (reportKey === "feed_drops_report" && includeRollupSummary) params.set("includeRollupSummary", "1");
   if (reportKey === "queued_feed_deliveries" && feedMill) params.set("feedMill", feedMill);
+  if (returnTo === "closeout") params.set("returnTo", "closeout");
   const query = params.toString();
   const pathname =
     reportKey === "custom_feed_projection"
@@ -670,6 +697,8 @@ function buildFeedProjectionPreviewHref({
                   ? "/admin/reports/mortality"
                   : reportKey === "feed_drops_report"
                     ? "/admin/reports/feed-drops"
+                    : reportKey === "closeout_queue_status"
+                      ? "/admin/reports/closeout-queue"
                     : reportKey === "queued_feed_deliveries"
                       ? "/admin/reports/queued-feed-deliveries"
         : "/admin/reports/feed-projection";

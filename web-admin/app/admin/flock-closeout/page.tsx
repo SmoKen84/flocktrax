@@ -3,6 +3,7 @@ import Link from "next/link";
 import { recalculateQueueCloseoutTotalsAction } from "@/app/admin/flock-closeout/actions";
 import { PageHeader } from "@/components/page-header";
 import { getCloseoutQueueData } from "@/lib/closeout-data";
+import { canAccessFarmManagerReport, getPlacementEditorActorAccess } from "@/lib/placement-editor-access";
 
 const CLOSEOUT_QUEUE_PAGE_SIZE = 9;
 
@@ -14,7 +15,8 @@ type FlockCloseoutPageProps = {
 
 export default async function FlockCloseoutPage({ searchParams }: FlockCloseoutPageProps) {
   const params = searchParams ? await searchParams : undefined;
-  const queue = await getCloseoutQueueData();
+  const [queue, actor] = await Promise.all([getCloseoutQueueData(), getPlacementEditorActorAccess()]);
+  const canViewQueueReport = canAccessFarmManagerReport(actor);
   const totalPages = Math.max(1, Math.ceil(queue.items.length / CLOSEOUT_QUEUE_PAGE_SIZE));
   const currentPage = clampPage(params?.page, totalPages);
   const pageStart = (currentPage - 1) * CLOSEOUT_QUEUE_PAGE_SIZE;
@@ -27,9 +29,16 @@ export default async function FlockCloseoutPage({ searchParams }: FlockCloseoutP
         title="Flock Closeout Queue"
         body="This workspace holds post-checkout flocks that have left live production but are still moving through closeout review, actual livehaul reconciliation, and final historical retirement."
         actions={
-          <Link className="button-secondary" href="/admin/flocks">
-            Archive View
-          </Link>
+          <>
+            {canViewQueueReport ? (
+              <Link className="button-secondary" href="/admin/reports?category=closeout_reports&report=closeout_queue_status&returnTo=closeout">
+                Closeout Queue Report
+              </Link>
+            ) : null}
+            <Link className="button-secondary" href="/admin/flocks">
+              Archive View
+            </Link>
+          </>
         }
       />
 
