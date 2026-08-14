@@ -14995,6 +14995,7 @@ tr:last-child td {
   }
 
   .closeout-queue-report-page {
+    display: block;
     page: closeout-queue-report;
     margin: 0 !important;
     padding: 0 !important;
@@ -15002,11 +15003,25 @@ tr:last-child td {
   }
 
   .closeout-queue-report-shell {
+    display: block;
     gap: 0.35rem;
     padding: 0 !important;
     border: 0 !important;
     box-shadow: none !important;
     background: #fff !important;
+  }
+
+  .closeout-queue-report-page > .hero-panel,
+  .closeout-queue-report-summary-grid,
+  .closeout-queue-report-meta,
+  .closeout-queue-report-table-wrap {
+    margin-bottom: 0.1in !important;
+  }
+
+  .closeout-queue-report-legend {
+    display: flex;
+    margin-top: 0.08in;
+    clear: both;
   }
 
   .closeout-queue-report-summary-grid,
