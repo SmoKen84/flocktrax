@@ -40,7 +40,6 @@ export default async function CloseoutQueueReportPage({ searchParams }: Closeout
 
   return (
     <div className="closeout-queue-report-page">
-      <style>{`@media print { @page { size: letter landscape; margin: 0.3in; } }`}</style>
       <PageHeader
         eyebrow="Reports"
         title="Closeout Queue Status"

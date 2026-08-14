@@ -15034,6 +15034,16 @@ tr:last-child td {
     line-height: 1.15;
   }
 
+  .closeout-queue-report-table thead {
+    display: table-header-group;
+  }
+
+  .closeout-queue-report-table tr,
+  .closeout-queue-report-legend {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   .closeout-queue-report-table th,
   .closeout-queue-report-table td {
     padding: 3px 2px;
@@ -15278,6 +15288,7 @@ tr:last-child td {
 .admin-shell:has(.mortality-report-page),
 .admin-shell:has(.action-items-report-page),
 .admin-shell:has(.feed-ticket-print-page),
+.admin-shell:has(.closeout-queue-report-page),
 .admin-shell:has(.closeout-report-page) {
   grid-template-columns: minmax(0, 1fr);
   width: min(calc(100% - 48px), 1500px);
@@ -15290,6 +15301,7 @@ tr:last-child td {
 .admin-shell:has(.mortality-report-page) .splash-sidebar-stack,
 .admin-shell:has(.action-items-report-page) .splash-sidebar-stack,
 .admin-shell:has(.feed-ticket-print-page) .splash-sidebar-stack,
+.admin-shell:has(.closeout-queue-report-page) .splash-sidebar-stack,
 .admin-shell:has(.closeout-report-page) .splash-sidebar-stack {
   display: none;
 }
