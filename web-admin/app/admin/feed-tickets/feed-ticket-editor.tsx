@@ -33,6 +33,7 @@ type PlacementOption = {
   active_start: string | null;
   active_end: string | null;
   date_removed: string | null;
+  lifecycle_stage: string | null;
   is_active: boolean;
   is_in_barn: boolean;
   is_complete: boolean;
@@ -1115,15 +1116,16 @@ function hydrateManualFlockOverrides(item: EditorItem, placementOptions: Placeme
       }
 
       const resolvedPlacement = resolveRegPlacement(item, placementOptions, drop);
+      const defaultPlacementId = drop.default_placement_id ?? resolvedPlacement?.placement_id ?? null;
       const inferredOverride =
         drop.manual_flock_override === true ||
-        (Boolean(drop.default_placement_id) &&
+        (Boolean(defaultPlacementId) &&
           Boolean(drop.placement_id) &&
-          drop.default_placement_id !== drop.placement_id);
+          defaultPlacementId !== drop.placement_id);
 
       return {
         ...drop,
-        default_placement_id: drop.default_placement_id ?? resolvedPlacement?.placement_id ?? null,
+        default_placement_id: defaultPlacementId,
         default_placement_code: drop.default_placement_code ?? resolvedPlacement?.placement_code ?? null,
         manual_flock_override: inferredOverride,
       };
@@ -1307,6 +1309,7 @@ function resolveRegPlacementForBin(
       active_start: null,
       active_end: null,
       date_removed: null,
+      lifecycle_stage: null,
       is_active: item.ticket_type === "Reg",
       is_in_barn: item.ticket_type === "Reg",
       is_complete: false,
@@ -1361,6 +1364,7 @@ function resolvePlacementOption(options: PlacementOption[], drop: EditorDrop) {
       active_start: null,
       active_end: null,
       date_removed: null,
+      lifecycle_stage: null,
       is_active: false,
       is_in_barn: false,
       is_complete: false,
@@ -1403,7 +1407,7 @@ function placementMatchesDate(option: PlacementOption, deliveredDate: string) {
   }
 
   const activeStart = toCalendarDate(option.active_start);
-  const activeEnd = toCalendarDate(option.active_end);
+  const activeEnd = toCalendarDate(option.date_removed || option.active_end);
 
   if (activeStart && deliveredDate < activeStart) {
     return false;
@@ -1505,6 +1509,8 @@ function compactPlacementCode(value: string | null | undefined) {
 function verbosePlacementState(option: PlacementOption) {
   if (option.is_complete) return "Completed";
   if (option.is_in_barn) return "In Barn";
+  if (option.lifecycle_stage === "awaiting_arrival") return "Awaiting Arrival";
+  if (option.lifecycle_stage === "scheduled") return "Scheduled";
   if (option.is_active) return "Active";
   return "Open";
 }

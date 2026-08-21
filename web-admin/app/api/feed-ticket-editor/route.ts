@@ -13,6 +13,7 @@ type PlacementOption = {
   active_start: string | null;
   active_end: string | null;
   date_removed: string | null;
+  lifecycle_stage: string | null;
   is_active: boolean;
   is_in_barn: boolean;
   is_complete: boolean;
@@ -809,6 +810,7 @@ async function listPlacementOptions(): Promise<PlacementOption[]> {
         active_start: placement.active_start ?? null,
         active_end: placement.active_end ?? null,
         date_removed: placement.date_removed ?? null,
+        lifecycle_stage: placement.lifecycle_stage ?? null,
         is_active: placement.is_active === true,
         is_in_barn: flock?.is_in_barn === true,
         is_complete: flock?.is_complete === true,
