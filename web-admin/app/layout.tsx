@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
 import type { ReactNode } from "react";
 
+import { PwaInstallListener } from "@/components/pwa-install-listener";
+
 const sansFont = Source_Sans_3({
   subsets: ["latin"],
   variable: "--font-source-sans",
@@ -33,7 +35,10 @@ type RootLayoutProps = {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
-      <body className={`${sansFont.variable} ${serifFont.variable}`}>{children}</body>
+      <body className={`${sansFont.variable} ${serifFont.variable}`}>
+        <PwaInstallListener />
+        {children}
+      </body>
     </html>
   );
 }

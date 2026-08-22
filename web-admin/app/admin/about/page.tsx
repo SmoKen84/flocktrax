@@ -1,5 +1,12 @@
 import { PageHeader } from "@/components/page-header";
-import { getPlatformSplashContent, getPublishedPlatformVersions, type PublishedPlatformVersion } from "@/lib/platform-content";
+import {
+  getPlatformScreenTextValues,
+  getPlatformSplashContent,
+  getPublishedPlatformVersions,
+  type PublishedPlatformVersion,
+} from "@/lib/platform-content";
+
+import { InstallFlockTraxApp } from "./install-flocktrax-app";
 
 function renderVersionSummary(version: PublishedPlatformVersion) {
   if (!version.versionLine) {
@@ -10,7 +17,15 @@ function renderVersionSummary(version: PublishedPlatformVersion) {
 }
 
 export default async function AboutPage() {
-  const [splash, versions] = await Promise.all([getPlatformSplashContent(), getPublishedPlatformVersions()]);
+  const [splash, versions, installText] = await Promise.all([
+    getPlatformSplashContent(),
+    getPublishedPlatformVersions(),
+    getPlatformScreenTextValues(["admin_install_title", "install_admin_details"]),
+  ]);
+  const installTitle = installText.get("admin_install_title") || "Install FlockTrax on this computer";
+  const installDetails =
+    installText.get("install_admin_details") ||
+    "Add FlockTrax with the chicken icon and open it in its own clean application window from the Windows desktop or Start menu.";
 
   return (
     <>
@@ -75,6 +90,8 @@ export default async function AboutPage() {
           </article>
         </div>
       </section>
+
+      <InstallFlockTraxApp details={installDetails} title={installTitle} />
     </>
   );
 }

@@ -6264,6 +6264,64 @@ tr:last-child td {
   gap: 18px;
 }
 
+.about-install-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.about-install-icon {
+  align-items: center;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  display: flex;
+  height: 92px;
+  justify-content: center;
+  width: 92px;
+}
+
+.about-install-icon img {
+  border-radius: 14px;
+}
+
+.about-install-content {
+  min-width: 0;
+}
+
+.about-install-content h2 {
+  margin: 4px 0 6px;
+}
+
+.about-install-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.about-install-instructions {
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 14px 16px;
+}
+
+.about-install-instructions p {
+  margin: 0;
+}
+
+@media (max-width: 620px) {
+  .about-install-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
 .about-versions-grid {
   display: grid;
   gap: 16px;
