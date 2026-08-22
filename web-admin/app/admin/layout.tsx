@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -11,6 +12,8 @@ type AdminLayoutProps = {
 };
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
+  const headerStore = await headers();
+  const embedded = headerStore.get("sec-fetch-dest") === "iframe";
   const supabase = await createSupabaseServerClient();
   const [splash, accessBundle] = await Promise.all([getPlatformSplashContent(), getUserAccessBundle()]);
   const {
@@ -42,6 +45,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
     <AdminShell
       copyrightLine={splash.copyrightLine}
       displayName={displayName}
+      embedded={embedded}
       roleKey={roleKey}
       roleLabel={roleLabel}
       scopeLabel={scopeLabel}
