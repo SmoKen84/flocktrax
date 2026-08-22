@@ -22,7 +22,10 @@ type SavedWorkspace = {
   primaryPercent?: number;
 };
 
-type WorkspacePane = "primary" | "secondary";
+type PendingNavigation = {
+  href: string;
+  startedAt: number;
+};
 
 export type AdminSplitWorkspaceState = {
   enabled: boolean;
@@ -42,7 +45,7 @@ export type AdminSplitWorkspaceState = {
   reloadPrimary: () => void;
   reloadSecondary: () => void;
   beginResize: (event: ReactPointerEvent<HTMLButtonElement>) => void;
-  syncFrameLocations: (loadedPane?: WorkspacePane) => void;
+  syncFrameLocations: () => void;
 };
 
 function currentAdminHref(fallback: string) {
@@ -72,14 +75,18 @@ function readSavedWorkspace(): SavedWorkspace {
   }
 }
 
-function frameHref(frame: HTMLIFrameElement | null, fallback: string) {
+function readFrameHref(frame: HTMLIFrameElement | null) {
   try {
     const location = frame?.contentWindow?.location;
-    if (!location || location.origin !== window.location.origin) return fallback;
-    return normalizeAdminHref(`${location.pathname}${location.search}${location.hash}`, fallback);
+    if (!location || location.origin !== window.location.origin || !location.pathname.startsWith("/admin")) return null;
+    return `${location.pathname}${location.search}${location.hash}`;
   } catch {
-    return fallback;
+    return null;
   }
+}
+
+function frameHref(frame: HTMLIFrameElement | null, fallback: string) {
+  return readFrameHref(frame) ?? fallback;
 }
 
 function formatPaneTitle(href: string) {
@@ -113,8 +120,8 @@ export function useAdminSplitWorkspace(pathname: string, embedded: boolean): Adm
   const gridRef = useRef<HTMLDivElement>(null);
   const primaryFrameRef = useRef<HTMLIFrameElement>(null);
   const secondaryFrameRef = useRef<HTMLIFrameElement>(null);
-  const pendingPrimaryHrefRef = useRef<string | null>(null);
-  const pendingSecondaryHrefRef = useRef<string | null>(null);
+  const pendingPrimaryHrefRef = useRef<PendingNavigation | null>(null);
+  const pendingSecondaryHrefRef = useRef<PendingNavigation | null>(null);
 
   useEffect(() => {
     if (embedded) {
@@ -162,38 +169,42 @@ export function useAdminSplitWorkspace(pathname: string, embedded: boolean): Adm
     setPrimaryHref(currentAdminHref(pathname));
   }, [embedded, enabled, hydrated, pathname]);
 
-  const syncFrameLocations = (loadedPane?: WorkspacePane) => {
-    setPrimaryHref((current) => {
-      const observed = frameHref(primaryFrameRef.current, current);
-      const pending = pendingPrimaryHrefRef.current;
-      if (!pending) return observed;
-      if (observed === pending || loadedPane === "primary") {
-        pendingPrimaryHrefRef.current = null;
-        return observed;
-      }
-      return current;
-    });
-    setSecondaryHref((current) => {
-      const observed = frameHref(secondaryFrameRef.current, current);
-      const pending = pendingSecondaryHrefRef.current;
-      if (!pending) return observed;
-      if (observed === pending || loadedPane === "secondary") {
-        pendingSecondaryHrefRef.current = null;
-        return observed;
-      }
-      return current;
-    });
+  const syncFrameLocations = () => {
+    const syncPane = (
+      frame: HTMLIFrameElement | null,
+      pendingRef: { current: PendingNavigation | null },
+      setHref: (updater: (current: string) => string) => void,
+    ) => {
+      setHref((current) => {
+        const observed = readFrameHref(frame);
+        if (!observed) return current;
+        const pending = pendingRef.current;
+        if (!pending) return observed;
+        if (observed === pending.href) {
+          pendingRef.current = null;
+          return observed;
+        }
+        if (Date.now() - pending.startedAt >= 10000) {
+          pendingRef.current = null;
+          return observed;
+        }
+        return current;
+      });
+    };
+
+    syncPane(primaryFrameRef.current, pendingPrimaryHrefRef, setPrimaryHref);
+    syncPane(secondaryFrameRef.current, pendingSecondaryHrefRef, setSecondaryHref);
   };
 
   const navigateFrame = (
     frame: HTMLIFrameElement | null,
-    pendingRef: { current: string | null },
+    pendingRef: { current: PendingNavigation | null },
     setHref: (href: string) => void,
     href: string,
     fallback: string,
   ) => {
     const target = normalizeAdminHref(href, fallback);
-    pendingRef.current = target;
+    pendingRef.current = { href: target, startedAt: Date.now() };
     setHref(target);
     try {
       frame?.contentWindow?.location.assign(target);
@@ -307,7 +318,7 @@ export function AdminWorkspaceContent({
           </header>
           <iframe
             allow="clipboard-read; clipboard-write"
-            onLoad={() => workspace.syncFrameLocations("primary")}
+            onLoad={workspace.syncFrameLocations}
             ref={workspace.primaryFrameRef}
             src={workspace.primaryHref}
             title="FlockTrax left workspace pane"
@@ -328,7 +339,7 @@ export function AdminWorkspaceContent({
           </header>
           <iframe
             allow="clipboard-read; clipboard-write"
-            onLoad={() => workspace.syncFrameLocations("secondary")}
+            onLoad={workspace.syncFrameLocations}
             ref={workspace.secondaryFrameRef}
             src={workspace.secondaryHref}
             title="FlockTrax right workspace pane"
