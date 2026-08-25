@@ -1,7 +1,7 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { buildBinSentryEntityUrl, fetchBinSentryEntity, normalizeBinSentryValue } from "@/lib/binsentry-http";
 
-type BinSentryFeedBinMapping = {
+export type BinSentryFeedBinMapping = {
   id: string;
   farm_id: string | null;
   barn_id: string | null;
@@ -15,7 +15,7 @@ type BinSentryFeedBinMapping = {
   feed_state_source?: string | null;
 };
 
-type BinSentryInventorySnapshotWrite = {
+export type BinSentryInventorySnapshotWrite = {
   farmId: string | null;
   barnId: string;
   feedBinId: string;
@@ -251,6 +251,17 @@ async function extractInventorySnapshot(
   };
 }
 
+export async function readCurrentBinSentryInventory(mapping: BinSentryFeedBinMapping) {
+  const binRef = normalize(mapping.binsentry_bin_ref);
+  if (!binRef) {
+    throw new Error("No BinSentry bin reference is saved for this feed bin.");
+  }
+
+  const entityUrl = buildBinSentryEntityUrl(binRef);
+  const payload = await fetchBestInventoryPayload(entityUrl);
+  return await extractInventorySnapshot(payload, mapping, entityUrl);
+}
+
 function buildFeedBinSyncUpdate(snapshot: BinSentryInventorySnapshotWrite, mapping: BinSentryFeedBinMapping) {
   const accessibleFeedType = snapshot.accessibleFeedType;
   const queuedFeedType = normalizeFeedType(mapping.queued_feed_type);
@@ -302,12 +313,8 @@ export async function syncBinSentryInventoryForBarn(barnId: string) {
   const syncErrors: string[] = [];
 
   for (const mapping of mappings) {
-    const binRef = normalize(mapping.binsentry_bin_ref);
-    const entityUrl = buildBinSentryEntityUrl(binRef);
-
     try {
-      const payload = await fetchBestInventoryPayload(entityUrl);
-      const snapshot = await extractInventorySnapshot(payload, mapping, entityUrl);
+      const snapshot = await readCurrentBinSentryInventory(mapping);
       if (!snapshot) {
         syncErrors.push(`Bin ${mapping.bin_num ?? "?"}: inventory pounds were not found in the BinSentry payload.`);
         await admin

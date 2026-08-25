@@ -109,13 +109,13 @@ export function ReportsFilterPanel({
     "queued_feed_deliveries",
   ].includes(reportKey);
   const showBarnField = true;
-  const showFlockField = reportKey !== "feed_drops_report" && reportKey !== "queued_feed_deliveries";
+  const showFlockField = reportKey !== "feed_drops_report" && reportKey !== "queued_feed_deliveries" && reportKey !== "feed_inventory";
   const showFeedMillField = reportKey === "queued_feed_deliveries";
   const showSortOrderField = reportKey === "feed_drops_report" || reportKey === "closeout_queue_status";
   const isCloseoutQueueReport = reportKey === "closeout_queue_status";
   const showRollupSummaryOption = reportKey === "feed_drops_report";
   const showBinSentryOnOrderToggle =
-    reportKey === "ten_day_feed_requirements" || reportKey === "custom_feed_projection";
+    reportKey === "ten_day_feed_requirements" || reportKey === "custom_feed_projection" || reportKey === "feed_inventory";
   const limitToTodayForward = categoryKey === "quick_access_reports" && showDateRangeField;
 
   const filteredFarms = useMemo(
@@ -171,7 +171,7 @@ export function ReportsFilterPanel({
     if (showSortOrderField && useDefaultTypeDensity) params.set("useDefaultTypeDensity", "1");
     if (showRollupSummaryOption && includeRollupSummary) params.set("includeRollupSummary", "1");
     if (showFeedMillField && feedMill) params.set("feedMill", feedMill);
-    if (showBinSentryOnOrderToggle && nextIncludeBinSentryOnOrder) params.set("includeBinSentryOnOrder", "1");
+    if (showBinSentryOnOrderToggle) params.set("includeBinSentryOnOrder", nextIncludeBinSentryOnOrder ? "1" : "0");
 
     const query = params.toString();
     startTransition(() => {
@@ -556,8 +556,12 @@ export function ReportsFilterPanel({
             type="checkbox"
           />
           <div>
-            <span>Include BinSentry Scheduled Orders</span>
-            <small>Use BinSentry Order Manager orders in the Scheduled state as called-in feed for the On Order totals and recommendation math.</small>
+            <span>{reportKey === "feed_inventory" ? "Include Coming Orders" : "Include BinSentry Scheduled Orders"}</span>
+            <small>
+              {reportKey === "feed_inventory"
+                ? "List finalized BinSentry Order Manager orders that have not yet been received, separately from measured inventory on hand."
+                : "Use BinSentry Order Manager orders in the Scheduled state as called-in feed for the On Order totals and recommendation math."}
+            </small>
           </div>
         </label>
       ) : null}
@@ -666,8 +670,8 @@ function buildFeedProjectionPreviewHref({
   if (barnId) params.set("barnId", barnId);
   if (flockCode) params.set("flockCode", flockCode);
   if (reportKey === "custom_feed_projection" && days) params.set("days", days);
-  if ((reportKey === "custom_feed_projection" || reportKey === "ten_day_feed_requirements") && includeBinSentryOnOrder) {
-    params.set("includeBinSentryOnOrder", "1");
+  if (reportKey === "custom_feed_projection" || reportKey === "ten_day_feed_requirements" || reportKey === "feed_inventory") {
+    params.set("includeBinSentryOnOrder", includeBinSentryOnOrder ? "1" : "0");
   }
   if (reportKey === "at_a_glance" && reportDate) params.set("reportDate", reportDate);
   if (["quick_placements_report", "quick_livehaul_report", "detailed_placements_report", "detailed_livehaul_report", "detailed_mortality_report", "closeout_queue_status", "feed_drops_report", "queued_feed_deliveries"].includes(reportKey)) {
@@ -697,6 +701,8 @@ function buildFeedProjectionPreviewHref({
                   ? "/admin/reports/mortality"
                   : reportKey === "feed_drops_report"
                     ? "/admin/reports/feed-drops"
+                    : reportKey === "feed_inventory"
+                      ? "/admin/reports/feed-inventory"
                     : reportKey === "closeout_queue_status"
                       ? "/admin/reports/closeout-queue"
                     : reportKey === "queued_feed_deliveries"

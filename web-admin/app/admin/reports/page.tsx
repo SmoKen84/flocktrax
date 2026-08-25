@@ -48,6 +48,7 @@ const reportCategories: ReportCategory[] = [
     reports: [
       { key: "ten_day_feed_requirements", label: "10-Day Feed Requirements" },
       { key: "custom_feed_projection", label: "Feed Projection (Custom Days)" },
+      { key: "feed_inventory", label: "BinSentry Current Feed Inventory" },
       { key: "feed_drops_report", label: "BinSentryAPI-Drops" },
       { key: "queued_feed_deliveries", label: "Queued Feed Deliveries Not Received" },
     ],
@@ -88,7 +89,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
   const feedMill = firstParam(params.feedMill) ?? "";
   const includeBinSentryOnOrder =
     includeBinSentryOnOrderParam === null
-      ? reportKey === "ten_day_feed_requirements" || reportKey === "custom_feed_projection"
+      ? reportKey === "ten_day_feed_requirements" || reportKey === "custom_feed_projection" || reportKey === "feed_inventory"
       : includeBinSentryOnOrderParam === "1";
   const reportDate = firstParam(params.reportDate) ?? new Date().toISOString().slice(0, 10);
   const today = new Date().toISOString().slice(0, 10);
@@ -115,7 +116,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
     reportKey === "feed_drops_report"
       ? getFeedDropsReportFilterOptions()
       : Promise.resolve(null),
-    reportKey === "queued_feed_deliveries"
+    reportKey === "queued_feed_deliveries" || reportKey === "feed_inventory"
       ? getQueuedFeedDeliveriesFilterOptions()
       : Promise.resolve(null),
     reportKey === "closeout_queue_status"
@@ -286,7 +287,8 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
             selectedReport?.key === "detailed_mortality_report" ||
             selectedReport?.key === "closeout_queue_status" ||
             selectedReport?.key === "feed_drops_report" ||
-            selectedReport?.key === "queued_feed_deliveries" ? (
+            selectedReport?.key === "queued_feed_deliveries" ||
+            selectedReport?.key === "feed_inventory" ? (
               <ReportsFilterPanel
                 barns={filterBarns}
                 categoryKey={selectedCategory.key}

@@ -17154,3 +17154,168 @@ tr:last-child td {
     padding: 6px 5px;
   }
 }
+
+/* Current BinSentry feed inventory report */
+.feed-inventory-report-shell {
+  max-width: 1450px;
+}
+
+.feed-inventory-report-summary {
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+}
+
+.feed-inventory-report-summary small {
+  color: #66736e;
+  font-size: 0.74rem;
+}
+
+.feed-inventory-section {
+  margin-top: 24px;
+}
+
+.feed-inventory-section-heading {
+  align-items: flex-end;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.feed-inventory-section-heading h2,
+.feed-inventory-section-heading p {
+  margin-bottom: 0;
+}
+
+.feed-inventory-section-heading > strong {
+  color: #234b36;
+  font-size: 1.25rem;
+  white-space: nowrap;
+}
+
+.feed-inventory-coming-section {
+  border-top: 2px solid #d8dfd7;
+  padding-top: 20px;
+}
+
+.feed-inventory-table,
+.feed-inventory-coming-table {
+  font-size: 0.84rem;
+}
+
+.feed-inventory-table th,
+.feed-inventory-table td,
+.feed-inventory-coming-table th,
+.feed-inventory-coming-table td {
+  padding: 8px 7px;
+}
+
+.feed-inventory-subtotal th,
+.feed-inventory-subtotal td {
+  background: #eef4ef;
+  border-top: 1px solid #b7c9ba;
+}
+
+.feed-inventory-farm-total th,
+.feed-inventory-farm-total td {
+  background: #ddebe0;
+  border-top: 2px solid #78947e;
+}
+
+.feed-inventory-grand-total th,
+.feed-inventory-grand-total td {
+  background: #244b36;
+  color: #fffdf8;
+  border-top: 2px solid #173326;
+}
+
+.feed-inventory-table .feed-inventory-spacer-row td {
+  background: transparent;
+  border: 0;
+  height: 6px;
+  padding: 0;
+}
+
+.feed-inventory-table .feed-inventory-farm-spacer-row td {
+  height: 12px;
+}
+
+.feed-inventory-status {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
+.feed-inventory-status[data-status="current"] {
+  background: #d8efdc;
+  color: #245c34;
+}
+
+.feed-inventory-status[data-status="unmapped"] {
+  background: #eee8d6;
+  color: #6c5a22;
+}
+
+.feed-inventory-status[data-status="unavailable"] {
+  background: #f5d9d7;
+  color: #8d2f28;
+}
+
+.feed-inventory-warning {
+  background: #fff4d9;
+  border: 1px solid #d8b864;
+  border-radius: 12px;
+  color: #5f4c17;
+  margin-top: 16px;
+  padding: 12px 14px;
+}
+
+.feed-inventory-warning ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+@media print {
+  @page feed-inventory-report {
+    size: letter landscape;
+    margin: 0.35in;
+  }
+
+  .feed-inventory-report-page {
+    page: feed-inventory-report;
+  }
+
+  .feed-inventory-report-shell {
+    max-width: none;
+  }
+
+  .feed-inventory-table,
+  .feed-inventory-coming-table {
+    font-size: 8pt;
+  }
+
+  .feed-inventory-table th,
+  .feed-inventory-table td,
+  .feed-inventory-coming-table th,
+  .feed-inventory-coming-table td {
+    padding: 5px 4px;
+  }
+
+  .feed-inventory-table .feed-inventory-spacer-row td {
+    height: 4px;
+    padding: 0;
+  }
+
+  .feed-inventory-table .feed-inventory-farm-spacer-row td {
+    height: 8px;
+  }
+
+  .feed-inventory-section-heading,
+  .feed-inventory-table tr,
+  .feed-inventory-coming-table tr {
+    break-inside: avoid;
+  }
+}
