@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { AdminWorkspaceContent, useAdminSplitWorkspace } from "@/components/admin-split-workspace";
 import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
 import { LiveSidebarClock } from "@/components/live-sidebar-clock";
 import { SessionRecoveryLayer } from "@/components/session-recovery-layer";
@@ -41,7 +40,6 @@ const utilityLinks = [
 type AdminShellProps = {
   children: ReactNode;
   displayName: string;
-  embedded: boolean;
   roleKey: string;
   roleLabel: string;
   scopeLabel: string | null;
@@ -71,9 +69,8 @@ function normalizeRoleKey(value: string) {
   return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
 
-export function AdminShell({ children, displayName, embedded, roleKey, roleLabel, scopeLabel, versionLine, copyrightLine }: AdminShellProps) {
+export function AdminShell({ children, displayName, roleKey, roleLabel, scopeLabel, versionLine, copyrightLine }: AdminShellProps) {
   const pathname = usePathname();
-  const workspace = useAdminSplitWorkspace(pathname, embedded);
   const [syncBadgeCount, setSyncBadgeCount] = useState(0);
   const canOpenSettings = (() => {
     const normalized = normalizeRoleKey(roleKey);
@@ -81,8 +78,6 @@ export function AdminShell({ children, displayName, embedded, roleKey, roleLabel
   })();
 
   useEffect(() => {
-    if (embedded) return;
-
     let cancelled = false;
 
     async function loadSyncBadge() {
@@ -118,16 +113,7 @@ export function AdminShell({ children, displayName, embedded, roleKey, roleLabel
       window.clearInterval(intervalId);
       window.removeEventListener("focus", handleFocus);
     };
-  }, [embedded, pathname]);
-
-  if (embedded) {
-    return (
-      <main className="admin-embedded-pane">
-        <SessionRecoveryLayer />
-        <div className="content-shell">{children}</div>
-      </main>
-    );
-  }
+  }, [pathname]);
 
   const renderNavItem = (item: { href?: string; label: string }) => {
     if (!item.href) {
@@ -139,49 +125,31 @@ export function AdminShell({ children, displayName, embedded, roleKey, roleLabel
       );
     }
 
-    const itemPath = item.href.split(/[?#]/)[0];
-    const activePath = workspace.enabled ? workspace.primaryHref.split(/[?#]/)[0] : pathname;
-    const active = activePath === itemPath || activePath.startsWith(`${itemPath}/`);
+    const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
     return (
-      <div className="sidebar-split-nav-row" key={item.href}>
-        <Link
-          className="splash-sidebar-item splash-sidebar-item-link"
-          data-has-badge={item.label === "Sync Engine" && syncBadgeCount > 0 ? "true" : undefined}
-          data-active={active}
-          href={item.href}
-          onClick={workspace.enabled ? (event) => {
-            event.preventDefault();
-            workspace.openPrimary(item.href!);
-          } : undefined}
-          prefetch={item.label === "Sync Engine" ? false : undefined}
-        >
-          <span className={item.label === "Sync Engine" && syncBadgeCount > 0 ? "sidebar-link-label sidebar-link-label-sync" : "sidebar-link-label"}>
-            {item.label}
+      <Link
+        className="splash-sidebar-item splash-sidebar-item-link"
+        data-has-badge={item.label === "Sync Engine" && syncBadgeCount > 0 ? "true" : undefined}
+        data-active={active}
+        href={item.href}
+        key={item.href}
+        prefetch={item.label === "Sync Engine" ? false : undefined}
+      >
+        <span className={item.label === "Sync Engine" && syncBadgeCount > 0 ? "sidebar-link-label sidebar-link-label-sync" : "sidebar-link-label"}>
+          {item.label}
+        </span>
+        {item.label === "Sync Engine" && syncBadgeCount > 0 ? (
+          <span className="sidebar-notification-badge" aria-label={`${syncBadgeCount} sync items need attention`}>
+            {syncBadgeCount}
           </span>
-          {item.label === "Sync Engine" && syncBadgeCount > 0 ? (
-            <span className="sidebar-notification-badge" aria-label={`${syncBadgeCount} sync items need attention`}>
-              {syncBadgeCount}
-            </span>
-          ) : null}
-        </Link>
-        {workspace.enabled ? (
-          <button
-            aria-label={`Open ${item.label} in right pane`}
-            className="sidebar-open-right-button"
-            onClick={() => workspace.openSecondary(item.href!)}
-            title={`Open ${item.label} in right pane`}
-            type="button"
-          >
-            →
-          </button>
         ) : null}
-      </div>
+      </Link>
     );
   };
 
   return (
-    <main className="splash-shell admin-shell" data-split={workspace.enabled ? "true" : "false"}>
+    <main className="splash-shell admin-shell">
       <SessionRecoveryLayer />
       <div className="splash-sidebar-stack">
         {versionLine ? <p className="splash-sidebar-version-tag">{versionLine}</p> : null}
@@ -229,18 +197,6 @@ export function AdminShell({ children, displayName, embedded, roleKey, roleLabel
             <LiveSidebarClock separator=" - " />
           </div>
 
-          <button
-            className="admin-split-toggle"
-            data-active={workspace.enabled ? "true" : "false"}
-            disabled={workspace.hydrated && !workspace.supported}
-            onClick={workspace.toggle}
-            title={workspace.supported ? "Open two FlockTrax screens side by side" : "Split View requires a wider window"}
-            type="button"
-          >
-            <span aria-hidden="true">▥</span>
-            {workspace.enabled ? "Close Split View" : "Split View"}
-          </button>
-
           <div className="splash-sidebar-groups">
             <div className="splash-sidebar-group">
               <p className="splash-sidebar-label">Console</p>
@@ -278,7 +234,7 @@ export function AdminShell({ children, displayName, embedded, roleKey, roleLabel
         </aside>
       </div>
 
-      <AdminWorkspaceContent workspace={workspace}>{children}</AdminWorkspaceContent>
+      <div className="content-shell">{children}</div>
     </main>
   );
 }
