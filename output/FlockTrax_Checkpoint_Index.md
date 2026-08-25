@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-08-10`
+Updated: `2026-08-25`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### August 2026
+
+- `2026-08-25`
+  - [FlockTrax_Admin_2_5_0_Build_1_1_Feed_Inventory_Production_Checkpoint_2026-08-25.md](C:\dev\FlockTrax\output\FlockTrax_Admin_2_5_0_Build_1_1_Feed_Inventory_Production_Checkpoint_2026-08-25.md)
+  - authoritative Admin `2.5.0` build `2` / label `1.1` production checkpoint covering the BinSentry Current Feed Inventory report, barn/farm spacing, all-date finalized unreceived coming orders with corrected 50-order pagination, removal of the internal iframe Split View while retaining installable PWA support, commits `ae8ef26`, `236b393`, and `a4b1511`, Vercel deployment `dpl_FuDwJw4U6DBVhRMb9jFHVQ1jfwsd`, production verification, worktree boundary, and exact resume guidance
 
 - `2026-08-10`
   - [FlockTrax_Admin_Closeout_Selectors_And_At_A_Glance_Print_Production_Checkpoint_2026-08-10.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Closeout_Selectors_And_At_A_Glance_Print_Production_Checkpoint_2026-08-10.md)
