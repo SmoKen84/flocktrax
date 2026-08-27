@@ -16,6 +16,7 @@ type FeedProjectionReportTableProps = {
     headCount: number | null | undefined;
     starterTargetLbs: number | null | undefined;
     starterDeliveredLbs: number | null | undefined;
+    starterRecognizedSupplyLbs: number | null | undefined;
     starterRemainingObligationLbs: number | null | undefined;
     starterDeliveredPlusOnOrderLbs: number | null | undefined;
     starterLbsPerChick: number | null | undefined;
@@ -330,6 +331,11 @@ export function FeedProjectionReportTable({
                 </small>
               </div>
               <div>
+                <span>Starter On Hand</span>
+                <strong>{formatWeight(selectedStarterMathRow.starterAccessibleLbs)}</strong>
+                <small>Current accessible Starter inventory reported for the barn</small>
+              </div>
+              <div>
                 <span>Starter On Order</span>
                 <strong>{formatWeight(selectedStarterMathRow.starterOnOrderLbs)}</strong>
                 <small>All open starter orders counted against the flock requirement</small>
@@ -343,12 +349,15 @@ export function FeedProjectionReportTable({
             <div className="feed-projection-report-math-formula">
               <span>Formula</span>
               <strong>
-                {formatWeight(selectedStarterMathRow.starterTotalLbs)} - {formatWeight(selectedStarterMathRow.starterDeliveredLbs)} -{" "}
+                {formatWeight(selectedStarterMathRow.starterTotalLbs)} - {formatWeight(selectedStarterMathRow.starterRecognizedSupplyLbs)} -{" "}
                 {formatWeight(selectedStarterMathRow.starterOnOrderLbs)} = {formatWeight(selectedStarterMathRow.starterRecommendedLbs)}
               </strong>
+              <small>
+                Recognized supply is the greater of recorded Starter deliveries or accessible Starter on hand, preventing either source from being ignored or counted twice.
+              </small>
             </div>
             <div className="feed-projection-report-math-formula">
-              <span>Starter Obligation Remaining</span>
+              <span>Starter Obligation Before On-Hand / Orders</span>
               <strong>{formatWeight(selectedStarterMathRow.starterRemainingObligationLbs)}</strong>
             </div>
           </div>

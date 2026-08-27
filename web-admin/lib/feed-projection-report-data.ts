@@ -55,6 +55,8 @@ type SirenEntity = {
   href?: string;
 };
 
+const PENDING_BINSENTRY_ORDER_STATES = new Set(["ready", "scheduled", "not-delivered"]);
+
 export type FeedProjectionReportRow = {
   id: string;
   farmName: string;
@@ -68,6 +70,7 @@ export type FeedProjectionReportRow = {
   growerTotalLbs: number | null | undefined;
   starterTargetLbs: number | null | undefined;
   starterDeliveredLbs: number | null | undefined;
+  starterRecognizedSupplyLbs: number | null | undefined;
   starterRemainingObligationLbs: number | null | undefined;
   starterDeliveredPlusOnOrderLbs: number | null | undefined;
   starterLbsPerChick: number | null | undefined;
@@ -406,9 +409,22 @@ function toReportRow({
         growerOnOrderLbs: windowGrowerOnOrderLbs,
       })
     : null;
+  const starterRecognizedSupplyLbs = Math.max(
+    0,
+    Math.round(
+      Math.max(
+        placement.starterDeliveredLbs ?? 0,
+        placement.feedInventoryStarterAccessibleLbs ?? 0,
+      ),
+    ),
+  );
   const starterRecommendedLbs = Math.max(
     0,
-    Math.round((placement.starterRemainingObligationLbs ?? 0) - allOpenStarterOnOrderLbs),
+    Math.round(
+      (placement.starterTargetLbs ?? 0) -
+        starterRecognizedSupplyLbs -
+        allOpenStarterOnOrderLbs,
+    ),
   );
   const growerRecommendedLbs = typedRecommendation?.growerRecommendedLbs ?? null;
   const typedRecommendedTotal =
@@ -450,6 +466,7 @@ function toReportRow({
     growerTotalLbs: typedProjection.growerTotal,
     starterTargetLbs: placement.starterTargetLbs,
     starterDeliveredLbs: placement.starterDeliveredLbs,
+    starterRecognizedSupplyLbs,
     starterRemainingObligationLbs: placement.starterRemainingObligationLbs,
     starterDeliveredPlusOnOrderLbs,
     starterLbsPerChick: placement.starterLbsPerChick,
@@ -549,9 +566,12 @@ async function fetchBinSentryScheduledOrdersSafe(
   const barnIdByBinHref = new Map<string, string>();
   for (const row of rows) {
     const barnId = normalizeOptionalId(row.barn_id);
-    const binHref = normalizeOptionalText(row.binsentry_bin_ref);
-    if (!barnId || !binHref) continue;
-    barnIdByBinHref.set(binHref, barnId);
+    const binRef = normalizeOptionalText(row.binsentry_bin_ref);
+    if (!barnId || !binRef) continue;
+    for (const candidate of [binRef, buildBinSentryEntityUrl(binRef)]) {
+      const key = canonicalBinSentryHref(candidate);
+      if (key) barnIdByBinHref.set(key, barnId);
+    }
   }
 
   if (barnIdByBinHref.size === 0) {
@@ -577,93 +597,106 @@ async function fetchBinSentryScheduledOrdersSafe(
     searchUrl.searchParams.set("limit", "50");
     searchUrl.searchParams.set("sortOrder", "desc");
     searchUrl.searchParams.delete("state");
-    searchUrl.searchParams.append("state", "scheduled");
-    const searchResults = await fetchBinSentrySirenEntity(searchUrl.toString(), token);
+    for (const state of PENDING_BINSENTRY_ORDER_STATES) {
+      searchUrl.searchParams.append("state", state);
+    }
 
     const bucketByBarnId = new Map<string, FeedOrderWindowBucket>();
     const feedMetaByHref = new Map<string, { feedType: string | null; bulkDensityKgPerM3: number | null }>();
+    const seenOrders = new Set<string>();
+    const seenPageUrls = new Set<string>();
+    let nextUrl: string | null = searchUrl.toString();
 
-    for (const entity of searchResults.entities ?? []) {
-      const orderProperties = entity.properties ?? {};
-      if (String(orderProperties.state ?? "").toLowerCase() !== "scheduled") {
-        continue;
-      }
+    while (nextUrl && !seenPageUrls.has(nextUrl)) {
+      seenPageUrls.add(nextUrl);
+      const searchResults = await fetchBinSentrySirenEntity(nextUrl, token);
 
-      const detailedOrder =
-        findSirenHref(entity as SirenEntity, ["/bin", "bin"]) && findSirenHref(entity as SirenEntity, ["/feed", "feed"])
-          ? (entity as SirenEntity)
-          : entity.href
-            ? await fetchBinSentrySirenEntity(entity.href, token)
-            : (entity as SirenEntity);
+      for (const entity of searchResults.entities ?? []) {
+        const summaryState = String(entity.properties?.state ?? "").trim().toLowerCase();
+        if (summaryState && !PENDING_BINSENTRY_ORDER_STATES.has(summaryState)) continue;
 
-      const binHref = findSirenHref(detailedOrder, ["/bin", "bin"]);
-      const barnId = binHref ? barnIdByBinHref.get(binHref) ?? null : null;
-      if (!barnId) {
-        continue;
-      }
+        const detailedOrder =
+          findSirenHref(entity as SirenEntity, ["/bin", "bin"]) && findSirenHref(entity as SirenEntity, ["/feed", "feed"])
+            ? (entity as SirenEntity)
+            : entity.href
+              ? await fetchBinSentrySirenEntity(entity.href, token)
+              : (entity as SirenEntity);
+        const orderProperties = { ...(entity.properties ?? {}), ...(detailedOrder.properties ?? {}) };
+        const state = String(orderProperties.state ?? "").trim().toLowerCase();
+        if (!PENDING_BINSENTRY_ORDER_STATES.has(state)) continue;
 
-      const quantity = typeof orderProperties.quantity === "number" && Number.isFinite(orderProperties.quantity)
-        ? orderProperties.quantity
-        : null;
-      if (quantity === null || quantity <= 0) {
-        continue;
-      }
+        const orderKey = normalizeOptionalText(entity.href)
+          ?? normalizeOptionalText(detailedOrder.href)
+          ?? normalizeOptionalText(String(orderProperties.id ?? ""));
+        if (orderKey && seenOrders.has(orderKey)) continue;
+        if (orderKey) seenOrders.add(orderKey);
 
-      const deliveryDate = normalizeOptionalText(
-        typeof orderProperties.deliveryDate === "string" ? orderProperties.deliveryDate.slice(0, 10) : null,
-      );
-      const feedHref = findSirenHref(detailedOrder, ["/feed", "feed"]);
-      let feedMeta = feedHref ? feedMetaByHref.get(feedHref) : undefined;
+        const binHref = findSirenHref(detailedOrder, ["/bin", "bin"]);
+        const barnId = binHref ? barnIdByBinHref.get(canonicalBinSentryHref(binHref)) ?? null : null;
+        if (!barnId) continue;
 
-      if (feedHref && feedMeta === undefined) {
-        const feedEntity = await fetchBinSentrySirenEntity(feedHref, token);
-        const bulkDensityKgPerM3 =
-          typeof feedEntity.properties?.bulkDensity === "number" && Number.isFinite(feedEntity.properties.bulkDensity)
-            ? feedEntity.properties.bulkDensity
-            : null;
-        feedMeta = {
-          feedType: normalizeBinSentryFeedType(String(feedEntity.properties?.feedType ?? "")),
-          bulkDensityKgPerM3,
+        const quantity = typeof orderProperties.quantity === "number" && Number.isFinite(orderProperties.quantity)
+          ? orderProperties.quantity
+          : null;
+        if (quantity === null || quantity <= 0) continue;
+
+        const deliveryDate = normalizeOptionalText(
+          typeof orderProperties.deliveryDate === "string" ? orderProperties.deliveryDate.slice(0, 10) : null,
+        );
+        const feedHref = findSirenHref(detailedOrder, ["/feed", "feed"]);
+        const feedKey = feedHref ? canonicalBinSentryHref(feedHref) : "";
+        let feedMeta = feedKey ? feedMetaByHref.get(feedKey) : undefined;
+
+        if (feedHref && feedMeta === undefined) {
+          const feedEntity = await fetchBinSentrySirenEntity(feedHref, token);
+          const bulkDensityKgPerM3 =
+            typeof feedEntity.properties?.bulkDensity === "number" && Number.isFinite(feedEntity.properties.bulkDensity)
+              ? feedEntity.properties.bulkDensity
+              : null;
+          feedMeta = {
+            feedType: normalizeBinSentryFeedType(String(feedEntity.properties?.feedType ?? "")),
+            bulkDensityKgPerM3,
+          };
+          if (feedKey) feedMetaByHref.set(feedKey, feedMeta);
+        }
+
+        // BinSentry order quantities are volumes; use that order's feed density to convert to pounds.
+        const pounds = feedMeta?.bulkDensityKgPerM3
+          ? Math.max(0, Math.round(quantity * feedMeta.bulkDensityKgPerM3 * 2.20462))
+          : 0;
+        if (pounds <= 0) continue;
+        const feedType = feedMeta?.feedType ?? null;
+
+        const bucket = bucketByBarnId.get(barnId) ?? {
+          pounds: 0,
+          starterLbs: 0,
+          allOpenStarterLbs: 0,
+          growerLbs: 0,
+          typedCount: 0,
+          untypedCount: 0,
+          count: 0,
+          nextEta: null,
         };
-        feedMetaByHref.set(feedHref, feedMeta);
-      }
+        if (feedType === "starter") bucket.allOpenStarterLbs += pounds;
 
-      // Scheduled quantities are volumes; use the density on BinSentry's feed record for that order.
-      const pounds = feedMeta?.bulkDensityKgPerM3
-        ? Math.max(0, Math.round(quantity * feedMeta.bulkDensityKgPerM3 * 2.20462))
-        : 0;
-      if (pounds <= 0) {
-        continue;
-      }
-      const feedType = feedMeta?.feedType ?? null;
+        if (deliveryDate && deliveryDate > windowEnd) {
+          bucketByBarnId.set(barnId, bucket);
+          continue;
+        }
 
-      const bucket = bucketByBarnId.get(barnId) ?? {
-        pounds: 0,
-        starterLbs: 0,
-        allOpenStarterLbs: 0,
-        growerLbs: 0,
-        typedCount: 0,
-        untypedCount: 0,
-        count: 0,
-        nextEta: null,
-      };
-      if (feedType === "starter") bucket.allOpenStarterLbs += pounds;
-
-      if (deliveryDate && deliveryDate > windowEnd) {
+        bucket.pounds += pounds;
+        if (feedType === "starter") bucket.starterLbs += pounds;
+        if (feedType === "grower") bucket.growerLbs += pounds;
+        if (feedType) bucket.typedCount += 1;
+        if (!feedType) bucket.untypedCount += 1;
+        bucket.count += 1;
+        if (deliveryDate && (!bucket.nextEta || deliveryDate < bucket.nextEta)) {
+          bucket.nextEta = deliveryDate;
+        }
         bucketByBarnId.set(barnId, bucket);
-        continue;
       }
 
-      bucket.pounds += pounds;
-      if (feedType === "starter") bucket.starterLbs += pounds;
-      if (feedType === "grower") bucket.growerLbs += pounds;
-      if (feedType) bucket.typedCount += 1;
-      if (!feedType) bucket.untypedCount += 1;
-      bucket.count += 1;
-      if (deliveryDate && (!bucket.nextEta || deliveryDate < bucket.nextEta)) {
-        bucket.nextEta = deliveryDate;
-      }
-      bucketByBarnId.set(barnId, bucket);
+      nextUrl = findSirenHref(searchResults, ["next"]);
     }
 
     return bucketByBarnId;
@@ -706,6 +739,18 @@ function findSirenHref(entity: SirenEntity, needles: string[]) {
   }
 
   return (entity.entities ?? []).find((child) => matches(child.rel) && normalizeOptionalText(child.href))?.href ?? null;
+}
+
+function canonicalBinSentryHref(value: string | null | undefined) {
+  const normalized = normalizeOptionalText(value);
+  if (!normalized) return "";
+  try {
+    const url = new URL(normalized, getBinSentryConfig().rootUrl);
+    url.hash = "";
+    return url.toString().replace(/\/+$/, "").toLowerCase();
+  } catch {
+    return normalized.replace(/\/+$/, "").toLowerCase();
+  }
 }
 
 function normalizeBinSentryFeedType(value: string | null | undefined) {
