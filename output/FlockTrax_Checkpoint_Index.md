@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-08-25`
+Updated: `2026-08-27`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### August 2026
+
+- `2026-08-27`
+  - [FlockTrax_Admin_Feed_Projection_Starter_Order_Correction_Field_Test_Checkpoint_2026-08-27.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Feed_Projection_Starter_Order_Correction_Field_Test_Checkpoint_2026-08-27.md)
+  - current local field-test checkpoint for commit `229a390`, covering the corrected Starter Order Needed formula, recognized on-hand-versus-delivered supply rule, complete pending BinSentry order retrieval, the expected `332-W6` result, successful local validation, the explicit not-yet-deployed boundary, field-test checklist, the controlled transitional `262-W1` archive note, and exact resume guidance
 
 - `2026-08-25`
   - [FlockTrax_Admin_2_5_0_Build_1_1_Feed_Inventory_Production_Checkpoint_2026-08-25.md](C:\dev\FlockTrax\output\FlockTrax_Admin_2_5_0_Build_1_1_Feed_Inventory_Production_Checkpoint_2026-08-25.md)
