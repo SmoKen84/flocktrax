@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 
-import { buildPlacementEditorAccess, getPlacementEditorActorAccess } from "@/lib/placement-editor-access";
+import {
+  buildPlacementEditorAccess,
+  canAccessFarmManagerReport,
+  getPlacementEditorActorAccess,
+  hasActorFarmScope,
+} from "@/lib/placement-editor-access";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type LhDateActionResult = {
@@ -31,6 +36,75 @@ function coerceNullableNumber(value: FormDataEntryValue | null) {
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function getLifecycleMutationClient(target: { placementId?: string; barnId?: string }) {
+  const supabase = await createSupabaseServerClient();
+  const admin = createSupabaseAdminClient();
+
+  if (!supabase || !admin) {
+    return { error: "Supabase is not configured.", admin: null };
+  }
+
+  const [{ data: authData, error: authError }, actorAccess] = await Promise.all([
+    supabase.auth.getUser(),
+    getPlacementEditorActorAccess(),
+  ]);
+
+  if (authError || !authData.user || actorAccess.actorId !== authData.user.id) {
+    return { error: "You must be signed in to update placement lifecycle state.", admin: null };
+  }
+
+  let farmId: string | null = null;
+
+  if (target.placementId) {
+    const placementResult = await admin
+      .from("placements")
+      .select("farm_id")
+      .eq("id", target.placementId)
+      .maybeSingle();
+
+    if (placementResult.error || !placementResult.data?.farm_id) {
+      return { error: placementResult.error?.message ?? "Placement could not be loaded.", admin: null };
+    }
+    farmId = placementResult.data.farm_id;
+  } else if (target.barnId) {
+    const barnResult = await admin
+      .from("barns")
+      .select("farm_id")
+      .eq("id", target.barnId)
+      .maybeSingle();
+
+    if (barnResult.error || !barnResult.data?.farm_id) {
+      return { error: barnResult.error?.message ?? "Barn could not be loaded.", admin: null };
+    }
+    farmId = barnResult.data.farm_id;
+  }
+
+  if (!farmId) {
+    return { error: "Farm context could not be resolved.", admin: null };
+  }
+
+  const farmResult = await admin
+    .from("farms")
+    .select("farm_group_id")
+    .eq("id", farmId)
+    .maybeSingle();
+
+  if (farmResult.error || !farmResult.data) {
+    return { error: farmResult.error?.message ?? "Farm context could not be loaded.", admin: null };
+  }
+
+  const hasFarmScope = hasActorFarmScope(actorAccess, {
+    farmId,
+    farmGroupId: farmResult.data.farm_group_id ?? "ungrouped",
+  });
+
+  if (!canAccessFarmManagerReport(actorAccess) || !hasFarmScope) {
+    return { error: "Only Farm Manager or higher roles assigned to this farm can change lifecycle state.", admin: null };
+  }
+
+  return { error: null, admin };
 }
 
 export async function saveDashboardPlacementEditorAction(formData: FormData): Promise<LhDateActionResult> {
@@ -199,13 +273,13 @@ export async function markChicksArrivedAction(placementId: string): Promise<LhDa
     return { status: "error", message: "Placement is missing." };
   }
 
-  const supabase = await createSupabaseServerClient();
+  const lifecycleContext = await getLifecycleMutationClient({ placementId });
 
-  if (!supabase) {
-    return { status: "error", message: "Supabase is not configured." };
+  if (!lifecycleContext.admin) {
+    return { status: "error", message: lifecycleContext.error ?? "Lifecycle authorization failed." };
   }
 
-  const { error } = await supabase.rpc("mark_chicks_arrived", {
+  const { error } = await lifecycleContext.admin.rpc("mark_chicks_arrived", {
     p_placement_id: placementId,
   });
 
@@ -223,13 +297,13 @@ export async function makePlacementCurrentAction(placementId: string): Promise<L
     return { status: "error", message: "Placement is missing." };
   }
 
-  const supabase = await createSupabaseServerClient();
+  const lifecycleContext = await getLifecycleMutationClient({ placementId });
 
-  if (!supabase) {
-    return { status: "error", message: "Supabase is not configured." };
+  if (!lifecycleContext.admin) {
+    return { status: "error", message: lifecycleContext.error ?? "Lifecycle authorization failed." };
   }
 
-  const { error } = await supabase.rpc("make_placement_current", {
+  const { error } = await lifecycleContext.admin.rpc("make_placement_current", {
     p_placement_id: placementId,
   });
 
@@ -250,13 +324,13 @@ export async function markBarnEmptyAction(
     return { status: "error", message: "Barn is missing." };
   }
 
-  const supabase = await createSupabaseServerClient();
+  const lifecycleContext = await getLifecycleMutationClient({ barnId });
 
-  if (!supabase) {
-    return { status: "error", message: "Supabase is not configured." };
+  if (!lifecycleContext.admin) {
+    return { status: "error", message: lifecycleContext.error ?? "Lifecycle authorization failed." };
   }
 
-  const { data, error } = await supabase.rpc("mark_barn_empty", {
+  const { data, error } = await lifecycleContext.admin.rpc("mark_barn_empty", {
     p_barn_id: barnId,
     p_removed_date: removedDate?.trim() ? removedDate : undefined,
   });
