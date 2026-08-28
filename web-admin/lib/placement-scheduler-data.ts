@@ -54,6 +54,27 @@ export type PlacementSchedulerSettings = {
   allowHistoricalEntry: boolean;
 };
 
+export type PlacementSchedulerUnassignedFlock = {
+  id: string;
+  flockId: string;
+  placementCode: string;
+  flockNumber: number | null;
+  previousFarmId: string;
+  previousFarmName: string;
+  previousBarnId: string;
+  previousBarnCode: string;
+  previousStartDate: string | null;
+  previousEndDate: string | null;
+  unassignedAt: string | null;
+  feedDropCount: number;
+  feedDropLbs: number;
+  feedOrderCount: number;
+  feedOrderLbs: number;
+  barnFeedInventoryLbs: number;
+  barnFeedBinCount: number;
+  barnFeedLastSyncAt: string | null;
+};
+
 export type PlacementSchedulerBreed = {
   id: string;
   code: string;
@@ -70,6 +91,7 @@ export type PlacementSchedulerBundle = {
   recommendedStartByBarnId: Record<string, string>;
   settings: PlacementSchedulerSettings;
   breeds: PlacementSchedulerBreed[];
+  unassignedFlocks: PlacementSchedulerUnassignedFlock[];
 };
 
 type FarmRow = {
@@ -118,6 +140,7 @@ type PlacementRow = {
   lh3_date: string | null;
   active_start: string | null;
   active_end: string | null;
+  unassigned_at: string | null;
 };
 
 type PlatformSettingRow = {
@@ -154,8 +177,15 @@ type FeedDropRow = {
 
 type FeedOrderCommitmentRow = {
   placement_id: string | null;
+  unassigned_from_placement_id: string | null;
   ordered_lbs: number | null;
   received_lbs: number | null;
+};
+
+type FeedBinInventoryRow = {
+  barn_id: string;
+  binsentry_last_inventory_lbs: number | null;
+  binsentry_last_sync_at: string | null;
 };
 
 function normalize(value: string | null | undefined) {
@@ -238,10 +268,11 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
         allowHistoricalEntry: false,
       },
       breeds: [],
+      unassignedFlocks: [],
     };
   }
 
-  const [farmsResult, barnsResult, flocksResult, placementsResult, platformSettingsResult, appSettingsResult, breedsResult, breedSpecsResult] = await Promise.all([
+  const [farmsResult, barnsResult, flocksResult, placementsResult, platformSettingsResult, appSettingsResult, breedsResult, breedSpecsResult, feedBinsResult] = await Promise.all([
     supabase.from("farms_ui").select("id,farm_name,farm_group_name,farm_group_id").order("farm_name"),
     supabase.from("barns").select("id,farm_id,barn_code,sort_code,is_active"),
     supabase
@@ -250,12 +281,13 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
       .order("date_placed", { ascending: false }),
     supabase
       .from("placements")
-      .select("id,farm_id,barn_id,flock_id,lifecycle_stage,date_removed,is_active,placement_key,lh1_date,lh2_date,lh3_date,active_start,active_end")
+      .select("id,farm_id,barn_id,flock_id,lifecycle_stage,date_removed,is_active,placement_key,lh1_date,lh2_date,lh3_date,active_start,active_end,unassigned_at")
       .order("created_at", { ascending: false }),
     supabase.schema("platform").from("settings").select("name,value,is_active").limit(50),
     supabase.from("app_settings").select("group,name,value"),
     supabase.from("breeds").select("id,code,breed_name,sex,is_active").order("breed_name"),
     supabase.from("stdbreedspec").select("geneticname,breedid,is_active").eq("is_active", true),
+    supabase.from("feedbins").select("barn_id,binsentry_last_inventory_lbs,binsentry_last_sync_at"),
   ]);
 
   const farmRows = (farmsResult.data ?? []) as FarmRow[];
@@ -266,7 +298,7 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
   const flockRows = (flocksResult.data ?? []) as FlockRow[];
   const placementRows = (placementsResult.data ?? []) as PlacementRow[];
   const placementIds = placementRows.map((row) => row.id);
-  const [directFeedDropsResult, queuedFeedDropsResult, feedOrdersResult] = placementIds.length
+  const [directFeedDropsResult, queuedFeedDropsResult, feedOrdersResult, unassignedFeedOrdersResult] = placementIds.length
     ? await Promise.all([
         supabase
           .from("feed_drops")
@@ -278,21 +310,28 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
           .in("queued_from_placement_id", placementIds),
         supabase
           .from("feed_order_commitments")
-          .select("placement_id,ordered_lbs,received_lbs")
+          .select("placement_id,unassigned_from_placement_id,ordered_lbs,received_lbs")
           .in("placement_id", placementIds)
+          .neq("status", "cancelled"),
+        supabase
+          .from("feed_order_commitments")
+          .select("placement_id,unassigned_from_placement_id,ordered_lbs,received_lbs")
+          .in("unassigned_from_placement_id", placementIds)
           .neq("status", "cancelled"),
       ])
     : [
         { data: [], error: null },
         { data: [], error: null },
         { data: [], error: null },
+        { data: [], error: null },
       ];
 
-  if (directFeedDropsResult.error || queuedFeedDropsResult.error || feedOrdersResult.error) {
+  if (directFeedDropsResult.error || queuedFeedDropsResult.error || feedOrdersResult.error || unassignedFeedOrdersResult.error) {
     throw new Error(
       directFeedDropsResult.error?.message ??
         queuedFeedDropsResult.error?.message ??
         feedOrdersResult.error?.message ??
+        unassignedFeedOrdersResult.error?.message ??
         "Placement feed associations could not be loaded.",
     );
   }
@@ -300,6 +339,8 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
   const directFeedDropRows = (directFeedDropsResult.data ?? []) as FeedDropRow[];
   const queuedFeedDropRows = (queuedFeedDropsResult.data ?? []) as FeedDropRow[];
   const feedOrderRows = (feedOrdersResult.data ?? []) as FeedOrderCommitmentRow[];
+  const unassignedFeedOrderRows = (unassignedFeedOrdersResult.data ?? []) as FeedOrderCommitmentRow[];
+  const feedBinRows = (feedBinsResult.data ?? []) as FeedBinInventoryRow[];
   const platformSettingRows = (platformSettingsResult.data ?? []) as PlatformSettingRow[];
   const appSettingRows = (appSettingsResult.data ?? []) as AppSettingRow[];
   const breedRows = (breedsResult.data ?? []) as BreedRow[];
@@ -411,9 +452,70 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
   }
 
   const flockById = new Map(flockRows.map((row) => [row.id, row]));
+  const farmNameById = new Map(farmRows.map((row) => [row.id, normalize(row.farm_name) || "Unnamed Farm"]));
+  const barnById = new Map(barnRows.map((row) => [row.id, row]));
+  const feedInventoryByBarnId = feedBinRows.reduce<
+    Map<string, { inventoryLbs: number; binCount: number; lastSyncAt: string | null }>
+  >((inventoryByBarn, row) => {
+    const inventoryLbs = Math.max(0, row.binsentry_last_inventory_lbs ?? 0);
+    const current = inventoryByBarn.get(row.barn_id) ?? { inventoryLbs: 0, binCount: 0, lastSyncAt: null };
+    inventoryByBarn.set(row.barn_id, {
+      inventoryLbs: current.inventoryLbs + inventoryLbs,
+      binCount: current.binCount + (inventoryLbs > 0 ? 1 : 0),
+      lastSyncAt:
+        !current.lastSyncAt || (row.binsentry_last_sync_at && row.binsentry_last_sync_at > current.lastSyncAt)
+          ? row.binsentry_last_sync_at
+          : current.lastSyncAt,
+    });
+    return inventoryByBarn;
+  }, new Map());
   const today = new Date().toISOString().slice(0, 10);
 
+  const unassignedFlocks = placementRows
+    .filter((row) => row.lifecycle_stage === "unassigned")
+    .map<PlacementSchedulerUnassignedFlock>((row) => {
+      const flock = flockById.get(row.flock_id);
+      const barn = barnById.get(row.barn_id);
+      const feedDrops = queuedFeedDropRows.filter((drop) => drop.queued_from_placement_id === row.id);
+      const feedOrders = unassignedFeedOrderRows.filter((order) => order.unassigned_from_placement_id === row.id);
+      const barnFeedInventory = feedInventoryByBarnId.get(row.barn_id) ?? {
+        inventoryLbs: 0,
+        binCount: 0,
+        lastSyncAt: null,
+      };
+      return {
+        id: row.id,
+        flockId: row.flock_id,
+        placementCode: normalize(row.placement_key) || String(flock?.flock_number ?? "Unassigned flock"),
+        flockNumber: flock?.flock_number ?? null,
+        previousFarmId: row.farm_id,
+        previousFarmName: farmNameById.get(row.farm_id) ?? "Previous farm",
+        previousBarnId: row.barn_id,
+        previousBarnCode: normalize(barn?.barn_code) || "Previous barn",
+        previousStartDate: normalize(row.active_start) || normalize(flock?.date_placed) || null,
+        previousEndDate: normalize(row.active_end) || normalize(flock?.max_date) || null,
+        unassignedAt: row.unassigned_at,
+        feedDropCount: feedDrops.length,
+        feedDropLbs: feedDrops.reduce((sum, drop) => sum + Math.abs(drop.drop_weight ?? 0), 0),
+        feedOrderCount: feedOrders.length,
+        feedOrderLbs: feedOrders.reduce(
+          (sum, order) => sum + Math.max((order.ordered_lbs ?? 0) - (order.received_lbs ?? 0), 0),
+          0,
+        ),
+        barnFeedInventoryLbs: barnFeedInventory.inventoryLbs,
+        barnFeedBinCount: barnFeedInventory.binCount,
+        barnFeedLastSyncAt: barnFeedInventory.lastSyncAt,
+      };
+    })
+    .sort((left, right) =>
+      (left.previousStartDate ?? "9999-12-31").localeCompare(right.previousStartDate ?? "9999-12-31") ||
+      left.placementCode.localeCompare(right.placementCode),
+    );
+
   const windowsByBarnId = placementRows.reduce<Record<string, PlacementSchedulerWindow[]>>((acc, row) => {
+    if (row.lifecycle_stage === "unassigned") {
+      return acc;
+    }
     const flock = flockById.get(row.flock_id);
     const startDate = normalize(flock?.date_placed) || normalize(row.active_start);
     if (!startDate) {
@@ -425,7 +527,7 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
     const isFuture = startDate > today;
     const isActive = row.is_active !== false && !row.date_removed && flockIsInBarn;
     const isCanceled = row.lifecycle_stage === "canceled";
-    const isComplete = !isCanceled && (!!row.date_removed || flock?.is_complete === true || (!isActive && projectedEnd < today));
+    const isComplete = !isCanceled && (row.lifecycle_stage === "archived" || flock?.is_complete === true);
     const directFeedDrops = directFeedDropRows.filter((drop) => drop.placement_id === row.id);
     const queuedFeedDrops = queuedFeedDropRows.filter(
       (drop) => drop.queued_from_placement_id === row.id && drop.placement_id !== row.id,
@@ -525,5 +627,6 @@ export async function getPlacementSchedulerBundle(): Promise<PlacementSchedulerB
           isActive: row.is_active !== false,
         };
       }),
+    unassignedFlocks,
   };
 }

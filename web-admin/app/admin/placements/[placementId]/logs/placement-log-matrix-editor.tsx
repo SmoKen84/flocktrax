@@ -437,7 +437,7 @@ function deriveAgeDays(logDate: string, placedDate: string) {
 function formatLifecycleStage(value: string) {
   if (value === "in_barn_growing") return "In Barn";
   if (value === "awaiting_arrival") return "Awaiting Arrival";
-  if (value === "waiting_closeout") return "Waiting Closeout";
+  if (value === "waiting_closeout") return "Closeout Pending";
   if (value === "closeout_submitted") return "Closeout Submitted";
   return value.replace(/[_-]+/g, " ");
 }

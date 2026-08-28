@@ -142,7 +142,7 @@ export default async function CloseoutPlacementPage({ params, searchParams }: Cl
         {isArchived ? (
           <section className="panel card">
             <div className="placement-scheduler-projection">
-              <span>Archived Flock Record</span>
+              <span>Closed Flock Record</span>
               <strong>This placement is preserved as a read-only production record.</strong>
               <p>Reports and filed documents remain available. Only the closeout notes field below can be updated.</p>
             </div>
@@ -190,9 +190,9 @@ function firstParam(value: string | string[] | undefined) {
 }
 
 function formatStage(value: string) {
-  if (value === "waiting_closeout") return "Waiting Closeout";
+  if (value === "waiting_closeout") return "Closeout Pending";
   if (value === "closeout_submitted") return "Closeout Submitted";
-  if (value === "archived") return "Archived";
+  if (value === "archived") return "Closed";
   return "Closeout";
 }
 

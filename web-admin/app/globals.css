@@ -17092,3 +17092,104 @@ tr:last-child td {
     break-inside: avoid;
   }
 }
+.placement-unassigned-queue {
+  margin-bottom: 1rem;
+  padding: 1.35rem;
+  border-color: color-mix(in srgb, var(--warning, #b7791f) 45%, transparent);
+}
+
+.placement-unassigned-queue .section-header {
+  margin-bottom: 1rem;
+}
+
+.placement-unassigned-table-wrap {
+  width: 100%;
+  border: 1px solid rgba(131, 90, 42, 0.14);
+  border-radius: 1rem;
+  background: rgba(255, 252, 247, 0.78);
+}
+
+.placement-unassigned-table {
+  width: 100%;
+  min-width: 58rem;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.placement-unassigned-table th,
+.placement-unassigned-table td {
+  padding: 0.8rem 0.9rem;
+}
+
+.placement-unassigned-table thead th {
+  background: rgba(247, 239, 226, 0.98);
+  color: rgba(82, 59, 38, 0.9);
+  border-bottom: 2px solid #7c4327;
+  box-shadow: inset 0 -1px 0 rgba(124, 67, 39, 0.16);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.placement-unassigned-table thead th:first-child {
+  border-top-left-radius: calc(1rem - 1px);
+}
+
+.placement-unassigned-table thead th:last-child {
+  border-top-right-radius: calc(1rem - 1px);
+}
+
+.placement-unassigned-table tbody td {
+  background: rgba(255, 250, 242, 0.94);
+  overflow-wrap: anywhere;
+}
+
+.placement-unassigned-table th:nth-child(1) {
+  width: 10%;
+}
+
+.placement-unassigned-table th:nth-child(2) {
+  width: 17%;
+}
+
+.placement-unassigned-table th:nth-child(3) {
+  width: 16%;
+}
+
+.placement-unassigned-table th:nth-child(4) {
+  width: 18%;
+}
+
+.placement-unassigned-table th:nth-child(5) {
+  width: 39%;
+}
+
+.placement-unassigned-queue td strong,
+.placement-unassigned-queue td small {
+  display: block;
+}
+
+.placement-unassigned-assign-form {
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) minmax(8.25rem, auto) auto;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.placement-unassigned-assign-form select,
+.placement-unassigned-assign-form input {
+  min-height: 2.35rem;
+}
+
+@media (max-width: 900px) {
+  .placement-unassigned-queue {
+    padding: 1rem;
+  }
+
+  .placement-unassigned-assign-form {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+}

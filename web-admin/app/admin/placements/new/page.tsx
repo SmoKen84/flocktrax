@@ -1,11 +1,18 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
-import { cancelScheduledPlacementAction, deleteScheduledPlacementAction, updatePlacementAction } from "@/app/admin/placements/new/actions";
+import {
+  cancelScheduledPlacementAction,
+  deleteScheduledPlacementAction,
+  reassignUnassignedPlacementAction,
+  unassignScheduledPlacementAction,
+  updatePlacementAction,
+} from "@/app/admin/placements/new/actions";
 import { CancelScheduledPlacementControl } from "@/app/admin/placements/new/cancel-scheduled-placement-control";
 import { PlacementMonthPicker } from "@/app/admin/placements/new/placement-month-picker";
 import { SchedulePlacementForm } from "@/app/admin/placements/new/schedule-placement-form";
 import { SchedulerFilters } from "@/app/admin/placements/new/scheduler-filters";
+import { UnassignFlockButton } from "@/app/admin/placements/new/unassign-flock-button";
 import { PageHeader } from "@/components/page-header";
 import { getUserAccessBundle, resolveRoleTemplate } from "@/lib/access-control";
 import { getAppSettingTextValues, getPlatformScreenTextValues } from "@/lib/platform-content";
@@ -69,6 +76,8 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
   const visibleFarmsPool = canSeeAllFarms
     ? bundle.farms
     : bundle.farms.filter((farm) => accessibleFarmIds.has(farm.id) || (farm.farmGroupId && accessibleFarmGroupIds.has(farm.farmGroupId)));
+  const visibleFarmIds = new Set(visibleFarmsPool.map((farm) => farm.id));
+  const visibleUnassignedFlocks = bundle.unassignedFlocks.filter((flock) => visibleFarmIds.has(flock.previousFarmId));
   const allVisibleBarns = visibleFarmsPool.flatMap((farm) => bundle.barnsByFarmId[farm.id] ?? []);
   const allVisibleWindows = allVisibleBarns.flatMap((barn) => bundle.windowsByBarnId[barn.id] ?? []);
   const farmGroupOptions = Array.from(
@@ -233,6 +242,8 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
       (selectedPlacement.lifecycleStage === "scheduled" || selectedPlacement.lifecycleStage === "awaiting_arrival"),
   );
   const selectedPlacementIsCanceled = selectedPlacement?.lifecycleStage === "canceled";
+  const selectedPlacementIsClosed = selectedPlacement?.lifecycleStage === "archived";
+  const selectedPlacementIsReadOnly = selectedPlacementIsCanceled || selectedPlacementIsClosed;
   const canDeleteSelectedPlacement = Boolean(
     canCancelSelectedPlacement &&
       selectedPlacement &&
@@ -301,6 +312,92 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
           <span className="status-pill" data-tone="good">Saved</span>
           <p>{decodeURIComponent(notice)}</p>
         </div>
+      ) : null}
+
+      {visibleUnassignedFlocks.length > 0 ? (
+        <section className="panel table-card placement-unassigned-queue" aria-label="Unassigned flocks">
+          <div className="section-header">
+            <div>
+              <p className="eyebrow">Action Required</p>
+              <h2>{`Unassigned Flocks (${visibleUnassignedFlocks.length})`}</h2>
+              <p className="hero-body">
+                These flocks are not reserving a barn or date block. Assign each one when its destination is ready.
+              </p>
+            </div>
+            <span className="status-pill" data-tone="warn">Needs Assignment</span>
+          </div>
+          <div className="table-wrap placement-unassigned-table-wrap">
+            <table className="placement-unassigned-table">
+              <thead>
+                <tr>
+                  <th>Flock</th>
+                  <th>Previous Assignment</th>
+                  <th>Previous Dates</th>
+                  <th>Barn-Held Feed</th>
+                  <th>New Barn And Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleUnassignedFlocks.map((flock) => {
+                  const flockLabel = flock.flockNumber === null ? "Unassigned flock" : String(flock.flockNumber);
+
+                  return (
+                    <tr key={flock.id}>
+                      <td>
+                        <strong>{flockLabel}</strong>
+                        <small className="table-subtitle">Unassigned; no calendar capacity reserved</small>
+                      </td>
+                      <td>{`${flock.previousFarmName} · Barn ${flock.previousBarnCode}`}</td>
+                      <td>{`${formatDateLabel(flock.previousStartDate)} – ${formatDateLabel(flock.previousEndDate)}`}</td>
+                      <td>
+                        {flock.barnFeedInventoryLbs > 0 ? (
+                          <>
+                            <strong>{`${formatWhole(flock.barnFeedInventoryLbs)} lbs in ${flock.barnFeedBinCount} bin${flock.barnFeedBinCount === 1 ? "" : "s"}`}</strong>
+                            <small className="table-subtitle">Current inventory remains with the previous barn</small>
+                            {flock.feedDropCount || flock.feedOrderCount ? (
+                              <small className="table-subtitle">
+                                {`${flock.feedDropCount} linked drop${flock.feedDropCount === 1 ? "" : "s"}; ${flock.feedOrderCount} linked order${flock.feedOrderCount === 1 ? "" : "s"}`}
+                              </small>
+                            ) : null}
+                          </>
+                        ) : flock.feedDropCount || flock.feedOrderCount ? (
+                          `${flock.feedDropCount} drop${flock.feedDropCount === 1 ? "" : "s"} · ${formatWhole(flock.feedDropLbs)} lbs; ${flock.feedOrderCount} order${flock.feedOrderCount === 1 ? "" : "s"}`
+                        ) : (
+                          "No barn inventory detected"
+                        )}
+                      </td>
+                      <td>
+                        <form action={reassignUnassignedPlacementAction} className="placement-unassigned-assign-form">
+                          <input name="placement_id" type="hidden" value={flock.id} />
+                          <input name="placement_code" type="hidden" value={flockLabel} />
+                          <select aria-label={`New barn for ${flockLabel}`} name="destination" required>
+                            <option value="">Choose farm and barn</option>
+                            {allVisibleBarns.filter((barn) => barn.isActive).map((barn) => {
+                              const farm = visibleFarmsPool.find((candidate) => candidate.id === barn.farmId);
+                              return (
+                                <option key={barn.id} value={`${barn.farmId}|${barn.id}`}>
+                                  {`${farm?.farmName ?? "Farm"} · Barn ${barn.barnCode}`}
+                                </option>
+                              );
+                            })}
+                          </select>
+                          <input
+                            aria-label={`New placement date for ${flockLabel}`}
+                            defaultValue={flock.previousStartDate ?? new Date().toISOString().slice(0, 10)}
+                            name="start_date"
+                            type="date"
+                            required
+                          />
+                          <button className="button" type="submit">Assign</button>
+                        </form>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
       ) : null}
 
       <section className="placement-scheduler-layout" data-mode={mode}>
@@ -562,7 +659,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                       <span>Date Removed</span>
                       <input defaultValue={selectedPlacement.actualEndDate ?? ""} name="date_removed" type="date" />
                     </label>
-                    {canManagePlacementState && selectedPlacement.lifecycleStage !== "canceled" ? (
+                    {canManagePlacementState && !selectedPlacementIsReadOnly ? (
                       <label className="field">
                         <span>Placement State</span>
                         <select defaultValue={getEditablePlacementLifecycleStage(selectedPlacement)} name="placement_lifecycle_stage">
@@ -659,10 +756,13 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                         {historyReportLabel}
                       </Link>
                     ) : null}
-                    {!selectedPlacementIsCanceled ? (
+                    {!selectedPlacementIsReadOnly ? (
                       <button className="button" type="submit">
                         Save Placement
                       </button>
+                    ) : null}
+                    {canCancelSelectedPlacement ? (
+                      <UnassignFlockButton action={unassignScheduledPlacementAction} placementCode={selectedPlacement.placementCode} />
                     ) : null}
                     {canCancelSelectedPlacement ? (
                       <CancelScheduledPlacementControl
@@ -773,7 +873,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                   <span>Date Removed</span>
                   <input defaultValue={selectedPlacement.actualEndDate ?? ""} name="date_removed" type="date" />
                 </label>
-                {canManagePlacementState && selectedPlacement.lifecycleStage !== "canceled" ? (
+                {canManagePlacementState && !selectedPlacementIsReadOnly ? (
                   <label className="field">
                     <span>Placement State</span>
                     <select defaultValue={getEditablePlacementLifecycleStage(selectedPlacement)} name="placement_lifecycle_stage">
@@ -859,10 +959,13 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                 </p>
               </div>
 
-              {!selectedPlacementIsCanceled ? (
+              {!selectedPlacementIsReadOnly ? (
                 <button className="button" type="submit">
                   Update Scheduled Placement
                 </button>
+              ) : null}
+              {canCancelSelectedPlacement ? (
+                <UnassignFlockButton action={unassignScheduledPlacementAction} placementCode={selectedPlacement.placementCode} />
               ) : null}
               {canCancelSelectedPlacement ? (
                 <CancelScheduledPlacementControl
@@ -922,7 +1025,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                   <span>Date Removed</span>
                   <input defaultValue={selectedPlacement.actualEndDate ?? ""} name="date_removed" type="date" />
                 </label>
-                {canManagePlacementState && selectedPlacement.lifecycleStage !== "canceled" ? (
+                {canManagePlacementState && !selectedPlacementIsReadOnly ? (
                   <label className="field">
                     <span>Placement State</span>
                     <select defaultValue={getEditablePlacementLifecycleStage(selectedPlacement)} name="placement_lifecycle_stage">
@@ -1025,10 +1128,13 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                     {historyReportLabel}
                   </Link>
                 ) : null}
-                {!selectedPlacementIsCanceled ? (
+                {!selectedPlacementIsReadOnly ? (
                   <button className="button" type="submit">
                     Save Placement
                   </button>
+                ) : null}
+                {canCancelSelectedPlacement ? (
+                  <UnassignFlockButton action={unassignScheduledPlacementAction} placementCode={selectedPlacement.placementCode} />
                 ) : null}
                 {canCancelSelectedPlacement ? (
                   <CancelScheduledPlacementControl
@@ -1339,6 +1445,7 @@ function getPlacementStateLabel(window: {
   flockIsInBarn?: boolean;
 }) {
   if (window.lifecycleStage === "canceled") return "Canceled";
+  if (window.lifecycleStage === "waiting_closeout" || window.lifecycleStage === "closeout_submitted") return "Closeout Pending";
   if (window.isComplete) return "Closed";
   if (window.isActive || window.flockIsInBarn) return "Active";
   if (window.isFuture) return "Scheduled";
@@ -1372,9 +1479,8 @@ const PLACEMENT_LIFECYCLE_OPTIONS = [
   { value: "scheduled", label: "Scheduled" },
   { value: "awaiting_arrival", label: "Awaiting Arrival" },
   { value: "in_barn_growing", label: "In Barn Growing" },
-  { value: "waiting_closeout", label: "Waiting Closeout" },
+  { value: "waiting_closeout", label: "Closeout Pending" },
   { value: "closeout_submitted", label: "Closeout Submitted" },
-  { value: "archived", label: "Archived" },
 ] as const;
 
 function getEditablePlacementLifecycleStage(window: {

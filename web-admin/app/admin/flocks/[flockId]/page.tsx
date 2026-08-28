@@ -32,7 +32,7 @@ export default async function FlockDetailPage({ params }: FlockDetailPageProps) 
     <>
       <PageHeader
         eyebrow="Flock Detail"
-        title={`${isCanceled ? "Canceled" : "Archived"} Flock ${archiveLabel}`}
+        title={`${isCanceled ? "Canceled" : "Closed"} Flock ${archiveLabel}`}
         body={isCanceled
           ? "This scheduled flock was canceled before placement. It is retained as a read-only historical record; no closeout, document, or editing actions are available."
           : "This flock has been Completed & Archived. To preserve audit continuity; Documents may be attached for reference and Comments/Notes may be updated only. Final flock reports are also available to be reprinted."}

@@ -286,7 +286,7 @@ export async function schedulePlacementAction(formData: FormData) {
       .from("placements")
       .select("id,flock_id,date_removed,placement_key,active_start,active_end")
       .eq("barn_id", barnId)
-      .neq("lifecycle_stage", "canceled"),
+      .not("lifecycle_stage", "in", "(canceled,unassigned)"),
     submittedGrowOutDays ? Promise.resolve(submittedGrowOutDays) : getSchedulerGrowOutDaysDefault(admin),
   ]);
 
@@ -529,6 +529,19 @@ export async function updatePlacementAction(formData: FormData) {
     | "canceled"
     | null;
 
+  if (requestedLifecycleStage === "archived") {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId || null,
+        barn: barnId || null,
+        placement: placementId || null,
+        month: month || null,
+        error: "Only Archive Flock can place a flock into the final Closed state.",
+      }),
+    );
+  }
+
   if (!farmId || !barnId || !placementId || !flockId || !datePlaced || !flockNumber) {
     redirect(
       buildLocation({
@@ -585,6 +598,20 @@ export async function updatePlacementAction(formData: FormData) {
         date: selectedDate || currentFlock.date_placed || currentPlacement.active_start || null,
         month: month || currentFlock.date_placed?.slice(0, 7) || currentPlacement.active_start?.slice(0, 7) || null,
         error: "Canceled placements are retained for audit history and cannot be edited.",
+      }),
+    );
+  }
+
+  if (currentPlacement.lifecycle_stage === "archived" || currentFlock.is_complete === true) {
+    redirect(
+      buildLocation({
+        mode,
+        farm: farmId,
+        barn: barnId,
+        placement: placementId,
+        date: selectedDate || currentFlock.date_placed || currentPlacement.active_start || null,
+        month: month || currentFlock.date_placed?.slice(0, 7) || currentPlacement.active_start?.slice(0, 7) || null,
+        error: "Closed flocks are final, read-only records. Archive Flock is the only action that creates this state.",
       }),
     );
   }
@@ -717,7 +744,7 @@ export async function updatePlacementAction(formData: FormData) {
       .select("id,flock_id,date_removed,placement_key,active_start,active_end")
       .eq("barn_id", barnId)
       .neq("id", placementId)
-      .neq("lifecycle_stage", "canceled"),
+      .not("lifecycle_stage", "in", "(canceled,unassigned)"),
   ]);
 
   if (duplicateFlockResult.error || placementsResult.error) {
@@ -955,6 +982,86 @@ export async function updatePlacementAction(formData: FormData) {
       notice: `Updated placement details for flock ${flockNumber}.`,
     }),
   );
+}
+
+export async function unassignScheduledPlacementAction(formData: FormData) {
+  const { admin, actorId, actorRole } = await getAdminContext();
+  if (!canSchedulePlacements(actorRole)) {
+    redirect(buildLocation({ error: "Only authorized admin accounts can unassign scheduled flocks." }));
+  }
+  if (!actorId) {
+    redirect(buildLocation({ error: "A signed-in user is required to unassign a flock." }));
+  }
+
+  const placementId = coerce(formData.get("placement_id"));
+  const placementCode = coerce(formData.get("placement_code")) || "flock";
+  const farmId = coerce(formData.get("farm_id"));
+  const barnId = coerce(formData.get("barn_id"));
+  const month = coerce(formData.get("month"));
+  const mode = coerce(formData.get("mode")) || "placements";
+
+  if (!placementId) {
+    redirect(buildLocation({ mode, month: month || null, error: "Placement context was incomplete for unassignment." }));
+  }
+
+  const { error } = await admin.rpc("unassign_scheduled_placement", {
+    p_placement_id: placementId,
+    p_actor_id: actorId,
+  });
+
+  if (error) {
+    redirect(buildLocation({ mode, farm: farmId || null, barn: barnId || null, placement: placementId, month: month || null, error: error.message }));
+  }
+
+  revalidatePath("/admin/placements/new");
+  revalidatePath("/admin/overview");
+  revalidatePath("/admin/feed-tickets");
+  redirect(buildLocation({ mode: "placements", farm: farmId || null, month: month || null, cleared: true, notice: `${placementCode} is waiting in the Unassigned Flocks queue.` }));
+}
+
+export async function reassignUnassignedPlacementAction(formData: FormData) {
+  const { admin, actorId, actorRole } = await getAdminContext();
+  if (!canSchedulePlacements(actorRole)) {
+    redirect(buildLocation({ error: "Only authorized admin accounts can assign queued flocks." }));
+  }
+  if (!actorId) {
+    redirect(buildLocation({ error: "A signed-in user is required to assign a queued flock." }));
+  }
+
+  const placementId = coerce(formData.get("placement_id"));
+  const placementCode = coerce(formData.get("placement_code")) || "Flock";
+  const destination = coerce(formData.get("destination"));
+  const [farmId, barnId] = destination.split("|");
+  const startDate = coerce(formData.get("start_date"));
+
+  if (!placementId || !farmId || !barnId || !startDate) {
+    redirect(buildLocation({ mode: "placements", error: "Choose a destination barn and placement date before assigning the flock." }));
+  }
+
+  const { error } = await admin.rpc("reassign_unassigned_placement", {
+    p_placement_id: placementId,
+    p_farm_id: farmId,
+    p_barn_id: barnId,
+    p_start_date: startDate,
+    p_actor_id: actorId,
+  });
+
+  if (error) {
+    redirect(buildLocation({ mode: "placements", error: error.message }));
+  }
+
+  revalidatePath("/admin/placements/new");
+  revalidatePath("/admin/overview");
+  revalidatePath("/admin/feed-tickets");
+  redirect(buildLocation({
+    mode: "placements",
+    farm: farmId,
+    barn: barnId,
+    placement: placementId,
+    date: startDate,
+    month: startDate.slice(0, 7),
+    notice: `${placementCode} was assigned to its new barn and date block. Feed remained with its physical barn, and any queued feed already at the destination barn was attached automatically.`,
+  }));
 }
 
 export async function deleteScheduledPlacementAction(formData: FormData) {
@@ -1472,7 +1579,7 @@ export async function juggleScheduledPlacementAction(formData: FormData) {
       .select("id,flock_id,date_removed,active_start,active_end")
       .eq("barn_id", barnId)
       .neq("id", placementId)
-      .neq("lifecycle_stage", "canceled"),
+      .not("lifecycle_stage", "in", "(canceled,unassigned)"),
     admin.from("flocks").select("id", { head: true, count: "exact" }).eq("farm_id", farmId).eq("flock_number", sourceFlock.flock_number ?? -1).neq("id", targetFlockId),
   ]);
 

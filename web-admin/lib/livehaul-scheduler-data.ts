@@ -196,16 +196,14 @@ export async function getLivehaulSchedulerBundle(options?: {
             .from("placements")
             .select("id,farm_id,barn_id,flock_id,placement_key,lifecycle_stage,active_start,active_end,date_removed")
             .eq("barn_id", selectedBarnId)
-            .neq("lifecycle_stage", "archived")
-            .neq("lifecycle_stage", "canceled")
+            .not("lifecycle_stage", "in", "(archived,canceled,unassigned)")
             .order("active_start", { ascending: false, nullsFirst: false })
         : scopeToFarm
           ? supabase
               .from("placements")
               .select("id,farm_id,barn_id,flock_id,placement_key,lifecycle_stage,active_start,active_end,date_removed")
               .eq("farm_id", selectedFarmId)
-              .neq("lifecycle_stage", "archived")
-              .neq("lifecycle_stage", "canceled")
+              .not("lifecycle_stage", "in", "(archived,canceled,unassigned)")
               .order("active_start", { ascending: false, nullsFirst: false })
         : Promise.resolve({ data: [], error: null }),
       scopeToSingleBarn

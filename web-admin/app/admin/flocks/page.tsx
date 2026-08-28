@@ -282,6 +282,7 @@ function formatArchiveDate(value: string) {
 
 function formatStatusLabel(value: string) {
   if (value === "canceled") return "CANCELED";
+  if (value === "archived") return "Closed";
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 

@@ -249,7 +249,7 @@ export function CloseoutWorksheetForm({ item, readOnly = false }: { item: Closeo
                 <p>{state.message}</p>
                 {!readOnly && state.status === "success" && state.readyToArchive ? (
                   <button className="button-secondary" formAction={archivePlacementCloseoutAction} type="submit">
-                    Move To Archive
+                    Archive Flock
                   </button>
                 ) : null}
               </div>

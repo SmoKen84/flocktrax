@@ -723,7 +723,7 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                 canUseManualFlockCorrection && (drop.manual_flock_override === true || placementDiffersFromSystem);
               const regLockedPlacement =
                 item.ticket_type === "Reg" && !isOffFarmRedirect && !isQueuedForReconciliation && !hasManualFlockOverride
-                  ? systemRegPlacement
+                  ? currentPlacement ?? systemRegPlacement
                   : null;
               const regCanManuallyPickHistorical = item.ticket_type === "Reg"
                 ? isRegManualFallbackAllowed(item, placementOptions, drop, allowHistoricalEntry)

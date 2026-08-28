@@ -285,6 +285,10 @@ export async function savePlacementLogMatrixAction(
     return { status: "error", message: "Canceled placements are retained for audit history and cannot be corrected." };
   }
 
+  if (placement.lifecycle_stage === "unassigned") {
+    return { status: "error", message: "Unassigned flocks do not accept production logs until they have a new barn and date block." };
+  }
+
   if (placement.lifecycle_stage === "scheduled") {
     return { status: "error", message: "The placement log editor opens only after the placement has entered active operations." };
   }

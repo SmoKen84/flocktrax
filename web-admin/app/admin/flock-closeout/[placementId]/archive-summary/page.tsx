@@ -721,9 +721,9 @@ function formatCloseoutStatus(value: string) {
 }
 
 function formatPlacementState(value: string) {
-  if (value === "waiting_closeout") return "Waiting Closeout";
+  if (value === "waiting_closeout") return "Closeout Pending";
   if (value === "closeout_submitted") return "Closeout Submitted";
-  if (value === "archived") return "Archived";
+  if (value === "archived") return "Closed";
   return value;
 }
 

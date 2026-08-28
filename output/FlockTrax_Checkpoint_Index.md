@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-08-27`
+Updated: `2026-08-28`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### August 2026
+
+- `2026-08-28`
+  - [FlockTrax_BioWaste_WQMP_Planning_Checkpoint_2026-08-28.md](C:\dev\FlockTrax\output\FlockTrax_BioWaste_WQMP_Planning_Checkpoint_2026-08-28.md)
+  - BioWaste/WQMP research and product-planning checkpoint covering the controlling Markdown specification, formatted DOCX boundary, dry-litter farm scope, estimated-cubic-yard quantities, reference-only inputs, `farm_manager`-or-above correction/void authority, signed FlockTrax-issued sequential disposal receipts using the configurable `SmoFarm-WQMP-YR-####` pattern, TSSWCB/SWCD annual-audit meaning, the pending representative WQMP/forms requirement, no-implementation boundary, and exact resume guidance
 
 - `2026-08-27`
   - [FlockTrax_Admin_Feed_Projection_Starter_Order_Correction_Field_Test_Checkpoint_2026-08-27.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Feed_Projection_Starter_Order_Correction_Field_Test_Checkpoint_2026-08-27.md)

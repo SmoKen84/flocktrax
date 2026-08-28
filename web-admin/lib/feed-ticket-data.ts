@@ -423,7 +423,7 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
   const { data: selectablePlacementRows, error: selectablePlacementsError } = await admin
     .from("placements")
     .select("placement_key")
-    .or("lifecycle_stage.is.null,lifecycle_stage.neq.archived")
+    .not("lifecycle_stage", "in", "(archived,canceled,unassigned)")
     .limit(2000);
   if (selectablePlacementsError) {
     throw new Error(selectablePlacementsError.message);

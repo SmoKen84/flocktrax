@@ -139,7 +139,7 @@ export async function getMortalityReportData(options: {
       const flock = flockById.get(placement.flock_id);
       const farm = farmById.get(placement.farm_id);
       const barn = barnById.get(placement.barn_id);
-      if (!flock || !farm || !barn || placement.lifecycle_stage === "canceled") return null;
+      if (!flock || !farm || !barn || placement.lifecycle_stage === "canceled" || placement.lifecycle_stage === "unassigned") return null;
       if (options.farmGroupId && farm.farm_group_id !== options.farmGroupId) return null;
 
       const placementCode =
@@ -267,7 +267,12 @@ export async function getMortalityReportFilterOptions(): Promise<MortalityReport
   if (!source) return { farmGroups: [], farms: [], barns: [], flocks: [] };
 
   const rows = source.placements
-    .filter((placement) => placement.lifecycle_stage !== "archived" && placement.lifecycle_stage !== "canceled")
+    .filter(
+      (placement) =>
+        placement.lifecycle_stage !== "archived" &&
+        placement.lifecycle_stage !== "canceled" &&
+        placement.lifecycle_stage !== "unassigned",
+    )
     .map((placement) => {
       const flock = source.flockById.get(placement.flock_id);
       const farm = source.farmById.get(placement.farm_id);
@@ -424,7 +429,7 @@ function inferPlacementEndDates(placements: PlacementRow[], flockById: Map<strin
   const byBarn = new Map<string, PlacementRow[]>();
 
   for (const placement of placements) {
-    if (placement.lifecycle_stage === "canceled") continue;
+    if (placement.lifecycle_stage === "canceled" || placement.lifecycle_stage === "unassigned") continue;
     const barnPlacements = byBarn.get(placement.barn_id) ?? [];
     barnPlacements.push(placement);
     byBarn.set(placement.barn_id, barnPlacements);

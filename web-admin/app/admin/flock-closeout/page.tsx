@@ -49,7 +49,7 @@ export default async function FlockCloseoutPage({ searchParams }: FlockCloseoutP
           <p className="table-subtitle">Visible closeout placements</p>
         </article>
         <article className="panel card closeout-summary-card">
-          <p className="eyebrow">Waiting</p>
+          <p className="eyebrow">Closeout Pending</p>
           <strong>{queue.totals.waitingCloseout.toLocaleString()}</strong>
           <p className="table-subtitle">Still being worked</p>
         </article>
@@ -198,7 +198,7 @@ export default async function FlockCloseoutPage({ searchParams }: FlockCloseoutP
 }
 
 function formatStage(value: string) {
-  if (value === "waiting_closeout") return "Waiting";
+  if (value === "waiting_closeout") return "Closeout Pending";
   if (value === "closeout_submitted") return "Submitted";
   return "Closeout";
 }

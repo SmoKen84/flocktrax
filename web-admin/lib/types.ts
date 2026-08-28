@@ -95,6 +95,7 @@ export type BreedOptionRecord = {
 };
 
 export type PlacementLifecycleStage =
+  | "unassigned"
   | "scheduled"
   | "awaiting_arrival"
   | "in_barn_growing"

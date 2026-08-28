@@ -758,7 +758,10 @@ async function listPlacementOptions(): Promise<PlacementOption[]> {
   const { data: placements, error: placementError } = await admin
     .from("placements")
     .select("id,placement_key,barn_id,flock_id,is_active,date_removed,active_start,active_end,lifecycle_stage")
-    .or("lifecycle_stage.is.null,lifecycle_stage.neq.archived")
+    // Archived placements remain valid historical feed-drop assignments and
+    // must stay available for corrections. Canceled and temporarily
+    // unassigned placements are not valid automatic destinations.
+    .not("lifecycle_stage", "in", "(canceled,unassigned)")
     .order("active_start", { ascending: false })
     .order("placement_key", { ascending: true })
     .limit(1000);

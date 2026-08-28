@@ -274,7 +274,7 @@ function derivePlacementLifecycle(placement: ActivePlacementRecord) {
       };
     case "waiting_closeout":
       return {
-        label: "Waiting Closeout",
+        label: "Closeout Pending",
         detail: placement.dateRemoved
           ? `This flock checked out on ${placement.dateRemoved}. Growout is over and closeout work now remains.`
           : "This flock has left live production and is waiting for closeout work.",
@@ -288,7 +288,7 @@ function derivePlacementLifecycle(placement: ActivePlacementRecord) {
       };
     case "archived":
       return {
-        label: "Archived",
+        label: "Closed",
         detail: "This flock has completed its operational lifecycle and now lives in history.",
         systemState,
       };
