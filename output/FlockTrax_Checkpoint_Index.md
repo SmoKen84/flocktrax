@@ -12,6 +12,10 @@ Purpose:
 ### August 2026
 
 - `2026-08-28`
+  - [FlockTrax_P0_Database_Authorization_Production_Checkpoint_2026-08-28.md](C:\dev\FlockTrax\output\FlockTrax_P0_Database_Authorization_Production_Checkpoint_2026-08-28.md)
+  - authoritative P0 database-authorization production checkpoint covering commit `10eb392`, rollback tag `checkpoint/pre-p0-hosted-deploy-20260828`, Vercel deployment `dpl_569YB7kUqXfxfqnGBavsa2CQJNmi`, hosted migration `20260828110000`, active-membership and cross-farm RLS enforcement, privileged-RPC containment, production verification, logical backup hashes, remaining P1/P2 and service-role exposure, and exact resume guidance
+
+- `2026-08-28`
   - [FlockTrax_BioWaste_WQMP_Planning_Checkpoint_2026-08-28.md](C:\dev\FlockTrax\output\FlockTrax_BioWaste_WQMP_Planning_Checkpoint_2026-08-28.md)
   - BioWaste/WQMP research and product-planning checkpoint covering the controlling Markdown specification, formatted DOCX boundary, dry-litter farm scope, estimated-cubic-yard quantities, reference-only inputs, `farm_manager`-or-above correction/void authority, signed FlockTrax-issued sequential disposal receipts using the configurable `SmoFarm-WQMP-YR-####` pattern, TSSWCB/SWCD annual-audit meaning, the pending representative WQMP/forms requirement, no-implementation boundary, and exact resume guidance
 
@@ -434,6 +438,10 @@ Purpose:
   - production checkpoint covering action-item list/work-order reporting, flock-history action-item print expansion, Vercel deployment `dpl_6Dq8Zrp1XbadeP43ZiktbE3S6uht`, and hosted admin build marker `5.3`
 
 # Latest Checkpoint
+
+- `2026-08-28`
+  - [FlockTrax_P0_Database_Authorization_Production_Checkpoint_2026-08-28.md](C:\dev\FlockTrax\output\FlockTrax_P0_Database_Authorization_Production_Checkpoint_2026-08-28.md)
+  - current production security baseline for the deployed P0 authorization controls, recovery materials, remaining exposure, and the P1/P2 resume path
 
 - `2026-06-23`
   - [FlockTrax_Document_Archive_Placement_Closeout_And_Backfill_Checkpoint_2026-06-23.md](C:\dev\FlockTrax\output\FlockTrax_Document_Archive_Placement_Closeout_And_Backfill_Checkpoint_2026-06-23.md)
