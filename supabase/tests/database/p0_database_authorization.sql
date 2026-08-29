@@ -112,7 +112,7 @@ insert into auth.users (id, email, created_at, updated_at)
 values ('11111111-1111-1111-1111-111111111111', 'p0-active@example.invalid', now(), now());
 
 insert into public.roles (id, code, description)
-values ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'farm_manager', 'P0 test role');
+values ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'FarmManager', 'P0 test role');
 
 select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
 
