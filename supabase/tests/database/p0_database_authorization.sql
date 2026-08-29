@@ -85,7 +85,15 @@ begin
   join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public'
     and p.prosecdef
-    and p.proname not in ('is_admin', 'can_access_farm', 'can_write_farm')
+    and p.proname not in (
+      'is_admin',
+      'can_access_farm',
+      'can_write_farm',
+      'can_perform_farm_action',
+      'save_log_daily_mobile',
+      'save_log_mortality_mobile',
+      'save_log_weight_mobile'
+    )
     and (
       has_function_privilege('anon', p.oid, 'EXECUTE')
       or has_function_privilege('authenticated', p.oid, 'EXECUTE')
