@@ -14,7 +14,7 @@ import {
   getPlacementDocumentSummaryMap,
   HATCH_TICKET_DOCUMENT_ROLE,
 } from "@/lib/document-archive";
-import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient, getSupabaseAdminKey } from "@/lib/supabase/server";
 
 class AdminDataError extends Error {
   constructor(message: string) {
@@ -250,10 +250,9 @@ async function fetchDashboardWeightSummary(
   logDate: string,
 ): Promise<WeightSummary | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = getSupabaseAdminKey();
 
-  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+  if (!supabaseUrl || !serviceRoleKey) {
     return null;
   }
 
@@ -265,8 +264,7 @@ async function fetchDashboardWeightSummary(
     const response = await fetch(endpoint, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${serviceRoleKey}`,
-        apikey: anonKey,
+        apikey: serviceRoleKey,
       },
       cache: "no-store",
     });
@@ -505,7 +503,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
     throw new AdminDataError(
-      "Admin data could not connect to Supabase. Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in web-admin/.env.",
+      "Admin data could not connect to Supabase. Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY in web-admin/.env.",
     );
   }
 
@@ -1723,7 +1721,7 @@ export async function getActivityLogEntries(
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
     throw new AdminDataError(
-      "Activity log could not connect to Supabase. Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in web-admin/.env.",
+      "Activity log could not connect to Supabase. Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY in web-admin/.env.",
     );
   }
 

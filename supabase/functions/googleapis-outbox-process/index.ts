@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseSecretKey, hasValidSupabaseSecret } from "../_shared/service-key.ts";
 
 import {
   batchClearSheetCells,
@@ -92,10 +93,10 @@ async function readBody(req: Request) {
 
 function getAdminClient() {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const serviceRoleKey = getSupabaseSecretKey();
 
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
+    throw new Error("Missing SUPABASE_URL or Supabase secret key.");
   }
 
   return createClient(supabaseUrl, serviceRoleKey, {
@@ -490,6 +491,10 @@ Deno.serve(async (req) => {
 
   if (req.method !== "POST") {
     return json(req, { ok: false, error: "Method not allowed" }, 405);
+  }
+
+  if (!hasValidSupabaseSecret(req)) {
+    return json(req, { ok: false, error: "Unauthorized" }, 401);
   }
 
   try {

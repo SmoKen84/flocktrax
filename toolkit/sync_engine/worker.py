@@ -50,21 +50,18 @@ class ColumnMapRow:
 class SupabaseRestClient:
     def __init__(self) -> None:
         url = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        key = os.getenv("SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         if not url or not key:
             raise RuntimeError(
-                "SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set."
+                "SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY must be set."
             )
 
         self.base_url = url.rstrip("/")
         self.session = requests.Session()
-        self.session.headers.update(
-            {
-                "apikey": key,
-                "Authorization": f"Bearer {key}",
-                "Accept": "application/json",
-            }
-        )
+        headers = {"apikey": key, "Accept": "application/json"}
+        if key.startswith("eyJ"):
+            headers["Authorization"] = f"Bearer {key}"
+        self.session.headers.update(headers)
 
     def rpc(self, function_name: str, payload: dict[str, Any], *, schema: str = "public") -> Any:
         response = self.session.post(

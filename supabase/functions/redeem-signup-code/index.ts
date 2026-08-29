@@ -6,6 +6,7 @@
 // - Caller is authenticated (bearer token). We use auth.uid() equivalent via supabase client.
 // - RLS: farm_memberships should allow inserts/updates by authenticated users to their own user_id, or this function uses service role if needed.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { getSupabaseSecretKey } from "../_shared/service-key.ts";
 function json(res, status = 200) {
   return new Response(JSON.stringify(res), {
     status,
@@ -43,7 +44,7 @@ Deno.serve(async (req)=>{
     const accessToken = authHeader.split(" ")[1];
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const SUPABASE_SERVICE_ROLE_KEY = getSupabaseSecretKey();
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return serverError("Missing SUPABASE_URL or SUPABASE_ANON_KEY");
     // Authed client with the end-user token (RLS context = the user)
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

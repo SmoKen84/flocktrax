@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient, getSupabaseAdminKey } from "@/lib/supabase/server";
 
 function resolveGoogleCredentialsPath() {
   const explicitPath = process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim();
@@ -34,10 +34,9 @@ function resolveGoogleCredentialsPath() {
 
 async function processGoogleSheetsOutboxViaHostedWorker(limit: number): Promise<OutboxActionResult> {
   const supabaseUrl = process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  const serviceRoleKey = getSupabaseAdminKey();
 
-  if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+  if (!supabaseUrl || !serviceRoleKey) {
     return {
       ok: false,
       message: "Results: the hosted worker could not start because the Supabase function environment is incomplete.",
@@ -48,8 +47,7 @@ async function processGoogleSheetsOutboxViaHostedWorker(limit: number): Promise<
     const response = await fetch(`${supabaseUrl}/functions/v1/googleapis-outbox-process`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${serviceRoleKey}`,
-        apikey: anonKey,
+        apikey: serviceRoleKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ limit }),
@@ -785,7 +783,7 @@ export async function processGoogleSheetsOutboxAction(limitInput: number): Promi
   }
 
   const supabaseUrl = process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const serviceRoleKey = getSupabaseAdminKey();
   if (!supabaseUrl || !serviceRoleKey) {
     return hostedResult;
   }
@@ -807,7 +805,7 @@ export async function processGoogleSheetsOutboxAction(limitInput: number): Promi
         ...process.env,
         GOOGLE_APPLICATION_CREDENTIALS: credentialsPath,
         SUPABASE_URL: supabaseUrl,
-        SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey,
+        SUPABASE_SECRET_KEY: serviceRoleKey,
       },
       windowsHide: true,
     });

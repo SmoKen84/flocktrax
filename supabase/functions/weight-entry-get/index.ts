@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseSecretKey, hasValidSupabaseSecret } from "../_shared/service-key.ts";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -46,6 +47,18 @@ function getClient(accessToken: string) {
         Authorization: `Bearer ${accessToken}`,
       },
     },
+    auth: {
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
+
+function getAdminClient() {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  if (!supabaseUrl) throw new Error("Missing SUPABASE_URL env var");
+
+  return createClient(supabaseUrl, getSupabaseSecretKey(), {
     auth: {
       persistSession: false,
       detectSessionInUrl: false,
@@ -131,8 +144,9 @@ Deno.serve(async (req) => {
     return json(req, { ok: false, error: "Method not allowed" }, 405);
   }
 
+  const internalRequest = hasValidSupabaseSecret(req);
   const accessToken = parseAuthHeader(req);
-  if (!accessToken) {
+  if (!internalRequest && !accessToken) {
     return json(req, { ok: false, error: "Missing or invalid Authorization header" }, 401);
   }
 
@@ -145,7 +159,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = getClient(accessToken);
+    const supabase = internalRequest ? getAdminClient() : getClient(accessToken!);
 
     const { data: placementRows, error: placementError } = await supabase
       .from("placements")

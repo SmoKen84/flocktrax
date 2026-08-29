@@ -34,9 +34,17 @@ export async function createSupabaseServerClient() {
   });
 }
 
+export function getSupabaseAdminKey() {
+  return (
+    process.env.SUPABASE_SECRET_KEY?.trim() ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    null
+  );
+}
+
 export function createSupabaseAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = getSupabaseAdminKey();
 
   if (!url || !serviceRoleKey) {
     return null;

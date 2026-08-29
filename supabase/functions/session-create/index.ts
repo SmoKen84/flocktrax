@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as jose from "https://deno.land/x/jose@v4.15.4/index.ts";
+import { getSupabaseSecretKey } from "../_shared/service-key.ts";
 
 const LOCAL_SUPABASE_JWT_SECRET = "super-secret-jwt-token-with-at-least-32-characters-long";
 
@@ -31,8 +32,8 @@ function redactToken(token) {
 }
 function getAdminClient() {
   const url = Deno.env.get("SUPABASE_URL");
-  const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!url || !serviceRole) throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY secrets");
+  const serviceRole = getSupabaseSecretKey();
+  if (!url || !serviceRole) throw new Error("Missing SUPABASE_URL or Supabase secret key");
   return createClient(url, serviceRole, {
     auth: {
       persistSession: false

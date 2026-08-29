@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabaseSecretKey } from "./service-key.ts";
 
 export type IssueEntityType = "barn" | "placement";
 
@@ -68,10 +69,10 @@ const PLACEMENT_ISSUE_TYPES: IssueType[] = [
 
 export function getServiceClient() {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const serviceRoleKey = getSupabaseSecretKey();
 
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars");
+    throw new Error("Missing SUPABASE_URL or Supabase secret key env vars");
   }
 
   return createClient(supabaseUrl, serviceRoleKey, {

@@ -7,13 +7,15 @@ param(
 
   [string]$ProjectRef = "frneaccbbrijpolcesjm",
 
-  [string]$ServiceRoleKey = $env:SUPABASE_SERVICE_ROLE_KEY
+  [string]$ServiceRoleKey = $(
+    if ($env:SUPABASE_SECRET_KEY) { $env:SUPABASE_SECRET_KEY } else { $env:SUPABASE_SERVICE_ROLE_KEY }
+  )
 )
 
 $ErrorActionPreference = "Stop"
 
 if ([string]::IsNullOrWhiteSpace($ServiceRoleKey)) {
-  throw "SUPABASE_SERVICE_ROLE_KEY is required. Pass -ServiceRoleKey or set the environment variable first."
+  throw "SUPABASE_SECRET_KEY is required. Pass -ServiceRoleKey or set the environment variable first."
 }
 
 if ([string]::IsNullOrWhiteSpace($Email)) {
@@ -27,8 +29,10 @@ if ([string]::IsNullOrWhiteSpace($NewPassword)) {
 $baseUrl = "https://$ProjectRef.supabase.co"
 $headers = @{
   apikey        = $ServiceRoleKey
-  Authorization = "Bearer $ServiceRoleKey"
   "Content-Type" = "application/json"
+}
+if ($ServiceRoleKey.StartsWith("eyJ", [StringComparison]::Ordinal)) {
+  $headers.Authorization = "Bearer $ServiceRoleKey"
 }
 
 Write-Host "Looking up user for $Email in project $ProjectRef..."
