@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
-import { getSupabaseSecretKey } from "../_shared/service-key.ts";
+import { getSupabasePublishableKey, getSupabaseSecretKey } from "../_shared/service-key.ts";
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -36,7 +36,7 @@ function parseBearerToken(req: Request) {
 
 function getUserClient(accessToken: string) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const supabaseAnonKey = getSupabasePublishableKey();
 
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY env vars");

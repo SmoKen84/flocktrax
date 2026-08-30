@@ -11,7 +11,7 @@ Initial Expo scaffold for the FlockTrax replacement UI.
 ## Setup
 
 1. Copy `.env.example` to `.env`
-2. Fill in `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+2. Fill in `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 3. Install dependencies with `npm install`
 4. Start the app with `npm run start`
 

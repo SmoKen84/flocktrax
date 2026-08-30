@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  createSupabaseAdminClient,
+  createSupabaseServerClient,
+  getSupabasePublicKey,
+} from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -731,7 +735,7 @@ async function callFeedTicketFunction(path: string, init: RequestInit) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  const anonKey = getSupabasePublicKey() ?? "";
   const headers = new Headers(init.headers ?? {});
   headers.set("Authorization", `Bearer ${accessToken}`);
   headers.set("Content-Type", "application/json");

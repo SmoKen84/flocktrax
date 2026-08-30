@@ -1,5 +1,6 @@
 // supabase/functions/login/index.ts
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getSupabasePublishableKey } from "../_shared/service-key.ts";
 Deno.serve(async (req)=>{
   // CORS (Adalo will hit this from apps.adalo.com / preview domains)
   if (req.method === "OPTIONS") {
@@ -10,7 +11,7 @@ Deno.serve(async (req)=>{
   try {
     const { email, password } = await req.json();
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const anonKey = getSupabasePublishableKey();
     const supabase = createClient(supabaseUrl, anonKey);
     const { data, error } = await supabase.auth.signInWithPassword({
       email,

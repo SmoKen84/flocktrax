@@ -1,3 +1,5 @@
+import { getSupabasePublishableKey } from "../_shared/service-key.ts";
+
 console.info('auth_verify_refresh started');
 Deno.serve(async (req)=>{
   try {
@@ -29,7 +31,7 @@ Deno.serve(async (req)=>{
     const tokenRes = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
-        'apikey': Deno.env.get('SUPABASE_ANON_KEY') || '',
+        'apikey': getSupabasePublishableKey(),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -62,7 +64,7 @@ Deno.serve(async (req)=>{
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${access_token}`,
-          'apikey': Deno.env.get('SUPABASE_ANON_KEY') || '',
+          'apikey': getSupabasePublishableKey(),
           'Accept': 'application/json'
         }
       });

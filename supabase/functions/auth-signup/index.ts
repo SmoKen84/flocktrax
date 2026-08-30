@@ -3,9 +3,9 @@
 // Route: POST /auth-signup
 // Creates a Supabase Auth user, validates a signup code, associates farm & role, and returns session
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
-import { getSupabaseSecretKey } from "../_shared/service-key.ts";
+import { getSupabasePublishableKey, getSupabaseSecretKey } from "../_shared/service-key.ts";
 const url = Deno.env.get('SUPABASE_URL');
-const anon = Deno.env.get('SUPABASE_ANON_KEY');
+const anon = getSupabasePublishableKey();
 const service = getSupabaseSecretKey();
 const publicClient = createClient(url, anon, {
   auth: {

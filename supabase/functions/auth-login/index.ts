@@ -4,6 +4,7 @@
 // - Environment vars SUPABASE_URL and SUPABASE_ANON_KEY are available automatically
 // - Route is /auth-login (function name prefix is handled by platform)
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { getSupabasePublishableKey } from "../_shared/service-key.ts";
 console.info("auth-login function started");
 function badRequest(message, detail) {
   return new Response(JSON.stringify({
@@ -85,7 +86,7 @@ Deno.serve({
   // Basic normalization
   email = email.trim();
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-  const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+  const SUPABASE_ANON_KEY = getSupabasePublishableKey();
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     console.error("Missing Supabase envs");
     return serverError("missing_environment", {

@@ -1,3 +1,5 @@
+import { getSupabasePublishableKey } from "../_shared/service-key.ts";
+
 console.info('auth_logout started');
 Deno.serve(async (req)=>{
   // Expect Authorization: Bearer <access_token>
@@ -20,7 +22,7 @@ Deno.serve(async (req)=>{
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
-      'apikey': Deno.env.get('SUPABASE_ANON_KEY') || '',
+      'apikey': getSupabasePublishableKey(),
       'Content-Type': 'application/json'
     }
   });

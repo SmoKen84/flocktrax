@@ -170,6 +170,24 @@ function Test-NewKeyCompatibilityMarkers {
   "Web admin, Edge Functions, and sync worker contain new-key compatibility paths."
 }
 
+function Test-PublishableKeyCompatibilityMarkers {
+  $serverSource = [IO.File]::ReadAllText((Join-Path $repoRoot "web-admin\lib\supabase\server.ts"))
+  $browserSource = [IO.File]::ReadAllText((Join-Path $repoRoot "web-admin\lib\supabase\browser.ts"))
+  $mobileSource = [IO.File]::ReadAllText((Join-Path $repoRoot "mobile\src\api\config.ts"))
+  $edgeKeySource = [IO.File]::ReadAllText((Join-Path $repoRoot "supabase\functions\_shared\service-key.ts"))
+
+  $missing = [System.Collections.Generic.List[string]]::new()
+  if ($serverSource -notmatch 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') { $missing.Add("web server") }
+  if ($browserSource -notmatch 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') { $missing.Add("web browser client") }
+  if ($mobileSource -notmatch 'EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY') { $missing.Add("mobile") }
+  if ($edgeKeySource -notmatch 'SUPABASE_PUBLISHABLE_KEYS') { $missing.Add("Edge Functions") }
+
+  if ($missing.Count -gt 0) {
+    throw "Publishable-key compatibility has not been implemented for: $($missing -join ', ')."
+  }
+  "Web, mobile, and Edge Functions contain publishable-key compatibility paths."
+}
+
 function Assert-SupabaseUrl {
   if ([string]::IsNullOrWhiteSpace($SupabaseUrl)) {
     throw "FLOCKTRAX_SUPABASE_URL is required for production probes."
@@ -247,6 +265,7 @@ Invoke-Check -Name "Client secret-reference scan" -Check { Test-NoClientSecretRe
 
 if ($Stage -in @("Cutover", "Revoked")) {
   Invoke-Check -Name "New Supabase key compatibility" -Check { Test-NewKeyCompatibilityMarkers }
+  Invoke-Check -Name "Publishable-key compatibility" -Check { Test-PublishableKeyCompatibilityMarkers }
 }
 
 if (-not $SkipLocalChecks) {

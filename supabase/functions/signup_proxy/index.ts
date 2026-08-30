@@ -1,8 +1,9 @@
 // Signup proxy with multi-encoding support (JSON, form-urlencoded, multipart) + headers & query params fallback
 // Enable diagnostics with ?debug=1. Avoids logging sensitive data; now includes a bounded echo of the received password with endmarks for troubleshooting.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { getSupabasePublishableKey } from "../_shared/service-key.ts";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+const SUPABASE_ANON_KEY = getSupabasePublishableKey();
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: false,

@@ -21,6 +21,7 @@
 
 
 import { createClient } from "npm:@supabase/supabase-js@2.44.4";
+import { getSupabasePublishableKey } from "../_shared/service-key.ts";
 
 console.log("start");
 
@@ -30,7 +31,9 @@ console.log("have_token", !!accessToken);
 
 console.log("envs", {
   has_url: !!Deno.env.get("SUPABASE_URL"),
-  has_key: !!Deno.env.get("SUPABASE_ANON_KEY")
+  has_key: (() => {
+    try { return !!getSupabasePublishableKey(); } catch { return false; }
+  })()
 });
 
 const supabase = getSupabaseClient(accessToken);
@@ -49,7 +52,7 @@ function jsonResponse(body, init = {}) {
 
 function getSupabaseClient(accessToken) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const supabaseAnonKey = getSupabasePublishableKey();
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY env vars");
   }

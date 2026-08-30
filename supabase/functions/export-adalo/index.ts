@@ -6,6 +6,7 @@
 // - No external deps; uses Web APIs, Deno, and @supabase/supabase-js
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { ZipWriter } from "jsr:@zip-js/zip-js@2.7.48"; // ESM, Deno-compatible
+import { getSupabasePublishableKey } from "../_shared/service-key.ts";
 // Minimal CSV escaper
 function toCSV(rows) {
     if (!rows || rows.length === 0)
@@ -100,7 +101,7 @@ Deno.serve(async(req) => {
         }
         // Auth: allow anon key for read-only export; require a Bearer token to respect RLS
         const authHeader = req.headers.get('Authorization') || '';
-        const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_ANON_KEY'), {
+        const supabase = createClient(Deno.env.get('SUPABASE_URL'), getSupabasePublishableKey(), {
             global: {
                 headers: authHeader ? {
                     Authorization: authHeader

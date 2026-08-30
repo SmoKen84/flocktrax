@@ -54,6 +54,25 @@ pwsh -File .\toolkit\Test-FlockTraxRelease1.ps1 `
   -Stage Revoked -RunProductionProbes -RequireAuthenticatedProbe
 ```
 
+Use the hosted wrapper to pull the non-sensitive production configuration into
+a uniquely named temporary file, run the gate, and delete the file in a
+`finally` block:
+
+```powershell
+pwsh -File .\toolkit\Invoke-FlockTraxRelease1HostedGate.ps1 `
+  -Stage Cutover -PromptForSecret
+pwsh -File .\toolkit\Invoke-FlockTraxRelease1HostedGate.ps1 `
+  -Stage Revoked -PromptForSecret
+```
+
+Sensitive Vercel variables cannot be exported after creation. The masked prompt
+keeps the key only in the verification process memory:
+
+```powershell
+pwsh -File .\toolkit\Invoke-FlockTraxRelease1HostedGate.ps1 `
+  -Stage Cutover -PromptForSecret
+```
+
 After testing, clear the temporary values from the current shell:
 
 ```powershell
