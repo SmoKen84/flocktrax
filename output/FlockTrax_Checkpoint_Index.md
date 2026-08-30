@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-08-28`
+Updated: `2026-08-29`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### August 2026
+
+- `2026-08-29`
+  - [FlockTrax_Release1_Permissions_Credential_Cutover_And_iOS_1_0_7_TestFlight_Checkpoint_2026-08-29.md](C:\dev\FlockTrax\output\FlockTrax_Release1_Permissions_Credential_Cutover_And_iOS_1_0_7_TestFlight_Checkpoint_2026-08-29.md)
+  - authoritative Release 1 security and mobile-cutover checkpoint covering P0 database authorization, Dana's post-P0 mobile RLS incident and repairs, manager-role normalization, replacement Supabase secret and publishable-key compatibility, production web deployment `dpl_bvKwdZJVbcFGuGk62kKdmiNBkHwt`, 29 Edge Function deployments, automated verification results, iOS `1.0.7 (20)` build `abb465df-31bf-4e0e-a685-afbad94bfe21`, TestFlight submission and `Waiting for Review` state, hosted `platform.control` synchronization, remaining coupled legacy-key exposure, the required worker permission matrix, and exact revocation/resume guidance
 
 - `2026-08-28`
   - [FlockTrax_P0_Database_Authorization_Production_Checkpoint_2026-08-28.md](C:\dev\FlockTrax\output\FlockTrax_P0_Database_Authorization_Production_Checkpoint_2026-08-28.md)
