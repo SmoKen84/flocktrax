@@ -217,9 +217,7 @@ export async function getFeedProjectionReportData(options: {
           .in("barn_id", uniqueBarnIds)
           .is("placement_id", null)
       : Promise.resolve({ data: [], error: null }),
-    includeBinSentryOnOrder
-      ? fetchBinSentryScheduledOrdersSafe(supabase, uniqueBarnIds, windowEnd)
-      : Promise.resolve(emptyBinSentryScheduledOrders()),
+    fetchBinSentryScheduledOrdersSafe(supabase, uniqueBarnIds, windowEnd),
   ]);
 
   if (placementOrdersResult.error || barnOrdersResult.error) {
@@ -290,7 +288,9 @@ export async function getFeedProjectionReportData(options: {
         liveHaulEvents: liveHaulEventsByPlacementId.get(placement.placementId) ?? [],
         feedOrdersForPlacement: feedOrdersByPlacementId.get(placement.placementId) ?? null,
         feedOrdersForBarn: feedOrdersByBarnId.get(placement.barnId) ?? null,
-        binSentryOrdersForBarn: binsentryScheduledOrders.byBarnId.get(placement.barnId) ?? null,
+        binSentryOrdersForBarn: includeBinSentryOnOrder
+          ? binsentryScheduledOrders.byBarnId.get(placement.barnId) ?? null
+          : null,
         reportMode,
       }),
     )
