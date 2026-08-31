@@ -35,6 +35,7 @@ type FeedProjectionReportTableProps = {
     starterOnOrderLbs: number | null | undefined;
     growerOnOrderLbs: number | null | undefined;
     starterRecommendedLbs: number | null | undefined;
+    starterRecommendationConvertedToGrowerLbs: number;
     growerRecommendedLbs: number | null | undefined;
     orderingMode: "typed" | "legacy" | "pending";
   }>;
@@ -343,17 +344,26 @@ export function FeedProjectionReportTable({
               <div>
                 <span>Starter Gap</span>
                 <strong>{formatWeight(selectedStarterMathRow.starterRecommendedLbs)}</strong>
-                <small>Additional starter still needed for the flock</small>
+                <small>
+                  {selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs > 0
+                    ? `${formatWeight(selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs)} was moved to Grower because flock age plus the 5-day order lead exceeds 21 days.`
+                    : "Additional starter still needed for the flock"}
+                </small>
               </div>
             </div>
             <div className="feed-projection-report-math-formula">
               <span>Formula</span>
               <strong>
                 {formatWeight(selectedStarterMathRow.starterTotalLbs)} - {formatWeight(selectedStarterMathRow.starterRecognizedSupplyLbs)} -{" "}
-                {formatWeight(selectedStarterMathRow.starterOnOrderLbs)} = {formatWeight(selectedStarterMathRow.starterRecommendedLbs)}
+                {formatWeight(selectedStarterMathRow.starterOnOrderLbs)} ={" "}
+                {selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs > 0
+                  ? `${formatWeight(selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs)} → Grower`
+                  : formatWeight(selectedStarterMathRow.starterRecommendedLbs)}
               </strong>
               <small>
-                Recognized supply is the greater of recorded Starter deliveries or accessible Starter on hand, preventing either source from being ignored or counted twice.
+                {selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs > 0
+                  ? `The calculated Starter gap was ${formatWeight(selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs)}; it is reported as Grower under the 21-day age rule.`
+                  : "Recognized supply is the greater of recorded Starter deliveries or accessible Starter on hand, preventing either source from being ignored or counted twice."}
               </small>
             </div>
             <div className="feed-projection-report-math-formula">

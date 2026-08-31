@@ -56,6 +56,8 @@ type SirenEntity = {
 };
 
 const PENDING_BINSENTRY_ORDER_STATES = new Set(["ready", "scheduled", "not-delivered"]);
+const STARTER_FEED_MAX_AGE_DAYS = 21;
+const FEED_ORDER_LEAD_DAYS = 5;
 
 export type FeedProjectionReportRow = {
   id: string;
@@ -89,6 +91,7 @@ export type FeedProjectionReportRow = {
   starterOnOrderLbs: number | null | undefined;
   growerOnOrderLbs: number | null | undefined;
   starterRecommendedLbs: number | null | undefined;
+  starterRecommendationConvertedToGrowerLbs: number;
   growerRecommendedLbs: number | null | undefined;
   orderingMode: "typed" | "legacy" | "pending";
 };
@@ -420,7 +423,7 @@ function toReportRow({
       ),
     ),
   );
-  const starterRecommendedLbs = Math.max(
+  const calculatedStarterRecommendedLbs = Math.max(
     0,
     Math.round(
       (placement.starterTargetLbs ?? 0) -
@@ -428,7 +431,17 @@ function toReportRow({
         allOpenStarterOnOrderLbs,
     ),
   );
-  const growerRecommendedLbs = typedRecommendation?.growerRecommendedLbs ?? null;
+  const starterRecommendationConvertedToGrowerLbs =
+    placement.ageDays !== null &&
+    placement.ageDays + FEED_ORDER_LEAD_DAYS > STARTER_FEED_MAX_AGE_DAYS
+      ? calculatedStarterRecommendedLbs
+      : 0;
+  const starterRecommendedLbs =
+    starterRecommendationConvertedToGrowerLbs > 0 ? 0 : calculatedStarterRecommendedLbs;
+  const growerRecommendedLbs =
+    starterRecommendationConvertedToGrowerLbs > 0
+      ? (typedRecommendation?.growerRecommendedLbs ?? 0) + starterRecommendationConvertedToGrowerLbs
+      : typedRecommendation?.growerRecommendedLbs ?? null;
   const typedRecommendedTotal =
     starterRecommendedLbs !== null && growerRecommendedLbs !== null
       ? starterRecommendedLbs + growerRecommendedLbs
@@ -490,6 +503,7 @@ function toReportRow({
     starterOnOrderLbs: allOpenStarterOnOrderLbs,
     growerOnOrderLbs: windowGrowerOnOrderLbs,
     starterRecommendedLbs,
+    starterRecommendationConvertedToGrowerLbs,
     growerRecommendedLbs,
     orderingMode,
   };
