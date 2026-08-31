@@ -841,7 +841,7 @@ async function fetchBinSentryScheduledOrdersSafe(
         orders.push({
           id: `binsentry:${orderKey ?? `${barnId}:${deliveryDate ?? "undated"}:${orders.length}`}`,
           barnId,
-          status,
+          status: state,
           deliveryDate,
           feedType,
           feedName: feedMeta?.feedName ?? null,
@@ -884,7 +884,11 @@ async function fetchBinSentryScheduledOrdersSafe(
     }
 
     return { byBarnId: bucketByBarnId, orders };
-  } catch {
+  } catch (caught) {
+    console.error(
+      "Feed projection BinSentry scheduled-order lookup failed.",
+      caught instanceof Error ? caught.message : caught,
+    );
     return emptyBinSentryScheduledOrders();
   }
 }
