@@ -283,6 +283,9 @@ function filterPlacementsForFeedProjection({
   reportMode: "operational" | "planning";
   windowDays: number;
 }) {
+  const windowStart = isoDate(new Date());
+  const windowEnd = addDays(windowStart, Math.max(0, windowDays - 1));
+
   return placements.filter((placement) => {
     if (farmGroupId && placement.farmGroupId !== farmGroupId) return false;
     if (farmId && placement.farmId !== farmId) return false;
@@ -291,14 +294,13 @@ function filterPlacementsForFeedProjection({
       const haystack = `${placement.placementCode} ${placement.flockCode ?? ""}`.toLowerCase();
       if (!haystack.includes(flockCode.toLowerCase())) return false;
     }
-    if (
-      reportMode === "operational" &&
-      !placementOverlapsOperationalWindow({
-        placement,
-        windowStart: isoDate(new Date()),
-        windowEnd: addDays(isoDate(new Date()), windowDays),
-      })
-    ) {
+    if (!placementBelongsInProjectionWindow({
+      placement,
+      windowStart,
+      windowEnd,
+      includeScheduled: reportMode === "planning",
+      includeInventoryOnly: reportMode === "planning",
+    })) {
       return false;
     }
     return true;
@@ -773,17 +775,26 @@ function clampWindowDays(value: number) {
   return Math.min(45, Math.max(1, Math.round(value)));
 }
 
-function placementOverlapsOperationalWindow({
+function placementBelongsInProjectionWindow({
   placement,
   windowStart,
   windowEnd,
+  includeScheduled,
+  includeInventoryOnly,
 }: {
   placement: ActivePlacementRecord;
   windowStart: string;
   windowEnd: string;
+  includeScheduled: boolean;
+  includeInventoryOnly: boolean;
 }) {
   if (placement.lifecycleStage === "scheduled") {
-    return false;
+    const placedDate = normalizeOptionalText(placement.placedDate);
+    return includeScheduled && placedDate !== null && placedDate >= windowStart && placedDate <= windowEnd;
+  }
+
+  if (placement.tileState === "empty" || !normalizeOptionalId(placement.placementId)) {
+    return includeInventoryOnly;
   }
 
   const placedDate = normalizeOptionalText(placement.placedDate);
