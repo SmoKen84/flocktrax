@@ -37,6 +37,8 @@ export default async function CloseoutQueueReportPage({ searchParams }: Closeout
   const returnTo = firstParam(params.returnTo) === "closeout" ? "closeout" : "reports";
   const report = await getCloseoutQueueReportData(actor, filters);
   const closeHref = returnTo === "closeout" ? "/admin/flock-closeout" : buildReportsHref(report.filters);
+  const farmGroupNames = [...new Set(report.rows.map((row) => row.farmGroupName).filter(Boolean))];
+  const farmGroupLabel = farmGroupNames.length > 0 ? farmGroupNames.join(", ") : "No matching farm group";
 
   return (
     <div className="closeout-queue-report-page">
@@ -63,6 +65,7 @@ export default async function CloseoutQueueReportPage({ searchParams }: Closeout
         </div>
 
         <div className="closeout-queue-report-meta">
+          <div><span>Farm Group</span><strong>{farmGroupLabel}</strong></div>
           <div><span>Date Range</span><strong>{formatRange(report.filters.startDate, report.filters.endDate)}</strong></div>
           <div><span>Sort</span><strong>{formatSort(report.filters.sortOrder)}</strong></div>
           <div><span>Generated</span><strong>{formatTimestamp(new Date())}</strong></div>
@@ -73,7 +76,6 @@ export default async function CloseoutQueueReportPage({ searchParams }: Closeout
             <thead>
               <tr>
                 <th>Removed</th>
-                <th>Farm Group</th>
                 <th>Farm</th>
                 <th>Barn</th>
                 <th className="closeout-queue-report-flock">Flock</th>
@@ -91,7 +93,6 @@ export default async function CloseoutQueueReportPage({ searchParams }: Closeout
               {report.rows.length > 0 ? report.rows.map((row) => (
                 <tr key={row.placementId}>
                   <td>{formatDate(row.removedDate)}</td>
-                  <td>{row.farmGroupName}</td>
                   <td>{row.farmName}</td>
                   <td>{row.barnCode}</td>
                   <td className="closeout-queue-report-flock">
@@ -109,7 +110,7 @@ export default async function CloseoutQueueReportPage({ searchParams }: Closeout
                   <td>{renderMilestone(row.queueTasks.settlementReceived)}</td>
                 </tr>
               )) : (
-                <tr><td className="closeout-queue-report-empty" colSpan={13}>No closeout queue placements match the selected filters.</td></tr>
+                <tr><td className="closeout-queue-report-empty" colSpan={12}>No closeout queue placements match the selected filters.</td></tr>
               )}
             </tbody>
           </table>
