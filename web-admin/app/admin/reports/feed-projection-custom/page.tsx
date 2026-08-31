@@ -116,6 +116,7 @@ export default async function FeedProjectionCustomReportPage({
           windowDates={report.windowDates}
           windowLabel={`${report.windowDays} Day`}
           reportMode="planning"
+          onOrderRows={report.onOrderRows}
           emptyMessage={`No live or qualifying scheduled placements were found for the next ${report.windowDays} day window.`}
         />
       </section>

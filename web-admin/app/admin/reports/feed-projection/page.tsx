@@ -112,6 +112,7 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
           windowDates={report.windowDates}
           windowLabel="10 Day"
           reportMode="operational"
+          onOrderRows={report.onOrderRows}
           emptyMessage="No live or qualifying scheduled placements were found for the next 10 day window."
         />
       </section>

@@ -11683,6 +11683,26 @@ tr:last-child td {
     border-color: rgba(0, 0, 0, 0.16) !important;
   }
 
+  .feed-projection-on-order-section {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .feed-projection-on-order-table-wrap {
+    overflow: visible !important;
+    border-radius: 0 !important;
+  }
+
+  .feed-projection-on-order-table {
+    min-width: 0 !important;
+    font-size: 7pt !important;
+  }
+
+  .feed-projection-on-order-table th,
+  .feed-projection-on-order-table td {
+    padding: 0.2rem 0.24rem !important;
+  }
+
   .closeout-report-section--header {
     break-after: page;
     page-break-after: always;
@@ -14445,6 +14465,92 @@ tr:last-child td {
   gap: 0.7rem;
 }
 
+.feed-projection-on-order-section {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--line);
+}
+
+.feed-projection-on-order-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.feed-projection-on-order-header span,
+.feed-projection-on-order-total span {
+  color: var(--muted-ink);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.feed-projection-on-order-header h2 {
+  margin: 0.1rem 0 0;
+  color: var(--ink-strong);
+  font-size: 1.25rem;
+}
+
+.feed-projection-on-order-header p {
+  max-width: 760px;
+  margin: 0.25rem 0 0;
+  color: var(--muted-ink);
+  font-size: 0.82rem;
+}
+
+.feed-projection-on-order-total {
+  display: grid;
+  min-width: 150px;
+  text-align: right;
+}
+
+.feed-projection-on-order-total strong {
+  color: var(--ink-strong);
+  font-size: 1.2rem;
+}
+
+.feed-projection-on-order-total small {
+  color: var(--muted-ink);
+}
+
+.feed-projection-on-order-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel-strong);
+}
+
+.feed-projection-on-order-table {
+  width: 100%;
+  min-width: 1100px;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+}
+
+.feed-projection-on-order-table th,
+.feed-projection-on-order-table td {
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.feed-projection-on-order-table th {
+  color: var(--muted-ink);
+  background: var(--panel-muted);
+  font-size: 0.66rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.feed-projection-on-order-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
 .feed-projection-report-table-toolbar {
   display: flex;
   align-items: center;
@@ -15971,6 +16077,15 @@ tr:last-child td {
 @media (max-width: 760px) {
   .feed-projection-report-math-grid {
     grid-template-columns: 1fr;
+  }
+
+  .feed-projection-on-order-header {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .feed-projection-on-order-total {
+    text-align: left;
   }
 }
 

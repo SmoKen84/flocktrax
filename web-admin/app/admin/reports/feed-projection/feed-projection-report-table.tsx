@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import type { FeedProjectionOnOrderRow } from "@/lib/feed-projection-report-data";
+
 type FeedProjectionReportTableProps = {
   rows: Array<{
     id: string;
@@ -43,6 +45,7 @@ type FeedProjectionReportTableProps = {
   windowLabel?: string;
   emptyMessage?: string;
   reportMode?: "operational" | "planning";
+  onOrderRows: FeedProjectionOnOrderRow[];
 };
 
 export function FeedProjectionReportTable({
@@ -51,6 +54,7 @@ export function FeedProjectionReportTable({
   windowLabel = "10 Day",
   emptyMessage = "No live or qualifying scheduled placements were found for the next 10 day window.",
   reportMode = "operational",
+  onOrderRows,
 }: FeedProjectionReportTableProps) {
   const [showDailyBreakdown, setShowDailyBreakdown] = useState(false);
   const [showFeedDetail, setShowFeedDetail] = useState(false);
@@ -298,6 +302,7 @@ export function FeedProjectionReportTable({
         </tbody>
       </table>
       </div>
+      <FeedOnOrderSection rows={onOrderRows} />
       {selectedStarterMathRow ? (
         <div className="feed-projection-report-math-modal-shell" role="dialog" aria-modal="true" aria-labelledby="starter-obligation-math-title">
           <button
@@ -375,6 +380,82 @@ export function FeedProjectionReportTable({
       ) : null}
     </div>
   );
+}
+
+function FeedOnOrderSection({ rows }: { rows: FeedProjectionOnOrderRow[] }) {
+  const totalRemainingLbs = rows.reduce((sum, row) => sum + row.remainingLbs, 0);
+
+  return (
+    <section className="feed-projection-on-order-section">
+      <div className="feed-projection-on-order-header">
+        <div>
+          <span>Open Commitments</span>
+          <h2>Feed On Order</h2>
+          <p>All remaining open and partially received feed orders in the selected report scope, including orders due after the projection window.</p>
+        </div>
+        <div className="feed-projection-on-order-total">
+          <span>Total Remaining</span>
+          <strong>{formatWeight(totalRemainingLbs)}</strong>
+          <small>{rows.length} {rows.length === 1 ? "order" : "orders"}</small>
+        </div>
+      </div>
+      <div className="feed-projection-on-order-table-wrap">
+        <table className="feed-projection-on-order-table">
+          <thead>
+            <tr>
+              <th>Delivery</th>
+              <th>Farm</th>
+              <th>Barn</th>
+              <th>Flock</th>
+              <th>Feed</th>
+              <th>Source</th>
+              <th>Status</th>
+              <th className="feed-projection-report-number-col">Ordered</th>
+              <th className="feed-projection-report-number-col">Received</th>
+              <th className="feed-projection-report-number-col">Remaining</th>
+              <th>Reference</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length > 0 ? (
+              rows.map((row) => (
+                <tr key={row.id}>
+                  <td>{formatOrderDate(row.deliveryDate)}</td>
+                  <td>{row.farmName}</td>
+                  <td>{row.barnCode}</td>
+                  <td>{row.placementCode ?? "—"}</td>
+                  <td>{formatFeedDescription(row.feedType, row.feedName)}</td>
+                  <td>{row.source}</td>
+                  <td>{row.status}</td>
+                  <td className="feed-projection-report-number-col">{formatWeight(row.orderedLbs)}</td>
+                  <td className="feed-projection-report-number-col">{formatWeight(row.receivedLbs)}</td>
+                  <td className="feed-projection-report-number-col"><strong>{formatWeight(row.remainingLbs)}</strong></td>
+                  <td>{row.externalOrderRef ?? "—"}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td className="feed-projection-report-empty" colSpan={11}>No feed is currently on order in this report scope.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function formatOrderDate(value: string | null) {
+  if (!value) return "Not scheduled";
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
+}
+
+function formatFeedDescription(feedType: string | null, feedName: string | null) {
+  const type = feedType ? feedType.charAt(0).toUpperCase() + feedType.slice(1) : null;
+  if (type && feedName && feedName.toLowerCase() !== feedType?.toLowerCase()) return `${type} · ${feedName}`;
+  return type ?? feedName ?? "Unspecified";
 }
 
 function formatMonthDay(value: string) {
