@@ -406,6 +406,7 @@ function FeedOnOrderSection({ rows }: { rows: FeedProjectionOnOrderRow[] }) {
               <th>Delivery</th>
               <th>Farm</th>
               <th>Barn</th>
+              <th>Bin</th>
               <th>Flock</th>
               <th>Feed</th>
               <th>Source</th>
@@ -423,6 +424,7 @@ function FeedOnOrderSection({ rows }: { rows: FeedProjectionOnOrderRow[] }) {
                   <td>{formatOrderDate(row.deliveryDate)}</td>
                   <td>{row.farmName}</td>
                   <td>{row.barnCode}</td>
+                  <td>{row.binNumber ?? "—"}</td>
                   <td>{row.placementCode ?? "—"}</td>
                   <td>{formatFeedDescription(row.feedType, row.feedName)}</td>
                   <td>{row.source}</td>
@@ -435,7 +437,7 @@ function FeedOnOrderSection({ rows }: { rows: FeedProjectionOnOrderRow[] }) {
               ))
             ) : (
               <tr>
-                <td className="feed-projection-report-empty" colSpan={11}>No feed is currently on order in this report scope.</td>
+                <td className="feed-projection-report-empty" colSpan={12}>No feed is currently on order in this report scope.</td>
               </tr>
             )}
           </tbody>

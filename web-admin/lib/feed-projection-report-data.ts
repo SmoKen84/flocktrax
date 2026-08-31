@@ -28,6 +28,7 @@ type FeedOrderCommitmentRow = {
   farm_id: string | null;
   placement_id: string | null;
   barn_id: string | null;
+  feed_bin_id: string | null;
   source: string | null;
   status: string | null;
   ordered_lbs: number | null;
@@ -50,13 +51,21 @@ type FeedOrderWindowBucket = {
 };
 
 type FeedBinMappingRow = {
+  id: string;
   barn_id: string | null;
+  bin_num: string | number | null;
   binsentry_bin_ref: string | null;
+};
+
+type FeedBinNumberRow = {
+  id: string;
+  bin_num: string | number | null;
 };
 
 type BinSentryOnOrderRecord = {
   id: string;
   barnId: string;
+  binNumber: string | null;
   status: string;
   deliveryDate: string | null;
   feedType: string | null;
@@ -70,6 +79,7 @@ export type FeedProjectionOnOrderRow = {
   source: string;
   farmName: string;
   barnCode: string;
+  binNumber: string | null;
   placementCode: string | null;
   feedType: string | null;
   feedName: string | null;
@@ -201,29 +211,33 @@ export async function getFeedProjectionReportData(options: {
     new Set(filteredPlacements.map((placement) => placement.placementId).filter(Boolean)),
   );
 
-  const [placementOrdersResult, barnOrdersResult, binsentryScheduledOrders] = await Promise.all([
+  const [placementOrdersResult, barnOrdersResult, feedBinNumbersResult, binsentryScheduledOrders] = await Promise.all([
     uniquePlacementIds.length > 0
       ? supabase
           .from("feed_order_commitments")
-          .select("commitment_id,farm_id,placement_id,barn_id,source,status,ordered_lbs,received_lbs,expected_delivery_date,feed_type,feed_name,external_order_ref")
+          .select("commitment_id,farm_id,placement_id,barn_id,feed_bin_id,source,status,ordered_lbs,received_lbs,expected_delivery_date,feed_type,feed_name,external_order_ref")
           .in("status", ["open", "partial"])
           .in("placement_id", uniquePlacementIds)
       : Promise.resolve({ data: [], error: null }),
     uniqueBarnIds.length > 0
       ? supabase
           .from("feed_order_commitments")
-          .select("commitment_id,farm_id,placement_id,barn_id,source,status,ordered_lbs,received_lbs,expected_delivery_date,feed_type,feed_name,external_order_ref")
+          .select("commitment_id,farm_id,placement_id,barn_id,feed_bin_id,source,status,ordered_lbs,received_lbs,expected_delivery_date,feed_type,feed_name,external_order_ref")
           .in("status", ["open", "partial"])
           .in("barn_id", uniqueBarnIds)
           .is("placement_id", null)
       : Promise.resolve({ data: [], error: null }),
+    uniqueBarnIds.length > 0
+      ? supabase.from("feedbins").select("id,bin_num").in("barn_id", uniqueBarnIds)
+      : Promise.resolve({ data: [], error: null }),
     fetchBinSentryScheduledOrdersSafe(supabase, uniqueBarnIds, windowEnd),
   ]);
 
-  if (placementOrdersResult.error || barnOrdersResult.error) {
+  if (placementOrdersResult.error || barnOrdersResult.error || feedBinNumbersResult.error) {
     throw new Error(
       placementOrdersResult.error?.message ??
         barnOrdersResult.error?.message ??
+        feedBinNumbersResult.error?.message ??
         "Feed projection order commitments could not be loaded.",
     );
   }
@@ -240,6 +254,9 @@ export async function getFeedProjectionReportData(options: {
   );
   const placementById = new Map(filteredPlacements.map((placement) => [placement.placementId, placement]));
   const placementByBarnId = new Map(filteredPlacements.map((placement) => [placement.barnId, placement]));
+  const feedBinNumberById = new Map(
+    ((feedBinNumbersResult.data ?? []) as FeedBinNumberRow[]).map((row) => [row.id, normalizeOptionalText(String(row.bin_num ?? ""))]),
+  );
   const databaseOnOrderRows = buildDatabaseOnOrderRows({
     rows: [
       ...((placementOrdersResult.data ?? []) as FeedOrderCommitmentRow[]),
@@ -247,6 +264,7 @@ export async function getFeedProjectionReportData(options: {
     ],
     placementById,
     placementByBarnId,
+    feedBinNumberById,
   });
   const binSentryOnOrderRows = buildBinSentryOnOrderRows({
     rows: binsentryScheduledOrders.orders,
@@ -612,10 +630,12 @@ function buildDatabaseOnOrderRows({
   rows,
   placementById,
   placementByBarnId,
+  feedBinNumberById,
 }: {
   rows: FeedOrderCommitmentRow[];
   placementById: Map<string, ActivePlacementRecord>;
   placementByBarnId: Map<string, ActivePlacementRecord>;
+  feedBinNumberById: Map<string, string | null>;
 }) {
   const seenIds = new Set<string>();
   const orders: FeedProjectionOnOrderRow[] = [];
@@ -632,6 +652,7 @@ function buildDatabaseOnOrderRows({
 
     const placementId = normalizeOptionalId(row.placement_id);
     const barnId = normalizeOptionalId(row.barn_id);
+    const feedBinId = normalizeOptionalId(row.feed_bin_id);
     const placement =
       (placementId ? placementById.get(placementId) : null) ??
       (barnId ? placementByBarnId.get(barnId) : null) ??
@@ -642,6 +663,7 @@ function buildDatabaseOnOrderRows({
       source: formatOrderSource(row.source),
       farmName: placement?.farmName ?? "Unknown farm",
       barnCode: placement?.barnCode ?? "Unknown barn",
+      binNumber: feedBinId ? feedBinNumberById.get(feedBinId) ?? null : null,
       placementCode: placementId ? placement?.placementCode ?? null : null,
       feedType: normalizeFeedType(row.feed_type),
       feedName: normalizeOptionalText(row.feed_name),
@@ -671,6 +693,7 @@ function buildBinSentryOnOrderRows({
       source: "BinSentry",
       farmName: placement?.farmName ?? "Unknown farm",
       barnCode: placement?.barnCode ?? "Unknown barn",
+      binNumber: row.binNumber,
       placementCode: null,
       feedType: row.feedType,
       feedName: row.feedName,
@@ -718,7 +741,7 @@ async function fetchBinSentryScheduledOrdersSafe(
 
   const mappingResult = await supabase
     .from("feedbins")
-    .select("barn_id,binsentry_bin_ref")
+    .select("id,barn_id,bin_num,binsentry_bin_ref")
     .in("barn_id", barnIds)
     .not("binsentry_bin_ref", "is", null);
 
@@ -727,18 +750,19 @@ async function fetchBinSentryScheduledOrdersSafe(
   }
 
   const rows = (mappingResult.data ?? []) as FeedBinMappingRow[];
-  const barnIdByBinHref = new Map<string, string>();
+  const binMappingByHref = new Map<string, { barnId: string; binNumber: string | null }>();
   for (const row of rows) {
     const barnId = normalizeOptionalId(row.barn_id);
     const binRef = normalizeOptionalText(row.binsentry_bin_ref);
     if (!barnId || !binRef) continue;
+    const binNumber = normalizeOptionalText(String(row.bin_num ?? ""));
     for (const candidate of [binRef, buildBinSentryEntityUrl(binRef)]) {
       const key = canonicalBinSentryHref(candidate);
-      if (key) barnIdByBinHref.set(key, barnId);
+      if (key) binMappingByHref.set(key, { barnId, binNumber });
     }
   }
 
-  if (barnIdByBinHref.size === 0) {
+  if (binMappingByHref.size === 0) {
     return emptyBinSentryScheduledOrders();
   }
 
@@ -801,8 +825,9 @@ async function fetchBinSentryScheduledOrdersSafe(
         if (orderKey) seenOrders.add(orderKey);
 
         const binHref = findSirenHref(detailedOrder, ["/bin", "bin"]);
-        const barnId = binHref ? barnIdByBinHref.get(canonicalBinSentryHref(binHref)) ?? null : null;
-        if (!barnId) continue;
+        const binMapping = binHref ? binMappingByHref.get(canonicalBinSentryHref(binHref)) ?? null : null;
+        if (!binMapping) continue;
+        const { barnId, binNumber } = binMapping;
 
         const quantity = typeof orderProperties.quantity === "number" && Number.isFinite(orderProperties.quantity)
           ? orderProperties.quantity
@@ -841,6 +866,7 @@ async function fetchBinSentryScheduledOrdersSafe(
         orders.push({
           id: `binsentry:${orderKey ?? `${barnId}:${deliveryDate ?? "undated"}:${orders.length}`}`,
           barnId,
+          binNumber,
           status: state,
           deliveryDate,
           feedType,
