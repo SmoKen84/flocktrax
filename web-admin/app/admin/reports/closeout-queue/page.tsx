@@ -76,7 +76,7 @@ export default async function CloseoutQueueReportPage({ searchParams }: Closeout
                 <th>Farm Group</th>
                 <th>Farm</th>
                 <th>Barn</th>
-                <th>Flock / Placement</th>
+                <th className="closeout-queue-report-flock">Flock</th>
                 <th>Queue Status</th>
                 <th>Current Closeout State</th>
                 <th>Progress</th>
@@ -94,7 +94,7 @@ export default async function CloseoutQueueReportPage({ searchParams }: Closeout
                   <td>{row.farmGroupName}</td>
                   <td>{row.farmName}</td>
                   <td>{row.barnCode}</td>
-                  <td>
+                  <td className="closeout-queue-report-flock">
                     <Link className="closeout-queue-report-placement" href={`/admin/flock-closeout/${row.placementId}`}>
                       {row.placementCode}
                     </Link>
