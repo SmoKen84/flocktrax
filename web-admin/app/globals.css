@@ -11698,8 +11698,11 @@ tr:last-child td {
   }
 
   .feed-projection-on-order-section {
-    break-before: page;
-    page-break-before: always;
+    gap: 0.3rem;
+    margin-top: 0.35rem;
+    padding-top: 0.35rem;
+    break-before: auto;
+    page-break-before: auto;
   }
 
   .feed-projection-on-order-table-wrap {
