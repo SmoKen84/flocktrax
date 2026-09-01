@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-08-29`
+Updated: `2026-08-31`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### August 2026
+
+- `2026-08-31`
+  - [FlockTrax_Admin_Report_Print_And_Feed_Projection_Production_Checkpoint_2026-08-31.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Report_Print_And_Feed_Projection_Production_Checkpoint_2026-08-31.md)
+  - authoritative Admin report production checkpoint covering Closeout Queue portrait printing and header-level Farm Group, the hosted iOS `1.0.7 (20)` display-date correction, strict custom projection-window filtering, the age-plus-five Starter-to-Grower rule, restored all-open Pending Orders with bin numbers, dynamic timeframe titles, automatically expanded and emphasized Starter/Grower print results, same-page Pending Orders output, commits `bfd4e88` through `bec6233`, final Vercel deployment `dpl_AvZmrMupMEETMbPC8sLokg6NzSgW`, verification evidence, preserved dirty-tree boundary, and the carried-forward worker permission/legacy-key revocation plan
 
 - `2026-08-29`
   - [FlockTrax_Release1_Permissions_Credential_Cutover_And_iOS_1_0_7_TestFlight_Checkpoint_2026-08-29.md](C:\dev\FlockTrax\output\FlockTrax_Release1_Permissions_Credential_Cutover_And_iOS_1_0_7_TestFlight_Checkpoint_2026-08-29.md)
@@ -442,6 +446,14 @@ Purpose:
   - production checkpoint covering action-item list/work-order reporting, flock-history action-item print expansion, Vercel deployment `dpl_6Dq8Zrp1XbadeP43ZiktbE3S6uht`, and hosted admin build marker `5.3`
 
 # Latest Checkpoint
+
+- `2026-08-31`
+  - [FlockTrax_Admin_Report_Print_And_Feed_Projection_Production_Checkpoint_2026-08-31.md](C:\dev\FlockTrax\output\FlockTrax_Admin_Report_Print_And_Feed_Projection_Production_Checkpoint_2026-08-31.md)
+  - current Admin production baseline for Closeout Queue portrait output, corrected feed-projection scope and Starter/Grower ordering, restored Pending Orders with bin numbers, timeframe titles, and the automatic detailed print/PDF result presentation shipped in deployment `dpl_AvZmrMupMEETMbPC8sLokg6NzSgW`
+
+- `2026-08-29`
+  - [FlockTrax_Release1_Permissions_Credential_Cutover_And_iOS_1_0_7_TestFlight_Checkpoint_2026-08-29.md](C:\dev\FlockTrax\output\FlockTrax_Release1_Permissions_Credential_Cutover_And_iOS_1_0_7_TestFlight_Checkpoint_2026-08-29.md)
+  - current Release 1 security/mobile baseline for P0 authorization, credential cutover, iOS `1.0.7 (20)`, worker acceptance testing, and eventual legacy-key revocation
 
 - `2026-08-28`
   - [FlockTrax_P0_Database_Authorization_Production_Checkpoint_2026-08-28.md](C:\dev\FlockTrax\output\FlockTrax_P0_Database_Authorization_Production_Checkpoint_2026-08-28.md)
