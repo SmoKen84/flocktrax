@@ -6,13 +6,16 @@ import { FeedProjectionReportTable } from "@/app/admin/reports/feed-projection/f
 import { PageHeader } from "@/components/page-header";
 import { getFeedProjectionReportData } from "@/lib/feed-projection-report-data";
 
-export const metadata: Metadata = {
-  title: "Custom Feed Projection | FlockTrax Admin",
-};
-
 type FeedProjectionCustomReportPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateMetadata({ searchParams }: FeedProjectionCustomReportPageProps): Promise<Metadata> {
+  const params = (await searchParams) ?? {};
+  const requestedDays = Number.parseInt(firstParam(params.days) ?? "14", 10);
+  const windowDays = Number.isFinite(requestedDays) ? Math.min(45, Math.max(1, Math.round(requestedDays))) : 14;
+  return { title: `${windowDays}-Day Feed Projection | FlockTrax Admin` };
+}
 
 export default async function FeedProjectionCustomReportPage({
   searchParams,
@@ -39,8 +42,8 @@ export default async function FeedProjectionCustomReportPage({
     <div className="feed-projection-report-page">
       <PageHeader
         eyebrow="Reports"
-        title="Custom Feed Projection"
-        body="Planning-only matrix view of projected feed demand across a user-selected horizon so you can look past holidays and see where supply may get tight."
+        title={`${report.windowDays}-Day Feed Projection`}
+        body="Future feed prediction analysis adjusted for feed inventory and pending orders."
         actions={
           <>
             <FeedProjectionReportActions />
@@ -70,7 +73,7 @@ export default async function FeedProjectionCustomReportPage({
             <small>All barns, including inventory-only and future-assigned barns</small>
           </article>
           <article className="feed-projection-report-summary-card">
-            <span>{`${report.windowDays} Day Requirement`}</span>
+            <span>{`${report.windowDays}-Day Requirement`}</span>
             <strong>{formatWeight(report.overallTotal)}</strong>
             <small>Summed from daily projected feed values</small>
           </article>

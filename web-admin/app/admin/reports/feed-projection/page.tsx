@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { getFeedProjectionReportData } from "@/lib/feed-projection-report-data";
 
 export const metadata: Metadata = {
-  title: "10 Day Feed Projection | FlockTrax Admin",
+  title: "10-Day Feed Projection | FlockTrax Admin",
 };
 
 type FeedProjectionReportPageProps = {
@@ -36,8 +36,8 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
     <div className="feed-projection-report-page">
       <PageHeader
         eyebrow="Reports"
-        title="10 Day Feed Projection"
-        body="Matrix view of projected daily feed demand, on-hand inventory, and open orders across all barns."
+        title="10-Day Feed Projection"
+        body="Future feed prediction analysis adjusted for feed inventory and pending orders."
         actions={
           <>
             <FeedProjectionReportActions />
@@ -66,7 +66,7 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
             <small>All barns, including inventory-only and future-assigned barns</small>
           </article>
           <article className="feed-projection-report-summary-card">
-            <span>10 Day Requirement</span>
+            <span>10-Day Requirement</span>
             <strong>{formatWeight(report.overallTotal)}</strong>
             <small>Summed from daily projected feed values</small>
           </article>
