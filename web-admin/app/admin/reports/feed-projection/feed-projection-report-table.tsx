@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import type { FeedProjectionOnOrderRow } from "@/lib/feed-projection-report-data";
 
@@ -58,11 +59,50 @@ export function FeedProjectionReportTable({
 }: FeedProjectionReportTableProps) {
   const [showDailyBreakdown, setShowDailyBreakdown] = useState(false);
   const [showFeedDetail, setShowFeedDetail] = useState(false);
+  const showFeedDetailRef = useRef(showFeedDetail);
   const [selectedStarterMathRowId, setSelectedStarterMathRowId] = useState<string | null>(null);
   const toggleDailyBreakdown = () => setShowDailyBreakdown((current) => !current);
   const toggleFeedDetail = () => setShowFeedDetail((current) => !current);
   const selectedStarterMathRow = rows.find((row) => row.id === selectedStarterMathRowId) ?? null;
   const columnCount = 10 + (showFeedDetail ? 6 : 3) + (showDailyBreakdown ? windowDates.length : 0);
+
+  useEffect(() => {
+    showFeedDetailRef.current = showFeedDetail;
+  }, [showFeedDetail]);
+
+  useEffect(() => {
+    let restoreCollapsedDetailAfterPrint = false;
+
+    const preparePrint = () => {
+      if (showFeedDetailRef.current) {
+        return;
+      }
+
+      restoreCollapsedDetailAfterPrint = true;
+      flushSync(() => setShowFeedDetail(true));
+      showFeedDetailRef.current = true;
+    };
+
+    const restoreScreenView = () => {
+      if (!restoreCollapsedDetailAfterPrint) {
+        return;
+      }
+
+      restoreCollapsedDetailAfterPrint = false;
+      setShowFeedDetail(false);
+      showFeedDetailRef.current = false;
+    };
+
+    window.addEventListener("flocktrax:prepare-feed-projection-print", preparePrint);
+    window.addEventListener("beforeprint", preparePrint);
+    window.addEventListener("afterprint", restoreScreenView);
+
+    return () => {
+      window.removeEventListener("flocktrax:prepare-feed-projection-print", preparePrint);
+      window.removeEventListener("beforeprint", preparePrint);
+      window.removeEventListener("afterprint", restoreScreenView);
+    };
+  }, []);
 
   return (
     <div className="feed-projection-report-table-shell">
@@ -134,7 +174,7 @@ export function FeedProjectionReportTable({
                 <th className="feed-projection-report-number-col" colSpan={2}>
                   <span className="feed-projection-report-group-header">On-Order</span>
                 </th>
-                <th className="feed-projection-report-number-col" colSpan={2}>
+                <th className="feed-projection-report-number-col feed-projection-report-result-group" colSpan={2}>
                   <span className="feed-projection-report-group-header">
                     {reportMode === "operational" ? "Order Needed" : "Req'd Feed"}
                   </span>
@@ -156,10 +196,10 @@ export function FeedProjectionReportTable({
                 <th className="feed-projection-report-number-col">
                   <span className="feed-projection-report-sub-header">Grower</span>
                 </th>
-                <th className="feed-projection-report-number-col">
+                <th className="feed-projection-report-number-col feed-projection-report-result-col">
                   <span className="feed-projection-report-sub-header">Starter</span>
                 </th>
-                <th className="feed-projection-report-number-col">
+                <th className="feed-projection-report-number-col feed-projection-report-result-col">
                   <span className="feed-projection-report-sub-header">Grower</span>
                 </th>
               </tr>
@@ -270,8 +310,8 @@ export function FeedProjectionReportTable({
                     <td className="feed-projection-report-number-col">{formatWeight(row.growerAccessibleLbs)}</td>
                     <td className="feed-projection-report-number-col">{formatWeight(row.starterOnOrderLbs)}</td>
                     <td className="feed-projection-report-number-col">{formatWeight(row.growerOnOrderLbs)}</td>
-                    <td className="feed-projection-report-number-col">{formatWeight(row.starterRecommendedLbs)}</td>
-                    <td className="feed-projection-report-number-col">{formatWeight(row.growerRecommendedLbs)}</td>
+                    <td className="feed-projection-report-number-col feed-projection-report-result-col">{formatWeight(row.starterRecommendedLbs)}</td>
+                    <td className="feed-projection-report-number-col feed-projection-report-result-col">{formatWeight(row.growerRecommendedLbs)}</td>
                   </>
                 ) : (
                   <>
