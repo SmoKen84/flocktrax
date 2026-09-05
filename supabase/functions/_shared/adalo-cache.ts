@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getSupabasePublishableKey } from "./service-key.ts";
+import { assertOutboundIntegrationAllowed } from "./environment-safety.ts";
 
 export function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -83,6 +84,7 @@ export function requireString(value: unknown, fieldName: string) {
 }
 
 export function getAdaloSettings(collection: AdaloCollectionKind): AdaloSettings {
+  assertOutboundIntegrationAllowed("Adalo cache sync");
   const apiKey = Deno.env.get("ADALO_API_KEY");
   const collectionUrl = collection === "dashboard"
     ? Deno.env.get("ADALO_DASHBOARD_CACHE_COLLECTION_URL")

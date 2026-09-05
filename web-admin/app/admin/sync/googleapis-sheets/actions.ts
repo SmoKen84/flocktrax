@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { createSupabaseAdminClient, getSupabaseAdminKey } from "@/lib/supabase/server";
+import { assertOutboundIntegrationAllowed } from "@/lib/environment-safety";
 
 function resolveGoogleCredentialsPath() {
   const explicitPath = process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim();
@@ -33,6 +34,14 @@ function resolveGoogleCredentialsPath() {
 }
 
 async function processGoogleSheetsOutboxViaHostedWorker(limit: number): Promise<OutboxActionResult> {
+  try {
+    assertOutboundIntegrationAllowed("Google Sheets sync");
+  } catch (error) {
+    return {
+      ok: false,
+      message: `Results: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
   const supabaseUrl = process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceRoleKey = getSupabaseAdminKey();
 

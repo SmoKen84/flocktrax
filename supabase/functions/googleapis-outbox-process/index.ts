@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getSupabaseSecretKey, hasValidSupabaseSecret } from "../_shared/service-key.ts";
+import { assertOutboundIntegrationAllowed } from "../_shared/environment-safety.ts";
 
 import {
   batchClearSheetCells,
@@ -508,6 +509,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    assertOutboundIntegrationAllowed("Google Sheets sync");
     const body = await readBody(req);
     const supabase = getAdminClient();
     const settings = await getWorkerSettings(supabase);

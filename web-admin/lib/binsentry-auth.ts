@@ -1,3 +1,5 @@
+import { assertOutboundIntegrationAllowed } from "@/lib/environment-safety";
+
 type SirenLink = {
   rel?: string[];
   href?: string;
@@ -160,6 +162,7 @@ async function loginWithCredentials(config: BinSentryConfig) {
 }
 
 export async function getBinSentryAccessToken() {
+  assertOutboundIntegrationAllowed("BinSentry");
   const config = getBinSentryConfig();
   const credentialToken = await loginWithCredentials(config);
   if (credentialToken) {

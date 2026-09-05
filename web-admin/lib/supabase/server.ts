@@ -2,6 +2,8 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
+import { assertSafeEnvironmentBinding } from "@/lib/environment-safety";
+
 export function getSupabasePublicKey() {
   return (
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
@@ -11,6 +13,7 @@ export function getSupabasePublicKey() {
 }
 
 export async function createSupabaseServerClient() {
+  assertSafeEnvironmentBinding();
   const cookieStore = await cookies();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = getSupabasePublicKey();
@@ -51,6 +54,7 @@ export function getSupabaseAdminKey() {
 }
 
 export function createSupabaseAdminClient() {
+  assertSafeEnvironmentBinding();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = getSupabaseAdminKey();
 

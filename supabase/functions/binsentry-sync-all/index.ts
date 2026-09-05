@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getSupabaseSecretKey } from "../_shared/service-key.ts";
+import { assertOutboundIntegrationAllowed } from "../_shared/environment-safety.ts";
 
 type FeedBinMapping = {
   id: string;
@@ -630,6 +631,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    assertOutboundIntegrationAllowed("BinSentry sync");
     const body = await readBody(req);
     const force = body.force === true;
     if (!force && !shouldRunNow()) {

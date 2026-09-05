@@ -76,6 +76,10 @@ export function AdminShell({ children, displayName, roleKey, roleLabel, scopeLab
     const normalized = normalizeRoleKey(roleKey);
     return normalized === "admin" || normalized === "super_admin" || normalized === "superadmin";
   })();
+  const canControlEnvironment = (() => {
+    const normalized = normalizeRoleKey(roleKey);
+    return normalized === "super_admin" || normalized === "superadmin";
+  })();
 
   useEffect(() => {
     let cancelled = false;
@@ -216,6 +220,9 @@ export function AdminShell({ children, displayName, roleKey, roleLabel, scopeLab
             <div className="splash-sidebar-group">
               <p className="splash-sidebar-label">Utilities</p>
               {utilityLinks.map(renderNavItem)}
+              {canControlEnvironment
+                ? renderNavItem({ label: "Environment Control", href: "/admin/environment-control" })
+                : null}
             </div>
           </div>
 

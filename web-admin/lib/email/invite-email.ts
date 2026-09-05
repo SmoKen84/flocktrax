@@ -1,5 +1,7 @@
 import nodemailer from "nodemailer";
 
+import { assertOutboundIntegrationAllowed } from "@/lib/environment-safety";
+
 type InviteEmailInput = {
   to: string;
   actionUrl: string;
@@ -108,6 +110,7 @@ function buildInviteText({ actionUrl, appOrigin, fullName, roleLabel, mode = "in
 }
 
 export async function sendInviteEmail(input: InviteEmailInput) {
+  assertOutboundIntegrationAllowed("Email delivery");
   if (!isSmtpEnabled()) {
     throw new Error(
       "Invite email sending is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and SMTP_FROM.",
