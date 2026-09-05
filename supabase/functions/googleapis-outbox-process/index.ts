@@ -78,6 +78,16 @@ function json(req: Request, body: unknown, status = 200) {
   });
 }
 
+function hasValidWorkerCredential(req: Request) {
+  if (hasValidSupabaseSecret(req)) {
+    return true;
+  }
+
+  const expectedCronSecret = Deno.env.get("GOOGLEAPIS_OUTBOX_CRON_SECRET")?.trim();
+  const presentedCronSecret = req.headers.get("x-flocktrax-cron-secret")?.trim();
+  return !!expectedCronSecret && !!presentedCronSecret && presentedCronSecret === expectedCronSecret;
+}
+
 async function readBody(req: Request) {
   const contentType = req.headers.get("content-type")?.toLowerCase() ?? "";
   if (!contentType.includes("application/json")) {
@@ -493,7 +503,7 @@ Deno.serve(async (req) => {
     return json(req, { ok: false, error: "Method not allowed" }, 405);
   }
 
-  if (!hasValidSupabaseSecret(req)) {
+  if (!hasValidWorkerCredential(req)) {
     return json(req, { ok: false, error: "Unauthorized" }, 401);
   }
 

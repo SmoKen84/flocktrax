@@ -12392,10 +12392,6 @@ tr:last-child td {
     grid-template-columns: 1fr;
   }
 
-  .tile-mortality-table {
-    grid-template-columns: 1.1fr repeat(2, minmax(0, 1fr));
-  }
-
   .settings-config-grid,
   .settings-reminder-top,
   .breed-benchmark-grid,

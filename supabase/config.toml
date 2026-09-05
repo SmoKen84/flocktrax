@@ -478,6 +478,11 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/binsentry-sync-all/index.ts"
 
+[functions."googleapis-outbox-process"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/googleapis-outbox-process/index.ts"
+
 
 [functions."action-items-list"]
 enabled = true
