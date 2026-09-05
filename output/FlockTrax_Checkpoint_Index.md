@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-08-31`
+Updated: `2026-09-05`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -8,6 +8,12 @@ Purpose:
 - flag which notes were recovered from Codex local session history instead of already existing as repo files
 
 ## Chronological Index
+
+### September 2026
+
+- `2026-09-05`
+  - [FlockTrax_Google_Sheets_Outbox_And_Mortality_Responsive_Production_Checkpoint_2026-09-05.md](C:\dev\FlockTrax\output\FlockTrax_Google_Sheets_Outbox_And_Mortality_Responsive_Production_Checkpoint_2026-09-05.md)
+  - authoritative production checkpoint covering the repaired Google Sheets outbox cron authentication and two-minute worker timeout, dedicated Vault/Edge worker credential, active 15-minute schedule, successful processing without historical replay, five-column mortality-summary behavior at iPhone and single-card widths, source commit `a160f56`, Vercel deployment `dpl_B9Eo1bizRHmuWS9CAfaDqcKkpm5T`, hosted and visual verification evidence, and the preserved dirty-tree boundary
 
 ### August 2026
 
