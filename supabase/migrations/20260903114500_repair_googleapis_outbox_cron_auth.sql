@@ -7,31 +7,8 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
-declare
-  v_cron_secret text;
-  v_request_id bigint;
 begin
-  select decrypted_secret
-  into v_cron_secret
-  from vault.decrypted_secrets
-  where name = 'googleapis_outbox_cron_secret'
-  order by created_at desc
-  limit 1;
-
-  if nullif(btrim(v_cron_secret), '') is null then
-    raise exception 'Missing Vault secret: googleapis_outbox_cron_secret';
-  end if;
-
-  select net.http_post(
-    url := 'https://frneaccbbrijpolcesjm.supabase.co/functions/v1/googleapis-outbox-process',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'x-flocktrax-cron-secret', v_cron_secret
-    ),
-    body := '{"limit":100}'::jsonb
-  ) into v_request_id;
-
-  return v_request_id;
+  raise exception 'Google Sheets outbox automation is disabled in the FlockTrax demo environment.';
 end;
 $$;
 
@@ -45,10 +22,5 @@ where jobname in (
   'googleapis-outbox-process-every-15-min'
 );
 
-select cron.schedule(
-  'googleapis-outbox-process-every-15-min',
-  '*/15 * * * *',
-  $cron$
-    select platform.invoke_googleapis_outbox_worker();
-  $cron$
-);
+-- Deliberately do not schedule an outbound worker in demo. A later reviewed
+-- migration may add a demo-only schedule after sandbox Sheets are provisioned.
