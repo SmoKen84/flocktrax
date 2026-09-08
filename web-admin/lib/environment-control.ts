@@ -392,6 +392,8 @@ export async function getDemoShowcaseStatus(): Promise<DemoShowcaseStatus> {
     ["Weight samples", "weight_samples"],
     ["Feed tickets", "feed_tickets"],
     ["Feed drops", "feed_drops"],
+    ["Simulated BinSentry orders", "binsentry_demo_orders"],
+    ["Simulated BinSentry bins", "binsentry_demo_bins"],
     ["Livehaul events", "livehaul_events"],
     ["Action items", "issues"],
   ];

@@ -66,6 +66,11 @@ export default async function FeedProjectionCustomReportPage({
       />
 
       <section className="panel card feed-projection-report-shell">
+        {report.isBinSentrySimulated ? (
+          <div className="feed-inventory-warning" role="status">
+            <strong>Simulated BinSentry supply data.</strong> Feed demand is recalculated from the current demo placements, mortality, and livehaul records; no external vendor system is contacted.
+          </div>
+        ) : null}
         <div className="feed-projection-report-summary-grid">
           <article className="feed-projection-report-summary-card">
             <span>Barns In Scope</span>

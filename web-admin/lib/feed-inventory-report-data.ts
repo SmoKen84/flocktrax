@@ -3,6 +3,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { getBinSentryConfig } from "@/lib/binsentry-auth";
 import { buildBinSentryEntityUrl, fetchBinSentryEntity } from "@/lib/binsentry-http";
 import { readCurrentBinSentryInventory, type BinSentryFeedBinMapping } from "@/lib/binsentry";
+import { evaluateEnvironmentSafety } from "@/lib/environment-safety";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
 const PENDING_BINSENTRY_ORDER_STATES = new Set(["ready", "scheduled", "not-delivered"]);
@@ -25,6 +26,20 @@ type FeedBinRow = BinSentryFeedBinMapping & {
   capacity: number | null;
   binsentry_last_inventory_lbs: number | null;
   binsentry_last_sync_at: string | null;
+};
+
+type DemoBinSentryOrderRow = {
+  commitment_id: string;
+  farm_id: string | null;
+  barn_id: string | null;
+  feed_bin_id: string | null;
+  status: string | null;
+  expected_delivery_date: string | null;
+  ordered_lbs: number | null;
+  received_lbs: number | null;
+  feed_type: string | null;
+  feed_name: string | null;
+  external_order_ref: string | null;
 };
 
 type SirenLink = { rel?: string[]; href?: string };
@@ -93,6 +108,7 @@ export type FeedInventoryReportData = {
   mappedBinCount: number;
   currentBinCount: number;
   warnings: string[];
+  isSimulated: boolean;
 };
 
 export async function getFeedInventoryReportData(options: {
@@ -103,6 +119,7 @@ export async function getFeedInventoryReportData(options: {
 }): Promise<FeedInventoryReportData> {
   noStore();
   const generatedAt = new Date().toISOString();
+  const isDemo = evaluateEnvironmentSafety().isDemo;
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
     throw new Error("Supabase admin access is required to build the feed inventory report.");
@@ -149,6 +166,19 @@ export async function getFeedInventoryReportData(options: {
       binNumber: normalize(bin.bin_num) || "--",
       capacityLbs: finiteNumber(bin.capacity),
     };
+
+    if (isDemo) {
+      const onHandLbs = finiteNumber(bin.binsentry_last_inventory_lbs) ?? finiteNumber(bin.accessible_feed_lbs);
+      return {
+        ...base,
+        feedType: formatFeedType(bin.accessible_feed_type),
+        feedName: null,
+        onHandLbs,
+        capturedAt: normalize(bin.binsentry_last_sync_at) || normalize(bin.feed_state_effective_at) || null,
+        status: onHandLbs === null ? "unavailable" : "current",
+        statusDetail: onHandLbs === null ? "No simulated reading configured" : "Simulated BinSentry reading",
+      };
+    }
 
     if (!normalize(bin.binsentry_bin_ref)) {
       return {
@@ -206,7 +236,9 @@ export async function getFeedInventoryReportData(options: {
   let comingOrders: FeedInventoryComingOrder[] = [];
   if (options.includeComingOrders !== false) {
     try {
-      comingOrders = await fetchBinSentryPendingOrders(selectedBins, farmById, barnById);
+      comingOrders = isDemo
+        ? await fetchDemoBinSentryPendingOrders(supabase, selectedBins, farmById, barnById)
+        : await fetchBinSentryPendingOrders(selectedBins, farmById, barnById);
       const ordersWithoutWeight = comingOrders.filter((order) => order.pounds === null).length;
       if (ordersWithoutWeight > 0) {
         warnings.push(`${ordersWithoutWeight} pending order${ordersWithoutWeight === 1 ? " has" : "s have"} no BinSentry bulk density and could not be included in coming-pound totals.`);
@@ -225,10 +257,68 @@ export async function getFeedInventoryReportData(options: {
     comingByFeedType: summarizeByFeedType(comingOrders.map((order) => ({ feedType: order.feedType, pounds: order.pounds }))),
     totalOnHandLbs: rows.reduce((sum, row) => sum + (row.onHandLbs ?? 0), 0),
     totalComingLbs: comingOrders.reduce((sum, order) => sum + (order.pounds ?? 0), 0),
-    mappedBinCount: selectedBins.filter((bin) => Boolean(normalize(bin.binsentry_bin_ref))).length,
+    mappedBinCount: isDemo
+      ? selectedBins.filter((bin) => finiteNumber(bin.binsentry_last_inventory_lbs) !== null).length
+      : selectedBins.filter((bin) => Boolean(normalize(bin.binsentry_bin_ref))).length,
     currentBinCount: rows.filter((row) => row.status === "current").length,
     warnings,
+    isSimulated: isDemo,
   };
+}
+
+async function fetchDemoBinSentryPendingOrders(
+  supabase: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
+  bins: FeedBinRow[],
+  farmById: Map<string, FarmRow>,
+  barnById: Map<string, BarnRow>,
+) {
+  const barnIds = Array.from(new Set(bins.map((bin) => bin.barn_id).filter((id): id is string => Boolean(id))));
+  if (barnIds.length === 0) return [];
+
+  const result = await supabase
+    .from("feed_order_commitments")
+    .select("commitment_id,farm_id,barn_id,feed_bin_id,status,expected_delivery_date,ordered_lbs,received_lbs,feed_type,feed_name,external_order_ref")
+    .eq("source", "binsentry_demo")
+    .in("status", ["open", "partial"])
+    .in("barn_id", barnIds);
+  if (result.error) throw result.error;
+
+  const binById = new Map(bins.map((bin) => [bin.id, bin]));
+  return ((result.data ?? []) as DemoBinSentryOrderRow[])
+    .map<FeedInventoryComingOrder | null>((row) => {
+      const barnId = normalize(row.barn_id);
+      const barn = barnById.get(barnId);
+      const feedBin = row.feed_bin_id ? binById.get(row.feed_bin_id) : null;
+      if (!barn || !feedBin) return null;
+      const farmId = normalize(row.farm_id) || barn.farm_id;
+      const farm = farmById.get(farmId);
+      const pounds = Math.max(0, (finiteNumber(row.ordered_lbs) ?? 0) - (finiteNumber(row.received_lbs) ?? 0));
+      if (pounds <= 0) return null;
+      const feedType = formatFeedType(row.feed_type);
+      const densityKgPerM3 = feedType === "Starter" ? 610 : 580;
+      return {
+        id: `binsentry-demo:${row.commitment_id}`,
+        externalRef: normalize(row.external_order_ref) || `DEMO-${row.commitment_id.slice(0, 8)}`,
+        farmId,
+        farmName: normalize(farm?.farm_name) || "Unknown farm",
+        barnId,
+        barnCode: normalize(barn.barn_code) || "Unknown barn",
+        feedBinId: feedBin.id,
+        binNumber: normalize(feedBin.bin_num) || "--",
+        feedType,
+        feedName: normalize(row.feed_name) || null,
+        expectedDeliveryDate: normalize(row.expected_delivery_date).slice(0, 10) || null,
+        pounds,
+        volumeM3: pounds / (densityKgPerM3 * 2.20462),
+      };
+    })
+    .filter((row): row is FeedInventoryComingOrder => row !== null)
+    .sort((left, right) =>
+      (left.expectedDeliveryDate ?? "9999-12-31").localeCompare(right.expectedDeliveryDate ?? "9999-12-31")
+        || left.farmName.localeCompare(right.farmName)
+        || left.barnCode.localeCompare(right.barnCode, undefined, { numeric: true })
+        || left.binNumber.localeCompare(right.binNumber, undefined, { numeric: true }),
+    );
 }
 
 async function fetchBinSentryPendingOrders(

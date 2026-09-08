@@ -46,6 +46,12 @@ export default async function FeedInventoryReportPage({ searchParams }: PageProp
           <p>Point-in-time BinSentry inventory by feed bin, subtotaled by barn and farm.</p>
         </header>
 
+        {report.isSimulated ? (
+          <div className="feed-inventory-warning" role="status">
+            <strong>Simulated BinSentry data.</strong> Forecasting and report calculations are live; the external BinSentry API is disabled in this demo.
+          </div>
+        ) : null}
+
         <div className="feed-drops-report-summary feed-inventory-report-summary">
           <SummaryCard label="Generated" value={formatDateTime(report.generatedAt)} detail={report.scopeLabel} />
           <SummaryCard

@@ -1,6 +1,7 @@
 import { getAdminData } from "@/lib/admin-data";
 import { getBinSentryAccessToken, getBinSentryConfig } from "@/lib/binsentry-auth";
 import { buildBinSentryEntityUrl } from "@/lib/binsentry-http";
+import { evaluateEnvironmentSafety } from "@/lib/environment-safety";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import type { ActivePlacementRecord } from "@/lib/types";
 
@@ -72,6 +73,7 @@ type BinSentryOnOrderRecord = {
   feedName: string | null;
   externalOrderRef: string | null;
   pounds: number;
+  simulated: boolean;
 };
 
 export type FeedProjectionOnOrderRow = {
@@ -151,6 +153,7 @@ export async function getFeedProjectionReportData(options: {
   const windowDays = clampWindowDays(options.windowDays);
   const reportMode = options.reportMode ?? (windowDays === 10 ? "operational" : "planning");
   const includeBinSentryOnOrder = options.includeBinSentryOnOrder === true;
+  const isDemo = evaluateEnvironmentSafety().isDemo;
   const adminData = await getAdminData();
   const supabase = createSupabaseAdminClient();
   const farmGroupId = normalizeOptionalId(options.farmGroupId);
@@ -242,13 +245,17 @@ export async function getFeedProjectionReportData(options: {
     );
   }
 
+  const placementOrderRows = ((placementOrdersResult.data ?? []) as FeedOrderCommitmentRow[])
+    .filter((row) => !isDemo || !isDemoBinSentrySource(row.source));
+  const barnOrderRows = ((barnOrdersResult.data ?? []) as FeedOrderCommitmentRow[])
+    .filter((row) => !isDemo || !isDemoBinSentrySource(row.source));
   const feedOrdersByPlacementId = buildFeedOrderWindowMap(
-    (placementOrdersResult.data ?? []) as FeedOrderCommitmentRow[],
+    placementOrderRows,
     "placement_id",
     windowEnd,
   );
   const feedOrdersByBarnId = buildFeedOrderWindowMap(
-    (barnOrdersResult.data ?? []) as FeedOrderCommitmentRow[],
+    barnOrderRows,
     "barn_id",
     windowEnd,
   );
@@ -259,8 +266,8 @@ export async function getFeedProjectionReportData(options: {
   );
   const databaseOnOrderRows = buildDatabaseOnOrderRows({
     rows: [
-      ...((placementOrdersResult.data ?? []) as FeedOrderCommitmentRow[]),
-      ...((barnOrdersResult.data ?? []) as FeedOrderCommitmentRow[]),
+      ...placementOrderRows,
+      ...barnOrderRows,
     ],
     placementById,
     placementByBarnId,
@@ -320,6 +327,7 @@ export async function getFeedProjectionReportData(options: {
   }));
 
   return {
+    isBinSentrySimulated: isDemo,
     rows,
     windowDates,
     windowEnd,
@@ -458,8 +466,14 @@ function toReportRow({
   const hasTypedInventoryState =
     placement.feedInventoryStarterAccessibleLbs !== null &&
     placement.feedInventoryGrowerAccessibleLbs !== null;
-  const typedOrderCount = (feedOrdersForPlacement?.typedCount ?? 0) + (feedOrdersForBarn?.typedCount ?? 0);
-  const untypedOrderCount = (feedOrdersForPlacement?.untypedCount ?? 0) + (feedOrdersForBarn?.untypedCount ?? 0);
+  const typedOrderCount =
+    (feedOrdersForPlacement?.typedCount ?? 0) +
+    (feedOrdersForBarn?.typedCount ?? 0) +
+    (binSentryOrdersForBarn?.typedCount ?? 0);
+  const untypedOrderCount =
+    (feedOrdersForPlacement?.untypedCount ?? 0) +
+    (feedOrdersForBarn?.untypedCount ?? 0) +
+    (binSentryOrdersForBarn?.untypedCount ?? 0);
   const typedOrderingAvailable =
     hasTypedInventoryState &&
     untypedOrderCount === 0 &&
@@ -690,7 +704,7 @@ function buildBinSentryOnOrderRows({
     const placement = placementByBarnId.get(row.barnId) ?? null;
     return {
       id: row.id,
-      source: "BinSentry",
+      source: row.simulated ? "BinSentry (simulated)" : "BinSentry",
       farmName: placement?.farmName ?? "Unknown farm",
       barnCode: placement?.barnCode ?? "Unknown barn",
       binNumber: row.binNumber,
@@ -737,6 +751,10 @@ async function fetchBinSentryScheduledOrdersSafe(
 ) {
   if (barnIds.length === 0) {
     return emptyBinSentryScheduledOrders();
+  }
+
+  if (evaluateEnvironmentSafety().isDemo) {
+    return fetchDemoBinSentryScheduledOrders(supabase, barnIds, windowEnd);
   }
 
   const mappingResult = await supabase
@@ -875,6 +893,7 @@ async function fetchBinSentryScheduledOrdersSafe(
             String(orderProperties.orderNumber ?? orderProperties.reference ?? orderProperties.id ?? ""),
           ),
           pounds,
+          simulated: false,
         });
 
         const bucket = bucketByBarnId.get(barnId) ?? {
@@ -919,11 +938,99 @@ async function fetchBinSentryScheduledOrdersSafe(
   }
 }
 
+async function fetchDemoBinSentryScheduledOrders(
+  supabase: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
+  barnIds: string[],
+  windowEnd: string,
+) {
+  const [ordersResult, binsResult] = await Promise.all([
+    supabase
+      .from("feed_order_commitments")
+      .select("commitment_id,barn_id,feed_bin_id,status,ordered_lbs,received_lbs,expected_delivery_date,feed_type,feed_name,external_order_ref,source")
+      .eq("source", "binsentry_demo")
+      .in("status", ["open", "partial"])
+      .in("barn_id", barnIds),
+    supabase.from("feedbins").select("id,bin_num").in("barn_id", barnIds),
+  ]);
+
+  if (ordersResult.error || binsResult.error) {
+    console.error(
+      "Demo BinSentry scheduled-order lookup failed.",
+      ordersResult.error?.message ?? binsResult.error?.message,
+    );
+    return emptyBinSentryScheduledOrders();
+  }
+
+  const binNumberById = new Map(
+    ((binsResult.data ?? []) as FeedBinNumberRow[]).map((row) => [
+      row.id,
+      normalizeOptionalText(String(row.bin_num ?? "")),
+    ]),
+  );
+  const bucketByBarnId = new Map<string, FeedOrderWindowBucket>();
+  const orders: BinSentryOnOrderRecord[] = [];
+
+  for (const row of (ordersResult.data ?? []) as FeedOrderCommitmentRow[]) {
+    const barnId = normalizeOptionalId(row.barn_id);
+    if (!barnId) continue;
+    const orderedLbs = Math.max(0, row.ordered_lbs ?? 0);
+    const receivedLbs = Math.max(0, row.received_lbs ?? 0);
+    const pounds = Math.max(0, Math.round(orderedLbs - receivedLbs));
+    if (pounds <= 0) continue;
+
+    const deliveryDate = normalizeOptionalText(row.expected_delivery_date);
+    const feedType = normalizeFeedType(row.feed_type);
+    const id = normalizeOptionalId(row.commitment_id) ?? `${barnId}:${deliveryDate ?? "undated"}:${orders.length}`;
+    orders.push({
+      id: `binsentry-demo:${id}`,
+      barnId,
+      binNumber: row.feed_bin_id ? binNumberById.get(row.feed_bin_id) ?? null : null,
+      status: row.status === "partial" ? "not-delivered" : "scheduled",
+      deliveryDate,
+      feedType,
+      feedName: normalizeOptionalText(row.feed_name),
+      externalOrderRef: normalizeOptionalText(row.external_order_ref),
+      pounds,
+      simulated: true,
+    });
+
+    const bucket = bucketByBarnId.get(barnId) ?? {
+      pounds: 0,
+      starterLbs: 0,
+      allOpenStarterLbs: 0,
+      growerLbs: 0,
+      typedCount: 0,
+      untypedCount: 0,
+      count: 0,
+      nextEta: null,
+    };
+    if (feedType === "starter") bucket.allOpenStarterLbs += pounds;
+    if (deliveryDate && deliveryDate > windowEnd) {
+      bucketByBarnId.set(barnId, bucket);
+      continue;
+    }
+    bucket.pounds += pounds;
+    if (feedType === "starter") bucket.starterLbs += pounds;
+    if (feedType === "grower") bucket.growerLbs += pounds;
+    if (feedType) bucket.typedCount += 1;
+    if (!feedType) bucket.untypedCount += 1;
+    bucket.count += 1;
+    if (deliveryDate && (!bucket.nextEta || deliveryDate < bucket.nextEta)) bucket.nextEta = deliveryDate;
+    bucketByBarnId.set(barnId, bucket);
+  }
+
+  return { byBarnId: bucketByBarnId, orders };
+}
+
 function emptyBinSentryScheduledOrders() {
   return {
     byBarnId: new Map<string, FeedOrderWindowBucket>(),
     orders: [] as BinSentryOnOrderRecord[],
   };
+}
+
+function isDemoBinSentrySource(value: string | null | undefined) {
+  return normalizeOptionalText(value)?.toLowerCase() === "binsentry_demo";
 }
 
 async function fetchBinSentrySirenEntity(url: string, token: string) {
@@ -1171,7 +1278,7 @@ function buildFeedProjection({
   for (const [liveHaulIndex, liveHaulEvent] of scheduledLiveHaulEvents.entries()) {
     if (liveHaulEvent.date > today) break;
     const isFinalLiveHaul = liveHaulIndex === scheduledLiveHaulDates.length - 1;
-    const explicitHeadRemoval = liveHaulEvent.targetHead ?? liveHaulEvent.actualHead ?? null;
+    const explicitHeadRemoval = liveHaulEvent.actualHead ?? liveHaulEvent.targetHead ?? null;
 
     if (explicitHeadRemoval !== null) {
       const totalPopulation = femalePopulation + malePopulation;
@@ -1235,7 +1342,7 @@ function buildFeedProjection({
     const appliesLiveHaul = liveHaulIndex !== undefined;
     const isFinalLiveHaul = appliesLiveHaul && liveHaulIndex === scheduledLiveHaulDates.length - 1;
     const liveHaulEvent = liveHaulEventByDate.get(date) ?? null;
-    const explicitHeadRemoval = liveHaulEvent?.targetHead ?? liveHaulEvent?.actualHead ?? null;
+    const explicitHeadRemoval = liveHaulEvent?.actualHead ?? liveHaulEvent?.targetHead ?? null;
 
     daily.push({
       date,
