@@ -13,6 +13,7 @@ The demo is publicly hosted at `https://flocktrax-demo.vercel.app`. Its separate
 - Demo worktree: `C:\dev\FlockTrax-Demo-Hosted`
 - Demo checkpoint tag: `checkpoint/demo-hosted-20260908`
 - Hosted deployment checkpoint tag: `checkpoint/demo-hosted-vercel-20260908`
+- Demo-sidebar checkpoint tag: `checkpoint/demo-hosted-sidebar-20260908`
 - Environment-control foundation branch: `demo-platform`
 - Environment-control foundation commit: `20fb4dfe1d6fbee4bfa46d6d9b6f0e8e36bdbba3`
 - Stable production fallback commit: `4b494db0ab097eed3e4f748163da3670820c2aeb`
@@ -75,8 +76,8 @@ No Google, BinSentry, Adalo, SMTP, or production service credential was copied i
 - Project: `flock-trax/flocktrax-demo`
 - Project id: `prj_kd5UF1Bs69QRjICqxwdyiIiXvRNY`
 - Stable public address: `https://flocktrax-demo.vercel.app`
-- Verified deployment id: `dpl_AMczPSUiFSZcxCamwPBswsKXRdcc`
-- Deployment inspector: `https://vercel.com/flock-trax/flocktrax-demo/AMczPSUiFSZcxCamwPBswsKXRdcc`
+- Verified deployment id: `dpl_CqYRDZTsNWVyjxvPsNGVpqPZjgVG`
+- Deployment inspector: `https://vercel.com/flock-trax/flocktrax-demo/CqYRDZTsNWVyjxvPsNGVpqPZjgVG`
 - Framework is pinned to Next.js in `web-admin/vercel.json` to prevent the generic static-output configuration that produced an empty first deployment.
 - Production environment variables point only to Supabase project `srkgobayrzidytmvoago`, explicitly label the environment `demo`, and keep outbound mode `disabled`.
 - No Git repository connection or custom FlockTrax domain is attached.
@@ -87,6 +88,8 @@ Demo Supabase Authentication is configured with:
 - Redirect allowlist: `https://flocktrax-demo.vercel.app/auth/callback`
 
 No production hostname is present in the demo Auth URL configuration.
+
+Every authenticated demo screen now renders the persistent admin sidebar with a bold red outline. The outline is applied only when the server-side `FLOCKTRAX_ENVIRONMENT_NAME` resolves explicitly to `demo`; production does not receive the demo marker or its outline.
 
 ## Demo owner
 
@@ -171,6 +174,8 @@ Completed successfully on 2026-09-08:
 - the hosted login page rendered against the isolated demo configuration
 - Vercel project protection read-back showed SSO protection disabled only for the demo project
 - demo Supabase Auth URL settings were read back with the demo site and callback URLs only
+- unauthenticated access to `/admin/overview` redirects to `/login`
+- the demo-only red sidebar outline passed TypeScript validation, the complete local production build, and the hosted Vercel production build
 
 ## Demo commits
 
@@ -181,6 +186,7 @@ Completed successfully on 2026-09-08:
 - `6821653` — Expand demo across multiple farm groups
 - `d85b0f3` — Checkpoint hosted demo branch before Vercel activation
 - `3297022` — Activate isolated Vercel demo deployment
+- `7443c9d` — Mark demo sidebar with red outline
 
 ## Legacy operational-script hazard
 
