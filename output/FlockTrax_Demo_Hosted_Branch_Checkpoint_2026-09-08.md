@@ -14,6 +14,7 @@ The demo is publicly hosted at `https://flocktrax-demo.vercel.app`. Its separate
 - Demo checkpoint tag: `checkpoint/demo-hosted-20260908`
 - Hosted deployment checkpoint tag: `checkpoint/demo-hosted-vercel-20260908`
 - Demo-sidebar checkpoint tag: `checkpoint/demo-hosted-sidebar-20260908`
+- Demo presentation checkpoint tag: `checkpoint/demo-hosted-integration-copy-20260908`
 - Environment-control foundation branch: `demo-platform`
 - Environment-control foundation commit: `20fb4dfe1d6fbee4bfa46d6d9b6f0e8e36bdbba3`
 - Stable production fallback commit: `4b494db0ab097eed3e4f748163da3670820c2aeb`
@@ -52,6 +53,8 @@ Do not use a destructive reset against the production checkout.
 
 The schema migrations were applied only to the demo project. Demo-specific versions of the Google Sheets cron migrations install a disabled stub and do not schedule a cron job.
 
+The demo Supabase Data API exposes the `platform` schema in addition to the normal public schemas. This is required for the shared application to read `platform.control`, `platform.screen_txt`, `platform.settings`, sync metadata, and the other platform configuration surfaces. Table grants and RLS remain authoritative; adding the schema to PostgREST did not grant anonymous write access.
+
 ## Demo environment guards
 
 The web and mobile clients fail closed when explicitly labeled as demo:
@@ -76,8 +79,8 @@ No Google, BinSentry, Adalo, SMTP, or production service credential was copied i
 - Project: `flock-trax/flocktrax-demo`
 - Project id: `prj_kd5UF1Bs69QRjICqxwdyiIiXvRNY`
 - Stable public address: `https://flocktrax-demo.vercel.app`
-- Verified deployment id: `dpl_CqYRDZTsNWVyjxvPsNGVpqPZjgVG`
-- Deployment inspector: `https://vercel.com/flock-trax/flocktrax-demo/CqYRDZTsNWVyjxvPsNGVpqPZjgVG`
+- Verified deployment id: `dpl_FPp1jt1JSxxXTNHjvASsYuR9c24e`
+- Deployment inspector: `https://vercel.com/flock-trax/flocktrax-demo/FPp1jt1JSxxXTNHjvASsYuR9c24e`
 - Framework is pinned to Next.js in `web-admin/vercel.json` to prevent the generic static-output configuration that produced an empty first deployment.
 - Production environment variables point only to Supabase project `srkgobayrzidytmvoago`, explicitly label the environment `demo`, and keep outbound mode `disabled`.
 - No Git repository connection or custom FlockTrax domain is attached.
@@ -90,6 +93,15 @@ Demo Supabase Authentication is configured with:
 No production hostname is present in the demo Auth URL configuration.
 
 Every authenticated demo screen now renders the persistent admin sidebar with a bold red outline. The outline is applied only when the server-side `FLOCKTRAX_ENVIRONMENT_NAME` resolves explicitly to `demo`; production does not receive the demo marker or its outline.
+
+The first application splash now reads editable demo copy from `platform.screen_txt`:
+
+- title: `Explore FlockTrax safely.`
+- body: explains that the database is isolated, the data is synthetic, and production records or integrations cannot be affected
+- platform label: `Isolated Demonstration Platform`
+- signature line: synthetic data, disabled outbound integrations, and resettable demo environment
+
+The demo Settings screen exposes these five managed records under Screen Text Registry. The demo Sync Engine sidebar entry opens an explanatory safety landing page before the queue/configuration screens. The BinSentry Ref Finder makes no external request in demo mode and presents the missing live connection as intentional isolation rather than a loading failure. Production routing and live BinSentry behavior remain unchanged.
 
 ## Demo owner
 
@@ -176,6 +188,12 @@ Completed successfully on 2026-09-08:
 - demo Supabase Auth URL settings were read back with the demo site and callback URLs only
 - unauthenticated access to `/admin/overview` redirects to `/login`
 - the demo-only red sidebar outline passed TypeScript validation, the complete local production build, and the hosted Vercel production build
+- migration `20260908150000` applied only after confirming local project ref `srkgobayrzidytmvoago`
+- the five demo splash records were read back through the hosted Screen Text Registry
+- the hosted application splash rendered the new database-safety wording and exposed its `data-environment="demo"` marker
+- the hosted Sync Engine landing rendered its intentional outbound-disabled explanation
+- the hosted BinSentry screen rendered `Demo Safety Active` without contacting BinSentry
+- the Data API schema count changed from two to three when `platform` was added; existing public schemas were preserved
 
 ## Demo commits
 
@@ -187,6 +205,7 @@ Completed successfully on 2026-09-08:
 - `d85b0f3` — Checkpoint hosted demo branch before Vercel activation
 - `3297022` — Activate isolated Vercel demo deployment
 - `7443c9d` — Mark demo sidebar with red outline
+- `ae4210c` — Clarify demo data and integration isolation
 
 ## Legacy operational-script hazard
 
@@ -207,13 +226,12 @@ Because the removed credential remains in Git history, a coordinated production 
 
 The independent Vercel project, demo-only environment variables, public Vercel address, and demo-only Supabase Auth URLs are active. Remaining validation:
 
-1. Sign in manually as the demo owner; do not disclose or automate the password.
-2. Smoke-test dashboard, reports, editing, document upload/download, and the Environment Control status page.
-3. Exercise the reset from the UI only when a reset is actually desired; the guarded database reset has already passed direct verification.
-4. Create a separate READONLY evaluator account after choosing its email and invitation method.
-5. Only after those checks, decide whether to attach `demo.flocktrax.com`.
-6. Do not connect the demo branch to automatic GitHub deployment until environment inheritance behavior has been explicitly verified.
+1. Continue the authenticated smoke test across dashboard, reports, editing, document upload/download, and the Environment Control status page. Splash, Settings, Sync landing, and BinSentry safety presentation have passed.
+2. Exercise the reset from the UI only when a reset is actually desired; the guarded database reset has already passed direct verification.
+3. Create a separate READONLY evaluator account after choosing its email and invitation method.
+4. Only after those checks, decide whether to attach `demo.flocktrax.com`.
+5. Do not connect the demo branch to automatic GitHub deployment until environment inheritance behavior has been explicitly verified.
 
 ## Resume instruction
 
-Load this checkpoint first, work only from `C:\dev\FlockTrax-Demo-Hosted` on branch `demo-hosted`, verify `supabase/.temp/project-ref` is `srkgobayrzidytmvoago` before any Supabase mutation, and preserve production commit `4b494db` plus tag `pre-demo-stable-2026-09-05`. The next action is the manual owner sign-in and authenticated showcase smoke test at `https://flocktrax-demo.vercel.app/login`; do not attach the production domain or inherit production environment variables.
+Load this checkpoint first, work only from `C:\dev\FlockTrax-Demo-Hosted` on branch `demo-hosted`, verify `supabase/.temp/project-ref` is `srkgobayrzidytmvoago` before any Supabase mutation, and preserve production commit `4b494db` plus tag `pre-demo-stable-2026-09-05`. Continue the authenticated business-workflow smoke test at `https://flocktrax-demo.vercel.app`; do not attach the production domain or inherit production environment variables.
