@@ -11,6 +11,10 @@ Purpose:
 
 ### September 2026
 
+- `2026-09-08` — Demo BinSentry feed reports
+  - [FlockTrax_Demo_BinSentry_Feed_Reports_Checkpoint_2026-09-08.md](C:\dev\FlockTrax-Demo-Hosted\output\FlockTrax_Demo_BinSentry_Feed_Reports_Checkpoint_2026-09-08.md)
+  - detailed isolated-demo checkpoint covering the database-backed simulated BinSentry provider, five current inventory snapshots, three scheduled/partial synthetic orders, complete sex-specific 0–90 day demo breed curves, current mortality and livehaul-driven demand recalculation, actual-head-over-target correction, guarded current-date reset composition, verified non-zero hosted feed projections, commits `9d1f622` and `4c44b46`, the Vercel account-recovery deployment boundary, exact continuation checks, and restore tag `checkpoint/demo-hosted-feed-reports-20260908`
+
 - `2026-09-08`
   - [FlockTrax_Demo_Hosted_Branch_Checkpoint_2026-09-08.md](C:\dev\FlockTrax\output\FlockTrax_Demo_Hosted_Branch_Checkpoint_2026-09-08.md)
   - authoritative hosted-demo branch and worktree checkpoint covering the production fallback and isolation boundary, separate demo Supabase project `srkgobayrzidytmvoago`, owner/Super Admin bootstrap, fail-closed web/mobile/Edge integration guards, two-group synthetic transaction dataset with current-date reset behavior, private document storage, owner-only verified reset/status controls, hardened legacy operational scripts, and the live isolated Vercel project at `https://flocktrax-demo.vercel.app`; demo presentation now includes an environment-gated red sidebar, editable safety-focused splash copy, intentional Sync and BinSentry isolation screens, and required `platform` Data API exposure, with restore tag `checkpoint/demo-hosted-integration-copy-20260908`
