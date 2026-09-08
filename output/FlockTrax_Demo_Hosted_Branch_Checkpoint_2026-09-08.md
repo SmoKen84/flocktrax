@@ -4,7 +4,7 @@
 
 This is the authoritative recovery checkpoint for the isolated FlockTrax hosted-demo effort. The governing rule for this work is **DO NO HARM** to production.
 
-The demo is not yet publicly hosted. Its Supabase backend, synthetic dataset, isolation guards, private document bucket, owner account, reset procedure, and Environment Control UI are prepared and verified. Creating a separate Vercel project remains the next explicit external gate.
+The demo is publicly hosted at `https://flocktrax-demo.vercel.app`. Its separate Vercel project, Supabase backend, synthetic dataset, isolation guards, private document bucket, owner account, reset procedure, and Environment Control UI are prepared and verified. The remaining hands-on gate is an authenticated owner smoke test; no production resource was changed during hosting activation.
 
 ## Restore points
 
@@ -31,7 +31,9 @@ Do not use a destructive reset against the production checkout.
 - `origin/main` remains at production commit `4b494db`.
 - The demo branch has not been pushed to GitHub because an automatic preview deployment could inherit production Vercel variables.
 - Supabase GitHub integration remains disconnected.
-- A demo Vercel project has not been created.
+- A separate Vercel project named `flocktrax-demo` was created under the `flock-trax` team and linked only from this demo worktree's `web-admin` directory.
+- The demo Vercel project is not connected to GitHub and has only demo-specific production environment variables.
+- Vercel team SSO deployment protection was disabled only for `flocktrax-demo` so invited evaluators can reach the showcase login page.
 - `demo.flocktrax.com` has not been attached or changed.
 - The original checkout retains unrelated local artifacts that were deliberately preserved:
   - modified `supabase/.temp/cli-latest`
@@ -66,6 +68,24 @@ The demo Supabase Edge environment is configured with:
 - the protected production project ref used only as an isolation comparison
 
 No Google, BinSentry, Adalo, SMTP, or production service credential was copied into the demo project.
+
+## Vercel demo deployment
+
+- Project: `flock-trax/flocktrax-demo`
+- Project id: `prj_kd5UF1Bs69QRjICqxwdyiIiXvRNY`
+- Stable public address: `https://flocktrax-demo.vercel.app`
+- Verified deployment id: `dpl_AMczPSUiFSZcxCamwPBswsKXRdcc`
+- Deployment inspector: `https://vercel.com/flock-trax/flocktrax-demo/AMczPSUiFSZcxCamwPBswsKXRdcc`
+- Framework is pinned to Next.js in `web-admin/vercel.json` to prevent the generic static-output configuration that produced an empty first deployment.
+- Production environment variables point only to Supabase project `srkgobayrzidytmvoago`, explicitly label the environment `demo`, and keep outbound mode `disabled`.
+- No Git repository connection or custom FlockTrax domain is attached.
+
+Demo Supabase Authentication is configured with:
+
+- Site URL: `https://flocktrax-demo.vercel.app`
+- Redirect allowlist: `https://flocktrax-demo.vercel.app/auth/callback`
+
+No production hostname is present in the demo Auth URL configuration.
 
 ## Demo owner
 
@@ -144,6 +164,12 @@ Completed successfully on 2026-09-08:
 - document bucket was read back as private, with a 25 MB limit and the expected MIME allowlist
 - web-admin TypeScript check passed
 - optimized Next.js production build passed, including `/admin/environment-control`
+- the corrected hosted Next.js build generated all 49 application pages and routes successfully
+- the stable Vercel root and login URLs returned HTTP `200`
+- the unauthenticated callback route safely returned to the application root
+- the hosted login page rendered against the isolated demo configuration
+- Vercel project protection read-back showed SSO protection disabled only for the demo project
+- demo Supabase Auth URL settings were read back with the demo site and callback URLs only
 
 ## Demo commits
 
@@ -152,6 +178,7 @@ Completed successfully on 2026-09-08:
 - `1b7b6ad` — Add guarded synthetic demo reset
 - `ec0240b` — Harden demo operations and storage
 - `6821653` — Expand demo across multiple farm groups
+- `d85b0f3` — Checkpoint hosted demo branch before Vercel activation
 
 ## Legacy operational-script hazard
 
@@ -168,18 +195,17 @@ On `demo-hosted`:
 
 Because the removed credential remains in Git history, a coordinated production database-password rotation is still recommended. Do not rotate it casually: first inventory every production consumer so Vercel, workers, and other connection strings can be updated together without an outage.
 
-## Known boundary before hosting
+## Hosted boundary and remaining validation
 
-The demo backend is ready, but a complete product showcase still requires a separately approved hosting activation:
+The independent Vercel project, demo-only environment variables, public Vercel address, and demo-only Supabase Auth URLs are active. Remaining validation:
 
-1. Create an independent Vercel project such as `flocktrax-demo`.
-2. Configure only demo Supabase URL, publishable key, server credential, explicit demo label, protected production comparison values, and disabled outbound mode.
-3. Deploy first to the Vercel-generated address.
-4. Configure demo-only Supabase Auth site/redirect URLs for that address.
-5. Sign in as the demo owner and smoke-test dashboard, reports, editing, document upload/download, and reset.
-6. Only after those checks, decide whether to attach `demo.flocktrax.com`.
-7. Do not connect the demo branch to automatic GitHub deployment until environment inheritance behavior has been explicitly verified.
+1. Sign in manually as the demo owner; do not disclose or automate the password.
+2. Smoke-test dashboard, reports, editing, document upload/download, and the Environment Control status page.
+3. Exercise the reset from the UI only when a reset is actually desired; the guarded database reset has already passed direct verification.
+4. Create a separate READONLY evaluator account after choosing its email and invitation method.
+5. Only after those checks, decide whether to attach `demo.flocktrax.com`.
+6. Do not connect the demo branch to automatic GitHub deployment until environment inheritance behavior has been explicitly verified.
 
 ## Resume instruction
 
-Load this checkpoint first, work only from `C:\dev\FlockTrax-Demo-Hosted` on branch `demo-hosted`, verify `supabase/.temp/project-ref` is `srkgobayrzidytmvoago` before any Supabase mutation, and preserve production commit `4b494db` plus tag `pre-demo-stable-2026-09-05`. The next action is the explicitly approved creation of a separate Vercel demo project and first isolated deployment; do not attach the production domain or inherit production environment variables.
+Load this checkpoint first, work only from `C:\dev\FlockTrax-Demo-Hosted` on branch `demo-hosted`, verify `supabase/.temp/project-ref` is `srkgobayrzidytmvoago` before any Supabase mutation, and preserve production commit `4b494db` plus tag `pre-demo-stable-2026-09-05`. The next action is the manual owner sign-in and authenticated showcase smoke test at `https://flocktrax-demo.vercel.app/login`; do not attach the production domain or inherit production environment variables.

@@ -13,7 +13,7 @@ Purpose:
 
 - `2026-09-08`
   - [FlockTrax_Demo_Hosted_Branch_Checkpoint_2026-09-08.md](C:\dev\FlockTrax\output\FlockTrax_Demo_Hosted_Branch_Checkpoint_2026-09-08.md)
-  - authoritative hosted-demo branch and worktree checkpoint covering the production fallback and isolation boundary, separate demo Supabase project `srkgobayrzidytmvoago`, owner/Super Admin bootstrap, fail-closed web/mobile/Edge integration guards, two-group synthetic transaction dataset with current-date reset behavior, private document storage, owner-only verified reset/status controls, database and build evidence, hardened legacy operational scripts, outstanding production credential-rotation caution, demo commits `1af1154` through `6821653`, checkpoint tag `checkpoint/demo-hosted-20260908`, and the separately gated Vercel activation plan
+  - authoritative hosted-demo branch and worktree checkpoint covering the production fallback and isolation boundary, separate demo Supabase project `srkgobayrzidytmvoago`, owner/Super Admin bootstrap, fail-closed web/mobile/Edge integration guards, two-group synthetic transaction dataset with current-date reset behavior, private document storage, owner-only verified reset/status controls, hardened legacy operational scripts, and the live isolated Vercel project at `https://flocktrax-demo.vercel.app`; hosting and Auth URL configuration are complete, with authenticated owner smoke testing still pending
 
 - `2026-09-05`
   - [FlockTrax_Google_Sheets_Outbox_And_Mortality_Responsive_Production_Checkpoint_2026-09-05.md](C:\dev\FlockTrax\output\FlockTrax_Google_Sheets_Outbox_And_Mortality_Responsive_Production_Checkpoint_2026-09-05.md)
