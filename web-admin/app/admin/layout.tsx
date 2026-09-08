@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin-shell";
 import { getUserAccessBundle, resolveRoleTemplate } from "@/lib/access-control";
+import { evaluateEnvironmentSafety } from "@/lib/environment-safety";
 import { getPlatformSplashContent } from "@/lib/platform-content";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -12,6 +13,7 @@ type AdminLayoutProps = {
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
   const supabase = await createSupabaseServerClient();
+  const environment = evaluateEnvironmentSafety();
   const [splash, accessBundle] = await Promise.all([getPlatformSplashContent(), getUserAccessBundle()]);
   const {
     data: { user },
@@ -42,6 +44,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
     <AdminShell
       copyrightLine={splash.copyrightLine}
       displayName={displayName}
+      isDemo={environment.isDemo}
       roleKey={roleKey}
       roleLabel={roleLabel}
       scopeLabel={scopeLabel}

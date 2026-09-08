@@ -40,6 +40,7 @@ const utilityLinks = [
 type AdminShellProps = {
   children: ReactNode;
   displayName: string;
+  isDemo: boolean;
   roleKey: string;
   roleLabel: string;
   scopeLabel: string | null;
@@ -69,7 +70,7 @@ function normalizeRoleKey(value: string) {
   return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
 
-export function AdminShell({ children, displayName, roleKey, roleLabel, scopeLabel, versionLine, copyrightLine }: AdminShellProps) {
+export function AdminShell({ children, displayName, isDemo, roleKey, roleLabel, scopeLabel, versionLine, copyrightLine }: AdminShellProps) {
   const pathname = usePathname();
   const [syncBadgeCount, setSyncBadgeCount] = useState(0);
   const canOpenSettings = (() => {
@@ -158,7 +159,7 @@ export function AdminShell({ children, displayName, roleKey, roleLabel, scopeLab
       <div className="splash-sidebar-stack">
         {versionLine ? <p className="splash-sidebar-version-tag">{versionLine}</p> : null}
 
-        <aside className="splash-sidebar admin-sidebar">
+        <aside className="splash-sidebar admin-sidebar" data-environment={isDemo ? "demo" : undefined}>
           <div className="splash-sidebar-utility-row">
             {canOpenSettings ? (
               <Link

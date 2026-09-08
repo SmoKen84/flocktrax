@@ -1277,6 +1277,11 @@ button {
   min-height: auto;
 }
 
+.admin-sidebar[data-environment="demo"] {
+  outline: 4px solid #dc2626;
+  outline-offset: 3px;
+}
+
 .admin-sidebar .splash-sidebar-item-link[data-active="true"] {
   color: #8fe6f0;
   transform: translateX(1px);
