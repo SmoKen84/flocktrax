@@ -30,6 +30,15 @@ export type EnvironmentControlSnapshot = {
   groups: EnvironmentCheckGroup[];
 };
 
+export type DemoShowcaseStatus = {
+  state: "ready" | "unavailable" | "not-demo" | "unsafe";
+  message: string;
+  ok: boolean;
+  projectRef?: string;
+  seededAt?: string;
+  counts: Array<{ label: string; value: number }>;
+};
+
 type UserRoleRow = {
   role_id: string | null;
 };
@@ -325,5 +334,77 @@ export function getEnvironmentControlSnapshot(): EnvironmentControlSnapshot {
     webConfiguredCount: webChecks.filter((check) => check.status === "configured").length,
     webRequiredCount: webChecks.length,
     groups,
+  };
+}
+
+export async function getDemoShowcaseStatus(): Promise<DemoShowcaseStatus> {
+  const safety = evaluateEnvironmentSafety();
+
+  if (!safety.isDemo) {
+    return {
+      state: "not-demo",
+      message: "Showcase reset controls are available only from an explicitly labeled demo deployment.",
+      ok: false,
+      counts: [],
+    };
+  }
+
+  if (safety.issues.length > 0) {
+    return {
+      state: "unsafe",
+      message: safety.issues.join(" "),
+      ok: false,
+      counts: [],
+    };
+  }
+
+  const admin = createSupabaseAdminClient();
+  if (!admin) {
+    return {
+      state: "unavailable",
+      message: "The demo service credential is not configured for this deployment.",
+      ok: false,
+      counts: [],
+    };
+  }
+
+  const result = await admin.rpc("get_demo_showcase_status");
+  if (result.error || !result.data || typeof result.data !== "object") {
+    return {
+      state: "unavailable",
+      message: result.error?.message ?? "The demo database did not return a showcase status.",
+      ok: false,
+      counts: [],
+    };
+  }
+
+  const status = result.data as Record<string, unknown>;
+  const countFields: Array<[string, string]> = [
+    ["Farm groups", "farm_groups"],
+    ["Farms", "farms"],
+    ["Barns", "barns"],
+    ["Placements", "placements"],
+    ["Daily logs", "daily_logs"],
+    ["Mortality logs", "mortality_logs"],
+    ["Weight samples", "weight_samples"],
+    ["Feed tickets", "feed_tickets"],
+    ["Feed drops", "feed_drops"],
+    ["Livehaul events", "livehaul_events"],
+    ["Action items", "issues"],
+  ];
+  const ok = status.ok === true;
+
+  return {
+    state: ok ? "ready" : "unsafe",
+    message: ok
+      ? "Synthetic showcase data is complete and both outbound queues are empty."
+      : "The demo dataset differs from its verified baseline. Use the guarded reset to restore it.",
+    ok,
+    projectRef: typeof status.project_ref === "string" ? status.project_ref : undefined,
+    seededAt: typeof status.seeded_at === "string" ? status.seeded_at : undefined,
+    counts: countFields.map(([label, key]) => ({
+      label,
+      value: typeof status[key] === "number" ? status[key] : 0,
+    })),
   };
 }

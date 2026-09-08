@@ -1,6 +1,11 @@
 import { notFound } from "next/navigation";
 
-import { getEnvironmentControlSnapshot, hasEnvironmentControlAccess } from "@/lib/environment-control";
+import { resetDemoShowcaseAction } from "@/app/admin/environment-control/actions";
+import {
+  getDemoShowcaseStatus,
+  getEnvironmentControlSnapshot,
+  hasEnvironmentControlAccess,
+} from "@/lib/environment-control";
 
 const statusLabels = {
   configured: "Configured",
@@ -11,12 +16,27 @@ const statusLabels = {
 
 export const dynamic = "force-dynamic";
 
-export default async function EnvironmentControlPage() {
+type EnvironmentControlPageProps = {
+  searchParams?: Promise<{
+    notice?: string | string[];
+    error?: string | string[];
+  }>;
+};
+
+function readParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function EnvironmentControlPage({ searchParams }: EnvironmentControlPageProps) {
   if (!(await hasEnvironmentControlAccess())) {
     notFound();
   }
 
+  const params = searchParams ? await searchParams : undefined;
+  const notice = readParam(params?.notice);
+  const error = readParam(params?.error);
   const snapshot = getEnvironmentControlSnapshot();
+  const showcase = await getDemoShowcaseStatus();
 
   return (
     <>
@@ -52,6 +72,57 @@ export default async function EnvironmentControlPage() {
           <strong>{snapshot.supabaseProjectRef}</strong>
           <small>{snapshot.supabaseHost}</small>
         </article>
+      </section>
+
+      {error ? <p className="login-banner login-banner-error">{error}</p> : null}
+      {notice ? <p className="login-banner login-banner-notice">{notice}</p> : null}
+
+      <section className="panel environment-demo-data-panel">
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">Showcase baseline</p>
+            <h2>Synthetic demo data</h2>
+          </div>
+          <span className="status-pill" data-tone={showcase.ok ? "good" : showcase.state === "not-demo" ? "neutral" : "danger"}>
+            {showcase.ok ? "Verified" : showcase.state === "not-demo" ? "Demo only" : "Attention"}
+          </span>
+        </div>
+        <p className="environment-demo-data-message">{showcase.message}</p>
+
+        {showcase.counts.length > 0 ? (
+          <div className="environment-demo-counts" aria-label="Synthetic demo record counts">
+            {showcase.counts.map((item) => (
+              <div className="environment-demo-count" key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value.toLocaleString()}</strong>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {showcase.state === "ready" || showcase.state === "unsafe" ? (
+          <form action={resetDemoShowcaseAction} className="environment-demo-reset-form">
+            <div>
+              <label htmlFor="demo-reset-confirmation">Restore the verified showcase baseline</label>
+              <p>
+                This removes test-drive changes from the dedicated demo database, rebuilds the synthetic records, and
+                empties outbound queues. It cannot run unless the deployment is explicitly demo and outbound mode is disabled.
+              </p>
+            </div>
+            <div className="environment-demo-reset-controls">
+              <input
+                autoComplete="off"
+                id="demo-reset-confirmation"
+                name="confirmation"
+                placeholder="Type RESET DEMO"
+                required
+              />
+              <button className="button settings-action-button farm-structure-danger-button" type="submit">
+                Reset demo data
+              </button>
+            </div>
+          </form>
+        ) : null}
       </section>
 
       <section className="panel environment-topology-panel">
