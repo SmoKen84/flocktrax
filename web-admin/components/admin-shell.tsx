@@ -130,15 +130,16 @@ export function AdminShell({ children, displayName, isDemo, roleKey, roleLabel, 
       );
     }
 
-    const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+    const href = isDemo && item.label === "Sync Engine" ? "/admin/sync/googleapis-sheets" : item.href;
+    const active = pathname === href || pathname.startsWith(`${href}/`);
 
     return (
       <Link
         className="splash-sidebar-item splash-sidebar-item-link"
         data-has-badge={item.label === "Sync Engine" && syncBadgeCount > 0 ? "true" : undefined}
         data-active={active}
-        href={item.href}
-        key={item.href}
+        href={href}
+        key={href}
         prefetch={item.label === "Sync Engine" ? false : undefined}
       >
         <span className={item.label === "Sync Engine" && syncBadgeCount > 0 ? "sidebar-link-label sidebar-link-label-sync" : "sidebar-link-label"}>

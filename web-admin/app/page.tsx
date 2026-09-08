@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
 import { LiveSidebarClock } from "@/components/live-sidebar-clock";
+import { evaluateEnvironmentSafety } from "@/lib/environment-safety";
 import { getPlatformSplashContent } from "@/lib/platform-content";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -55,6 +56,7 @@ function renderSidebarCopyright(value: string) {
 }
 
 export default async function HomePage() {
+  const environment = evaluateEnvironmentSafety();
   const splash = await getPlatformSplashContent();
   const supabase = await createSupabaseServerClient();
   const {
@@ -98,7 +100,7 @@ export default async function HomePage() {
       <div className="splash-sidebar-stack">
         {splash.versionLine ? <p className="splash-sidebar-version-tag">{splash.versionLine}</p> : null}
 
-        <aside className="splash-sidebar">
+        <aside className="splash-sidebar" data-environment={environment.isDemo ? "demo" : undefined}>
           <div className="splash-sidebar-utility-row">
             {isSignedIn ? (
               <Link

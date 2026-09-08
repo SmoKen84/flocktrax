@@ -2,18 +2,22 @@ import Link from "next/link";
 
 import { BinSentryRefReader } from "@/app/admin/feed-bins/binsentry-refs/binsentry-ref-reader";
 import { discoverBinSentryBinRefs } from "@/lib/binsentry-browser";
+import { evaluateEnvironmentSafety } from "@/lib/environment-safety";
 
 export default async function BinSentryRefsPage() {
+  const environment = evaluateEnvironmentSafety();
   let binsUrl: string | null = null;
   let bins: Awaited<ReturnType<typeof discoverBinSentryBinRefs>>["discoveredBins"] = [];
   let error: string | null = null;
 
-  try {
-    const result = await discoverBinSentryBinRefs();
-    binsUrl = result.binsUrl;
-    bins = result.discoveredBins;
-  } catch (caughtError) {
-    error = caughtError instanceof Error ? caughtError.message : "BinSentry discovery failed.";
+  if (!environment.isDemo) {
+    try {
+      const result = await discoverBinSentryBinRefs();
+      binsUrl = result.binsUrl;
+      bins = result.discoveredBins;
+    } catch (caughtError) {
+      error = caughtError instanceof Error ? caughtError.message : "BinSentry discovery failed.";
+    }
   }
 
   return (
@@ -21,12 +25,17 @@ export default async function BinSentryRefsPage() {
       <section className="panel farm-structure-hero-panel">
         <div className="farm-structure-hero-grid">
           <div className="farm-structure-hero-copy">
-            <p className="hero-kicker">Feed Bins</p>
+            <p className="hero-kicker">{environment.isDemo ? "Demo Integration" : "Feed Bins"}</p>
             <p className="farm-structure-hero-brand">BinSentry Ref Finder</p>
-            <h1 className="farm-structure-hero-title">Discover copy-ready BinSentry refs from your live BinSentry account.</h1>
+            <h1 className="farm-structure-hero-title">
+              {environment.isDemo
+                ? "BinSentry connectivity is intentionally isolated in this demo."
+                : "Discover copy-ready BinSentry refs from your live BinSentry account."}
+            </h1>
             <p className="farm-structure-hero-body">
-              This helper uses the local BinSentry credentials in `web-admin/.env` to sign in server-side, follows the
-              organization links, and lists the bin entity refs you can paste into FlockTrax.
+              {environment.isDemo
+                ? "Production FlockTrax can securely discover bin references and synchronize inventory from BinSentry. The demo carries no BinSentry credentials and makes no vendor request, protecting both production inventory and the external account."
+                : "This helper uses the configured BinSentry credentials to sign in server-side, follows the organization links, and lists the bin entity refs you can paste into FlockTrax."}
             </p>
           </div>
 
@@ -48,7 +57,9 @@ export default async function BinSentryRefsPage() {
             </div>
             <div className="farm-structure-hero-footprint">
               <p className="farm-structure-summary-label">Discovery Result</p>
-              <p className="farm-structure-summary-value">{error ? "Check error below" : `${bins.length} bins returned`}</p>
+              <p className="farm-structure-summary-value">
+                {environment.isDemo ? "Disabled by design" : error ? "Check error below" : `${bins.length} bins returned`}
+              </p>
             </div>
           </div>
         </div>
@@ -58,15 +69,23 @@ export default async function BinSentryRefsPage() {
         <article className="farm-structure-summary-card binsentry-ref-summary-card binsentry-ref-summary-card-wide">
           <p className="farm-structure-summary-label">Source Endpoint</p>
           <p className="farm-structure-summary-value binsentry-ref-endpoint">
-            {binsUrl ?? "Not resolved"}
+            {environment.isDemo ? "External BinSentry endpoint not contacted" : binsUrl ?? "Not resolved"}
           </p>
-          <p className="farm-structure-summary-note">This is the live BinSentry collection endpoint returned by your authenticated organization entity.</p>
+          <p className="farm-structure-summary-note">
+            {environment.isDemo
+              ? "The production integration endpoint and credentials are intentionally excluded from the demo environment."
+              : "This is the live BinSentry collection endpoint returned by your authenticated organization entity."}
+          </p>
         </article>
 
         <article className="farm-structure-summary-card binsentry-ref-summary-card">
           <p className="farm-structure-summary-label">Copy Target</p>
-          <p className="farm-structure-summary-value">`BinSentry Ref` field</p>
-          <p className="farm-structure-summary-note">Paste the full entity URL into the feed-bin editor when possible.</p>
+          <p className="farm-structure-summary-value">{environment.isDemo ? "Synthetic feed-bin data" : "`BinSentry Ref` field"}</p>
+          <p className="farm-structure-summary-note">
+            {environment.isDemo
+              ? "Feed-bin and inventory screens can still be explored using the isolated demonstration records."
+              : "Paste the full entity URL into the feed-bin editor when possible."}
+          </p>
         </article>
 
         <article className="farm-structure-summary-card binsentry-ref-summary-card">
@@ -74,20 +93,31 @@ export default async function BinSentryRefsPage() {
           <p className="farm-structure-summary-value">
             <Link href="/admin/feed-bins">Back to Feed Bins</Link>
           </p>
-          <p className="farm-structure-summary-note">Save one ref on a real bin, then use `Sync BinSentry` on that barn.</p>
+          <p className="farm-structure-summary-note">
+            {environment.isDemo
+              ? "Review the feed-bin editor without affecting any live BinSentry account or production bin."
+              : "Save one ref on a real bin, then use `Sync BinSentry` on that barn."}
+          </p>
         </article>
       </section>
 
       <div className="farm-structure-summary-divider" aria-hidden="true" />
 
-      {error ? (
+      {environment.isDemo ? (
+        <div className="farm-structure-feedback-row" data-tone="good">
+          <span className="status-pill" data-tone="good">Demo Safety Active</span>
+          <p className="farm-structure-feedback-copy">
+            This is an intentional product-safety boundary, not a loading error. Live BinSentry discovery and synchronization are available only in a separately configured production environment.
+          </p>
+        </div>
+      ) : error ? (
         <div className="farm-structure-feedback-row" data-tone="danger">
           <span className="status-pill" data-tone="danger">Error</span>
           <p className="farm-structure-feedback-copy">{error}</p>
         </div>
       ) : null}
 
-      {!error && bins.length === 0 ? (
+      {!environment.isDemo && !error && bins.length === 0 ? (
         <div className="farm-structure-feedback-row" data-tone="danger">
           <span className="status-pill" data-tone="danger">No Bins</span>
           <p className="farm-structure-feedback-copy">
