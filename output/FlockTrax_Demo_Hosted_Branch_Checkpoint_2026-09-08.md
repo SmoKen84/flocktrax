@@ -12,6 +12,7 @@ The demo is publicly hosted at `https://flocktrax-demo.vercel.app`. Its separate
 - Demo branch: `demo-hosted`
 - Demo worktree: `C:\dev\FlockTrax-Demo-Hosted`
 - Demo checkpoint tag: `checkpoint/demo-hosted-20260908`
+- Hosted deployment checkpoint tag: `checkpoint/demo-hosted-vercel-20260908`
 - Environment-control foundation branch: `demo-platform`
 - Environment-control foundation commit: `20fb4dfe1d6fbee4bfa46d6d9b6f0e8e36bdbba3`
 - Stable production fallback commit: `4b494db0ab097eed3e4f748163da3670820c2aeb`
@@ -179,6 +180,7 @@ Completed successfully on 2026-09-08:
 - `ec0240b` — Harden demo operations and storage
 - `6821653` — Expand demo across multiple farm groups
 - `d85b0f3` — Checkpoint hosted demo branch before Vercel activation
+- `3297022` — Activate isolated Vercel demo deployment
 
 ## Legacy operational-script hazard
 
