@@ -6,7 +6,9 @@ param(
 
   [string]$RoleId,
 
-  [string]$ProjectRef = "frneaccbbrijpolcesjm",
+  [Parameter(Mandatory = $true)]
+  [ValidateNotNullOrEmpty()]
+  [string]$ProjectRef,
 
   [string]$ServiceRoleKey = $(
     if ($env:SUPABASE_SECRET_KEY) { $env:SUPABASE_SECRET_KEY } else { $env:SUPABASE_SERVICE_ROLE_KEY }

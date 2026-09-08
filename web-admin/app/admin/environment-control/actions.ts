@@ -40,6 +40,26 @@ export async function resetDemoShowcaseAction(formData: FormData) {
     returnToEnvironmentControl({ error: "The demo service credential is not configured." });
   }
 
+  const archivesResult = await admin
+    .from("document_archives")
+    .select("storage_bucket,storage_path");
+  if (archivesResult.error) {
+    returnToEnvironmentControl({ error: `Unable to inventory demo documents: ${archivesResult.error.message}` });
+  }
+
+  const archivePaths = (archivesResult.data ?? [])
+    .filter((row) => row.storage_bucket === "flocktrax-document-archive" && typeof row.storage_path === "string")
+    .map((row) => row.storage_path as string);
+
+  for (let index = 0; index < archivePaths.length; index += 100) {
+    const removeResult = await admin.storage
+      .from("flocktrax-document-archive")
+      .remove(archivePaths.slice(index, index + 100));
+    if (removeResult.error) {
+      returnToEnvironmentControl({ error: `Unable to clear demo documents: ${removeResult.error.message}` });
+    }
+  }
+
   const resetResult = await admin.rpc("reset_demo_showcase_data");
   if (resetResult.error) {
     returnToEnvironmentControl({ error: `Demo reset failed: ${resetResult.error.message}` });

@@ -368,7 +368,10 @@ export async function getDemoShowcaseStatus(): Promise<DemoShowcaseStatus> {
     };
   }
 
-  const result = await admin.rpc("get_demo_showcase_status");
+  const [result, bucketResult] = await Promise.all([
+    admin.rpc("get_demo_showcase_status"),
+    admin.storage.getBucket("flocktrax-document-archive"),
+  ]);
   if (result.error || !result.data || typeof result.data !== "object") {
     return {
       state: "unavailable",
@@ -392,12 +395,13 @@ export async function getDemoShowcaseStatus(): Promise<DemoShowcaseStatus> {
     ["Livehaul events", "livehaul_events"],
     ["Action items", "issues"],
   ];
-  const ok = status.ok === true;
+  const bucketReady = !bucketResult.error && bucketResult.data?.public === false;
+  const ok = status.ok === true && bucketReady;
 
   return {
     state: ok ? "ready" : "unsafe",
     message: ok
-      ? "Synthetic showcase data is complete and both outbound queues are empty."
+      ? "Synthetic showcase data is complete, private document storage is ready, and both outbound queues are empty."
       : "The demo dataset differs from its verified baseline. Use the guarded reset to restore it.",
     ok,
     projectRef: typeof status.project_ref === "string" ? status.project_ref : undefined,
@@ -405,6 +409,6 @@ export async function getDemoShowcaseStatus(): Promise<DemoShowcaseStatus> {
     counts: countFields.map(([label, key]) => ({
       label,
       value: typeof status[key] === "number" ? status[key] : 0,
-    })),
+    })).concat({ label: "Private document bucket", value: bucketReady ? 1 : 0 }),
   };
 }

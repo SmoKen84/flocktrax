@@ -1,13 +1,18 @@
+@echo off
+setlocal
 
+if "%FLOCKTRAX_DATABASE_URL%"=="" (
+  echo ERROR: FLOCKTRAX_DATABASE_URL must be set explicitly.
+  echo No production database fallback is permitted.
+  exit /b 1
+)
 
-cd C:\dev\FlockTrax
+set "BACKUP_DIR=%~dp0backups\manual-database-backup"
+if not exist "%BACKUP_DIR%" mkdir "%BACKUP_DIR%"
 
-$backupDir = "C:\dev\FlockTrax\backups\2026-04-17-pre-alpha-reset"
-New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+supabase db dump --db-url "%FLOCKTRAX_DATABASE_URL%" -f "%BACKUP_DIR%\roles.sql" --role-only || exit /b 1
+supabase db dump --db-url "%FLOCKTRAX_DATABASE_URL%" -f "%BACKUP_DIR%\schema.sql" || exit /b 1
+supabase db dump --db-url "%FLOCKTRAX_DATABASE_URL%" -f "%BACKUP_DIR%\data.sql" --use-copy --data-only -x "storage.buckets_vectors" -x "storage.vector_indexes" || exit /b 1
 
-$dbUrl = "postgresql://postgres.frneaccbbrijpolcesjm:tvwTy4xMsEckRT5t@aws-0-us-east-1.pooler.supabase.com:5432/postgres"
-
-
-supabase db dump --db-url $dbUrl -f "$backupDir\roles.sql" --role-only
-supabase db dump --db-url $dbUrl -f "$backupDir\schema.sql"
-supabase db dump --db-url $dbUrl -f "$backupDir\data.sql" --use-copy --data-only -x "storage.buckets_vectors" -x "storage.vector_indexes"
+echo Database backup completed in "%BACKUP_DIR%".
+endlocal

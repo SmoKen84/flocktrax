@@ -3,8 +3,14 @@ setlocal
 title FlockTrax - DEPLOY FUNCTIONS (LOCAL)
 color 0A
 
-set "PROJ=C:\dev\FlockTrax"
-set "PROJECT_REF=frneaccbbrijpolcesjm"
+set "PROJ=%~dp0.."
+
+if "%FLOCKTRAX_SUPABASE_PROJECT_REF%"=="" (
+  echo ERROR: FLOCKTRAX_SUPABASE_PROJECT_REF must be set explicitly.
+  echo No production project fallback is permitted.
+  exit /b 1
+)
+set "PROJECT_REF=%FLOCKTRAX_SUPABASE_PROJECT_REF%"
 
 cd /d "%PROJ%" || (echo ERROR: Project path missing. & pause & exit /b 1)
 
