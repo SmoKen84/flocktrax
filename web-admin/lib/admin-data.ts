@@ -24,6 +24,7 @@ class AdminDataError extends Error {
 }
 
 const CONSOLE_TIME_ZONE = "America/Chicago";
+const GROWER_ONLY_AGE_DAYS = 14;
 const CONSOLE_DATE_KEY_FORMATTER = new Intl.DateTimeFormat("en-CA", {
   timeZone: CONSOLE_TIME_ZONE,
   year: "numeric",
@@ -1444,7 +1445,10 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         daily: feedProjection.daily,
         starterRemainingObligationLbs,
       });
-      const starterOrderableRemainingLbs = Math.round(Math.max(0, starterRemainingObligationLbs));
+      const hasTransitionedToGrower = ageDays >= GROWER_ONLY_AGE_DAYS;
+      const starterOrderableRemainingLbs = hasTransitionedToGrower
+        ? 0
+        : Math.round(Math.max(0, starterRemainingObligationLbs));
       const feedInventory = feedInventoryByBarnId.get(barn.id) ?? null;
       const typedFeedState = typedFeedStateByBarnId.get(barn.id) ?? null;
       const feedOrdersForPlacement = row ? feedOrderPlacementSpecificByPlacementId.get(row.id) ?? null : null;
@@ -1507,14 +1511,30 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         feedOrdersAvailable &&
         ((typedFeedState?.typedStateCount ?? 0) > 0 || typedOrderCount > 0) &&
         (feedOrdersForPlacement?.untypedCount ?? 0) + (feedOrdersForBarn?.untypedCount ?? 0) === 0;
-      const starterRecommendedOrderLbs =
+      const starterRecognizedSupplyLbs = Math.max(
+        deliveredFeed.starter,
+        feedInventoryStarterAccessibleLbs ?? 0,
+      );
+      const calculatedStarterRecommendedOrderLbs =
         feedOrdersAvailable
-          ? Math.max(0, Math.round(starterRemainingObligationLbs - (feedOnOrderStarterLbs ?? 0)))
+          ? Math.max(
+              0,
+              Math.round(
+                starterTargetLbs - starterRecognizedSupplyLbs - (feedOnOrderStarterLbs ?? 0),
+              ),
+            )
           : null;
-      const growerRecommendedOrderLbs =
+      const starterRecommendedOrderLbs = hasTransitionedToGrower && calculatedStarterRecommendedOrderLbs !== null
+        ? 0
+        : calculatedStarterRecommendedOrderLbs;
+      const calculatedGrowerRecommendedOrderLbs =
         typedOrderingAvailable && typedProjection.growerTotal !== null
           ? Math.max(0, Math.round((typedProjection.growerTotal ?? 0) - (feedInventoryGrowerAccessibleLbs ?? 0) - (feedOnOrderGrowerLbs ?? 0)))
           : null;
+      const growerRecommendedOrderLbs = calculatedGrowerRecommendedOrderLbs === null
+        ? null
+        : calculatedGrowerRecommendedOrderLbs +
+          (hasTransitionedToGrower ? (calculatedStarterRecommendedOrderLbs ?? 0) : 0);
       const typedRecommendedOrderTotalLbs =
         starterRecommendedOrderLbs !== null && growerRecommendedOrderLbs !== null
           ? starterRecommendedOrderLbs + growerRecommendedOrderLbs
@@ -2489,7 +2509,9 @@ function splitFeedProjectionByType({
       };
     }
 
-    const starterFeed = Math.min(entry.totalFeed, remainingStarter);
+    const starterFeed = entry.ageDays >= GROWER_ONLY_AGE_DAYS
+      ? 0
+      : Math.min(entry.totalFeed, remainingStarter);
     const growerFeed = Math.max(0, entry.totalFeed - starterFeed);
     remainingStarter = Math.max(0, remainingStarter - starterFeed);
     starterTotal += starterFeed;
