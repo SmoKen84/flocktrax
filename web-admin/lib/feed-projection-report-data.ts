@@ -101,8 +101,7 @@ type SirenEntity = {
 };
 
 const PENDING_BINSENTRY_ORDER_STATES = new Set(["ready", "scheduled", "not-delivered"]);
-const STARTER_FEED_MAX_AGE_DAYS = 21;
-const FEED_ORDER_LEAD_DAYS = 5;
+const GROWER_ONLY_AGE_DAYS = 14;
 
 export type FeedProjectionReportRow = {
   id: string;
@@ -512,11 +511,10 @@ function toReportRow({
         allOpenStarterOnOrderLbs,
     ),
   );
+  const hasTransitionedToGrower =
+    placement.ageDays !== null && placement.ageDays >= GROWER_ONLY_AGE_DAYS;
   const starterRecommendationConvertedToGrowerLbs =
-    placement.ageDays !== null &&
-    placement.ageDays + FEED_ORDER_LEAD_DAYS > STARTER_FEED_MAX_AGE_DAYS
-      ? calculatedStarterRecommendedLbs
-      : 0;
+    hasTransitionedToGrower ? calculatedStarterRecommendedLbs : 0;
   const starterRecommendedLbs =
     starterRecommendationConvertedToGrowerLbs > 0 ? 0 : calculatedStarterRecommendedLbs;
   const growerRecommendedLbs =
@@ -558,8 +556,11 @@ function toReportRow({
           ? "awaiting"
           : "live",
     headCount: placement.headCount,
-    starterTotalLbs: placement.starterTargetLbs,
-    growerTotalLbs: typedProjection.growerTotal,
+    starterTotalLbs: hasTransitionedToGrower ? 0 : placement.starterTargetLbs,
+    growerTotalLbs:
+      typedProjection.growerTotal === null
+        ? null
+        : typedProjection.growerTotal + starterRecommendationConvertedToGrowerLbs,
     starterTargetLbs: placement.starterTargetLbs,
     starterDeliveredLbs: placement.starterDeliveredLbs,
     starterRecognizedSupplyLbs,
@@ -1432,7 +1433,9 @@ function splitFeedProjectionByType({
     if (entry.totalFeed === null || !Number.isFinite(entry.totalFeed)) {
       return { ...entry, starterFeed: null, growerFeed: null };
     }
-    const starterFeed = Math.min(entry.totalFeed, remainingStarter);
+    const starterFeed = entry.ageDays >= GROWER_ONLY_AGE_DAYS
+      ? 0
+      : Math.min(entry.totalFeed, remainingStarter);
     const growerFeed = Math.max(0, entry.totalFeed - starterFeed);
     remainingStarter = Math.max(0, remainingStarter - starterFeed);
     starterTotal += starterFeed;
