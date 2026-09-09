@@ -388,10 +388,16 @@ export function FeedProjectionReportTable({
               </div>
               <div>
                 <span>Starter Gap</span>
-                <strong>{formatWeight(selectedStarterMathRow.starterRecommendedLbs)}</strong>
+                <strong>
+                  {formatWeight(
+                    selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs > 0
+                      ? selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs
+                      : selectedStarterMathRow.starterRecommendedLbs,
+                  )}
+                </strong>
                 <small>
                   {selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs > 0
-                    ? `${formatWeight(selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs)} was moved to Grower because the flock is age 14 or older.`
+                    ? `Historical Starter shortfall. No new Starter will be ordered; ${formatWeight(selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs)} is added to the Grower recommendation because the flock is age 14 or older.`
                     : "Additional starter still needed for the flock"}
                 </small>
               </div>

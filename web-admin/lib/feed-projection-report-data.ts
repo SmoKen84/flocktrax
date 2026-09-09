@@ -542,7 +542,10 @@ function toReportRow({
           ? "awaiting"
           : "live",
     headCount: placement.headCount,
-    starterTotalLbs: hasTransitionedToGrower ? 0 : placement.starterTargetLbs,
+    // Keep the lifetime Starter requirement visible for historical/accounting
+    // accuracy. The age-14 rule changes what should be ordered, not what the
+    // flock was originally expected to consume as Starter.
+    starterTotalLbs: placement.starterTargetLbs,
     growerTotalLbs:
       typedProjection.growerTotal === null
         ? null
