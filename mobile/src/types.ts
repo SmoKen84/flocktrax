@@ -154,7 +154,7 @@ export type OperationsCalendarResponse = {
   ok: boolean;
   events?: OperationsCalendarEvent[];
   start_date?: string;
-  end_date?: string;
+  end_date?: string | null;
   error?: string;
 };
 

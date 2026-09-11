@@ -32,10 +32,28 @@ function getClient(accessToken: string) {
   });
 }
 
-function addDays(value: string, days: number) {
-  const date = new Date(`${value}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
+function addMonths(value: string, months: number) {
+  const [year, month, day] = value.split("-").map(Number);
+  const firstOfTargetMonth = new Date(Date.UTC(year, month - 1 + months, 1));
+  const lastDayOfTargetMonth = new Date(
+    Date.UTC(firstOfTargetMonth.getUTCFullYear(), firstOfTargetMonth.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  firstOfTargetMonth.setUTCDate(Math.min(day, lastDayOfTargetMonth));
+  return firstOfTargetMonth.toISOString().slice(0, 10);
+}
+
+function formatDateInTimeZone(date: Date, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value ?? "0000";
+  const month = parts.find((part) => part.type === "month")?.value ?? "00";
+  const day = parts.find((part) => part.type === "day")?.value ?? "00";
+  return `${year}-${month}-${day}`;
 }
 
 Deno.serve(async (req) => {
@@ -76,24 +94,22 @@ Deno.serve(async (req) => {
     const farmIds = (farms ?? []).map((row) => row.id).filter(Boolean);
     if (!farmIds.length) return json(req, { ok: true, events: [] });
 
-    const today = new Date().toISOString().slice(0, 10);
-    const endDate = addDays(today, 365);
+    const today = formatDateInTimeZone(new Date(), "America/Chicago");
+    const historyStartDate = addMonths(today, -12);
     const [barnsResult, placementsResult, livehaulResult] = await Promise.all([
       service.from("barns").select("id,barn_code,farm_id").in("farm_id", farmIds),
       service
         .from("placements")
         .select("id,flock_id,farm_id,barn_id,placement_key,active_start,lifecycle_stage")
         .in("farm_id", farmIds)
-        .gte("active_start", today)
-        .lte("active_start", endDate)
-        .or("lifecycle_stage.in.(scheduled,awaiting_arrival),lifecycle_stage.is.null"),
+        .gte("active_start", historyStartDate)
+        .not("lifecycle_stage", "in", "(unassigned,canceled)"),
       service
         .from("livehaul_schedule")
         .select("livehaul_id,placement_id,farm_id,barn_id,lh_date,sequence_num,target_sex,head_target,status")
         .in("farm_id", farmIds)
-        .gte("lh_date", today)
-        .lte("lh_date", endDate)
-        .in("status", ["scheduled", "legacy_migrated"]),
+        .gte("lh_date", historyStartDate)
+        .neq("status", "cancelled"),
     ]);
     if (barnsResult.error) throw new Error(barnsResult.error.message);
     if (placementsResult.error) throw new Error(placementsResult.error.message);
@@ -143,7 +159,7 @@ Deno.serve(async (req) => {
       }
 
       for (const [date, arrival] of arrivals) {
-        if (date < today || date > endDate) continue;
+        if (date < historyStartDate) continue;
         const farm = farmById.get(placement.farm_id);
         const barn = barnById.get(placement.barn_id);
         events.push({
@@ -183,7 +199,12 @@ Deno.serve(async (req) => {
     }
 
     events.sort((left, right) => String(left.date).localeCompare(String(right.date)) || String(left.barn_code).localeCompare(String(right.barn_code)));
-    return json(req, { ok: true, events, start_date: today, end_date: endDate });
+    return json(req, {
+      ok: true,
+      events,
+      start_date: historyStartDate,
+      end_date: null,
+    });
   } catch (error) {
     return json(req, { ok: false, error: error instanceof Error ? error.message : String(error) }, 500);
   }
