@@ -15,10 +15,17 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function OperationsCalendarScreen({ events, loading, onRefresh }: Props) {
   const [mode, setMode] = useState<CalendarMode>("placement");
-  const [monthKey, setMonthKey] = useState(() => new Date().toISOString().slice(0, 7));
+  const [monthKey, setMonthKey] = useState(getCurrentMonthKey);
   const [selected, setSelected] = useState<OperationsCalendarEvent | null>(null);
-  const currentMonthKey = new Date().toISOString().slice(0, 7);
-  const lastMonthKey = addMonths(currentMonthKey, 12);
+  const currentMonthKey = getCurrentMonthKey();
+  const firstMonthKey = addMonths(currentMonthKey, -12);
+  const lastMonthKey = useMemo(
+    () => events.reduce((latest, event) => {
+      const eventMonthKey = event.date.slice(0, 7);
+      return eventMonthKey > latest ? eventMonthKey : latest;
+    }, currentMonthKey),
+    [currentMonthKey, events],
+  );
 
   const monthEvents = useMemo(
     () => events.filter((event) => event.type === mode && event.date.startsWith(monthKey)),
@@ -46,7 +53,7 @@ export function OperationsCalendarScreen({ events, loading, onRefresh }: Props) 
           <View style={styles.heroCopy}>
             <Text style={styles.eyebrow}>READ-ONLY SCHEDULE</Text>
             <Text style={styles.title}>Operations Calendar</Text>
-            <Text style={styles.subtitle}>Upcoming chick arrivals and livehaul work for your farms.</Text>
+            <Text style={styles.subtitle}>Placements and livehaul work from the rolling past 12 months through the latest scheduled event.</Text>
           </View>
           <Pressable onPress={onRefresh} style={styles.refreshButton}><Text style={styles.refreshText}>Refresh</Text></Pressable>
         </View>
@@ -57,7 +64,7 @@ export function OperationsCalendarScreen({ events, loading, onRefresh }: Props) 
         </View>
 
         <View style={styles.monthBar}>
-          <Pressable disabled={monthKey <= currentMonthKey} onPress={() => setMonthKey(addMonths(monthKey, -1))} style={[styles.monthButton, monthKey <= currentMonthKey && styles.disabled]}>
+          <Pressable disabled={monthKey <= firstMonthKey} onPress={() => setMonthKey(addMonths(monthKey, -1))} style={[styles.monthButton, monthKey <= firstMonthKey && styles.disabled]}>
             <Text style={styles.monthButtonText}>Previous</Text>
           </Pressable>
           <Text style={styles.monthTitle}>{formatMonth(monthKey)}</Text>
@@ -87,7 +94,7 @@ export function OperationsCalendarScreen({ events, loading, onRefresh }: Props) 
           </View>
         </View>
 
-        {monthEvents.length === 0 ? <Text style={styles.empty}>No upcoming {mode === "placement" ? "placements" : "livehaul events"} in this month.</Text> : null}
+        {monthEvents.length === 0 ? <Text style={styles.empty}>No {mode === "placement" ? "placements" : "livehaul events"} in this month.</Text> : null}
         <Text style={styles.lockedNote}>Schedule display only. Changes must be made in FlockTrax Admin.</Text>
       </ScrollView>
 
@@ -132,6 +139,11 @@ function addMonths(monthKey: string, amount: number) {
   const [year, month] = monthKey.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1 + amount, 1));
   return date.toISOString().slice(0, 7);
+}
+
+function getCurrentMonthKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function formatMonth(monthKey: string) {
