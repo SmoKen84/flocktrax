@@ -39,7 +39,7 @@ Purpose: track shared bug fixes proven on `demo-hosted` that must later be reapp
   - include historical placement events while excluding unassigned/canceled placements;
   - allow mobile navigation back through the rolling 12-month window and forward through the latest returned future event;
   - use the America/Chicago operational date on the Edge Function and the device-local month in the mobile UI.
-- Demo deployment: `operations-calendar-list` deployed to Supabase project `srkgobayrzidytmvoago` on `2026-09-11`.
+- Demo deployment: `operations-calendar-list` is `ACTIVE` at version `2` in Supabase project `srkgobayrzidytmvoago` as of `2026-09-11` (bundle SHA-256 `4c2acab16429bace54a6125a005e029fdce4cf1797eab8d505ba57a7b5dc2f12`).
 - Mobile source validation: `npm run typecheck` passed.
 - Production status: `PENDING`
 - Promotion note: the production Edge Function and a future mobile build/update both need this change. Deploying the demo Edge Function alone does not update an already-installed mobile binary's month-navigation UI.
