@@ -99,6 +99,70 @@ function formatDateInTimeZone(date: Date, timeZone: string) {
   return `${year}-${month}-${day}`;
 }
 
+type DashboardLiveHaulEvent = {
+  date: string;
+  targetSex: "male" | "female" | null;
+  targetHead: number | null;
+  actualHead: number | null;
+};
+
+function resolveLiveHaulHeadRemoval(actualHead: number | null, targetHead: number | null) {
+  if (actualHead !== null && Number.isFinite(actualHead) && actualHead > 0) return Math.round(actualHead);
+  if (targetHead !== null && Number.isFinite(targetHead) && targetHead > 0) return Math.round(targetHead);
+  return null;
+}
+
+function applyPastLiveHaulEvents(
+  events: DashboardLiveHaulEvent[],
+  today: string,
+  femalePopulation: number,
+  malePopulation: number,
+) {
+  let remainingFemale = Math.max(0, Math.round(femalePopulation));
+  let remainingMale = Math.max(0, Math.round(malePopulation));
+  let femaleRemoved = 0;
+  let maleRemoved = 0;
+
+  for (const event of events) {
+    if (!event.date || event.date >= today) continue;
+    const requestedRemoval = resolveLiveHaulHeadRemoval(event.actualHead, event.targetHead);
+    if (requestedRemoval === null) continue;
+
+    if (event.targetSex === "female") {
+      const removal = Math.min(remainingFemale, requestedRemoval);
+      remainingFemale -= removal;
+      femaleRemoved += removal;
+      continue;
+    }
+    if (event.targetSex === "male") {
+      const removal = Math.min(remainingMale, requestedRemoval);
+      remainingMale -= removal;
+      maleRemoved += removal;
+      continue;
+    }
+
+    const totalPopulation = remainingFemale + remainingMale;
+    const boundedRemoval = Math.min(totalPopulation, requestedRemoval);
+    if (boundedRemoval <= 0) continue;
+    const proportionalFemaleRemoval = Math.min(
+      remainingFemale,
+      Math.floor(boundedRemoval * (remainingFemale / totalPopulation)),
+    );
+    const proportionalMaleRemoval = Math.min(remainingMale, boundedRemoval - proportionalFemaleRemoval);
+    remainingFemale -= proportionalFemaleRemoval;
+    remainingMale -= proportionalMaleRemoval;
+    femaleRemoved += proportionalFemaleRemoval;
+    maleRemoved += proportionalMaleRemoval;
+  }
+
+  return {
+    femalePopulation: remainingFemale,
+    malePopulation: remainingMale,
+    femaleRemoved,
+    maleRemoved,
+  };
+}
+
 function deriveDashboardStatus(flags: {
   isActive: boolean;
   openBarnIssueCount: number;
@@ -180,6 +244,8 @@ Deno.serve(async (req) => {
           placed_male_count: 12655,
           mortality_female_count: 145,
           mortality_male_count: 155,
+          livehaul_female_count: 0,
+          livehaul_male_count: 0,
           current_female_count: 12200,
           current_male_count: 12500,
           current_total_count: 24700,
@@ -573,6 +639,7 @@ Deno.serve(async (req) => {
     >();
     const completedTodayLabelByPlacementId = new Map<string, string | null>();
     const livehaulDatesByPlacementId = new Map<string, string[]>();
+    const livehaulEventsByPlacementId = new Map<string, DashboardLiveHaulEvent[]>();
     const placementsWithFirstLivehaulSchedule = new Set<string>();
 
     if (farmIds.length > 0) {
@@ -629,7 +696,7 @@ Deno.serve(async (req) => {
     if (placementIds.length > 0) {
       const { data: livehaulRows, error: livehaulError } = await service
         .from("livehaul_schedule")
-        .select("placement_id,lh_date,sequence_num")
+        .select("placement_id,lh_date,sequence_num,target_sex,head_target,head_actual,status")
         .in("placement_id", placementIds)
         .order("sequence_num", { ascending: true, nullsFirst: false })
         .order("lh_date", { ascending: true });
@@ -645,6 +712,7 @@ Deno.serve(async (req) => {
         ) {
           continue;
         }
+        if (livehaulRow.status === "cancelled") continue;
 
         const dates = livehaulDatesByPlacementId.get(livehaulRow.placement_id) ?? [];
         if (livehaulRow.sequence_num === 1) {
@@ -654,6 +722,17 @@ Deno.serve(async (req) => {
           dates.push(livehaulRow.lh_date);
         }
         livehaulDatesByPlacementId.set(livehaulRow.placement_id, dates);
+
+        const events = livehaulEventsByPlacementId.get(livehaulRow.placement_id) ?? [];
+        events.push({
+          date: livehaulRow.lh_date,
+          targetSex: livehaulRow.target_sex === "male" || livehaulRow.target_sex === "female"
+            ? livehaulRow.target_sex
+            : null,
+          targetHead: typeof livehaulRow.head_target === "number" ? livehaulRow.head_target : null,
+          actualHead: typeof livehaulRow.head_actual === "number" ? livehaulRow.head_actual : null,
+        });
+        livehaulEventsByPlacementId.set(livehaulRow.placement_id, events);
       }
 
       const { data: dailyRows, error: dailyRowsError } = await supabase
@@ -726,8 +805,14 @@ Deno.serve(async (req) => {
         : undefined;
       const mortalityFemaleCount = (mortality?.dead_female ?? 0) + (mortality?.cull_female ?? 0);
       const mortalityMaleCount = (mortality?.dead_male ?? 0) + (mortality?.cull_male ?? 0);
-      const currentFemaleCount = Math.max(0, femaleCount - mortalityFemaleCount);
-      const currentMaleCount = Math.max(0, maleCount - mortalityMaleCount);
+      const liveHaulPopulation = applyPastLiveHaulEvents(
+        typeof row.id === "string" ? (livehaulEventsByPlacementId.get(row.id) ?? []) : [],
+        today,
+        Math.max(0, femaleCount - mortalityFemaleCount),
+        Math.max(0, maleCount - mortalityMaleCount),
+      );
+      const currentFemaleCount = liveHaulPopulation.femalePopulation;
+      const currentMaleCount = liveHaulPopulation.malePopulation;
       const firstLivehaulDays = placedDate ? firstLivehaulDaysSetting : null;
       const openPlacementIssueCount = typeof row.id === "string"
         ? (placementIssueCountByPlacementId.get(row.id) ?? 0)
@@ -769,6 +854,8 @@ Deno.serve(async (req) => {
         placed_male_count: maleCount,
         mortality_female_count: mortalityFemaleCount,
         mortality_male_count: mortalityMaleCount,
+        livehaul_female_count: liveHaulPopulation.femaleRemoved,
+        livehaul_male_count: liveHaulPopulation.maleRemoved,
         current_female_count: currentFemaleCount,
         current_male_count: currentMaleCount,
         current_total_count: currentFemaleCount + currentMaleCount,

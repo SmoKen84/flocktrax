@@ -1231,6 +1231,16 @@ function applyLiveHaulReduction(options: {
   };
 }
 
+function resolveLiveHaulHeadRemoval(actualHead: number | null, targetHead: number | null) {
+  if (actualHead !== null && Number.isFinite(actualHead) && actualHead > 0) {
+    return Math.round(actualHead);
+  }
+  if (targetHead !== null && Number.isFinite(targetHead) && targetHead > 0) {
+    return Math.round(targetHead);
+  }
+  return null;
+}
+
 function buildFeedProjection({
   today,
   windowDays,
@@ -1280,9 +1290,13 @@ function buildFeedProjection({
   }> = [];
 
   for (const [liveHaulIndex, liveHaulEvent] of scheduledLiveHaulEvents.entries()) {
+    // getAdminData has already deducted livehauls scheduled before today from
+    // the current population. Only today's event remains to be applied before
+    // projecting tomorrow, which prevents historical events being counted twice.
+    if (liveHaulEvent.date < today) continue;
     if (liveHaulEvent.date > today) break;
     const isFinalLiveHaul = liveHaulIndex === scheduledLiveHaulDates.length - 1;
-    const explicitHeadRemoval = liveHaulEvent.actualHead ?? liveHaulEvent.targetHead ?? null;
+    const explicitHeadRemoval = resolveLiveHaulHeadRemoval(liveHaulEvent.actualHead, liveHaulEvent.targetHead);
 
     if (explicitHeadRemoval !== null) {
       const totalPopulation = femalePopulation + malePopulation;
@@ -1346,7 +1360,9 @@ function buildFeedProjection({
     const appliesLiveHaul = liveHaulIndex !== undefined;
     const isFinalLiveHaul = appliesLiveHaul && liveHaulIndex === scheduledLiveHaulDates.length - 1;
     const liveHaulEvent = liveHaulEventByDate.get(date) ?? null;
-    const explicitHeadRemoval = liveHaulEvent?.actualHead ?? liveHaulEvent?.targetHead ?? null;
+    const explicitHeadRemoval = liveHaulEvent
+      ? resolveLiveHaulHeadRemoval(liveHaulEvent.actualHead, liveHaulEvent.targetHead)
+      : null;
 
     daily.push({
       date,

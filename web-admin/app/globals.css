@@ -5219,7 +5219,7 @@ tr:last-child td {
 
 .tile-mortality-table {
   display: grid;
-  grid-template-columns: minmax(82px, 1.55fr) repeat(4, minmax(42px, 0.84fr));
+  grid-template-columns: minmax(72px, 1.35fr) repeat(5, minmax(38px, 0.78fr));
   gap: 8px 8px;
   align-items: center;
   font-size: 0.84rem;
@@ -9003,7 +9003,7 @@ tr:last-child td {
 
   .tile-mortality-table {
     margin-left: 0;
-    grid-template-columns: minmax(58px, 1.05fr) repeat(4, minmax(0, 1fr));
+    grid-template-columns: minmax(52px, 1fr) repeat(5, minmax(0, 1fr));
     gap: 6px;
     font-size: 0.76rem;
   }
