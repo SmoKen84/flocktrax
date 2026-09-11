@@ -13,6 +13,23 @@ Purpose: track shared bug fixes proven on `demo-hosted` that must later be reapp
 
 ## Pending production promotion
 
+### Dashboard population accounts for completed livehaul
+
+- Demo source commit: `a28c0c1` (`Account for past livehaul in dashboard population`)
+- Shared fix:
+  - add a separate `Hauled` component to the Admin dashboard population matrix so the calculation reads `Started - Dead - Hauled = Now`;
+  - deduct only non-cancelled livehaul events whose scheduled date is strictly before the current operational date—today's events do not reduce `Now` until tomorrow;
+  - use `actual_head` when it is greater than zero, otherwise fall back to `target_head`;
+  - apply sex-targeted removals to that sex and distribute unsexed removals proportionally without allowing either population to become negative;
+  - return the same livehaul-adjusted counts from the mobile dashboard Edge Function;
+  - avoid double-counting historical removals in feed projection calculations, while still applying today's event inside projections.
+- Demo deployments:
+  - Vercel production target for the isolated demo project: `dpl_28yRB6CpWg9pzr5xGNkd9f2qBnJ1`, aliased to `https://flocktrax-demo.vercel.app` on `2026-09-11`;
+  - `dashboard-placements-list` is `ACTIVE` at version `2` in demo Supabase project `srkgobayrzidytmvoago` (bundle SHA-256 `136ade4b6f1f6baec7d1537990a4a256c1e724b713f742a9d605cbfa2db0f2d3`).
+- Validation: Admin and mobile typechecks passed; the local and hosted Admin production builds passed; `git diff --check` passed before the source commit.
+- Production status: `PENDING`
+- Promotion note: reapply the shared Admin, mobile type, and `dashboard-placements-list` changes to the then-current production baseline. Do not copy demo environment configuration or deploy to production without a separate production checkpoint and target verification.
+
 ### Livehaul actual-head precedence
 
 - Demo source commit: `9d1f622` (`Simulate BinSentry feed reports in demo`)
