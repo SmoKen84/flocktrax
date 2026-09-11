@@ -1024,6 +1024,7 @@ function PlacementTile({
 
   const startedTotal = placement.startedMaleCount + placement.startedFemaleCount;
   const mortalityTotal = placement.mortalityMaleTotal + placement.mortalityFemaleTotal;
+  const liveHaulTotal = placement.liveHaulMaleTotal + placement.liveHaulFemaleTotal;
   const currentTotal = placement.currentMaleCount + placement.currentFemaleCount;
   const first7Total = placement.mortalityMaleFirst7Days + placement.mortalityFemaleFirst7Days;
   const last7Total = placement.mortalityMaleLast7Days + placement.mortalityFemaleLast7Days;
@@ -1204,24 +1205,28 @@ function PlacementTile({
           <div className="tile-mortality-header" />
           <div className="tile-mortality-header">Started</div>
           <div className="tile-mortality-header">Dead</div>
+          <div className="tile-mortality-header">Hauled</div>
           <div className="tile-mortality-header">Now</div>
           <div className="tile-mortality-header">Loss %</div>
 
           <div className="tile-mortality-label">Males</div>
           <div>{formatCount(placement.startedMaleCount)}</div>
           <div>{formatCount(placement.mortalityMaleTotal)}</div>
+          <div>{formatCount(placement.liveHaulMaleTotal)}</div>
           <div>{formatCount(placement.currentMaleCount)}</div>
           <div>{formatPercent(safePercent(placement.mortalityMaleTotal, placement.startedMaleCount))}</div>
 
           <div className="tile-mortality-label">Females</div>
           <div>{formatCount(placement.startedFemaleCount)}</div>
           <div>{formatCount(placement.mortalityFemaleTotal)}</div>
+          <div>{formatCount(placement.liveHaulFemaleTotal)}</div>
           <div>{formatCount(placement.currentFemaleCount)}</div>
           <div>{formatPercent(safePercent(placement.mortalityFemaleTotal, placement.startedFemaleCount))}</div>
 
           <div className="tile-mortality-label tile-mortality-total">Total</div>
           <div className="tile-mortality-total">{formatCount(startedTotal)}</div>
           <div className="tile-mortality-total">{formatCount(mortalityTotal)}</div>
+          <div className="tile-mortality-total">{formatCount(liveHaulTotal)}</div>
           <div className="tile-mortality-total">{formatCount(currentTotal)}</div>
           <div className="tile-mortality-total">{formatPercent(safePercent(mortalityTotal, startedTotal))}</div>
         </div>

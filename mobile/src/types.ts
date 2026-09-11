@@ -184,6 +184,8 @@ export type PlacementSummary = {
   placed_male_count: number;
   mortality_female_count: number;
   mortality_male_count: number;
+  livehaul_female_count: number;
+  livehaul_male_count: number;
   current_female_count: number;
   current_male_count: number;
   current_total_count: number;

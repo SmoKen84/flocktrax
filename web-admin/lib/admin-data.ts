@@ -124,8 +124,10 @@ type LivehaulScheduleDashboardRow = {
   placement_id: string;
   lh_date: string;
   sequence_num: number | null;
+  target_sex: "male" | "female" | null;
   head_target: number | null;
   head_actual: number | null;
+  status: "scheduled" | "completed" | "cancelled" | "legacy_migrated";
 };
 
 type FeedInventorySnapshotRow = {
@@ -549,7 +551,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         .order("placement_key"),
       supabase
         .from("livehaul_schedule")
-        .select("placement_id,lh_date,sequence_num,head_target,head_actual")
+        .select("placement_id,lh_date,sequence_num,target_sex,head_target,head_actual,status")
         .order("sequence_num", { ascending: true, nullsFirst: false })
         .order("lh_date"),
       supabase
@@ -848,11 +850,13 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     const liveHaulEventsByPlacementId = new Map<string, FeedProjectionLiveHaulEvent[]>();
 
     for (const row of livehaulScheduleRows) {
+      if (row.status === "cancelled") continue;
       const bucket = liveHaulEventsByPlacementId.get(row.placement_id) ?? [];
       if (!bucket.some((event) => event.date === row.lh_date)) {
         bucket.push({
           date: row.lh_date,
           sequenceNum: row.sequence_num,
+          targetSex: row.target_sex,
           targetHead: row.head_target,
           actualHead: row.head_actual,
         });
@@ -1364,8 +1368,8 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const resolvedPlacementIssueCount = row ? (resolvedPlacementIssueCountByPlacementId.get(row.id) ?? 0) : 0;
       const startedFemaleCount = flock?.start_cnt_females ?? 0;
       const startedMaleCount = flock?.start_cnt_males ?? 0;
-      const currentFemaleCount = Math.max(0, startedFemaleCount - mortalityTotals.femaleTotal);
-      const currentMaleCount = Math.max(0, startedMaleCount - mortalityTotals.maleTotal);
+      const femaleCountAfterMortality = Math.max(0, startedFemaleCount - mortalityTotals.femaleTotal);
+      const maleCountAfterMortality = Math.max(0, startedMaleCount - mortalityTotals.maleTotal);
       const mortalityBreakdownByDate = row ? mortalityByPlacementAndDate.get(row.id) ?? new Map<string, { male: number; female: number }>() : new Map<string, { male: number; female: number }>();
       const mortalityFirst7DayBreakdown = buildMortalityWindowBreakdown({
         mode: "first7",
@@ -1399,6 +1403,14 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const ageDays = daysRelativeToToday(placedDate);
       const canCheckoutByAge = ageDays >= checkoutAgeAvailability;
       const scheduledLiveHaulEvents = row ? liveHaulEventsByPlacementId.get(row.id) ?? [] : [];
+      const liveHaulPopulation = applyPastLiveHaulEvents({
+        today,
+        events: scheduledLiveHaulEvents,
+        femalePopulation: femaleCountAfterMortality,
+        malePopulation: maleCountAfterMortality,
+      });
+      const currentFemaleCount = liveHaulPopulation.femalePopulation;
+      const currentMaleCount = liveHaulPopulation.malePopulation;
       const firstScheduledLiveHaulEvent =
         scheduledLiveHaulEvents.find((event) => event.sequenceNum === 1) ?? null;
       const dashboardLiveHaulEvents = firstScheduledLiveHaulEvent
@@ -1587,6 +1599,8 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         startedMaleCount,
         mortalityFemaleTotal: mortalityTotals.femaleTotal,
         mortalityMaleTotal: mortalityTotals.maleTotal,
+        liveHaulFemaleTotal: liveHaulPopulation.femaleRemoved,
+        liveHaulMaleTotal: liveHaulPopulation.maleRemoved,
         currentFemaleCount,
         currentMaleCount,
         mortalityFemaleLast7Days: mortalityTotals.femaleLast7Days,
@@ -2246,9 +2260,76 @@ function applyLiveHaulReduction({
 type FeedProjectionLiveHaulEvent = {
   date: string;
   sequenceNum: number | null;
+  targetSex: "male" | "female" | null;
   targetHead: number | null;
   actualHead: number | null;
 };
+
+function resolveLiveHaulHeadRemoval(actualHead: number | null, targetHead: number | null) {
+  if (actualHead !== null && Number.isFinite(actualHead) && actualHead > 0) {
+    return Math.round(actualHead);
+  }
+  if (targetHead !== null && Number.isFinite(targetHead) && targetHead > 0) {
+    return Math.round(targetHead);
+  }
+  return null;
+}
+
+function applyPastLiveHaulEvents({
+  today,
+  events,
+  femalePopulation,
+  malePopulation,
+}: {
+  today: string;
+  events: FeedProjectionLiveHaulEvent[];
+  femalePopulation: number;
+  malePopulation: number;
+}) {
+  let remainingFemale = Math.max(0, Math.round(femalePopulation));
+  let remainingMale = Math.max(0, Math.round(malePopulation));
+  let femaleRemoved = 0;
+  let maleRemoved = 0;
+
+  for (const event of events) {
+    if (!event.date || event.date >= today) continue;
+    const requestedRemoval = resolveLiveHaulHeadRemoval(event.actualHead, event.targetHead);
+    if (requestedRemoval === null) continue;
+
+    if (event.targetSex === "female") {
+      const removal = Math.min(remainingFemale, requestedRemoval);
+      remainingFemale -= removal;
+      femaleRemoved += removal;
+      continue;
+    }
+    if (event.targetSex === "male") {
+      const removal = Math.min(remainingMale, requestedRemoval);
+      remainingMale -= removal;
+      maleRemoved += removal;
+      continue;
+    }
+
+    const totalPopulation = remainingFemale + remainingMale;
+    const boundedRemoval = Math.min(totalPopulation, requestedRemoval);
+    if (boundedRemoval <= 0) continue;
+    const proportionalFemaleRemoval = Math.min(
+      remainingFemale,
+      Math.floor(boundedRemoval * (remainingFemale / totalPopulation)),
+    );
+    const proportionalMaleRemoval = Math.min(remainingMale, boundedRemoval - proportionalFemaleRemoval);
+    remainingFemale -= proportionalFemaleRemoval;
+    remainingMale -= proportionalMaleRemoval;
+    femaleRemoved += proportionalFemaleRemoval;
+    maleRemoved += proportionalMaleRemoval;
+  }
+
+  return {
+    femalePopulation: remainingFemale,
+    malePopulation: remainingMale,
+    femaleRemoved,
+    maleRemoved,
+  };
+}
 
 function buildTenDayFeedProjection({
   today,
@@ -2300,12 +2381,11 @@ function buildTenDayFeedProjection({
   }> = [];
 
   for (const [liveHaulIndex, liveHaulEvent] of scheduledLiveHaulEvents.entries()) {
-    if (liveHaulEvent.date > today) {
-      break;
-    }
+    if (liveHaulEvent.date < today) continue;
+    if (liveHaulEvent.date > today) break;
 
     const isFinalLiveHaul = liveHaulIndex === scheduledLiveHaulDates.length - 1;
-    const explicitHeadRemoval = liveHaulEvent.actualHead ?? liveHaulEvent.targetHead ?? null;
+    const explicitHeadRemoval = resolveLiveHaulHeadRemoval(liveHaulEvent.actualHead, liveHaulEvent.targetHead);
 
     if (explicitHeadRemoval !== null) {
       const totalPopulation = femalePopulation + malePopulation;
@@ -2381,7 +2461,9 @@ function buildTenDayFeedProjection({
     const appliesLiveHaul = liveHaulIndex !== undefined;
     const isFinalLiveHaul = appliesLiveHaul && liveHaulIndex === scheduledLiveHaulDates.length - 1;
     const liveHaulEvent = liveHaulEventByDate.get(date) ?? null;
-    const explicitHeadRemoval = liveHaulEvent?.actualHead ?? liveHaulEvent?.targetHead ?? null;
+    const explicitHeadRemoval = liveHaulEvent
+      ? resolveLiveHaulHeadRemoval(liveHaulEvent.actualHead, liveHaulEvent.targetHead)
+      : null;
     let liveHaulFraction: number | null = null;
     let liveHaulLabel: string | null = null;
 

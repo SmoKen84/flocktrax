@@ -151,6 +151,8 @@ export type ActivePlacementRecord = {
   startedMaleCount: number;
   mortalityFemaleTotal: number;
   mortalityMaleTotal: number;
+  liveHaulFemaleTotal: number;
+  liveHaulMaleTotal: number;
   currentFemaleCount: number;
   currentMaleCount: number;
   mortalityFemaleLast7Days: number;
