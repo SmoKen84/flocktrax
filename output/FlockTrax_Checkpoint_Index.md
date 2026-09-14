@@ -11,6 +11,10 @@ Purpose:
 
 ### September 2026
 
+- `2026-09-14` — Admin 2.6.0 build 1.2 production release
+  - [FlockTrax_Admin_2_6_0_Build_1_2_Production_Checkpoint_2026-09-14.md](C:\dev\FlockTrax-Production-Release\output\FlockTrax_Admin_2_6_0_Build_1_2_Production_Checkpoint_2026-09-14.md)
+  - completed production release of the four demo-proven shared fixes; guarded Admin marker `2.6.0` / numeric build `3` / label `1.2`; production Edge Functions `operations-calendar-list` version `9` and `dashboard-placements-list` version `33`; superseding healthy Vercel deployment `dpl_917dzUiUswkHXUoiZrc3nP6dozEX` after restoring the missing non-secret production Supabase URL; both production domains verified with no demo identity and protected-route redirection intact; mobile binary release remains separate
+
 - `2026-09-14` — Admin 2.6.0 build 1.2 production release candidate
   - [FlockTrax_Admin_2_6_0_Build_1_2_Production_Release_Candidate_Checkpoint_2026-09-14.md](C:\dev\FlockTrax-Production-Release\output\FlockTrax_Admin_2_6_0_Build_1_2_Production_Release_Candidate_Checkpoint_2026-09-14.md)
   - isolated production release branch from stable `origin/main`, containing only the four shared demo-proven fixes (livehaul actual-head precedence, age-14 Starter-to-Grower ordering, rolling mobile calendar history, and past-livehaul dashboard population), prepared Admin `2.6.0` / numeric build `3` / label `1.2`, corrected mobile package metadata for the published iOS `1.0.7 (20)` baseline, passed Admin build and Admin/Mobile typechecks, explicit demo-only exclusion checks, and a strict not-yet-deployed safety boundary
