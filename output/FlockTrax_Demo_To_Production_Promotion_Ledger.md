@@ -80,6 +80,7 @@ The following remain intentionally demo-only unless a later production design ex
 - disabled outbound integrations and demo environment safeguards;
 - red demo sidebar and demo-specific explanatory/splash copy;
 - environment-gated `🔴 FlockTrax Demo` browser-tab/PWA identity (`a5b318f`), deployed as Vercel `dpl_7yJGWFS9L3xu6DdUfRUQEqes6anM` on `2026-09-14`;
+- 20 editable `public.app_settings` showcase records spanning integrator identity, placements, feed planning, alerts, feed-ticket vouchers, mobile display, and report labels; commits `dc2bfcd` and `13fd002`, migrations `20260914120000` and `20260914121500`, with a protected canonical seed, pre/post operational-reset restoration, and health-check verification; the reset count display was deployed as Vercel `dpl_6xtTwnFPnFDPsmEnqV1bVgq6MoWz` on `2026-09-14`;
 - demo Vercel project configuration and demo credentials.
 
 ## Completion fields for each future promotion

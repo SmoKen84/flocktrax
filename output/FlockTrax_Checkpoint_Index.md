@@ -13,7 +13,7 @@ Purpose:
 
 - `2026-09-11` — Demo-to-production promotion ledger
   - [FlockTrax_Demo_To_Production_Promotion_Ledger.md](C:\dev\FlockTrax-Demo-Hosted\output\FlockTrax_Demo_To_Production_Promotion_Ledger.md)
-  - living release-control list separating shared fixes that still require production promotion from demo-only work; currently tracks livehaul-adjusted dashboard population (strictly before today, with actual-over-target fallback), livehaul actual-head precedence, age-14 Starter-to-Grower ordering with preserved lifetime math, and the mobile Operations Calendar rolling 12-month history change, plus demo-only identity markers including the red browser-tab/PWA title and their deployment/validation state
+  - living release-control list separating shared fixes that still require production promotion from demo-only work; currently tracks livehaul-adjusted dashboard population (strictly before today, with actual-over-target fallback), livehaul actual-head precedence, age-14 Starter-to-Grower ordering with preserved lifetime math, and the mobile Operations Calendar rolling 12-month history change, plus demo-only identity markers and the resettable 20-record `public.app_settings` showcase baseline with their deployment/validation state
 
 - `2026-09-08` — Demo BinSentry feed reports
   - [FlockTrax_Demo_BinSentry_Feed_Reports_Checkpoint_2026-09-08.md](C:\dev\FlockTrax-Demo-Hosted\output\FlockTrax_Demo_BinSentry_Feed_Reports_Checkpoint_2026-09-08.md)
