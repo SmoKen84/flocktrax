@@ -1,6 +1,6 @@
 # FlockTrax Demo-to-Production Promotion Ledger
 
-Updated: `2026-09-11`
+Updated: `2026-09-14`
 
 Purpose: track shared bug fixes proven on `demo-hosted` that must later be reapplied to a clean production branch. This is a promotion ledger, not permission to merge the demo branch or deploy production.
 
@@ -79,6 +79,7 @@ The following remain intentionally demo-only unless a later production design ex
 - database-backed simulated BinSentry provider and synthetic BinSentry records;
 - disabled outbound integrations and demo environment safeguards;
 - red demo sidebar and demo-specific explanatory/splash copy;
+- environment-gated `🔴 FlockTrax Demo` browser-tab/PWA identity (`a5b318f`), deployed as Vercel `dpl_7yJGWFS9L3xu6DdUfRUQEqes6anM` on `2026-09-14`;
 - demo Vercel project configuration and demo credentials.
 
 ## Completion fields for each future promotion
