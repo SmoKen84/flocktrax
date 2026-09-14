@@ -1171,7 +1171,7 @@ function buildFeedProjection({
   for (const [liveHaulIndex, liveHaulEvent] of scheduledLiveHaulEvents.entries()) {
     if (liveHaulEvent.date > today) break;
     const isFinalLiveHaul = liveHaulIndex === scheduledLiveHaulDates.length - 1;
-    const explicitHeadRemoval = liveHaulEvent.targetHead ?? liveHaulEvent.actualHead ?? null;
+    const explicitHeadRemoval = liveHaulEvent.actualHead ?? liveHaulEvent.targetHead ?? null;
 
     if (explicitHeadRemoval !== null) {
       const totalPopulation = femalePopulation + malePopulation;
@@ -1235,7 +1235,7 @@ function buildFeedProjection({
     const appliesLiveHaul = liveHaulIndex !== undefined;
     const isFinalLiveHaul = appliesLiveHaul && liveHaulIndex === scheduledLiveHaulDates.length - 1;
     const liveHaulEvent = liveHaulEventByDate.get(date) ?? null;
-    const explicitHeadRemoval = liveHaulEvent?.targetHead ?? liveHaulEvent?.actualHead ?? null;
+    const explicitHeadRemoval = liveHaulEvent?.actualHead ?? liveHaulEvent?.targetHead ?? null;
 
     daily.push({
       date,

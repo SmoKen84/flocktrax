@@ -2285,7 +2285,7 @@ function buildTenDayFeedProjection({
     }
 
     const isFinalLiveHaul = liveHaulIndex === scheduledLiveHaulDates.length - 1;
-    const explicitHeadRemoval = liveHaulEvent.targetHead ?? liveHaulEvent.actualHead ?? null;
+    const explicitHeadRemoval = liveHaulEvent.actualHead ?? liveHaulEvent.targetHead ?? null;
 
     if (explicitHeadRemoval !== null) {
       const totalPopulation = femalePopulation + malePopulation;
@@ -2361,7 +2361,7 @@ function buildTenDayFeedProjection({
     const appliesLiveHaul = liveHaulIndex !== undefined;
     const isFinalLiveHaul = appliesLiveHaul && liveHaulIndex === scheduledLiveHaulDates.length - 1;
     const liveHaulEvent = liveHaulEventByDate.get(date) ?? null;
-    const explicitHeadRemoval = liveHaulEvent?.targetHead ?? liveHaulEvent?.actualHead ?? null;
+    const explicitHeadRemoval = liveHaulEvent?.actualHead ?? liveHaulEvent?.targetHead ?? null;
     let liveHaulFraction: number | null = null;
     let liveHaulLabel: string | null = null;
 
