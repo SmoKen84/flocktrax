@@ -28,7 +28,8 @@ Purpose: track shared bug fixes proven on `demo-hosted` that must later be reapp
   - `dashboard-placements-list` is `ACTIVE` at version `2` in demo Supabase project `srkgobayrzidytmvoago` (bundle SHA-256 `136ade4b6f1f6baec7d1537990a4a256c1e724b713f742a9d605cbfa2db0f2d3`).
 - Validation: Admin and mobile typechecks passed; the local and hosted Admin production builds passed; `git diff --check` passed before the source commit.
 - Production candidate commit: `fde65c9` on `release/admin-2.6.0`
-- Production status: `STAGED — VALIDATED, NOT DEPLOYED`
+- Production deployment: Admin Vercel `dpl_917dzUiUswkHXUoiZrc3nP6dozEX`; `dashboard-placements-list` ACTIVE at production version `33`.
+- Production status: `COMPLETE — DEPLOYED 2026-09-14`
 - Promotion note: reapply the shared Admin, mobile type, and `dashboard-placements-list` changes to the then-current production baseline. Do not copy demo environment configuration or deploy to production without a separate production checkpoint and target verification.
 
 ### Livehaul actual-head precedence
@@ -36,7 +37,8 @@ Purpose: track shared bug fixes proven on `demo-hosted` that must later be reapp
 - Demo source commit: `9d1f622` (`Simulate BinSentry feed reports in demo`)
 - Shared fix: feed projections prefer a recorded `actualHead` over the planned `targetHead`, retaining target only as fallback.
 - Production candidate commit: `f083734` on `release/admin-2.6.0`
-- Production status: `STAGED — VALIDATED, NOT DEPLOYED`
+- Production deployment: Admin Vercel `dpl_917dzUiUswkHXUoiZrc3nP6dozEX`.
+- Production status: `COMPLETE — DEPLOYED 2026-09-14`
 - Promotion note: extract only the four actual-over-target changes from `web-admin/lib/admin-data.ts` and `web-admin/lib/feed-projection-report-data.ts`; do not promote the simulated BinSentry portions of the commit.
 
 ### Starter-to-Grower ordering at age 14
@@ -46,7 +48,8 @@ Purpose: track shared bug fixes proven on `demo-hosted` that must later be reapp
   - `25f1e90` (`Preserve lifetime starter math after day 14`)
 - Shared fix: at age 14 or later, retain accurate lifetime Starter requirement, delivery, inventory, order, and shortfall facts, but recommend zero new Starter and add any unfulfilled Starter shortfall to Grower ordering.
 - Production candidate commits: `01b0c3f` and `393dbd8` on `release/admin-2.6.0`
-- Production status: `STAGED — VALIDATED, NOT DEPLOYED`
+- Production deployment: Admin Vercel `dpl_917dzUiUswkHXUoiZrc3nP6dozEX`.
+- Production status: `COMPLETE — DEPLOYED 2026-09-14`
 - Promotion note: reapply the business-rule changes to the shared dashboard/report calculations and Starter math popup without bringing across demo-provider logic.
 
 ### Mobile Operations Calendar rolling history
@@ -62,7 +65,8 @@ Purpose: track shared bug fixes proven on `demo-hosted` that must later be reapp
 - Demo deployment: `operations-calendar-list` is `ACTIVE` at version `2` in Supabase project `srkgobayrzidytmvoago` as of `2026-09-11` (bundle SHA-256 `4c2acab16429bace54a6125a005e029fdce4cf1797eab8d505ba57a7b5dc2f12`).
 - Mobile source validation: `npm run typecheck` passed.
 - Production candidate commit: `d0cc4b9` on `release/admin-2.6.0`
-- Production status: `STAGED — VALIDATED, NOT DEPLOYED`
+- Production deployment: `operations-calendar-list` ACTIVE at production version `9`; mobile UI source is in `main`, with a future mobile binary still required.
+- Production status: `COMPLETE — API DEPLOYED 2026-09-14; MOBILE BINARY PENDING`
 - Promotion note: the production Edge Function and a future mobile build/update both need this change. Deploying the demo Edge Function alone does not update an already-installed mobile binary's month-navigation UI.
 
 ## Already present in production

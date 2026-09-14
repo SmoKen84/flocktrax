@@ -11,6 +11,10 @@ Purpose:
 
 ### September 2026
 
+- `2026-09-14` — Admin 2.6.0 build 1.2 production release
+  - [FlockTrax_Admin_2_6_0_Build_1_2_Production_Checkpoint_2026-09-14.md](C:\dev\FlockTrax-Production-Release\output\FlockTrax_Admin_2_6_0_Build_1_2_Production_Checkpoint_2026-09-14.md)
+  - production release completed at `main` commit `30bfe92`: Admin marker `2.6.0` / numeric build `3` / label `1.2`, Edge Functions `operations-calendar-list` version `9` and `dashboard-placements-list` version `33`, healthy Vercel deployment `dpl_917dzUiUswkHXUoiZrc3nP6dozEX`, both production domains verified, no demo-only behavior promoted, and the mobile calendar binary remaining as a separate distribution step
+
 - `2026-09-14` — Admin 2.6.0 build 1.2 production release candidate
   - [FlockTrax_Admin_2_6_0_Build_1_2_Production_Release_Candidate_Checkpoint_2026-09-14.md](C:\dev\FlockTrax-Production-Release\output\FlockTrax_Admin_2_6_0_Build_1_2_Production_Release_Candidate_Checkpoint_2026-09-14.md)
   - clean isolated production candidate on `release/admin-2.6.0`, with all four shared demo-proven fixes selectively promoted, Admin `2.6.0` / numeric build `3` / label `1.2` prepared, iOS `1.0.7 (20)` correctly preserved as the published mobile baseline, validation complete, rollback tag `checkpoint/pre-admin-2.6.0-production-20260914` pushed, and no production deployment performed yet
