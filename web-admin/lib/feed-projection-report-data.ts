@@ -59,7 +59,12 @@ type FeedBinMappingRow = {
 
 type FeedBinNumberRow = {
   id: string;
+  barn_id: string | null;
   bin_num: string | number | null;
+  accessible_feed_type: string | null;
+  binsentry_last_bulk_density_lb_ft3: number | null;
+  binsentry_last_weight_source: string | null;
+  binsentry_last_sync_at: string | null;
 };
 
 type BinSentryOnOrderRecord = {
@@ -72,6 +77,7 @@ type BinSentryOnOrderRecord = {
   feedName: string | null;
   externalOrderRef: string | null;
   pounds: number;
+  bulkDensityLbPerFt3: number | null;
 };
 
 export type FeedProjectionOnOrderRow = {
@@ -89,6 +95,19 @@ export type FeedProjectionOnOrderRow = {
   receivedLbs: number;
   remainingLbs: number;
   externalOrderRef: string | null;
+  bulkDensityLbPerFt3: number | null;
+  weightBasis: string | null;
+};
+
+export type FeedProjectionDensityDiagnostic = {
+  feedBinId: string;
+  farmName: string;
+  barnCode: string;
+  binNumber: string | null;
+  feedType: string | null;
+  bulkDensityLbPerFt3: number | null;
+  weightBasis: string | null;
+  lastSyncAt: string | null;
 };
 
 type SirenEntity = {
@@ -227,7 +246,7 @@ export async function getFeedProjectionReportData(options: {
           .is("placement_id", null)
       : Promise.resolve({ data: [], error: null }),
     uniqueBarnIds.length > 0
-      ? supabase.from("feedbins").select("id,bin_num").in("barn_id", uniqueBarnIds)
+      ? supabase.from("feedbins").select("id,barn_id,bin_num,accessible_feed_type,binsentry_last_bulk_density_lb_ft3,binsentry_last_weight_source,binsentry_last_sync_at").in("barn_id", uniqueBarnIds)
       : Promise.resolve({ data: [], error: null }),
     fetchBinSentryScheduledOrdersSafe(supabase, uniqueBarnIds, windowEnd),
   ]);
@@ -253,6 +272,24 @@ export async function getFeedProjectionReportData(options: {
   );
   const placementById = new Map(filteredPlacements.map((placement) => [placement.placementId, placement]));
   const placementByBarnId = new Map(filteredPlacements.map((placement) => [placement.barnId, placement]));
+  const densityDiagnostics = ((feedBinNumbersResult.data ?? []) as FeedBinNumberRow[])
+    .map<FeedProjectionDensityDiagnostic>((row) => {
+      const placement = row.barn_id ? placementByBarnId.get(row.barn_id) ?? null : null;
+      return {
+        feedBinId: row.id,
+        farmName: placement?.farmName ?? "Unknown farm",
+        barnCode: placement?.barnCode ?? "Unknown barn",
+        binNumber: normalizeOptionalText(String(row.bin_num ?? "")),
+        feedType: normalizeFeedType(row.accessible_feed_type),
+        bulkDensityLbPerFt3:
+          typeof row.binsentry_last_bulk_density_lb_ft3 === "number" && Number.isFinite(row.binsentry_last_bulk_density_lb_ft3)
+            ? row.binsentry_last_bulk_density_lb_ft3
+            : null,
+        weightBasis: normalizeOptionalText(row.binsentry_last_weight_source),
+        lastSyncAt: normalizeOptionalText(row.binsentry_last_sync_at),
+      };
+    })
+    .sort((left, right) => left.farmName.localeCompare(right.farmName) || left.barnCode.localeCompare(right.barnCode, undefined, { numeric: true }) || String(left.binNumber).localeCompare(String(right.binNumber), undefined, { numeric: true }));
   const feedBinNumberById = new Map(
     ((feedBinNumbersResult.data ?? []) as FeedBinNumberRow[]).map((row) => [row.id, normalizeOptionalText(String(row.bin_num ?? ""))]),
   );
@@ -325,6 +362,7 @@ export async function getFeedProjectionReportData(options: {
     today,
     windowDays,
     onOrderRows,
+    densityDiagnostics,
     dailyTotals,
     overallTotal: rows.reduce((sum, row) => sum + (row.totalLbs ?? 0), 0),
     overallOnHand: rows.reduce((sum, row) => sum + (row.onHandLbs ?? 0), 0),
@@ -669,6 +707,8 @@ function buildDatabaseOnOrderRows({
       receivedLbs,
       remainingLbs,
       externalOrderRef: normalizeOptionalText(row.external_order_ref),
+      bulkDensityLbPerFt3: null,
+      weightBasis: "FlockTrax pounds",
     });
   }
 
@@ -699,6 +739,8 @@ function buildBinSentryOnOrderRows({
       receivedLbs: 0,
       remainingLbs: row.pounds,
       externalOrderRef: row.externalOrderRef,
+      bulkDensityLbPerFt3: row.bulkDensityLbPerFt3,
+      weightBasis: row.bulkDensityLbPerFt3 === null ? "BinSentry volume; density unavailable" : "BinSentry volume × feed density",
     };
   });
 }
@@ -871,6 +913,9 @@ async function fetchBinSentryScheduledOrdersSafe(
             String(orderProperties.orderNumber ?? orderProperties.reference ?? orderProperties.id ?? ""),
           ),
           pounds,
+          bulkDensityLbPerFt3: feedMeta?.bulkDensityKgPerM3
+            ? feedMeta.bulkDensityKgPerM3 * 0.0624279606
+            : null,
         });
 
         const bucket = bucketByBarnId.get(barnId) ?? {

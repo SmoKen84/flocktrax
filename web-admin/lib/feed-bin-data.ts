@@ -31,6 +31,10 @@ export type FeedBinEditorRecord = {
   binSentryRef: string;
   binSentryLastSyncAt: string;
   binSentryLastInventoryLbs: string;
+  binSentryLastBulkDensityKgM3: string;
+  binSentryLastBulkDensityLbFt3: string;
+  binSentryLastEstimatedVolumeM3: string;
+  binSentryLastWeightSource: string;
   binSentrySyncNote: string;
   accessibleFeedType: string;
   accessibleFeedLbs: string;
@@ -79,6 +83,10 @@ type FeedBinRow = {
   binsentry_bin_ref: string | null;
   binsentry_last_sync_at: string | null;
   binsentry_last_inventory_lbs: number | null;
+  binsentry_last_bulk_density_kg_m3?: number | null;
+  binsentry_last_bulk_density_lb_ft3?: number | null;
+  binsentry_last_estimated_volume_m3?: number | null;
+  binsentry_last_weight_source?: string | null;
   binsentry_sync_note: string | null;
   accessible_feed_type?: string | null;
   accessible_feed_lbs?: number | null;
@@ -102,7 +110,7 @@ async function fetchFeedBinRows(
   const extendedResult = await supabase
     .from("feedbins")
     .select(
-      "id,farm_id,barn_id,bin_num,capacity,binsentry_bin_ref,binsentry_last_sync_at,binsentry_last_inventory_lbs,binsentry_sync_note,accessible_feed_type,accessible_feed_lbs,queued_feed_type,queued_feed_lbs,feed_state_effective_at,feed_state_source",
+      "id,farm_id,barn_id,bin_num,capacity,binsentry_bin_ref,binsentry_last_sync_at,binsentry_last_inventory_lbs,binsentry_last_bulk_density_kg_m3,binsentry_last_bulk_density_lb_ft3,binsentry_last_estimated_volume_m3,binsentry_last_weight_source,binsentry_sync_note,accessible_feed_type,accessible_feed_lbs,queued_feed_type,queued_feed_lbs,feed_state_effective_at,feed_state_source",
     )
     .order("bin_num", { ascending: true });
 
@@ -227,6 +235,10 @@ export async function getFeedBinScreenBundle(): Promise<FeedBinScreenBundle> {
       binSentryRef: normalize(row.binsentry_bin_ref),
       binSentryLastSyncAt: normalize(row.binsentry_last_sync_at),
       binSentryLastInventoryLbs: formatNumeric(row.binsentry_last_inventory_lbs),
+      binSentryLastBulkDensityKgM3: formatNumeric(row.binsentry_last_bulk_density_kg_m3),
+      binSentryLastBulkDensityLbFt3: formatNumeric(row.binsentry_last_bulk_density_lb_ft3),
+      binSentryLastEstimatedVolumeM3: formatNumeric(row.binsentry_last_estimated_volume_m3),
+      binSentryLastWeightSource: normalize(row.binsentry_last_weight_source),
       binSentrySyncNote: normalize(row.binsentry_sync_note),
       accessibleFeedType: normalize(row.accessible_feed_type),
       accessibleFeedLbs: formatNumeric(row.accessible_feed_lbs),

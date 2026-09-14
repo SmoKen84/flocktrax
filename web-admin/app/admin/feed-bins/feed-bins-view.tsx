@@ -288,6 +288,11 @@ export async function FeedBinsView({
                   <span className="feed-bin-roster-meta">
                     {bin.binSentryLastInventoryLbs ? `${bin.binSentryLastInventoryLbs} lbs synced` : "No inventory yet"}
                   </span>
+                  <span className="feed-bin-roster-meta">
+                    {bin.binSentryLastBulkDensityLbFt3
+                      ? `${Number(bin.binSentryLastBulkDensityLbFt3).toFixed(2)} lb/ft³ density`
+                      : "Density not captured"}
+                  </span>
                 </Link>
               ))}
             </div>
@@ -410,6 +415,16 @@ export async function FeedBinsView({
 
                       <div className="feed-bin-editor-status-strip feed-bin-editor-status-strip-bottom">
                         <span>{selectedBin.binSentryLastInventoryLbs ? `${selectedBin.binSentryLastInventoryLbs} lbs last synced` : "No BinSentry inventory yet"}</span>
+                        <span>
+                          {selectedBin.binSentryLastBulkDensityLbFt3
+                            ? `Bulk density ${Number(selectedBin.binSentryLastBulkDensityLbFt3).toFixed(2)} lb/ft³ (${Number(selectedBin.binSentryLastBulkDensityKgM3).toFixed(1)} kg/m³)`
+                            : "Bulk density not returned"}
+                        </span>
+                        <span>
+                          {selectedBin.binSentryLastWeightSource
+                            ? `Inventory basis: ${formatWeightSource(selectedBin.binSentryLastWeightSource)}`
+                            : "Inventory weight basis not captured"}
+                        </span>
                         <span>{selectedBin.binSentryLastSyncAt || "Not synced"}</span>
                         <span>{selectedBin.binSentrySyncNote || "Save a BinSentry ref, then sync this barn."}</span>
                       </div>
@@ -433,6 +448,16 @@ export async function FeedBinsView({
       </article>
     </>
   );
+}
+
+function formatWeightSource(value: string) {
+  if (value === "calculated:estimatedVolume*bulkDensity") {
+    return "volume × bulk density (directly density-dependent)";
+  }
+  if (value.startsWith("binsentry:")) {
+    return `BinSentry ${value.slice("binsentry:".length)} value (may reflect configured density)`;
+  }
+  return value;
 }
 
 function readParam(value?: string | string[]) {

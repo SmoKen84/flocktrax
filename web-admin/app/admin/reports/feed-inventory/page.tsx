@@ -98,6 +98,8 @@ export default async function FeedInventoryReportPage({ searchParams }: PageProp
                     <th>Feed Type</th>
                     <th>Feed / Ration</th>
                     <th>Current On Hand</th>
+                    <th>Bulk Density</th>
+                    <th>Weight Basis</th>
                     <th>Reading Time</th>
                     <th>Status</th>
                   </tr>
@@ -115,6 +117,8 @@ export default async function FeedInventoryReportPage({ searchParams }: PageProp
                               <td><span className="feed-drops-report-type" data-known={row.feedType !== "Unknown"}>{row.feedType}</span></td>
                               <td>{row.feedName ?? "--"}</td>
                               <td className="feed-drops-report-weight"><strong>{row.onHandLbs === null ? "--" : `${formatWeight(row.onHandLbs)} lbs`}</strong></td>
+                              <td>{row.bulkDensityLbPerFt3 === null ? "--" : `${formatDecimal(row.bulkDensityLbPerFt3)} lb/ft³`}</td>
+                              <td>{formatWeightBasis(row.inventoryWeightSource)}</td>
                               <td>{row.capturedAt ? formatDateTime(row.capturedAt) : "--"}</td>
                               <td><span className="feed-inventory-status" data-status={row.status}>{statusLabel(row.status)}</span></td>
                             </tr>
@@ -150,7 +154,7 @@ export default async function FeedInventoryReportPage({ searchParams }: PageProp
             {report.comingOrders.length > 0 ? (
               <div className="feed-drops-report-table-wrap">
                 <table className="feed-drops-report-table feed-inventory-coming-table">
-                  <thead><tr><th>Expected</th><th>Farm</th><th>Barn</th><th>Bin</th><th>Feed Type</th><th>Feed / Ration</th><th>Order</th><th>Coming Weight</th></tr></thead>
+                  <thead><tr><th>Expected</th><th>Farm</th><th>Barn</th><th>Bin</th><th>Feed Type</th><th>Feed / Ration</th><th>Bulk Density</th><th>Order</th><th>Coming Weight</th></tr></thead>
                   <tbody>
                     {report.comingOrders.map((order) => (
                       <tr key={order.id}>
@@ -160,6 +164,7 @@ export default async function FeedInventoryReportPage({ searchParams }: PageProp
                         <td className="feed-drops-report-bin">{order.binNumber}</td>
                         <td><span className="feed-drops-report-type" data-known={order.feedType !== "Unknown"}>{order.feedType}</span></td>
                         <td>{order.feedName ?? "--"}</td>
+                        <td>{order.bulkDensityLbPerFt3 === null ? "--" : `${formatDecimal(order.bulkDensityLbPerFt3)} lb/ft³`}</td>
                         <td>{order.externalRef}</td>
                         <td className="feed-drops-report-weight"><strong>{order.pounds === null ? `${formatDecimal(order.volumeM3)} m³` : `${formatWeight(order.pounds)} lbs`}</strong></td>
                       </tr>
@@ -167,6 +172,7 @@ export default async function FeedInventoryReportPage({ searchParams }: PageProp
                     <tr className="feed-drops-report-subtotal-row feed-inventory-grand-total">
                       <th colSpan={5}>All coming orders</th>
                       <td>{formatTypeTotals(report.comingByFeedType)}</td>
+                      <td>Density shown per order</td>
                       <td>{report.comingOrders.length} orders</td>
                       <td><strong>{formatWeight(report.totalComingLbs)} lbs</strong></td>
                     </tr>
@@ -194,7 +200,7 @@ function SubtotalRow({ label, rows, farm = false, grand = false }: { label: stri
       <th colSpan={4}>{label}</th>
       <td>{formatTypeTotals(totals)}</td>
       <td><strong>{formatWeight(rows.reduce((sum, row) => sum + (row.onHandLbs ?? 0), 0))} lbs</strong></td>
-      <td colSpan={2}>{rows.filter((row) => row.status === "current").length} bins measured</td>
+      <td colSpan={4}>{rows.filter((row) => row.status === "current").length} bins measured</td>
     </tr>
   );
 }
@@ -202,7 +208,7 @@ function SubtotalRow({ label, rows, farm = false, grand = false }: { label: stri
 function SpacerRow({ farm = false }: { farm?: boolean }) {
   return (
     <tr aria-hidden="true" className={`feed-inventory-spacer-row${farm ? " feed-inventory-farm-spacer-row" : ""}`}>
-      <td colSpan={8} />
+      <td colSpan={10} />
     </tr>
   );
 }
@@ -249,6 +255,13 @@ function formatDate(value: string) {
 
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }).format(new Date(value));
+}
+
+function formatWeightBasis(value: string | null) {
+  if (!value) return "--";
+  if (value === "calculated:estimatedVolume*bulkDensity") return "Volume × density";
+  if (value.startsWith("binsentry:")) return `BinSentry ${value.slice("binsentry:".length)}`;
+  return value;
 }
 
 function formatWeight(value: number) {
