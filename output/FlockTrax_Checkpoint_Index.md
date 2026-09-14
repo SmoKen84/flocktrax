@@ -11,6 +11,10 @@ Purpose:
 
 ### September 2026
 
+- `2026-09-14` — Demo BinSentry density diagnostics
+  - [FlockTrax_Demo_BinSentry_Density_Diagnostics_Checkpoint_2026-09-14.md](C:\dev\FlockTrax-Demo-Hosted\output\FlockTrax_Demo_BinSentry_Density_Diagnostics_Checkpoint_2026-09-14.md)
+  - demo-parity checkpoint for read-only density and weight-basis visibility across Feed Bins, Current Feed Inventory, orders, and Feed Projections; reset-safe synthetic Starter/Grower diagnostics; source `840d54d`; migration `20260914190000`; READY Vercel deployment `dpl_EtPT4kJuy6uaFrkP7vuPrFgfwJNp`; independently released to production as `63a4eb9`
+
 - `2026-09-14` — Demo age-14 Feed Projection hotfix
   - [FlockTrax_Demo_Age14_Feed_Projection_Hotfix_Checkpoint_2026-09-14.md](C:\dev\FlockTrax-Demo-Hosted\output\FlockTrax_Demo_Age14_Feed_Projection_Hotfix_Checkpoint_2026-09-14.md)
   - demo parity checkpoint for the corrected rule that preserves a missed Starter target as history after age 14 without converting it into Grower demand; all dashboard, standard/custom report, total, and math-popup surfaces corrected; demo source `a0d4fec`; READY Vercel deployment `dpl_FZwcMhH3oRD8mx8HRQ8jabGEDN6f`; production source `bb96d31` deployed independently

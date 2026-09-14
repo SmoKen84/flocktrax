@@ -72,6 +72,17 @@ Purpose: track shared bug fixes proven on `demo-hosted` that must later be reapp
 
 ## Already present in production
 
+### BinSentry density diagnostics
+
+- Demo source commit: `840d54d`
+- Production source commit: `63a4eb9`
+- Shared feature: read-only bulk-density and weight-source visibility on Feed Bins, BinSentry Current Feed Inventory, pending orders, and standard/custom Feed Projection reports, including mixed/consistent/unknown density status.
+- Database migration: `20260914190000_cache_binsentry_density_diagnostics.sql`, applied independently to production and demo.
+- Edge deployment: `binsentry-sync-all` production version `10`; demo version `2`.
+- Hosted deployments: production `dpl_5CeLW52t88VfBP4fjXgJhEDYyXLM`; demo `dpl_EtPT4kJuy6uaFrkP7vuPrFgfwJNp`.
+- Production status: `COMPLETE — DEPLOYED 2026-09-14`.
+- Safety boundary: no automatic or manual FlockTrax write-back to BinSentry was added.
+
 ### Google Sheets outbox scheduler and responsive mortality summary
 
 - Source commit: `a160f56`
