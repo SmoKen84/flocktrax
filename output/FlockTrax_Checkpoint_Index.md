@@ -11,6 +11,10 @@ Purpose:
 
 ### September 2026
 
+- `2026-09-14` — Admin 2.6.0 age-14 Feed Projection production hotfix
+  - [FlockTrax_Admin_2_6_0_Age14_Feed_Projection_Hotfix_Production_Checkpoint_2026-09-14.md](C:\dev\FlockTrax-Production-Release\output\FlockTrax_Admin_2_6_0_Age14_Feed_Projection_Hotfix_Production_Checkpoint_2026-09-14.md)
+  - authoritative hotfix checkpoint superseding the earlier Starter-shortfall conversion rule; after age 14 the historical Starter gap remains visible but expires instead of becoming Grower demand; W6 now resolves to `30,573 - 8,677 - 18,000 = 3,896 lb` Grower to order; source `bb96d31`; READY Vercel deployment `dpl_Es6PHuExie1oYtobsXAmWWVXfqMj`; production and demo parity verified
+
 - `2026-09-14` — Admin 2.6.0 build 1.2 production release
   - [FlockTrax_Admin_2_6_0_Build_1_2_Production_Checkpoint_2026-09-14.md](C:\dev\FlockTrax-Production-Release\output\FlockTrax_Admin_2_6_0_Build_1_2_Production_Checkpoint_2026-09-14.md)
   - completed production release of the four demo-proven shared fixes; guarded Admin marker `2.6.0` / numeric build `3` / label `1.2`; production Edge Functions `operations-calendar-list` version `9` and `dashboard-placements-list` version `33`; superseding healthy Vercel deployment `dpl_917dzUiUswkHXUoiZrc3nP6dozEX` after restoring the missing non-secret production Supabase URL; both production domains verified with no demo identity and protected-route redirection intact; mobile binary release remains separate

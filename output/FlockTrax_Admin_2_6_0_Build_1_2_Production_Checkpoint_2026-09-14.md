@@ -6,6 +6,12 @@ Deployed source commit: `f953700`
 Rollback tag: `checkpoint/pre-admin-2.6.0-production-20260914`
 Production URL: `https://flocktrax.com`
 
+> Superseded age-14 rule: the later hotfix checkpoint
+> `FlockTrax_Admin_2_6_0_Age14_Feed_Projection_Hotfix_Production_Checkpoint_2026-09-14.md`
+> replaces the Starter-shortfall conversion behavior described below. At age 14
+> or older, an unfulfilled Starter gap is historical only and is not added to
+> Grower demand.
+
 ## Released Changes
 
 - Positive actual livehaul head takes precedence over proposed head; proposed is
