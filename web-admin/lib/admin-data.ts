@@ -1543,10 +1543,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         typedOrderingAvailable && typedProjection.growerTotal !== null
           ? Math.max(0, Math.round((typedProjection.growerTotal ?? 0) - (feedInventoryGrowerAccessibleLbs ?? 0) - (feedOnOrderGrowerLbs ?? 0)))
           : null;
-      const growerRecommendedOrderLbs = calculatedGrowerRecommendedOrderLbs === null
-        ? null
-        : calculatedGrowerRecommendedOrderLbs +
-          (hasTransitionedToGrower ? (calculatedStarterRecommendedOrderLbs ?? 0) : 0);
+      const growerRecommendedOrderLbs = calculatedGrowerRecommendedOrderLbs;
       const typedRecommendedOrderTotalLbs =
         starterRecommendedOrderLbs !== null && growerRecommendedOrderLbs !== null
           ? starterRecommendedOrderLbs + growerRecommendedOrderLbs
