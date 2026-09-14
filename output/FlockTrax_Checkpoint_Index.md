@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-09-05`
+Updated: `2026-09-14`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### September 2026
+
+- `2026-09-14` — Admin 2.6.0 build 1.2 production release candidate
+  - [FlockTrax_Admin_2_6_0_Build_1_2_Production_Release_Candidate_Checkpoint_2026-09-14.md](C:\dev\FlockTrax-Production-Release\output\FlockTrax_Admin_2_6_0_Build_1_2_Production_Release_Candidate_Checkpoint_2026-09-14.md)
+  - isolated production release branch from stable `origin/main`, containing only the four shared demo-proven fixes (livehaul actual-head precedence, age-14 Starter-to-Grower ordering, rolling mobile calendar history, and past-livehaul dashboard population), prepared Admin `2.6.0` / numeric build `3` / label `1.2`, corrected mobile package metadata for the published iOS `1.0.7 (20)` baseline, passed Admin build and Admin/Mobile typechecks, explicit demo-only exclusion checks, and a strict not-yet-deployed safety boundary
 
 - `2026-09-05`
   - [FlockTrax_Google_Sheets_Outbox_And_Mortality_Responsive_Production_Checkpoint_2026-09-05.md](C:\dev\FlockTrax\output\FlockTrax_Google_Sheets_Outbox_And_Mortality_Responsive_Production_Checkpoint_2026-09-05.md)
