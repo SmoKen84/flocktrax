@@ -4,6 +4,7 @@ import { Fraunces, Source_Sans_3 } from "next/font/google";
 import type { ReactNode } from "react";
 
 import { PwaInstallListener } from "@/components/pwa-install-listener";
+import { evaluateEnvironmentSafety } from "@/lib/environment-safety";
 
 const sansFont = Source_Sans_3({
   subsets: ["latin"],
@@ -17,8 +18,15 @@ const serifFont = Fraunces({
   display: "swap",
 });
 
+const environment = evaluateEnvironmentSafety();
+
 export const metadata: Metadata = {
-  title: "FlockTrax Admin",
+  title: environment.isDemo
+    ? {
+        default: "🔴 FlockTrax Demo",
+        template: "%s | 🔴 FlockTrax Demo",
+      }
+    : "FlockTrax Admin",
   description: "Web-first admin console for FlockTrax operations and placement planning.",
   icons: {
     icon: [{ url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" }],

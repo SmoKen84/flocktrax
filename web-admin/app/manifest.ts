@@ -1,16 +1,20 @@
 import type { MetadataRoute } from "next";
 
+import { evaluateEnvironmentSafety } from "@/lib/environment-safety";
+
 export default function manifest(): MetadataRoute.Manifest {
+  const environment = evaluateEnvironmentSafety();
+
   return {
-    name: "FlockTrax Admin",
-    short_name: "FlockTrax",
+    name: environment.isDemo ? "FlockTrax Demo" : "FlockTrax Admin",
+    short_name: environment.isDemo ? "FlockTrax Demo" : "FlockTrax",
     description: "Web-first admin console for FlockTrax operations and placement planning.",
     id: "/admin/overview",
     start_url: "/admin/overview",
     scope: "/",
     display: "standalone",
     background_color: "#f3efe6",
-    theme_color: "#253125",
+    theme_color: environment.isDemo ? "#b42318" : "#253125",
     icons: [
       {
         src: "/icon-192.png",
