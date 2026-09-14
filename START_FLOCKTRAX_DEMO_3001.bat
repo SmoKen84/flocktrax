@@ -70,6 +70,14 @@ if not exist ".env.local" (
   )
 )
 
+powershell -NoProfile -ExecutionPolicy Bypass -File "%DEMO_ROOT%\toolkit\Ensure-DemoLocalEnvironment.ps1" -EnvFile "%ADMIN_DIR%\.env.local" -DemoProjectRef "%DEMO_PROJECT_REF%" -ProductionProjectRef "%PRODUCTION_PROJECT_REF%"
+if errorlevel 1 (
+  echo ERROR: The private demo Admin environment could not be prepared.
+  echo The server was NOT started.
+  pause
+  exit /b 1
+)
+
 set "LOCAL_SUPABASE_URL="
 for /f "usebackq tokens=1,* delims==" %%A in (".env.local") do (
   if /I "%%A"=="NEXT_PUBLIC_SUPABASE_URL" set "LOCAL_SUPABASE_URL=%%B"
