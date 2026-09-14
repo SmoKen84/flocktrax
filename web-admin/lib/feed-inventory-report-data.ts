@@ -26,6 +26,8 @@ type FeedBinRow = BinSentryFeedBinMapping & {
   capacity: number | null;
   binsentry_last_inventory_lbs: number | null;
   binsentry_last_sync_at: string | null;
+  binsentry_last_bulk_density_lb_ft3?: number | null;
+  binsentry_last_weight_source?: string | null;
 };
 
 type DemoBinSentryOrderRow = {
@@ -70,6 +72,10 @@ export type FeedInventoryReportRow = {
   onHandLbs: number | null;
   capturedAt: string | null;
   capacityLbs: number | null;
+  bulkDensityKgPerM3: number | null;
+  bulkDensityLbPerFt3: number | null;
+  estimatedVolumeM3: number | null;
+  inventoryWeightSource: string | null;
   status: "current" | "unmapped" | "unavailable";
   statusDetail: string;
 };
@@ -88,6 +94,8 @@ export type FeedInventoryComingOrder = {
   expectedDeliveryDate: string | null;
   pounds: number | null;
   volumeM3: number;
+  bulkDensityKgPerM3: number | null;
+  bulkDensityLbPerFt3: number | null;
 };
 
 export type FeedInventoryTypeTotal = {
@@ -130,7 +138,7 @@ export async function getFeedInventoryReportData(options: {
     supabase.from("barns").select("id,farm_id,barn_code,sort_code"),
     supabase
       .from("feedbins")
-      .select("id,farm_id,barn_id,bin_num,capacity,binsentry_bin_ref,binsentry_last_inventory_lbs,binsentry_last_sync_at,accessible_feed_type,accessible_feed_lbs,queued_feed_type,queued_feed_lbs,feed_state_effective_at,feed_state_source")
+      .select("id,farm_id,barn_id,bin_num,capacity,binsentry_bin_ref,binsentry_last_inventory_lbs,binsentry_last_sync_at,binsentry_last_bulk_density_lb_ft3,binsentry_last_weight_source,accessible_feed_type,accessible_feed_lbs,queued_feed_type,queued_feed_lbs,feed_state_effective_at,feed_state_source")
       .order("bin_num"),
   ]);
   const error = farmsResult.error ?? barnsResult.error ?? binsResult.error;
@@ -165,6 +173,10 @@ export async function getFeedInventoryReportData(options: {
       barnCode: normalize(barn?.barn_code) || "Unknown barn",
       binNumber: normalize(bin.bin_num) || "--",
       capacityLbs: finiteNumber(bin.capacity),
+      bulkDensityKgPerM3: null,
+      bulkDensityLbPerFt3: finiteNumber(bin.binsentry_last_bulk_density_lb_ft3),
+      estimatedVolumeM3: null,
+      inventoryWeightSource: normalize(bin.binsentry_last_weight_source) || null,
     };
 
     if (isDemo) {
@@ -214,6 +226,10 @@ export async function getFeedInventoryReportData(options: {
         feedName: normalize(snapshot.feedName) || null,
         onHandLbs: snapshot.inventoryLbs,
         capturedAt: snapshot.capturedAt,
+        bulkDensityKgPerM3: snapshot.bulkDensityKgPerM3,
+        bulkDensityLbPerFt3: snapshot.bulkDensityLbPerFt3,
+        estimatedVolumeM3: snapshot.estimatedVolumeM3,
+        inventoryWeightSource: snapshot.inventoryWeightSource,
         status: "current",
         statusDetail: "BinSentry latest valid reading",
       };
@@ -247,6 +263,17 @@ export async function getFeedInventoryReportData(options: {
       warnings.push(caught instanceof Error ? `Coming orders: ${caught.message}` : "Coming orders could not be read from BinSentry.");
     }
   }
+
+  appendMixedDensityWarnings(warnings, rows.map((row) => ({
+    label: `${row.farmName} ${row.barnCode} bin ${row.binNumber}`,
+    feedType: row.feedType,
+    density: row.bulkDensityLbPerFt3,
+  })), "current bins");
+  appendMixedDensityWarnings(warnings, comingOrders.map((order) => ({
+    label: `${order.farmName} ${order.barnCode} bin ${order.binNumber}`,
+    feedType: order.feedType,
+    density: order.bulkDensityLbPerFt3,
+  })), "scheduled orders");
 
   return {
     generatedAt,
@@ -310,6 +337,8 @@ async function fetchDemoBinSentryPendingOrders(
         expectedDeliveryDate: normalize(row.expected_delivery_date).slice(0, 10) || null,
         pounds,
         volumeM3: pounds / (densityKgPerM3 * 2.20462),
+        bulkDensityKgPerM3: densityKgPerM3,
+        bulkDensityLbPerFt3: densityKgPerM3 * 0.0624279606,
       };
     })
     .filter((row): row is FeedInventoryComingOrder => row !== null)
@@ -409,6 +438,8 @@ async function fetchBinSentryPendingOrders(
         expectedDeliveryDate: normalize(properties.deliveryDate).slice(0, 10) || null,
         pounds: feed?.density ? Math.max(0, quantity * feed.density * 2.20462) : null,
         volumeM3: quantity,
+        bulkDensityKgPerM3: feed?.density ?? null,
+        bulkDensityLbPerFt3: feed?.density ? feed.density * 0.0624279606 : null,
       });
     }
     nextUrl = findHrefByRel(page, ["next"]);
@@ -420,6 +451,28 @@ async function fetchBinSentryPendingOrders(
       || left.barnCode.localeCompare(right.barnCode, undefined, { numeric: true })
       || left.binNumber.localeCompare(right.binNumber, undefined, { numeric: true }),
   );
+}
+
+function appendMixedDensityWarnings(
+  warnings: string[],
+  entries: Array<{ label: string; feedType: string; density: number | null }>,
+  scope: string,
+) {
+  const byFeedType = new Map<string, Array<{ label: string; density: number }>>();
+  for (const entry of entries) {
+    if (entry.density === null) continue;
+    const key = entry.feedType || "Unknown";
+    const list = byFeedType.get(key) ?? [];
+    list.push({ label: entry.label, density: entry.density });
+    byFeedType.set(key, list);
+  }
+
+  for (const [feedType, list] of byFeedType) {
+    const distinct = [...new Set(list.map((entry) => entry.density.toFixed(2)))];
+    if (distinct.length > 1) {
+      warnings.push(`Mixed ${feedType} bulk densities in ${scope}: ${distinct.join(", ")} lb/ft³. These densities can change projected inventory or on-order pounds.`);
+    }
+  }
 }
 
 function findHrefByRel(entity: SirenEntity, needles: string[]) {

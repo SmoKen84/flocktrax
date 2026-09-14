@@ -22,6 +22,10 @@ type InventorySnapshotWrite = {
   feedBinId: string;
   feedName: string | null;
   inventoryLbs: number;
+  bulkDensityKgPerM3: number | null;
+  bulkDensityLbPerFt3: number | null;
+  estimatedVolumeM3: number | null;
+  inventoryWeightSource: string;
   capturedAt: string;
   rawPayload: unknown;
   accessibleFeedType: string | null;
@@ -384,7 +388,19 @@ async function fetchBestInventoryPayload(entityUrl: string) {
     return binPayload;
   }
 
-  return await fetchBinSentryEntity(latestLevelUrl);
+  const latestPayload = (await fetchBinSentryEntity(latestLevelUrl)) as SirenEntity | Record<string, unknown>;
+  const latestProperties =
+    "properties" in latestPayload && latestPayload.properties && typeof latestPayload.properties === "object"
+      ? latestPayload.properties as Record<string, unknown>
+      : latestPayload as Record<string, unknown>;
+
+  return {
+    ...latestPayload,
+    properties: {
+      ...(sirenPayload.properties ?? {}),
+      ...latestProperties,
+    },
+  };
 }
 
 async function fetchCurrentFeedTypeFromOrderHistory(entityUrl: string) {
@@ -465,6 +481,14 @@ async function extractInventorySnapshot(
     (densityDerivedKilograms !== null ? densityDerivedKilograms * 2.20462 : null) ??
     (tonsEntry !== null ? tonsEntry * 2000 : null);
 
+  const inventoryWeightSource = poundsEntry
+    ? `binsentry:${poundsEntry.key}`
+    : kilogramEntry
+      ? `binsentry:${kilogramEntry.key}`
+      : densityDerivedKilograms !== null
+        ? "calculated:estimatedVolume*bulkDensity"
+        : "binsentry:tons";
+
   if (inventoryLbs === null || !mapping.barn_id) {
     return null;
   }
@@ -491,6 +515,11 @@ async function extractInventorySnapshot(
     feedBinId: mapping.id,
     feedName,
     inventoryLbs: Math.max(0, inventoryLbs),
+    bulkDensityKgPerM3,
+    bulkDensityLbPerFt3:
+      bulkDensityKgPerM3 === null ? null : bulkDensityKgPerM3 * 0.0624279606,
+    estimatedVolumeM3,
+    inventoryWeightSource,
     capturedAt,
     rawPayload: payload,
     accessibleFeedType,
@@ -513,6 +542,10 @@ function buildFeedBinSyncUpdate(snapshot: InventorySnapshotWrite, mapping: FeedB
   return {
     binsentry_last_sync_at: snapshot.capturedAt,
     binsentry_last_inventory_lbs: snapshot.inventoryLbs,
+    binsentry_last_bulk_density_kg_m3: snapshot.bulkDensityKgPerM3,
+    binsentry_last_bulk_density_lb_ft3: snapshot.bulkDensityLbPerFt3,
+    binsentry_last_estimated_volume_m3: snapshot.estimatedVolumeM3,
+    binsentry_last_weight_source: snapshot.inventoryWeightSource,
     binsentry_sync_note: `Inventory synced from BinSentry (${Math.round(snapshot.inventoryLbs).toLocaleString()} lbs).`,
     accessible_feed_type: accessibleFeedType ?? mapping.accessible_feed_type ?? null,
     accessible_feed_lbs: accessibleFeedType && !hasQueuedLayer ? snapshot.inventoryLbs : mapping.accessible_feed_lbs ?? null,
