@@ -395,6 +395,7 @@ export async function getDemoShowcaseStatus(): Promise<DemoShowcaseStatus> {
     ["Simulated BinSentry orders", "binsentry_demo_orders"],
     ["Simulated BinSentry bins", "binsentry_demo_bins"],
     ["Feed curve days", "feed_prediction_curve_days"],
+    ["Application settings", "app_settings"],
     ["Livehaul events", "livehaul_events"],
     ["Action items", "issues"],
   ];
