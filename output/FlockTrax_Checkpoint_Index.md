@@ -11,6 +11,10 @@ Purpose:
 
 ### September 2026
 
+- `2026-09-14` — BinSentry density diagnostics production release
+  - [FlockTrax_BinSentry_Density_Diagnostics_Production_Checkpoint_2026-09-14.md](C:\dev\FlockTrax-Production-Release\output\FlockTrax_BinSentry_Density_Diagnostics_Production_Checkpoint_2026-09-14.md)
+  - read-only visibility for the BinSentry bulk-density and weight-source inputs used by Feed Bins, Current Feed Inventory, pending orders, and standard/custom Feed Projections; live audit found 22 mapped bins, 18 densities, four missing densities, and two practical density bands near 45.2 and 46.1 lb/ft³; source `63a4eb9`; Supabase migration `20260914190000`; `binsentry-sync-all` production version `10`; READY Vercel deployment `dpl_5CeLW52t88VfBP4fjXgJhEDYyXLM`; no BinSentry write-back
+
 - `2026-09-14` — Admin 2.6.0 age-14 Feed Projection production hotfix
   - [FlockTrax_Admin_2_6_0_Age14_Feed_Projection_Hotfix_Production_Checkpoint_2026-09-14.md](C:\dev\FlockTrax-Production-Release\output\FlockTrax_Admin_2_6_0_Age14_Feed_Projection_Hotfix_Production_Checkpoint_2026-09-14.md)
   - authoritative hotfix checkpoint superseding the earlier Starter-shortfall conversion rule; after age 14 the historical Starter gap remains visible but expires instead of becoming Grower demand; W6 now resolves to `30,573 - 8,677 - 18,000 = 3,896 lb` Grower to order; source `bb96d31`; READY Vercel deployment `dpl_Es6PHuExie1oYtobsXAmWWVXfqMj`; production and demo parity verified
