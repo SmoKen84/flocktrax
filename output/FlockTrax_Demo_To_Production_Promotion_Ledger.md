@@ -81,6 +81,7 @@ The following remain intentionally demo-only unless a later production design ex
 - red demo sidebar and demo-specific explanatory/splash copy;
 - environment-gated `🔴 FlockTrax Demo` browser-tab/PWA identity (`a5b318f`), deployed as Vercel `dpl_7yJGWFS9L3xu6DdUfRUQEqes6anM` on `2026-09-14`;
 - 20 editable `public.app_settings` showcase records spanning integrator identity, placements, feed planning, alerts, feed-ticket vouchers, mobile display, and report labels; commits `dc2bfcd` and `13fd002`, migrations `20260914120000` and `20260914121500`, with a protected canonical seed, pre/post operational-reset restoration, and health-check verification; the reset count display was deployed as Vercel `dpl_6xtTwnFPnFDPsmEnqV1bVgq6MoWz` on `2026-09-14`;
+- rolling future scheduling and mobile-task seed (`ef1dc11`, migration `20260914133000`): every one of the six demo barns has at least two future placements and one future livehaul, producing 13 future placements and seven future livehauls in the current baseline; `public.daily_age_tasks` resets to 10 age-targeted checklist items for the future demo-mobile build; reset health checks enforce both per-barn minimums and the task count; reset-count UI deployed as Vercel `dpl_B5NTa5h8f6BMPEnYiQaKee5b8Pfi` on `2026-09-14`;
 - demo Vercel project configuration and demo credentials.
 
 ## Completion fields for each future promotion
