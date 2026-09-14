@@ -38,7 +38,7 @@ type FeedProjectionReportTableProps = {
     starterOnOrderLbs: number | null | undefined;
     growerOnOrderLbs: number | null | undefined;
     starterRecommendedLbs: number | null | undefined;
-    starterRecommendationConvertedToGrowerLbs: number;
+    historicalStarterShortfallLbs: number;
     growerRecommendedLbs: number | null | undefined;
     orderingMode: "typed" | "legacy" | "pending";
   }>;
@@ -389,16 +389,12 @@ export function FeedProjectionReportTable({
               <div>
                 <span>Starter Gap</span>
                 <strong>
-                  {formatWeight(
-                    selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs > 0
-                      ? selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs
-                      : selectedStarterMathRow.starterRecommendedLbs,
-                  )}
+                  {formatWeight(selectedStarterMathRow.historicalStarterShortfallLbs)}
                 </strong>
                 <small>
-                  {selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs > 0
-                    ? `Historical Starter shortfall. No new Starter will be ordered; ${formatWeight(selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs)} is added to the Grower recommendation because the flock is age 14 or older.`
-                    : "Additional starter still needed for the flock"}
+                  {selectedStarterMathRow.ageDays !== null && selectedStarterMathRow.ageDays >= 14
+                    ? "Historical Starter shortfall retained for reference. At age 14 or older it is no longer orderable and is not added to Grower demand."
+                    : "Additional Starter still needed for the flock"}
                 </small>
               </div>
             </div>
@@ -407,13 +403,11 @@ export function FeedProjectionReportTable({
               <strong>
                 {formatWeight(selectedStarterMathRow.starterTargetLbs)} - {formatWeight(selectedStarterMathRow.starterRecognizedSupplyLbs)} -{" "}
                 {formatWeight(selectedStarterMathRow.starterOnOrderLbs)} ={" "}
-                {selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs > 0
-                  ? `${formatWeight(selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs)} → Grower`
-                  : formatWeight(selectedStarterMathRow.starterRecommendedLbs)}
+                {formatWeight(selectedStarterMathRow.historicalStarterShortfallLbs)}
               </strong>
               <small>
-                {selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs > 0
-                  ? `The calculated Starter gap was ${formatWeight(selectedStarterMathRow.starterRecommendationConvertedToGrowerLbs)}; it is reported as Grower under the age-14 transition rule.`
+                {selectedStarterMathRow.ageDays !== null && selectedStarterMathRow.ageDays >= 14
+                  ? `The calculated Starter gap was ${formatWeight(selectedStarterMathRow.historicalStarterShortfallLbs)}. It is historical only; current Grower recommendations use projected feed consumption without carrying this gap forward.`
                   : "Recognized supply is the greater of recorded Starter deliveries or accessible Starter on hand, preventing either source from being ignored or counted twice."}
               </small>
             </div>

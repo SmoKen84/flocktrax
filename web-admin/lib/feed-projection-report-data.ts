@@ -133,7 +133,7 @@ export type FeedProjectionReportRow = {
   starterOnOrderLbs: number | null | undefined;
   growerOnOrderLbs: number | null | undefined;
   starterRecommendedLbs: number | null | undefined;
-  starterRecommendationConvertedToGrowerLbs: number;
+  historicalStarterShortfallLbs: number;
   growerRecommendedLbs: number | null | undefined;
   orderingMode: "typed" | "legacy" | "pending";
 };
@@ -499,14 +499,9 @@ function toReportRow({
   );
   const hasTransitionedToGrower =
     placement.ageDays !== null && placement.ageDays >= GROWER_ONLY_AGE_DAYS;
-  const starterRecommendationConvertedToGrowerLbs =
-    hasTransitionedToGrower ? calculatedStarterRecommendedLbs : 0;
-  const starterRecommendedLbs =
-    starterRecommendationConvertedToGrowerLbs > 0 ? 0 : calculatedStarterRecommendedLbs;
-  const growerRecommendedLbs =
-    starterRecommendationConvertedToGrowerLbs > 0
-      ? (typedRecommendation?.growerRecommendedLbs ?? 0) + starterRecommendationConvertedToGrowerLbs
-      : typedRecommendation?.growerRecommendedLbs ?? null;
+  const historicalStarterShortfallLbs = calculatedStarterRecommendedLbs;
+  const starterRecommendedLbs = hasTransitionedToGrower ? 0 : calculatedStarterRecommendedLbs;
+  const growerRecommendedLbs = typedRecommendation?.growerRecommendedLbs ?? null;
   const typedRecommendedTotal =
     starterRecommendedLbs !== null && growerRecommendedLbs !== null
       ? starterRecommendedLbs + growerRecommendedLbs
@@ -546,10 +541,7 @@ function toReportRow({
     // accuracy. The age-14 rule changes what should be ordered, not what the
     // flock was originally expected to consume as Starter.
     starterTotalLbs: placement.starterTargetLbs,
-    growerTotalLbs:
-      typedProjection.growerTotal === null
-        ? null
-        : typedProjection.growerTotal + starterRecommendationConvertedToGrowerLbs,
+    growerTotalLbs: typedProjection.growerTotal,
     starterTargetLbs: placement.starterTargetLbs,
     starterDeliveredLbs: placement.starterDeliveredLbs,
     starterRecognizedSupplyLbs,
@@ -574,7 +566,7 @@ function toReportRow({
     starterOnOrderLbs: allOpenStarterOnOrderLbs,
     growerOnOrderLbs: windowGrowerOnOrderLbs,
     starterRecommendedLbs,
-    starterRecommendationConvertedToGrowerLbs,
+    historicalStarterShortfallLbs,
     growerRecommendedLbs,
     orderingMode,
   };
