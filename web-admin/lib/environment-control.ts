@@ -387,9 +387,11 @@ export async function getDemoShowcaseStatus(): Promise<DemoShowcaseStatus> {
     ["Farms", "farms"],
     ["Barns", "barns"],
     ["Placements", "placements"],
+    ["Future placements", "future_placements"],
     ["Daily logs", "daily_logs"],
     ["Mortality logs", "mortality_logs"],
     ["Weight samples", "weight_samples"],
+    ["Mobile daily-age tasks", "daily_age_tasks"],
     ["Feed tickets", "feed_tickets"],
     ["Feed drops", "feed_drops"],
     ["Simulated BinSentry orders", "binsentry_demo_orders"],
@@ -397,6 +399,7 @@ export async function getDemoShowcaseStatus(): Promise<DemoShowcaseStatus> {
     ["Feed curve days", "feed_prediction_curve_days"],
     ["Application settings", "app_settings"],
     ["Livehaul events", "livehaul_events"],
+    ["Future livehaul events", "future_livehaul_events"],
     ["Action items", "issues"],
   ];
   const bucketReady = !bucketResult.error && bucketResult.data?.public === false;
