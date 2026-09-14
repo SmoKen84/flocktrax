@@ -46,10 +46,11 @@ Purpose: track shared bug fixes proven on `demo-hosted` that must later be reapp
 - Demo source commits:
   - `53d42c3` (`Transition feed requirements to grower at day 14`)
   - `25f1e90` (`Preserve lifetime starter math after day 14`)
-- Shared fix: at age 14 or later, retain accurate lifetime Starter requirement, delivery, inventory, order, and shortfall facts, but recommend zero new Starter and add any unfulfilled Starter shortfall to Grower ordering.
+- Corrected shared rule: at age 14 or later, retain accurate lifetime Starter requirement, delivery, inventory, order, and shortfall facts, but recommend zero new Starter and allow any unfulfilled Starter shortfall to expire. It must not be added to Grower demand. Grower ordering is based only on projected consumption, accessible Grower inventory, and open Grower orders.
 - Production candidate commits: `01b0c3f` and `393dbd8` on `release/admin-2.6.0`
-- Production deployment: Admin Vercel `dpl_917dzUiUswkHXUoiZrc3nP6dozEX`.
-- Production status: `COMPLETE — DEPLOYED 2026-09-14`
+- Corrective demo source/deployment: `a0d4fec`; Admin Vercel `dpl_FZwcMhH3oRD8mx8HRQ8jabGEDN6f`.
+- Corrective production source/deployment: `bb96d31`; Admin Vercel `dpl_Es6PHuExie1oYtobsXAmWWVXfqMj`.
+- Production status: `COMPLETE — CORRECTED AND DEPLOYED 2026-09-14`
 - Promotion note: reapply the business-rule changes to the shared dashboard/report calculations and Starter math popup without bringing across demo-provider logic.
 
 ### Mobile Operations Calendar rolling history

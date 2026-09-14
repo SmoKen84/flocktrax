@@ -11,6 +11,10 @@ Purpose:
 
 ### September 2026
 
+- `2026-09-14` — Demo age-14 Feed Projection hotfix
+  - [FlockTrax_Demo_Age14_Feed_Projection_Hotfix_Checkpoint_2026-09-14.md](C:\dev\FlockTrax-Demo-Hosted\output\FlockTrax_Demo_Age14_Feed_Projection_Hotfix_Checkpoint_2026-09-14.md)
+  - demo parity checkpoint for the corrected rule that preserves a missed Starter target as history after age 14 without converting it into Grower demand; all dashboard, standard/custom report, total, and math-popup surfaces corrected; demo source `a0d4fec`; READY Vercel deployment `dpl_FZwcMhH3oRD8mx8HRQ8jabGEDN6f`; production source `bb96d31` deployed independently
+
 - `2026-09-14` — Admin 2.6.0 build 1.2 production release
   - [FlockTrax_Admin_2_6_0_Build_1_2_Production_Checkpoint_2026-09-14.md](C:\dev\FlockTrax-Production-Release\output\FlockTrax_Admin_2_6_0_Build_1_2_Production_Checkpoint_2026-09-14.md)
   - production release completed at `main` commit `30bfe92`: Admin marker `2.6.0` / numeric build `3` / label `1.2`, Edge Functions `operations-calendar-list` version `9` and `dashboard-placements-list` version `33`, healthy Vercel deployment `dpl_917dzUiUswkHXUoiZrc3nP6dozEX`, both production domains verified, no demo-only behavior promoted, and the mobile calendar binary remaining as a separate distribution step
