@@ -1,3 +1,5 @@
+import { compareBarnOrder } from "@/lib/barn-sort";
+import { getBarnOrder, getSortBySortCode } from "@/lib/barn-sort-settings";
 import { unstable_noStore as noStore } from "next/cache";
 
 import type {
@@ -628,6 +630,8 @@ export async function getAdminData(): Promise<AdminDataBundle> {
 
     const farmGroupsRows = (farmGroupsResult.data ?? []) as FarmGroupRow[];
     const farmRows = (farmsResult.data ?? []) as FarmRow[];
+    const useSortCode = await getSortBySortCode();
+    const compareBarnRows = (left: Pick<BarnRow, "sort_code" | "barn_code">, right: Pick<BarnRow, "sort_code" | "barn_code">) => compareBarnOrder(left, right, useSortCode);
     const barnRows = ((barnsResult.data ?? []) as BarnRow[]).sort((left, right) => {
       const farmCompare = String(left.farm_id).localeCompare(String(right.farm_id));
       return farmCompare !== 0 ? farmCompare : compareBarnRows(left, right);
@@ -799,6 +803,16 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         status: row.is_complete ? "complete" : row.is_active ? "active" : "scheduled",
       };
     });
+
+    const barnOrder = await getBarnOrder();
+    const flockBarnRank = new Map(flockRows.map(flock => {
+      const placements = placementRows.filter(placement => placement.flock_id === flock.id);
+      const primary = placements.find(placement => placement.is_active) ??
+        placements.find(placement => placement.date_removed === null) ?? placements[0];
+      return [flock.id, primary ? barnOrder.get(primary.barn_id) ?? Infinity : Infinity];
+    }));
+    flocks.sort((a, b) => (flockBarnRank.get(a.id) ?? Infinity) - (flockBarnRank.get(b.id) ?? Infinity) ||
+      a.flockCode.localeCompare(b.flockCode, undefined, { numeric: true }));
 
     const breedOptions: BreedOptionRecord[] = breedRows.map((row) => ({
       id: row.id,
@@ -1993,20 +2007,7 @@ function parseCapacity(stdrocHead: string | null, sqft: number | null) {
   return 0;
 }
 
-function compareBarnRows(left: Pick<BarnRow, "sort_code" | "barn_code">, right: Pick<BarnRow, "sort_code" | "barn_code">) {
-  const leftSort = String(left.sort_code ?? "").trim().toLowerCase();
-  const rightSort = String(right.sort_code ?? "").trim().toLowerCase();
 
-  if (leftSort && rightSort && leftSort !== rightSort) {
-    return leftSort.localeCompare(rightSort, undefined, { numeric: true });
-  }
-
-  if (leftSort || rightSort) {
-    return leftSort ? -1 : 1;
-  }
-
-  return String(left.barn_code ?? "").localeCompare(String(right.barn_code ?? ""), undefined, { numeric: true });
-}
 
 function formatCityState(city: string | null, state: string | null) {
   const parts = [city, state].filter((value): value is string => Boolean(value && value.trim().length > 0));

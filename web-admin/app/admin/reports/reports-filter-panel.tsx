@@ -109,7 +109,7 @@ export function ReportsFilterPanel({
     "queued_feed_deliveries",
   ].includes(reportKey);
   const showBarnField = true;
-  const showFlockField = reportKey !== "feed_drops_report" && reportKey !== "queued_feed_deliveries" && reportKey !== "feed_inventory";
+  const showFlockField = reportKey !== "bulk_density_verification" && reportKey !== "feed_drops_report" && reportKey !== "queued_feed_deliveries" && reportKey !== "feed_inventory";
   const showFeedMillField = reportKey === "queued_feed_deliveries";
   const showSortOrderField = reportKey === "feed_drops_report" || reportKey === "closeout_queue_status";
   const isCloseoutQueueReport = reportKey === "closeout_queue_status";
@@ -685,7 +685,9 @@ function buildFeedProjectionPreviewHref({
   if (returnTo === "closeout") params.set("returnTo", "closeout");
   const query = params.toString();
   const pathname =
-    reportKey === "custom_feed_projection"
+    reportKey === "bulk_density_verification"
+      ? "/admin/reports/bulk-density-verification"
+      : reportKey === "custom_feed_projection"
       ? "/admin/reports/feed-projection-custom"
       : reportKey === "at_a_glance"
         ? "/admin/reports/today-at-a-glance"

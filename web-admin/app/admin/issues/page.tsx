@@ -165,10 +165,7 @@ export default async function IssuesPage({ searchParams }: IssuesPageProps) {
     issueUpdatesByIssueId.set(update.issue_id, existing);
   }
 
-  const placements = [...data.activePlacements].sort((left, right) =>
-    `${left.farmName} ${left.barnCode}`.localeCompare(`${right.farmName} ${right.barnCode}`),
-  );
-  const placementById = new Map(placements.map((placement) => [placement.placementId, placement]));
+  const placements = [...data.activePlacements];  const placementById = new Map(placements.map((placement) => [placement.placementId, placement]));
   const barnPlacementByBarnId = new Map<string, (typeof placements)[number]>();
 
   for (const placement of placements) {

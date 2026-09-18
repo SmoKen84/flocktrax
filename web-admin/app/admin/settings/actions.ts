@@ -145,6 +145,7 @@ export async function updateAppSettingAction(formData: FormData) {
   }
 
   revalidatePath("/admin/settings");
+  if (settingName === "sort_by_sort_code") revalidatePath("/admin", "layout");
   bounce(formData, {
     notice: `${settingName} saved.`,
     group: settingGroup,

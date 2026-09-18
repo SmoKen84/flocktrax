@@ -1,3 +1,4 @@
+import { getBarnOrder } from "@/lib/barn-sort-settings";
 import { NextRequest, NextResponse } from "next/server";
 
 import {
@@ -846,11 +847,21 @@ export async function GET(req: NextRequest) {
   const access = await getFeedTicketWriteAccess(user.id, null);
   const canManualFlockCorrection = canManualFlockCorrectionRole(access.role);
 
-  const [placementOptions, ticketNumberDefaults, allowHistoricalEntry] = await Promise.all([
+  const [placementOptions, ticketNumberDefaults, allowHistoricalEntry, barnOrder] = await Promise.all([
     listPlacementOptions(),
     getTicketNumberDefaults(),
     getAllowHistoricalEntry(),
+    getBarnOrder(),
   ]);
+  if (Array.isArray(payload.item?.bins)) {
+    payload.item.bins.sort((a: { barn_id: string | null; bin_code: string | null }, b: { barn_id: string | null; bin_code: string | null }) =>
+      (barnOrder.get(a.barn_id ?? "") ?? Number.MAX_SAFE_INTEGER) -
+        (barnOrder.get(b.barn_id ?? "") ?? Number.MAX_SAFE_INTEGER) ||
+      (a.bin_code ?? "").localeCompare(b.bin_code ?? "", undefined, { numeric: true }));
+  }
+  placementOptions.sort((a, b) =>
+    (barnOrder.get(a.barn_id ?? "") ?? Number.MAX_SAFE_INTEGER) -
+      (barnOrder.get(b.barn_id ?? "") ?? Number.MAX_SAFE_INTEGER));
   return NextResponse.json(
     {
       ...payload,

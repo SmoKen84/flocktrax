@@ -376,3 +376,15 @@ export async function getPublishedPlatformVersions() {
     mobileAndroid: toPublishedPlatformVersion("mobile_droid", "Android", androidControl),
   };
 }
+
+// Preserve authored whitespace for focus help (including indentation and blank lines).
+export async function getFeedFilterHelpText(): Promise<Record<string, string>> {
+  noStore();
+  const admin = createSupabaseAdminClient();
+  if (!admin) return {};
+  const { data } = await admin.schema("platform").from("screen_txt")
+    .select("name,display").like("name", "feed_help_%");
+  return Object.fromEntries((data ?? [])
+    .filter(row => row.name?.startsWith("feed_help_") && row.display?.trim())
+    .map(row => [row.name, row.display]));
+}
