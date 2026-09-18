@@ -11,6 +11,10 @@ Purpose:
 
 ### September 2026
 
+- `2026-09-18` — Inventory measurement-time correction
+  - [FlockTrax_Inventory_Reading_Time_Hotfix_2026-09-18.md](FlockTrax_Inventory_Reading_Time_Hotfix_2026-09-18.md)
+  - Removes the misleading March bin-configuration date from production Current Feed Inventory; uses actual latest-reading timestamps, explicit Central-time label and honest missing-time display. Production source `00ca1d7`; demo parity `715d031`.
+
 - `2026-09-18` — Production release and showable evaluator console demo
   - [FlockTrax_Production_And_Showcase_Demo_Release_Checkpoint_2026-09-18.md](FlockTrax_Production_And_Showcase_Demo_Release_Checkpoint_2026-09-18.md)
   - Production `805d3e9` and demo `fa7588c` committed/pushed independently; both Vercel deployments READY; density report, barn sorting, focus help and closeout issue rules live; demo evaluator access, private phone contacts, Integrator Manager scope, configuration parity, 31 sample PDFs and two near-complete closeouts deployed; validation, deployment IDs, rollback references and mobile-document direction recorded.
