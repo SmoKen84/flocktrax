@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-09-14`
+Updated: `2026-09-18`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### September 2026
+
+- `2026-09-18` — Production release and showable evaluator console demo
+  - [FlockTrax_Production_And_Showcase_Demo_Release_Checkpoint_2026-09-18.md](FlockTrax_Production_And_Showcase_Demo_Release_Checkpoint_2026-09-18.md)
+  - Production `805d3e9` and demo `fa7588c` committed/pushed independently; both Vercel deployments READY; density report, barn sorting, focus help and closeout issue rules live; demo evaluator access, private phone contacts, Integrator Manager scope, configuration parity, 31 sample PDFs and two near-complete closeouts deployed; validation, deployment IDs, rollback references and mobile-document direction recorded.
 
 - `2026-09-14` — Demo BinSentry density diagnostics
   - [FlockTrax_Demo_BinSentry_Density_Diagnostics_Checkpoint_2026-09-14.md](C:\dev\FlockTrax-Demo-Hosted\output\FlockTrax_Demo_BinSentry_Density_Diagnostics_Checkpoint_2026-09-14.md)

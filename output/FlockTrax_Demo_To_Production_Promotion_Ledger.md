@@ -1,6 +1,6 @@
 # FlockTrax Demo-to-Production Promotion Ledger
 
-Updated: `2026-09-14`
+Updated: `2026-09-18`
 
 Purpose: track shared bug fixes proven on `demo-hosted` that must later be reapplied to a clean production branch. This is a promotion ledger, not permission to merge the demo branch or deploy production.
 
@@ -11,7 +11,11 @@ Purpose: track shared bug fixes proven on `demo-hosted` that must later be reapp
 - Exclude demo Supabase data, reset helpers, simulated integrations, demo credentials, red demo identity, and other demo-only behavior.
 - Typecheck, build, test the boundary cases, create a rollback checkpoint, and verify the production Supabase/Vercel targets before deployment.
 
-## Pending production promotion
+## September 18 release update
+
+Shared density verification, barn sorting, feed-filter help and placement-issue closeout rules are deployed independently: production source 805d3e9 and demo source fa7588c. Demo evaluator access, contacts, simulated data, documents and reset functionality remain demo-only. See [the combined release checkpoint](FlockTrax_Production_And_Showcase_Demo_Release_Checkpoint_2026-09-18.md) for exact deployment and rollback identities.
+
+## Earlier promotion history
 
 ### Dashboard population accounts for completed livehaul
 
