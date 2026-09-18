@@ -1,3 +1,4 @@
+import { binSentryReadingTime } from "@/lib/binsentry-reading-time";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { buildBinSentryEntityUrl, fetchBinSentryEntity, normalizeBinSentryValue } from "@/lib/binsentry-http";
 
@@ -25,7 +26,7 @@ export type BinSentryInventorySnapshotWrite = {
   bulkDensityLbPerFt3: number | null;
   estimatedVolumeM3: number | null;
   inventoryWeightSource: string;
-  capturedAt: string;
+  capturedAt: string | null;
   rawPayload: unknown;
   accessibleFeedType: string | null;
   queuedFeedType: string | null;
@@ -130,7 +131,7 @@ function findHrefByRel(entity: SirenEntity, needles: string[]) {
 async function fetchBestInventoryPayload(entityUrl: string) {
   const binPayload = (await fetchBinSentryEntity(entityUrl)) as SirenEntity | Record<string, unknown>;
   if (!("entities" in binPayload) && !("links" in binPayload)) {
-    return binPayload;
+    return { payload: binPayload, readingTime: binSentryReadingTime((binPayload.properties ?? binPayload) as Record<string, unknown>, false) };
   }
 
   const sirenPayload = binPayload as SirenEntity;
@@ -139,7 +140,7 @@ async function fetchBestInventoryPayload(entityUrl: string) {
     findHrefByRel(sirenPayload, ["/bin-level-latest", "bin-level-latest"]);
 
   if (!latestLevelUrl) {
-    return binPayload;
+    return { payload: binPayload, readingTime: binSentryReadingTime((binPayload.properties ?? binPayload) as Record<string, unknown>, false) };
   }
 
   const latestPayload = (await fetchBinSentryEntity(latestLevelUrl)) as SirenEntity | Record<string, unknown>;
@@ -148,13 +149,13 @@ async function fetchBestInventoryPayload(entityUrl: string) {
       ? latestPayload.properties as Record<string, unknown>
       : latestPayload as Record<string, unknown>;
 
-  return {
+  return { readingTime: binSentryReadingTime(latestProperties, true), payload: {
     ...latestPayload,
     properties: {
       ...(sirenPayload.properties ?? {}),
       ...latestProperties,
     },
-  };
+  } };
 }
 
 async function fetchCurrentFeedTypeFromOrderHistory(entityUrl: string) {
@@ -199,6 +200,7 @@ async function extractInventorySnapshot(
   payload: SirenEntity | Record<string, unknown>,
   mapping: BinSentryFeedBinMapping,
   entityUrl: string,
+  capturedAt: string | null,
 ): Promise<BinSentryInventorySnapshotWrite | null> {
   const properties =
     "properties" in payload && payload.properties && typeof payload.properties === "object"
@@ -245,18 +247,6 @@ async function extractInventorySnapshot(
     return null;
   }
 
-  const capturedAt =
-    pickFirstString(properties, [
-      "captured_at",
-      "capturedAt",
-      "last_reading_at",
-      "lastReadingAt",
-      "measured_at",
-      "measuredAt",
-      "updated_at",
-      "updatedAt",
-    ]) ?? new Date().toISOString();
-
   const feedName = pickFirstString(properties, ["feed_name", "feedName", "ration_name", "rationName", "product_name", "productName"]);
   const currentOrderFeedType = await fetchCurrentFeedTypeFromOrderHistory(entityUrl);
   const accessibleFeedType =
@@ -287,8 +277,8 @@ export async function readCurrentBinSentryInventory(mapping: BinSentryFeedBinMap
   }
 
   const entityUrl = buildBinSentryEntityUrl(binRef);
-  const payload = await fetchBestInventoryPayload(entityUrl);
-  return await extractInventorySnapshot(payload, mapping, entityUrl);
+  const { payload, readingTime } = await fetchBestInventoryPayload(entityUrl);
+  return await extractInventorySnapshot(payload, mapping, entityUrl, readingTime);
 }
 
 function buildFeedBinSyncUpdate(snapshot: BinSentryInventorySnapshotWrite, mapping: BinSentryFeedBinMapping) {
@@ -378,9 +368,10 @@ export async function syncBinSentryInventoryForBarn(barnId: string) {
     }
   }
 
-  if (snapshots.length > 0) {
+  const datedSnapshots = snapshots.filter(snapshot => snapshot.capturedAt !== null);
+  if (datedSnapshots.length > 0) {
     const insertResult = await admin.from("feed_inventory_snapshots").insert(
-      snapshots.map((snapshot) => ({
+      datedSnapshots.map((snapshot) => ({
         farm_id: snapshot.farmId,
         barn_id: snapshot.barnId,
         feed_bin_id: snapshot.feedBinId,
