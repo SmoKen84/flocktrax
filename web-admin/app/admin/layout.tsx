@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { DEMO_OWNER_ID } from "@/lib/demo-access-policy";
+import { DemoActivity } from "@/components/demo-activity";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -50,6 +53,8 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
       scopeLabel={scopeLabel}
       versionLine={splash.versionLine}
     >
+      {environment.isDemo && user.id === DEMO_OWNER_ID ? <Link className="button-secondary" href="/admin/demo-access">Demo Evaluator Access</Link> : null}
+      {environment.isDemo && user.app_metadata?.demo_evaluator === true ? <DemoActivity/> : null}
       {children}
     </AdminShell>
   );

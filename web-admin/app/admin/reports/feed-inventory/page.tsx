@@ -1,3 +1,4 @@
+import { BulkDensityWarning } from "@/components/bulk-density-warning";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Fragment } from "react";
@@ -77,6 +78,7 @@ export default async function FeedInventoryReportPage({ searchParams }: PageProp
           ) : null}
         </div>
 
+        <BulkDensityWarning rows={report.rows} />
         {report.warnings.length > 0 ? (
           <div className="feed-inventory-warning" role="status">
             <strong>{report.warnings.length} BinSentry item{report.warnings.length === 1 ? " needs" : "s need"} attention.</strong>

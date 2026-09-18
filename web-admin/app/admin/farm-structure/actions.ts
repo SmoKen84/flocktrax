@@ -80,6 +80,12 @@ async function getAdminContext(formData: FormData) {
   const serverClient = await createSupabaseServerClient();
   const authResult = serverClient ? await serverClient.auth.getUser() : null;
   const actorId = authResult?.data.user?.id ?? null;
+  if (authResult?.data.user?.app_metadata?.demo_evaluator === true) {
+    const status = await serverClient!.rpc("demo_evaluator_status");
+    if (status.error || !status.data?.active || !status.data?.accepted || status.data?.role_code !== "integrator_manager") {
+      throw new Error("An active Integrator Manager evaluator is required to maintain demo farm groups.");
+    }
+  }
 
   const bundle = await getUserAccessBundle();
   const actor = actorId ? bundle.users.find((user) => user.id === actorId) ?? null : null;

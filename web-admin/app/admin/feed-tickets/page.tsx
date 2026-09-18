@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/page-header";
 import { getFeedTicketAdminBundle, type FeedTicketAdminFilters } from "@/lib/feed-ticket-data";
 import { buildFeedTicketTypeOptions, getFeedTicketTypeSettingNames } from "@/lib/feed-ticket-types";
-import { getAppSettingTextValues, getPlatformReportOption, getPlatformScreenTextValues } from "@/lib/platform-content";
+import { getFeedFilterHelpText, getAppSettingTextValues, getPlatformReportOption, getPlatformScreenTextValues } from "@/lib/platform-content";
 
 import { FeedTicketConsole } from "./feed-ticket-console";
 
@@ -28,6 +28,7 @@ export default async function FeedTicketsPage({ searchParams }: FeedTicketsPageP
     includeGrower: toBoolean(params.includeGrower),
   };
   const bundle = await getFeedTicketAdminBundle(filters);
+  const filterHelpText = await getFeedFilterHelpText();
   const screenText = await getPlatformScreenTextValues(["admin_feed_title", "admin_feed_desc"]);
   const flockFeedAuditReport = await getPlatformReportOption({
     location: "admin_feed_tickets",
@@ -49,6 +50,7 @@ export default async function FeedTicketsPage({ searchParams }: FeedTicketsPageP
       <PageHeader eyebrow="Console" title={heroTitle} body={heroBody} />
       <FeedTicketConsole
         bundle={bundle}
+        filterHelpText={filterHelpText}
         reportOption={flockFeedAuditReport}
         ticketPrintReportOption={feedTicketEditorReport}
         ticketTypeOptions={ticketTypeOptions}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SidebarSessionActions } from "@/components/sidebar-session-actions";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -188,16 +189,7 @@ export function AdminShell({ children, displayName, isDemo, roleKey, roleLabel, 
             {scopeLabel ? <p className="splash-sidebar-identity-scope">{scopeLabel}</p> : null}
           </div>
 
-          <div className="admin-sidebar-session-actions">
-            <Link className="admin-sidebar-session-link" href="/login">
-              Switch User
-            </Link>
-            <form action="/logout" method="post">
-              <button className="admin-sidebar-session-link admin-sidebar-session-link-quiet" type="submit">
-                Logout
-              </button>
-            </form>
-          </div>
+          <SidebarSessionActions />
 
           <div className="splash-sidebar-datetime">
             <LiveSidebarClock separator=" - " />

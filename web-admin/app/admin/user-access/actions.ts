@@ -146,6 +146,7 @@ async function getWriteContext(formData: FormData) {
   const serverClient = await createSupabaseServerClient();
   const authResult = serverClient ? await serverClient.auth.getUser() : null;
   const actorId = authResult?.data.user?.id ?? null;
+  if (authResult?.data.user?.app_metadata?.demo_evaluator === true) throw new Error("Evaluator accounts cannot manage users or system settings.");
 
   if (!actorId) {
     bounce(formData, { error: "Sign in again before changing user access." });

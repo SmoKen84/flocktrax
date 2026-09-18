@@ -1,3 +1,5 @@
+import { compareBarnOrder } from "@/lib/barn-sort";
+import { getSortBySortCode } from "@/lib/barn-sort-settings";
 import { unstable_noStore as noStore } from "next/cache";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
@@ -237,6 +239,8 @@ export type FlockHistoryReportBundle = {
 };
 
 export async function getFlockHistoryReportBundle(flockId: string): Promise<FlockHistoryReportBundle | null> {
+  const useSortCode = await getSortBySortCode();
+  const compareBarns = (a: BarnRow | undefined, b: BarnRow | undefined) => compareBarnOrder(a ?? {}, b ?? {}, useSortCode);
   noStore();
 
   const admin = createSupabaseAdminClient();
@@ -576,20 +580,7 @@ function compareText(left: string | null | undefined, right: string | null | und
   return String(left ?? "").localeCompare(String(right ?? ""), undefined, { numeric: true });
 }
 
-function compareBarns(left: BarnRow | undefined, right: BarnRow | undefined) {
-  const leftSort = String(left?.sort_code ?? "").trim().toLowerCase();
-  const rightSort = String(right?.sort_code ?? "").trim().toLowerCase();
 
-  if (leftSort && rightSort && leftSort !== rightSort) {
-    return leftSort.localeCompare(rightSort, undefined, { numeric: true });
-  }
-
-  if (leftSort || rightSort) {
-    return leftSort ? -1 : 1;
-  }
-
-  return String(left?.barn_code ?? "").localeCompare(String(right?.barn_code ?? ""), undefined, { numeric: true });
-}
 
 function resolveAgeDays(logDate: string | null, placedDate: string | null) {
   if (!logDate || !placedDate) {

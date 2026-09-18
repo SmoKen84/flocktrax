@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { seedDemoDocuments } from "@/lib/demo-document-seed";
+
 import { hasEnvironmentControlAccess } from "@/lib/environment-control";
 import { evaluateEnvironmentSafety } from "@/lib/environment-safety";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
@@ -40,6 +42,11 @@ export async function resetDemoShowcaseAction(formData: FormData) {
     returnToEnvironmentControl({ error: "The demo service credential is not configured." });
   }
 
+  const evaluatorSnapshot = await admin.from("demo_evaluators").select("user_id,farm_id,role_code,disabled_at,expires_at");
+  if (evaluatorSnapshot.error && evaluatorSnapshot.error.code !== "42P01" && evaluatorSnapshot.error.code !== "PGRST205") {
+    returnToEnvironmentControl({ error: "Could not preserve evaluator access before reset." });
+  }
+
   const archivesResult = await admin
     .from("document_archives")
     .select("storage_bucket,storage_path");
@@ -64,7 +71,23 @@ export async function resetDemoShowcaseAction(formData: FormData) {
   if (resetResult.error) {
     returnToEnvironmentControl({ error: `Demo reset failed: ${resetResult.error.message}` });
   }
+  for (const evaluator of evaluatorSnapshot.data ?? []) {
+    if (evaluator.role_code === "integrator_manager") continue;
+    const role = await admin.from("roles").select("id").eq("code", evaluator.role_code).single();
+    if (role.error) returnToEnvironmentControl({ error: "Demo reset completed, but evaluator role restoration needs owner review." });
+    const restored = await admin.from("farm_memberships").upsert({
+      user_id: evaluator.user_id, farm_id: evaluator.farm_id, role_id: role.data.id,
+      is_active: !evaluator.disabled_at && Date.parse(evaluator.expires_at) > Date.now(),
+    }, { onConflict: "user_id,farm_id" });
+    if (restored.error) returnToEnvironmentControl({ error: "Demo reset completed, but evaluator farm access needs owner review." });
+  }
 
+
+  try {
+    await seedDemoDocuments(admin, process.env.NEXT_PUBLIC_SUPABASE_URL || "");
+  } catch (error) {
+    returnToEnvironmentControl({ error: `Demo data reset, but sample documents need restoration: ${error instanceof Error ? error.message : "Unknown error"}` });
+  }
   const statusResult = await admin.rpc("get_demo_showcase_status");
   const status = statusResult.data as { ok?: unknown } | null;
   if (statusResult.error || status?.ok !== true) {

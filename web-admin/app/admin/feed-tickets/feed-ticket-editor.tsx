@@ -782,11 +782,10 @@ export function FeedTicketEditor({ ticketId, onClose, onSaved, printReportHelpTe
                     <option value="">
                       {isOffFarmRedirect ? "Off Farm Redirect" : isQueuedForReconciliation ? buildQueuedBinLabel(drop) ?? "Queued" : "Select Bin"}
                     </option>
-                    {currentBin ? (
+                    {currentBin && !item.bins.some((bin) => bin.feed_bin_id === currentBin.feed_bin_id) ? (
                       <option value={currentBin.feed_bin_id}>{formatBinLabel(currentBin)}</option>
                     ) : null}
                     {item.bins
-                      .filter((bin) => bin.feed_bin_id !== currentBin?.feed_bin_id)
                       .map((bin) => (
                         <option key={bin.feed_bin_id} value={bin.feed_bin_id}>
                           {formatBinLabel(bin)}

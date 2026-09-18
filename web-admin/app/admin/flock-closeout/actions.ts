@@ -276,7 +276,9 @@ export async function recalculateQueueCloseoutTotalsAction(formData: FormData) {
 
   revalidatePath("/admin/flock-closeout");
   for (const placementId of placementIds) {
-    revalidatePath(`/admin/flock-closeout/${placementId}`);
+    revalidatePath("/admin/issues");
+  revalidatePath("/admin/overview");
+  revalidatePath(`/admin/flock-closeout/${placementId}`);
   }
   redirect(page ? `/admin/flock-closeout?page=${page}` : "/admin/flock-closeout");
 }
@@ -395,6 +397,8 @@ export async function uploadCloseoutSummarySnapshotAction(
   }
 
   revalidatePath("/admin/flock-closeout");
+  revalidatePath("/admin/issues");
+  revalidatePath("/admin/overview");
   revalidatePath(`/admin/flock-closeout/${placementId}`);
   return { status: "success", message: "Closeout summary archived." };
 }
@@ -487,6 +491,8 @@ export async function uploadPlacementMiscDocumentAction(
   }
 
   revalidatePath("/admin/flock-closeout");
+  revalidatePath("/admin/issues");
+  revalidatePath("/admin/overview");
   revalidatePath(`/admin/flock-closeout/${placementId}`);
   return { status: "success", message: "Supporting document archived." };
 }
@@ -598,6 +604,8 @@ export async function recalculatePlacementCloseoutTotalsAction(formData: FormDat
   }
 
   revalidatePath("/admin/flock-closeout");
+  revalidatePath("/admin/issues");
+  revalidatePath("/admin/overview");
   revalidatePath(`/admin/flock-closeout/${placementId}`);
   redirect(`/admin/flock-closeout/${placementId}`);
 }
@@ -655,6 +663,8 @@ export async function saveCloseoutLivehaulStatusAction(
     return { status: "error", message: error.message };
   }
 
+  revalidatePath("/admin/issues");
+  revalidatePath("/admin/overview");
   revalidatePath(`/admin/flock-closeout/${placementId}`);
   revalidatePath("/admin/flock-closeout");
   revalidatePath("/admin/placements/livehaul");
@@ -876,6 +886,8 @@ export async function savePlacementCloseoutDraftAction(
     return { status: "error", message: placementUpdateError.message };
   }
 
+  revalidatePath("/admin/issues");
+  revalidatePath("/admin/overview");
   revalidatePath(`/admin/flock-closeout/${placementId}`);
   revalidatePath("/admin/flock-closeout");
 
@@ -935,6 +947,8 @@ export async function saveArchivedCloseoutNotesAction(
     return { status: "error", message: error.message };
   }
 
+  revalidatePath("/admin/issues");
+  revalidatePath("/admin/overview");
   revalidatePath(`/admin/flock-closeout/${placementId}`);
   revalidatePath("/admin/flocks");
   return { status: "success", message: "Archived closeout notes updated." };
@@ -961,6 +975,8 @@ export async function archivePlacementCloseoutAction(formData: FormData) {
     throw new Error(error.message);
   }
 
+  revalidatePath("/admin/issues");
+  revalidatePath("/admin/overview");
   revalidatePath(`/admin/flock-closeout/${placementId}`);
   revalidatePath("/admin/flock-closeout");
   redirect("/admin/flock-closeout");

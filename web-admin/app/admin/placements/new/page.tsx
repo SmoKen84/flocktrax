@@ -1,3 +1,4 @@
+import { getBarnOrder } from "@/lib/barn-sort-settings";
 import type { ReactNode } from "react";
 import Link from "next/link";
 
@@ -78,6 +79,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
     : bundle.farms.filter((farm) => accessibleFarmIds.has(farm.id) || (farm.farmGroupId && accessibleFarmGroupIds.has(farm.farmGroupId)));
   const visibleFarmIds = new Set(visibleFarmsPool.map((farm) => farm.id));
   const visibleUnassignedFlocks = bundle.unassignedFlocks.filter((flock) => visibleFarmIds.has(flock.previousFarmId));
+  const barnOrder = await getBarnOrder();
   const allVisibleBarns = visibleFarmsPool.flatMap((farm) => bundle.barnsByFarmId[farm.id] ?? []);
   const allVisibleWindows = allVisibleBarns.flatMap((barn) => bundle.windowsByBarnId[barn.id] ?? []);
   const farmGroupOptions = Array.from(
@@ -161,7 +163,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
       })),
     )
     .filter((window) => window.startDate.startsWith(selectedMonth))
-    .sort((left, right) => left.startDate.localeCompare(right.startDate) || left.barnCode.localeCompare(right.barnCode));
+    .sort((left, right) => (barnOrder.get(left.barnId) ?? Infinity) - (barnOrder.get(right.barnId) ?? Infinity) || left.startDate.localeCompare(right.startDate));
   const farmCalendar = buildFarmCalendar(selectedMonth, monthlyPlacementStarts, selectedDate, selectedBarn?.id ?? null);
   const heroTitle = screenTextValues.get("placement_wizard_title") || "Schedule flock placements on a real barn calendar.";
   const heroBody =
@@ -278,7 +280,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
               leftRank - rightRank ||
               left.startDate.localeCompare(right.startDate) ||
               left.farmName.localeCompare(right.farmName) ||
-              left.barnCode.localeCompare(right.barnCode, undefined, { numeric: true })
+              (barnOrder.get(left.barnId) ?? Infinity) - (barnOrder.get(right.barnId) ?? Infinity)
             );
           },
         )

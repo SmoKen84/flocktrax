@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
+import { BulkDensityWarning } from "@/components/bulk-density-warning";
 import type { FeedProjectionDensityDiagnostic, FeedProjectionOnOrderRow } from "@/lib/feed-projection-report-data";
 
 type FeedProjectionReportTableProps = {
@@ -344,7 +345,7 @@ export function FeedProjectionReportTable({
         </tbody>
       </table>
       </div>
-      <DensityDiagnosticsSection rows={densityDiagnostics} onOrderRows={onOrderRows} />
+      <BulkDensityWarning rows={densityDiagnostics} />
       <FeedOnOrderSection rows={onOrderRows} />
       {selectedStarterMathRow ? (
         <div className="feed-projection-report-math-modal-shell" role="dialog" aria-modal="true" aria-labelledby="starter-obligation-math-title">
@@ -425,52 +426,6 @@ export function FeedProjectionReportTable({
   );
 }
 
-function DensityDiagnosticsSection({ rows, onOrderRows }: { rows: FeedProjectionDensityDiagnostic[]; onOrderRows: FeedProjectionOnOrderRow[] }) {
-  const densityValues = [
-    ...rows.map((row) => row.bulkDensityLbPerFt3),
-    ...onOrderRows.map((row) => row.bulkDensityLbPerFt3),
-  ].filter((value): value is number => value !== null && Number.isFinite(value));
-  const distinctDensities = [...new Set(densityValues.map((value) => value.toFixed(2)))];
-
-  return (
-    <section className="feed-projection-on-order-section">
-      <div className="feed-projection-on-order-header">
-        <div>
-          <span>Projection Audit</span>
-          <h2>BinSentry Density Inputs</h2>
-          <p>Current inventory weights may reflect each bin&apos;s configured density. BinSentry scheduled-order pounds are calculated directly from order volume × feed density.</p>
-        </div>
-        <div className="feed-projection-on-order-total">
-          <span>Density Status</span>
-          <strong>{distinctDensities.length > 1 ? "MIXED" : distinctDensities.length === 1 ? "CONSISTENT" : "UNKNOWN"}</strong>
-          <small>{distinctDensities.length > 0 ? `${distinctDensities.join(", ")} lb/ft³` : "Run BinSentry sync to capture density"}</small>
-        </div>
-      </div>
-      {distinctDensities.length > 1 ? (
-        <div className="feed-inventory-warning" role="alert">
-          Mixed BinSentry bulk densities are affecting or may be affecting the inventory and scheduled-order pounds used by this projection. Review the bins below before placing feed orders.
-        </div>
-      ) : null}
-      <div className="feed-projection-on-order-table-wrap">
-        <table className="feed-projection-on-order-table">
-          <thead><tr><th>Farm</th><th>Barn</th><th>Bin</th><th>Current Feed</th><th>Bulk Density</th><th>Inventory Weight Basis</th><th>Last Sync</th></tr></thead>
-          <tbody>
-            {rows.length > 0 ? rows.map((row) => (
-              <tr key={row.feedBinId}>
-                <td>{row.farmName}</td><td>{row.barnCode}</td><td>{row.binNumber ?? "—"}</td>
-                <td>{row.feedType ? titleCase(row.feedType) : "Unspecified"}</td>
-                <td><strong>{row.bulkDensityLbPerFt3 === null ? "—" : `${row.bulkDensityLbPerFt3.toFixed(2)} lb/ft³`}</strong></td>
-                <td>{formatWeightBasis(row.weightBasis)}</td>
-                <td>{formatDensityTimestamp(row.lastSyncAt)}</td>
-              </tr>
-            )) : <tr><td className="feed-projection-report-empty" colSpan={7}>No feed-bin density snapshots are available in this report scope.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
 function FeedOnOrderSection({ rows }: { rows: FeedProjectionOnOrderRow[] }) {
   const totalRemainingLbs = rows.reduce((sum, row) => sum + row.remainingLbs, 0);
 
@@ -536,24 +491,6 @@ function FeedOnOrderSection({ rows }: { rows: FeedProjectionOnOrderRow[] }) {
       </div>
     </section>
   );
-}
-
-function formatWeightBasis(value: string | null) {
-  if (!value) return "Not captured";
-  if (value === "calculated:estimatedVolume*bulkDensity") return "Volume × bulk density (directly affected)";
-  if (value.startsWith("binsentry:")) return `BinSentry ${value.slice("binsentry:".length)} (may reflect density)`;
-  return value;
-}
-
-function titleCase(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-}
-
-function formatDensityTimestamp(value: string | null) {
-  if (!value) return "Not synced";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("en-US", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 function formatOrderDate(value: string | null) {

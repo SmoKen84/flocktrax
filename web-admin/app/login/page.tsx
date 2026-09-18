@@ -14,6 +14,7 @@ type LoginPageProps = {
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const isDemo = process.env.FLOCKTRAX_ENVIRONMENT_NAME === "demo";
   const params = searchParams ? await searchParams : {};
   const supabase = await createSupabaseServerClient();
   const {
@@ -32,8 +33,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <FlockTraxWordmark compact product="Admin" tone="accent" />
           <h1 className="hero-title login-hero-title">Sign in to the FlockTrax console.</h1>
           <p className="hero-body login-hero-body">
-            Use your invited Supabase account to open the admin console. Sessions stay signed in until you log out, so
-            switching users now has a clean sign-out path.
+            {isDemo ? "Use the demo access provided by the demo owner. Sign out before switching users." : "Use your invited account to open the admin console. Sign out before switching users."}
           </p>
         </div>
 
@@ -44,13 +44,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <article className="card login-card">
             <div className="login-card-head">
               <p className="login-card-title">Sign In</p>
-              <p className="login-card-copy">Enter the same email and password you use from the invited account.</p>
+              <p className="login-card-copy">{isDemo ? "Evaluators: use your assigned alias and demo password. For a lost password, ask the demo owner for a new setup link." : "Enter the same email and password you use from the invited account."}</p>
             </div>
 
             <form action={loginAction} className="login-form">
               <div className="field">
-                <label htmlFor="login-email">Email</label>
-                <input autoComplete="email" id="login-email" name="email" type="email" />
+                <label htmlFor="login-email">{isDemo ? "Evaluator username or owner email" : "Email"}</label>
+                <input autoComplete="username" id="login-email" name="email" type={isDemo ? "text" : "email"} />
               </div>
 
               <div className="field">
@@ -73,11 +73,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <div className="login-card-head">
               <p className="login-card-title">Account Help</p>
               <p className="login-card-copy">
-                Password recovery and user switching both route through Supabase authentication.
+                {isDemo ? "Demo access and password recovery are managed by the demo owner. No email is sent from the demo." : "Contact your administrator if you need help accessing your account."}
               </p>
             </div>
 
-            <form action={forgotPasswordAction} className="login-form">
+            {isDemo ? <div className="login-help-box"><p>New evaluator? Open the setup link sent by the demo owner to choose your password.</p><p>Lost your password? Ask the owner for a new setup link.</p></div> : <form action={forgotPasswordAction} className="login-form">
               <div className="field">
                 <label htmlFor="reset-email">Email</label>
                 <input autoComplete="email" id="reset-email" name="reset_email" type="email" />
@@ -94,7 +94,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                   Send Reset Link
                 </button>
               </div>
-            </form>
+            </form>}
           </article>
         </section>
       </section>

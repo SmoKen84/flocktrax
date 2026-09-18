@@ -1,3 +1,4 @@
+import { SidebarSessionActions } from "@/components/sidebar-session-actions";
 import Link from "next/link";
 
 import { FlockTraxWordmark } from "@/components/flocktrax-wordmark";
@@ -139,6 +140,8 @@ export default async function HomePage() {
               {scopeLabel ? <p className="splash-sidebar-identity-scope">{scopeLabel}</p> : null}
             </div>
           )}
+
+          {isSignedIn ? <SidebarSessionActions /> : null}
 
           <div className="splash-sidebar-datetime">
             <LiveSidebarClock separator=" · " />

@@ -1,3 +1,4 @@
+import { BulkDensityWarning } from "@/components/bulk-density-warning";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Fragment } from "react";
@@ -64,6 +65,12 @@ export default async function FeedDropsReportPage({ searchParams }: FeedDropsRep
           <p>BinSentry-detected refill events ready to be checked and reconciled against feed tickets.</p>
         </header>
 
+        <BulkDensityWarning rows={report.rows.map((row) => ({
+          // Compare individual drops, including multiple drops into the same bin.
+          feedBinId: row.id,
+          feedType: row.feedType,
+          bulkDensityLbPerFt3: row.weightDensityLbPerCubicFoot,
+        }))} />
         <div className="feed-drops-report-summary">
           <div>
             <span>Report Range</span>

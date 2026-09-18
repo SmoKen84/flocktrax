@@ -1,3 +1,4 @@
+import { getBarnOrder } from "@/lib/barn-sort-settings";
 import Link from "next/link";
 
 import { ReportsFilterPanel } from "@/app/admin/reports/reports-filter-panel";
@@ -48,6 +49,7 @@ const reportCategories: ReportCategory[] = [
     reports: [
       { key: "ten_day_feed_requirements", label: "10-Day Feed Requirements" },
       { key: "custom_feed_projection", label: "Feed Projection (Custom Days)" },
+      { key: "bulk_density_verification", label: "Bulk Density Verification Report" },
       { key: "feed_inventory", label: "BinSentry Current Feed Inventory" },
       { key: "feed_drops_report", label: "BinSentryAPI-Drops" },
       { key: "queued_feed_deliveries", label: "Queued Feed Deliveries Not Received" },
@@ -116,7 +118,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
     reportKey === "feed_drops_report"
       ? getFeedDropsReportFilterOptions()
       : Promise.resolve(null),
-    reportKey === "queued_feed_deliveries" || reportKey === "feed_inventory"
+    reportKey === "bulk_density_verification" || reportKey === "queued_feed_deliveries" || reportKey === "feed_inventory"
       ? getQueuedFeedDeliveriesFilterOptions()
       : Promise.resolve(null),
     reportKey === "closeout_queue_status"
@@ -164,8 +166,12 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
   ).sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true }));
   const filterFarmGroups = closeoutFilterOptions?.farmGroups ?? queuedFeedFilterOptions?.farmGroups ?? feedDropsFilterOptions?.farmGroups ?? mortalityFilterOptions?.farmGroups ?? activeFarmGroups;
   const filterFarms = closeoutFilterOptions?.farms ?? queuedFeedFilterOptions?.farms ?? feedDropsFilterOptions?.farms ?? mortalityFilterOptions?.farms ?? activeFarms;
+  const barnOrder = await getBarnOrder();
   const filterBarns = closeoutFilterOptions?.barns ?? queuedFeedFilterOptions?.barns ?? feedDropsFilterOptions?.barns ?? mortalityFilterOptions?.barns ?? activeBarns;
   const filterFlocks = closeoutFilterOptions?.flocks ?? queuedFeedFilterOptions?.flocks ?? feedDropsFilterOptions?.flocks ?? mortalityFilterOptions?.flocks ?? activeFlocks;
+
+  filterBarns.sort((a, b) => (barnOrder.get(a.id) ?? Infinity) - (barnOrder.get(b.id) ?? Infinity));
+  filterFlocks.sort((a, b) => (barnOrder.get(a.barnId) ?? Infinity) - (barnOrder.get(b.barnId) ?? Infinity));
   const filterFeedMills = queuedFeedFilterOptions?.feedMills ?? [];
 
   return (
@@ -288,6 +294,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
             selectedReport?.key === "closeout_queue_status" ||
             selectedReport?.key === "feed_drops_report" ||
             selectedReport?.key === "queued_feed_deliveries" ||
+            selectedReport?.key === "bulk_density_verification" ||
             selectedReport?.key === "feed_inventory" ? (
               <ReportsFilterPanel
                 barns={filterBarns}

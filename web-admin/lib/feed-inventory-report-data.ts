@@ -124,6 +124,7 @@ export async function getFeedInventoryReportData(options: {
   farmId?: string | null;
   barnId?: string | null;
   includeComingOrders?: boolean;
+  cachedOnly?: boolean;
 }): Promise<FeedInventoryReportData> {
   noStore();
   const generatedAt = new Date().toISOString();
@@ -190,6 +191,12 @@ export async function getFeedInventoryReportData(options: {
         status: onHandLbs === null ? "unavailable" : "current",
         statusDetail: onHandLbs === null ? "No simulated reading configured" : "Simulated BinSentry reading",
       };
+    }
+
+    if (options.cachedOnly) {
+      return { ...base, feedType: formatFeedType(bin.accessible_feed_type), feedName: null,
+        onHandLbs: finiteNumber(bin.binsentry_last_inventory_lbs), capturedAt: bin.binsentry_last_sync_at,
+        status: "current", statusDetail: "Latest cached BinSentry reading" };
     }
 
     if (!normalize(bin.binsentry_bin_ref)) {
@@ -263,17 +270,6 @@ export async function getFeedInventoryReportData(options: {
       warnings.push(caught instanceof Error ? `Coming orders: ${caught.message}` : "Coming orders could not be read from BinSentry.");
     }
   }
-
-  appendMixedDensityWarnings(warnings, rows.map((row) => ({
-    label: `${row.farmName} ${row.barnCode} bin ${row.binNumber}`,
-    feedType: row.feedType,
-    density: row.bulkDensityLbPerFt3,
-  })), "current bins");
-  appendMixedDensityWarnings(warnings, comingOrders.map((order) => ({
-    label: `${order.farmName} ${order.barnCode} bin ${order.binNumber}`,
-    feedType: order.feedType,
-    density: order.bulkDensityLbPerFt3,
-  })), "scheduled orders");
 
   return {
     generatedAt,
@@ -451,28 +447,6 @@ async function fetchBinSentryPendingOrders(
       || left.barnCode.localeCompare(right.barnCode, undefined, { numeric: true })
       || left.binNumber.localeCompare(right.binNumber, undefined, { numeric: true }),
   );
-}
-
-function appendMixedDensityWarnings(
-  warnings: string[],
-  entries: Array<{ label: string; feedType: string; density: number | null }>,
-  scope: string,
-) {
-  const byFeedType = new Map<string, Array<{ label: string; density: number }>>();
-  for (const entry of entries) {
-    if (entry.density === null) continue;
-    const key = entry.feedType || "Unknown";
-    const list = byFeedType.get(key) ?? [];
-    list.push({ label: entry.label, density: entry.density });
-    byFeedType.set(key, list);
-  }
-
-  for (const [feedType, list] of byFeedType) {
-    const distinct = [...new Set(list.map((entry) => entry.density.toFixed(2)))];
-    if (distinct.length > 1) {
-      warnings.push(`Mixed ${feedType} bulk densities in ${scope}: ${distinct.join(", ")} lb/ft³. These densities can change projected inventory or on-order pounds.`);
-    }
-  }
 }
 
 function findHrefByRel(entity: SirenEntity, needles: string[]) {

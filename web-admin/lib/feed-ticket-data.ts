@@ -1,3 +1,4 @@
+import { getBarnOrder, getSortBySortCode } from "@/lib/barn-sort-settings";
 import { unstable_noStore as noStore } from "next/cache";
 
 import { getFeedTicketDocumentSummaryMap } from "@/lib/document-archive";
@@ -300,7 +301,8 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
   const farmNameById = new Map((farmsResult.data ?? []).map((row) => [row.id, String(row.farm_name ?? "")]));
   const barnRows = (barnsResult.data ?? []) as BarnRow[];
   const barnCodeById = new Map(barnRows.map((row) => [row.id, String(row.barn_code ?? "")]));
-  const barnSortCodeById = new Map(barnRows.map((row) => [row.id, normalize(row.sort_code)]));
+  const useSortCode = await getSortBySortCode();
+  const barnSortCodeById = new Map(barnRows.map((row) => [row.id, useSortCode ? normalize(row.sort_code) : normalize(row.barn_code)]));
   const binCodeById = new Map(
     ((binsResult.data ?? []) as FeedBinRow[]).map((row) => [row.id, row.bin_num === null || row.bin_num === undefined ? "" : String(row.bin_num)]),
   );
@@ -438,6 +440,12 @@ export async function getFeedTicketAdminBundle(filters: FeedTicketAdminFilters =
         .filter((placementCode) => placementCode && selectablePlacementCodes.has(placementCode)),
     ),
   ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+  const barnOrder = await getBarnOrder();
+  const rankByBarnCode = new Map(barnRows.map(row => [normalize(row.barn_code), barnOrder.get(row.id) ?? Infinity]));
+  barns.sort((a, b) => (rankByBarnCode.get(a) ?? Infinity) - (rankByBarnCode.get(b) ?? Infinity));
+  const rankByPlacement = new Map(rows.map(row => [normalize(row.placementCode), rankByBarnCode.get(normalize(row.barnCode)) ?? Infinity]));
+  flocks.sort((a, b) => (rankByPlacement.get(a) ?? Infinity) - (rankByPlacement.get(b) ?? Infinity));
 
   const distinctTicketIds = new Set(
     rows.map((row) => {
@@ -597,7 +605,8 @@ export async function getFeedTicketFlockReportBundle(filters: FeedTicketAdminFil
   const farmNameById = new Map((farmsResult.data ?? []).map((row) => [row.id, String(row.farm_name ?? "")]));
   const barnRows = (barnsResult.data ?? []) as BarnRow[];
   const barnCodeById = new Map(barnRows.map((row) => [row.id, String(row.barn_code ?? "")]));
-  const barnSortCodeById = new Map(barnRows.map((row) => [row.id, normalize(row.sort_code)]));
+  const useSortCode = await getSortBySortCode();
+  const barnSortCodeById = new Map(barnRows.map((row) => [row.id, useSortCode ? normalize(row.sort_code) : normalize(row.barn_code)]));
   const binCodeById = new Map(
     ((binsResult.data ?? []) as FeedBinRow[]).map((row) => [row.id, row.bin_num === null || row.bin_num === undefined ? "" : String(row.bin_num)]),
   );

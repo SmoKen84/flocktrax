@@ -88,6 +88,7 @@ async function getAdminContext(formData: FormData) {
   const serverClient = await createSupabaseServerClient();
   const authResult = serverClient ? await serverClient.auth.getUser() : null;
   const actorId = authResult?.data.user?.id ?? null;
+  if (authResult?.data.user?.app_metadata?.demo_evaluator === true) throw new Error("Evaluator accounts cannot manage users or system settings.");
 
   const bundle = await getUserAccessBundle();
   const actor = actorId ? bundle.users.find((user) => user.id === actorId) ?? null : null;
@@ -145,6 +146,7 @@ export async function updateAppSettingAction(formData: FormData) {
   }
 
   revalidatePath("/admin/settings");
+  if (settingName === "sort_by_sort_code") revalidatePath("/admin", "layout");
   bounce(formData, {
     notice: `${settingName} saved.`,
     group: settingGroup,

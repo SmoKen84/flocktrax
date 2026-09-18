@@ -11,6 +11,7 @@ import { FeedTicketEditor } from "./feed-ticket-editor";
 const ROWS_PER_PAGE = 12;
 
 type FeedTicketConsoleProps = {
+  filterHelpText?: Record<string, string>;
   bundle: FeedTicketAdminBundle;
   reportOption?: {
     name: string;
@@ -82,11 +83,14 @@ type SortKey =
   | "dropWeightLbs";
 
 export function FeedTicketConsole({
+  filterHelpText = {},
   bundle,
   reportOption,
   ticketPrintReportOption,
   ticketTypeOptions,
 }: FeedTicketConsoleProps) {
+  const [focusedHelpKey, setFocusedHelpKey] = useState<string | null>(null);
+  const helpTip = focusedHelpKey ? filterHelpText[focusedHelpKey] ?? "" : "";
   const router = useRouter();
   const pathname = usePathname();
   const [listMode, setListMode] = useState<"ticket" | "drop">(bundle.filters.listMode);
@@ -235,7 +239,15 @@ export function FeedTicketConsole({
         />
       ) : (
         <>
-          <div className="feed-ticket-flat-top">
+          <div className="feed-ticket-flat-top"
+            onFocusCapture={(event) => {
+              const key = (event.target as HTMLElement).closest<HTMLElement>("[data-feed-help]")?.dataset.feedHelp;
+              setFocusedHelpKey(key ?? null);
+            }}
+            onBlurCapture={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocusedHelpKey(null);
+            }}
+          >
             <div className="feed-ticket-flat-left">
               <div className="feed-ticket-flat-heading">
                 <p className="feed-ticket-flat-title">Filter Feed Tickets & Deliveries:</p>
@@ -312,15 +324,18 @@ export function FeedTicketConsole({
               </div>
             </div>
 
+            <div className="feed-ticket-filter-help" id="feed-filter-help" role="status" aria-live="polite" aria-atomic="true">
+              {helpTip.trim() ? helpTip : null}
+            </div>
             <div className="feed-ticket-flat-options">
               <p className="feed-ticket-flat-options-kicker">Filter Selections:</p>
 
-              <label className="feed-ticket-flat-field feed-ticket-flat-ticket">
+              <label data-feed-help="feed_help_ticket" className="feed-ticket-flat-field feed-ticket-flat-ticket">
                 <span>Ticket:</span>
                 <input onChange={(event) => setTicketNumber(event.target.value)} placeholder="Feed Ticket #" type="text" value={ticketNumber} />
               </label>
 
-              <div className="feed-ticket-flat-field feed-ticket-flat-ticket-types">
+              <div data-feed-help="feed_help_ticket_type" className="feed-ticket-flat-field feed-ticket-flat-ticket-types">
                 <span>Ticket Types:</span>
                 <div className="feed-ticket-flat-ticket-type-row" role="group" aria-label="Ticket Types">
                   {ticketTypeOptions.map((option) => (
@@ -341,23 +356,24 @@ export function FeedTicketConsole({
                 </div>
               </div>
 
-              <label className="feed-ticket-flat-field feed-ticket-flat-source">
+              <label data-feed-help="feed_help_feedmill" className="feed-ticket-flat-field feed-ticket-flat-source">
                 <span>Feedmill / Source:</span>
                 <input onChange={(event) => setSourceType(event.target.value)} placeholder="Type feedmill or source" type="text" value={sourceType} />
               </label>
 
               <label className="feed-ticket-flat-check">
-                <input checked={hasRedirectedDropsOnly} onChange={(event) => setHasRedirectedDropsOnly(event.target.checked)} type="checkbox" />
+                <input data-feed-help="feed_help_redirected_drops" checked={hasRedirectedDropsOnly} onChange={(event) => setHasRedirectedDropsOnly(event.target.checked)} type="checkbox" />
                 <span>Show only tickets with Redirected drops.</span>
               </label>
 
               <label className="feed-ticket-flat-check">
-                <input checked={hasQueuedDropsOnly} onChange={(event) => setHasQueuedDropsOnly(event.target.checked)} type="checkbox" />
+                <input data-feed-help="feed_help_queued_drop" checked={hasQueuedDropsOnly} onChange={(event) => setHasQueuedDropsOnly(event.target.checked)} type="checkbox" />
                 <span>{listMode === "drop" ? "Show only Queued drops." : "Show only tickets with Queued drops."}</span>
               </label>
 
               <div className="feed-ticket-flat-field-grid">
                 <SelectorField
+                  helpKey="feed_help_farm"
                   label="Farm:"
                   onOpen={() =>
                     setSelectorState({
@@ -369,6 +385,7 @@ export function FeedTicketConsole({
                   value={farm}
                 />
                 <SelectorField
+                  helpKey="feed_help_barn"
                   label="Barn:"
                   onOpen={() =>
                     setSelectorState({
@@ -380,6 +397,7 @@ export function FeedTicketConsole({
                   value={barn}
                 />
                 <SelectorField
+                  helpKey="feed_help_bin"
                   label="Bin:"
                   onOpen={() =>
                     setSelectorState({
@@ -395,17 +413,18 @@ export function FeedTicketConsole({
               <div className="feed-ticket-flat-field-grid feed-ticket-flat-field-grid-dates">
                 <label className="feed-ticket-flat-field">
                   <span>From:</span>
-                  <input onChange={(event) => setDateFrom(event.target.value)} type="date" value={dateFrom} />
+                  <input data-feed-help="feed_help_date_from" onChange={(event) => setDateFrom(event.target.value)} type="date" value={dateFrom} />
                 </label>
                 <label className="feed-ticket-flat-field">
                   <span>To:</span>
-                  <input onChange={(event) => setDateTo(event.target.value)} type="date" value={dateTo} />
+                  <input data-feed-help="feed_help_date_to" onChange={(event) => setDateTo(event.target.value)} type="date" value={dateTo} />
                 </label>
               </div>
 
               <div className="feed-ticket-flat-flock-row">
                 <SelectorField
                   className="feed-ticket-flat-flock-field"
+                  helpKey="feed_help_flock"
                   label="Flock Code:"
                   onOpen={() =>
                     setSelectorState({
@@ -439,11 +458,11 @@ export function FeedTicketConsole({
 
               <div className="feed-ticket-flat-checks">
                 <label className="feed-ticket-flat-check">
-                  <input checked={includeStarter} onChange={(event) => setIncludeStarter(event.target.checked)} type="checkbox" />
+                  <input data-feed-help="feed_help_starter" checked={includeStarter} onChange={(event) => setIncludeStarter(event.target.checked)} type="checkbox" />
                   <span>Starter</span>
                 </label>
                 <label className="feed-ticket-flat-check">
-                  <input checked={includeGrower} onChange={(event) => setIncludeGrower(event.target.checked)} type="checkbox" />
+                  <input data-feed-help="feed_help_grower" checked={includeGrower} onChange={(event) => setIncludeGrower(event.target.checked)} type="checkbox" />
                   <span>Grower</span>
                 </label>
               </div>
@@ -816,11 +835,13 @@ export function FeedTicketConsole({
 }
 
 function SelectorField({
+  helpKey,
   className,
   label,
   value,
   onOpen,
 }: {
+  helpKey?: string;
   className?: string;
   label: string;
   value: string;
@@ -829,7 +850,7 @@ function SelectorField({
   return (
     <div className={className ? `feed-ticket-flat-field ${className}` : "feed-ticket-flat-field"}>
       <span>{label}</span>
-      <button className="feed-ticket-flat-selector" onClick={onOpen} type="button">
+      <button data-feed-help={helpKey} className="feed-ticket-flat-selector" onClick={onOpen} type="button">
         {value || label.replace(":", "")}
       </button>
     </div>

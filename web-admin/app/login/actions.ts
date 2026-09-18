@@ -1,5 +1,7 @@
 "use server";
 
+import { demoLoginEmail } from "@/lib/demo-access-policy";
+import { demoAdmin } from "@/lib/demo-access";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -27,7 +29,8 @@ async function getAppOrigin() {
 }
 
 export async function loginAction(formData: FormData) {
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const rawLogin = String(formData.get("email") ?? "").trim().toLowerCase();
+  const email = process.env.FLOCKTRAX_ENVIRONMENT_NAME === "demo" ? demoLoginEmail(rawLogin) : rawLogin;
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) {
@@ -48,6 +51,17 @@ export async function loginAction(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
 
+  if (process.env.FLOCKTRAX_ENVIRONMENT_NAME === "demo") {
+    const {data:{user}}=await supabase.auth.getUser();
+    if(user?.app_metadata?.demo_evaluator===true) {
+      const status=await supabase.rpc("demo_evaluator_status");
+      if(status.error||!status.data?.active||!status.data?.accepted) {
+        await supabase.auth.signOut();
+        redirect("/login?error=Demo+access+is+expired,+disabled+or+awaiting+setup.");
+      }
+      await demoAdmin().from("demo_access_events").insert({user_id:user.id,kind:"login",client:"web"});
+    }
+  }
   redirect("/");
 }
 

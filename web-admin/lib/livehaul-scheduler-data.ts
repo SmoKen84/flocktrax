@@ -1,3 +1,5 @@
+import { compareBarnOrder } from "@/lib/barn-sort";
+import { getSortBySortCode } from "@/lib/barn-sort-settings";
 import { unstable_noStore as noStore } from "next/cache";
 
 import type { PlacementLifecycleStage } from "@/lib/types";
@@ -146,20 +148,7 @@ function normalize(value: string | null | undefined) {
   return (value ?? "").trim();
 }
 
-function compareBarnRows(left: Pick<BarnRow, "sort_code" | "barn_code">, right: Pick<BarnRow, "sort_code" | "barn_code">) {
-  const leftSort = normalize(left.sort_code).toLowerCase();
-  const rightSort = normalize(right.sort_code).toLowerCase();
 
-  if (leftSort && rightSort && leftSort !== rightSort) {
-    return leftSort.localeCompare(rightSort, undefined, { numeric: true });
-  }
-
-  if (leftSort || rightSort) {
-    return leftSort ? -1 : 1;
-  }
-
-  return normalize(left.barn_code).localeCompare(normalize(right.barn_code), undefined, { numeric: true });
-}
 
 export async function getLivehaulSchedulerBundle(options?: {
   selectedFarmId?: string | null;
@@ -227,7 +216,11 @@ export async function getLivehaulSchedulerBundle(options?: {
         : Promise.resolve({ data: [], error: null }),
     ]);
 
-  const farmRows = (farmsResult.data ?? []) as FarmRow[];
+  const farmRows = ((farmsResult.data ?? []) as FarmRow[]).sort((a, b) =>
+    (a.farm_group_name ?? "").localeCompare(b.farm_group_name ?? "", undefined, { numeric: true }) ||
+    (a.farm_name ?? "").localeCompare(b.farm_name ?? "", undefined, { numeric: true }));
+  const useSortCode = await getSortBySortCode();
+  const compareBarnRows = (left: Pick<BarnRow, "sort_code" | "barn_code">, right: Pick<BarnRow, "sort_code" | "barn_code">) => compareBarnOrder(left, right, useSortCode);
   const barnRows = ((barnsResult.data ?? []) as BarnRow[]).sort((left, right) => {
     const farmCompare = String(left.farm_id).localeCompare(String(right.farm_id));
     return farmCompare !== 0 ? farmCompare : compareBarnRows(left, right);
