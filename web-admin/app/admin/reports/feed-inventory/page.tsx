@@ -108,7 +108,7 @@ export default async function FeedInventoryReportPage({ searchParams }: PageProp
                     <th>Current On Hand</th>
                     <th>Bulk Density</th>
                     <th>Weight Basis</th>
-                    <th>Reading Time</th>
+                    <th>Reading Time (Central)</th>
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -127,7 +127,7 @@ export default async function FeedInventoryReportPage({ searchParams }: PageProp
                               <td className="feed-drops-report-weight"><strong>{row.onHandLbs === null ? "--" : `${formatWeight(row.onHandLbs)} lbs`}</strong></td>
                               <td>{row.bulkDensityLbPerFt3 === null ? "--" : `${formatDecimal(row.bulkDensityLbPerFt3)} lb/ft³`}</td>
                               <td>{formatWeightBasis(row.inventoryWeightSource)}</td>
-                              <td>{row.capturedAt ? formatDateTime(row.capturedAt) : "--"}</td>
+                              <td>{row.capturedAt ? formatDateTime(row.capturedAt) : "Not supplied"}</td>
                               <td><span className="feed-inventory-status" data-status={row.status}>{statusLabel(row.status)}</span></td>
                             </tr>
                           ))}
@@ -194,7 +194,7 @@ export default async function FeedInventoryReportPage({ searchParams }: PageProp
         ) : null}
 
         <footer className="feed-drops-report-footer">
-          On-hand values come from each mapped bin&apos;s latest valid BinSentry reading at report time. Unavailable and unmapped bins are excluded from weight totals. Coming orders remain separate from on-hand inventory.
+          On-hand values come from each mapped bin&apos;s latest valid BinSentry reading at report time. Reading Time is the measurement timestamp supplied by BinSentry, shown in Central time; it is separate from the report Generated time. Unavailable and unmapped bins are excluded from weight totals. Coming orders remain separate from on-hand inventory.
         </footer>
       </section>
     </div>
