@@ -115,6 +115,11 @@ export default async function FeedProjectionCustomReportPage({
           ))}
         </div>
 
+        {report.projectionProblems.length > 0 && <section className="panel card" role="alert">
+          <h2>Projection cannot be calculated</h2>
+          <p>Correct the following flock information and run the report again. Affected requirements and order recommendations are shown as --; combined demand and order totals are withheld.</p>
+          <ul>{report.projectionProblems.map((problem, index) => <li key={index}>{problem}</li>)}</ul>
+        </section>}
         <ProjectionInventoryStatus readings={report.inventoryReadings} problems={report.inventoryProblems} warnings={report.onHandWarnings} simulated={report.inventoryIsSimulated} />
 
         <FeedProjectionReportTable
