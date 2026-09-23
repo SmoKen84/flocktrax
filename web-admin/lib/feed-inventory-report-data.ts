@@ -123,6 +123,7 @@ export async function getFeedInventoryReportData(options: {
   farmGroupId?: string | null;
   farmId?: string | null;
   barnId?: string | null;
+  barnIds?: string[];
   includeComingOrders?: boolean;
   cachedOnly?: boolean;
 }): Promise<FeedInventoryReportData> {
@@ -154,7 +155,7 @@ export async function getFeedInventoryReportData(options: {
     return true;
   });
   const selectedFarmIds = new Set(selectedFarms.map((farm) => farm.id));
-  const selectedBarns = barns.filter((barn) => selectedFarmIds.has(barn.farm_id) && (!options.barnId || barn.id === options.barnId));
+  const selectedBarns = barns.filter((barn) => selectedFarmIds.has(barn.farm_id) && (!options.barnId || barn.id === options.barnId) && (!options.barnIds || options.barnIds.includes(barn.id)));
   const selectedBarnIds = new Set(selectedBarns.map((barn) => barn.id));
   const selectedBins = bins.filter((bin) => Boolean(bin.barn_id && selectedBarnIds.has(bin.barn_id)));
   const farmById = new Map(farms.map((farm) => [farm.id, farm]));

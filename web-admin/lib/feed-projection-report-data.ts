@@ -1,3 +1,5 @@
+import { getFeedInventoryReportData } from "@/lib/feed-inventory-report-data";
+import { summarizeLiveProjectionInventory, firstOnHandShortfall } from "@/lib/live-projection-inventory";
 import { getAdminData } from "@/lib/admin-data";
 import { getBinSentryAccessToken, getBinSentryConfig } from "@/lib/binsentry-auth";
 import { buildBinSentryEntityUrl } from "@/lib/binsentry-http";
@@ -232,7 +234,7 @@ export async function getFeedProjectionReportData(options: {
     new Set(filteredPlacements.map((placement) => placement.placementId).filter(Boolean)),
   );
 
-  const [placementOrdersResult, barnOrdersResult, feedBinNumbersResult, binsentryScheduledOrders] = await Promise.all([
+  const [placementOrdersResult, barnOrdersResult, feedBinNumbersResult, binsentryScheduledOrders, liveInventory] = await Promise.all([
     uniquePlacementIds.length > 0
       ? supabase
           .from("feed_order_commitments")
@@ -252,6 +254,7 @@ export async function getFeedProjectionReportData(options: {
       ? supabase.from("feedbins").select("id,barn_id,bin_num,accessible_feed_type,binsentry_last_bulk_density_lb_ft3,binsentry_last_weight_source,binsentry_last_sync_at").in("barn_id", uniqueBarnIds)
       : Promise.resolve({ data: [], error: null }),
     fetchBinSentryScheduledOrdersSafe(supabase, uniqueBarnIds, windowEnd),
+    getFeedInventoryReportData({ barnIds: uniqueBarnIds, includeComingOrders: false }),
   ]);
 
   if (placementOrdersResult.error || barnOrdersResult.error || feedBinNumbersResult.error) {
@@ -339,7 +342,23 @@ export async function getFeedProjectionReportData(options: {
     liveHaulEventsByPlacementId.set(placementId, list);
   }
 
-  const rows = filteredPlacements
+  const inventoryCheckedAt = Date.now();
+  const inventoryProblems: string[] = [];
+  const livePlacements = filteredPlacements.map(placement => {
+    const inventory = summarizeLiveProjectionInventory(
+      liveInventory.rows.filter(bin => bin.barnId === placement.barnId), inventoryCheckedAt,
+      "isSimulated" in liveInventory && liveInventory.isSimulated === true,
+    );
+    inventoryProblems.push(...inventory.problems.map(problem => `${placement.placementCode || placement.barnCode}: ${problem}`));
+    return { ...placement,
+      feedInventoryOnHandLbs: inventory.total,
+      feedInventoryStarterAccessibleLbs: inventory.starter,
+      feedInventoryGrowerAccessibleLbs: inventory.grower,
+      feedInventoryStarterQueuedLbs: null,
+      feedInventoryGrowerQueuedLbs: null,
+    };
+  });
+  const rows = livePlacements
     .map((placement) =>
       toReportRow({
         placement,
@@ -371,13 +390,20 @@ export async function getFeedProjectionReportData(options: {
     windowDays,
     onOrderRows,
     densityDiagnostics,
+    inventoryReadings: liveInventory.rows,
+    inventoryProblems,
+    inventoryIsSimulated: "isSimulated" in liveInventory && liveInventory.isSimulated === true,
+    onHandWarnings: rows.flatMap(row => {
+      const coverage = firstOnHandShortfall(row.daily, row.onHandLbs);
+      return coverage ? [`${row.placementCode || row.barnCode}: on-hand feed covers about ${coverage.days.toFixed(1)} projected days. Confirm delivery before this supply is exhausted.`] : [];
+    }),
     dailyTotals,
     overallTotal: rows.reduce((sum, row) => sum + (row.totalLbs ?? 0), 0),
-    overallOnHand: rows.reduce((sum, row) => sum + (row.onHandLbs ?? 0), 0),
+    overallOnHand: inventoryProblems.length ? null : rows.reduce((sum, row) => sum + (row.onHandLbs ?? 0), 0),
     overallOnOrder: rows.reduce((sum, row) => sum + (row.onOrderLbs ?? 0), 0),
-    overallRecommended: rows.reduce((sum, row) => sum + (row.recommendedOrderLbs ?? 0), 0),
-    overallStarterRecommended: rows.reduce((sum, row) => sum + (row.starterRecommendedLbs ?? 0), 0),
-    overallGrowerRecommended: rows.reduce((sum, row) => sum + (row.growerRecommendedLbs ?? 0), 0),
+    overallRecommended: inventoryProblems.length ? null : rows.reduce((sum, row) => sum + (row.recommendedOrderLbs ?? 0), 0),
+    overallStarterRecommended: inventoryProblems.length ? null : rows.reduce((sum, row) => sum + (row.starterRecommendedLbs ?? 0), 0),
+    overallGrowerRecommended: inventoryProblems.length ? null : rows.reduce((sum, row) => sum + (row.growerRecommendedLbs ?? 0), 0),
   };
 }
 
@@ -610,17 +636,17 @@ function toReportRow({
     totalLbs: projection.total,
     onHandLbs: placement.feedInventoryOnHandLbs,
     onOrderLbs: windowOnOrderLbs,
-    recommendedOrderLbs,
+    recommendedOrderLbs: placement.feedInventoryOnHandLbs === null ? null : recommendedOrderLbs,
     starterAccessibleLbs: placement.feedInventoryStarterAccessibleLbs,
     growerAccessibleLbs: placement.feedInventoryGrowerAccessibleLbs,
     starterQueuedLbs: placement.feedInventoryStarterQueuedLbs,
     growerQueuedLbs: placement.feedInventoryGrowerQueuedLbs,
     starterOnOrderLbs: allOpenStarterOnOrderLbs,
     growerOnOrderLbs: windowGrowerOnOrderLbs,
-    starterRecommendedLbs,
+    starterRecommendedLbs: placement.feedInventoryOnHandLbs === null ? null : starterRecommendedLbs,
     historicalStarterShortfallLbs,
-    growerRecommendedLbs,
-    orderingMode,
+    growerRecommendedLbs: placement.feedInventoryOnHandLbs === null ? null : growerRecommendedLbs,
+    orderingMode: placement.feedInventoryOnHandLbs === null ? "pending" : orderingMode,
   };
 }
 

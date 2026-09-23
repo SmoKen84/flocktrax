@@ -1,3 +1,4 @@
+import { ProjectionInventoryStatus } from "@/components/projection-inventory-status";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -85,7 +86,7 @@ export default async function FeedProjectionCustomReportPage({
           <article className="feed-projection-report-summary-card">
             <span>On Hand Inventory</span>
             <strong>{formatWeight(report.overallOnHand)}</strong>
-            <small>Latest mapped feed-bin inventory where available</small>
+            <small>Inventory fetched for this report; see reading times below</small>
           </article>
           <article className="feed-projection-report-summary-card">
             <span>Req'd Feed</span>
@@ -118,6 +119,8 @@ export default async function FeedProjectionCustomReportPage({
             </div>
           ))}
         </div>
+
+        <ProjectionInventoryStatus readings={report.inventoryReadings} problems={report.inventoryProblems} warnings={report.onHandWarnings} simulated={report.inventoryIsSimulated} />
 
         <FeedProjectionReportTable
           rows={report.rows}
