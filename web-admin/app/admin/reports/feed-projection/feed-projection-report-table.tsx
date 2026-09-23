@@ -156,8 +156,8 @@ export function FeedProjectionReportTable({
                 </th>
                 {showDailyBreakdown
                   ? windowDates.map((date) => (
-                      <th className="feed-projection-report-number-col" key={date} rowSpan={2}>
-                        {formatMonthDay(date)}
+                      <th className="feed-projection-report-number-col" style={{ textAlign: "center" }} key={date} rowSpan={2}>
+                        <HeaderCell title={formatMonthDay(date)} subtitle={formatWeekdayInitial(date)} />
                       </th>
                     ))
                   : null}
@@ -232,8 +232,8 @@ export function FeedProjectionReportTable({
               </th>
               {showDailyBreakdown
                 ? windowDates.map((date) => (
-                    <th className="feed-projection-report-number-col" key={date}>
-                      {formatMonthDay(date)}
+                    <th className="feed-projection-report-number-col" style={{ textAlign: "center" }} key={date}>
+                      <HeaderCell title={formatMonthDay(date)} subtitle={formatWeekdayInitial(date)} />
                     </th>
                   ))
                 : null}
@@ -512,6 +512,11 @@ function formatMonthDay(value: string) {
   return date.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
 }
 
+function formatWeekdayInitial(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  return ["S", "M", "T", "W", "T", "F", "S"][date.getDay()];
+}
 function formatWeight(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "--";
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.round(value));
