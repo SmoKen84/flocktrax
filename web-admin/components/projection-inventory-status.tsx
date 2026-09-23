@@ -1,4 +1,4 @@
-import { FeedDeliveryWhatIf } from "@/components/feed-delivery-what-if";
+import { FeedExhaustionLines } from "@/components/feed-exhaustion-lines";
 import type { FeedProjectionReportRow, FeedProjectionOnOrderRow } from "@/lib/feed-projection-report-data";
 import type { FeedInventoryReportRow } from "@/lib/feed-inventory-report-data";
 
@@ -10,8 +10,7 @@ export function ProjectionInventoryStatus({ readings, problems, warnings, simula
     <h2>{simulated ? "Simulated inventory" : "Inventory fetched for this report"}</h2>
     {problems.length > 0 && <div role="alert"><strong>Inventory unavailable</strong><ul>{problems.map((p, i) => <li key={i}>{p}</li>)}</ul></div>}
     <details><summary>On-Hand Inventory Exhausted Projection</summary>
-      {warnings.length > 0 ? <ul>{warnings.map((w, i) => <li key={i}>{w}</li>)}</ul> : <p>No exhaustion projected within this period for barns with complete data.</p>}
-      <FeedDeliveryWhatIf rows={rows} orders={orders} />
+      <FeedExhaustionLines rows={rows} orders={orders} />
     </details>
     <details><summary>Inventory readings used ({readings.length} bins)</summary>
       <table><thead><tr><th>Farm / Barn</th><th>Bin</th><th>Feed</th><th>Pounds</th><th>Measurement time (Central)</th><th>Source status</th></tr></thead>
