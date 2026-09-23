@@ -58,15 +58,6 @@ export async function resetDemoShowcaseAction(formData: FormData) {
     .filter((row) => row.storage_bucket === "flocktrax-document-archive" && typeof row.storage_path === "string")
     .map((row) => row.storage_path as string);
 
-  for (let index = 0; index < archivePaths.length; index += 100) {
-    const removeResult = await admin.storage
-      .from("flocktrax-document-archive")
-      .remove(archivePaths.slice(index, index + 100));
-    if (removeResult.error) {
-      returnToEnvironmentControl({ error: `Unable to clear demo documents: ${removeResult.error.message}` });
-    }
-  }
-
   const resetResult = await admin.rpc("reset_demo_showcase_data");
   if (resetResult.error) {
     returnToEnvironmentControl({ error: `Demo reset failed: ${resetResult.error.message}` });
@@ -88,6 +79,20 @@ export async function resetDemoShowcaseAction(formData: FormData) {
   } catch (error) {
     returnToEnvironmentControl({ error: `Demo data reset, but sample documents need restoration: ${error instanceof Error ? error.message : "Unknown error"}` });
   }
+  // Keep existing files until replacement documents have been restored successfully.
+  const currentArchives = await admin.from("document_archives").select("storage_path")
+    .eq("storage_bucket", "flocktrax-document-archive");
+  if (currentArchives.error) {
+    returnToEnvironmentControl({ error: "Demo reset completed, but old document cleanup needs owner review." });
+  }
+  const currentPaths = new Set((currentArchives.data ?? []).map((row) => row.storage_path));
+  const stalePaths = archivePaths.filter((path) => !currentPaths.has(path));
+  for (let index = 0; index < stalePaths.length; index += 100) {
+    const removed = await admin.storage.from("flocktrax-document-archive").remove(stalePaths.slice(index, index + 100));
+    if (removed.error) {
+      returnToEnvironmentControl({ error: "Demo reset completed, but old document cleanup needs owner review." });
+    }
+  }
   const statusResult = await admin.rpc("get_demo_showcase_status");
   const status = statusResult.data as { ok?: unknown } | null;
   if (statusResult.error || status?.ok !== true) {
@@ -96,7 +101,8 @@ export async function resetDemoShowcaseAction(formData: FormData) {
     });
   }
 
-  revalidatePath("/admin");
+  revalidatePath("/admin", "layout");
   revalidatePath("/admin/environment-control");
-  returnToEnvironmentControl({ notice: "Synthetic demo data was reset and verified. Outbound queues are empty." });
+  const anchorDate = (resetResult.data as { anchor_date?: string } | null)?.anchor_date;
+  returnToEnvironmentControl({ notice: `Demo history was rebuilt through ${anchorDate ?? "today"} (Central time) and verified. Upcoming activity is scheduled ahead. Outbound queues are empty.` });
 }

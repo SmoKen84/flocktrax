@@ -88,6 +88,11 @@ export default async function EnvironmentControlPage({ searchParams }: Environme
           </span>
         </div>
         <p className="environment-demo-data-message">{showcase.message}</p>
+        {showcase.seededAt ? (
+          <p>Last completed reset: {new Intl.DateTimeFormat("en-US", {
+            dateStyle: "medium", timeStyle: "short", timeZone: "America/Chicago",
+          }).format(new Date(showcase.seededAt))} (Central time).</p>
+        ) : null}
 
         {showcase.counts.length > 0 ? (
           <div className="environment-demo-counts" aria-label="Synthetic demo record counts">
@@ -105,7 +110,8 @@ export default async function EnvironmentControlPage({ searchParams }: Environme
             <div>
               <label htmlFor="demo-reset-confirmation">Restore the verified showcase baseline</label>
               <p>
-                This removes test-drive changes from the dedicated demo database, rebuilds the synthetic records, and
+                This removes test-drive changes and rebuilds demo history through today (Central time), with upcoming
+                placements and deliveries scheduled ahead. It also
                 empties outbound queues. It cannot run unless the deployment is explicitly demo and outbound mode is disabled.
               </p>
             </div>
