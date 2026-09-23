@@ -112,7 +112,7 @@ export default async function FeedProjectionReportPage({ searchParams }: FeedPro
           <h2>Projection cannot be calculated</h2>
           <ul>{report.projectionProblems.map((problem, index) => <li key={index}>{problem}</li>)}</ul>
         </section>}
-        <ProjectionInventoryStatus readings={report.inventoryReadings} problems={report.inventoryProblems} warnings={report.onHandWarnings} simulated={report.inventoryIsSimulated} />
+        <ProjectionInventoryStatus rows={report.rows} orders={report.onOrderRows} readings={report.inventoryReadings} problems={report.inventoryProblems} warnings={report.onHandWarnings} simulated={report.inventoryIsSimulated} />
 
         <FeedProjectionReportTable
           rows={report.rows}

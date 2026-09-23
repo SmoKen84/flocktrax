@@ -83,6 +83,8 @@ type BinSentryOnOrderRecord = {
 };
 
 export type FeedProjectionOnOrderRow = {
+  barnId: string | null;
+  placementId: string | null;
   id: string;
   source: string;
   farmName: string;
@@ -123,6 +125,9 @@ const PENDING_BINSENTRY_ORDER_STATES = new Set(["ready", "scheduled", "not-deliv
 const GROWER_ONLY_AGE_DAYS = 14;
 
 export type FeedProjectionReportRow = {
+  barnId: string;
+  placementId: string;
+  whatIfDaily: Array<{ date: string; starter: number | null; grower: number | null }>;
   id: string;
   farmName: string;
   barnCode: string;
@@ -585,6 +590,9 @@ function toReportRow({
         : ("pending" as const);
 
   return {
+    barnId: placement.barnId,
+    placementId: placement.placementId,
+    whatIfDaily: typedProjection.daily.map(day => ({ date: day.date, starter: day.starterFeed, grower: day.growerFeed })),
     id: placement.id,
     farmName: placement.farmName,
     barnCode: placement.barnCode,
@@ -721,6 +729,8 @@ function buildDatabaseOnOrderRows({
       null;
 
     orders.push({
+      barnId: barnId ?? placement?.barnId ?? null,
+      placementId,
       id: `flocktrax:${id}`,
       source: formatOrderSource(row.source),
       farmName: placement?.farmName ?? "Unknown farm",
@@ -753,6 +763,8 @@ function buildBinSentryOnOrderRows({
   return rows.map<FeedProjectionOnOrderRow>((row) => {
     const placement = placementByBarnId.get(row.barnId) ?? null;
     return {
+      barnId: row.barnId,
+      placementId: null,
       id: row.id,
       source: "BinSentry",
       farmName: placement?.farmName ?? "Unknown farm",
