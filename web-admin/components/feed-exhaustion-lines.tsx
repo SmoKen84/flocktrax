@@ -10,8 +10,8 @@ export function FeedExhaustionLines({ rows, orders }: { rows: FeedProjectionRepo
       .filter(order => order.placementId ? order.placementId === row.placementId : order.barnId === row.barnId)
       .reduce((sum, order) => sum + Math.max(0, order.remainingLbs), 0);
     const combined = firstOnHandShortfall(row.daily, row.onHandLbs + onOrder);
-    return [<details key={row.id}>
-      <summary style={{ listStyle: "none", cursor: "pointer" }}><span aria-hidden="true">&gt; </span>{row.placementCode || row.barnCode}: on-hand feed covers about {baseline.days.toFixed(1)} projected days. Confirm delivery before this supply is exhausted.</summary>
+    return [<details key={row.id} style={{ marginLeft: "1rem" }}>
+      <summary style={{ cursor: "pointer" }}>{row.placementCode || row.barnCode}: on-hand feed covers about {baseline.days.toFixed(1)} projected days. Confirm delivery before this supply is exhausted.</summary>
       <p style={{ marginLeft: "1.5rem" }}>Including {Math.round(onOrder).toLocaleString("en-US")} lb on order (assuming delivery): {combined ? `feed covers about ${combined.days.toFixed(1)} projected days.` : `feed covers at least the ${row.daily.length}-day report period.`}</p>
     </details>];
   });
