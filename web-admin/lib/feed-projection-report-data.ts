@@ -130,6 +130,7 @@ export type FeedProjectionReportRow = {
   barnCode: string;
   placementCode: string;
   ageDays: number | null;
+  projectionProblems: string[];
   statusLabel: string;
   statusTone: string;
   headCount: number | null | undefined;
@@ -378,7 +379,7 @@ export async function getFeedProjectionReportData(options: {
 
   const dailyTotals = windowDates.map((date, index) => ({
     date,
-    pounds: rows.reduce((sum, row) => sum + (row.daily[index]?.pounds ?? 0), 0),
+    pounds: rows.some(row => row.daily[index]?.pounds == null) ? null : rows.reduce((sum, row) => sum + (row.daily[index]?.pounds ?? 0), 0),
   }));
 
   return {
@@ -392,18 +393,19 @@ export async function getFeedProjectionReportData(options: {
     densityDiagnostics,
     inventoryReadings: liveInventory.rows,
     inventoryProblems,
+    projectionProblems: rows.flatMap(row => row.projectionProblems.map(problem => (row.placementCode || row.barnCode) + ': ' + problem)),
     inventoryIsSimulated: "isSimulated" in liveInventory && liveInventory.isSimulated === true,
     onHandWarnings: rows.flatMap(row => {
       const coverage = firstOnHandShortfall(row.daily, row.onHandLbs);
       return coverage ? [`${row.placementCode || row.barnCode}: on-hand feed covers about ${coverage.days.toFixed(1)} projected days. Confirm delivery before this supply is exhausted.`] : [];
     }),
     dailyTotals,
-    overallTotal: rows.reduce((sum, row) => sum + (row.totalLbs ?? 0), 0),
+    overallTotal: rows.some(row => row.totalLbs == null) ? null : rows.reduce((sum, row) => sum + (row.totalLbs ?? 0), 0),
     overallOnHand: inventoryProblems.length ? null : rows.reduce((sum, row) => sum + (row.onHandLbs ?? 0), 0),
     overallOnOrder: rows.reduce((sum, row) => sum + (row.onOrderLbs ?? 0), 0),
-    overallRecommended: inventoryProblems.length ? null : rows.reduce((sum, row) => sum + (row.recommendedOrderLbs ?? 0), 0),
-    overallStarterRecommended: inventoryProblems.length ? null : rows.reduce((sum, row) => sum + (row.starterRecommendedLbs ?? 0), 0),
-    overallGrowerRecommended: inventoryProblems.length ? null : rows.reduce((sum, row) => sum + (row.growerRecommendedLbs ?? 0), 0),
+    overallRecommended: inventoryProblems.length || rows.some(row => row.totalLbs == null) ? null : rows.reduce((sum, row) => sum + (row.recommendedOrderLbs ?? 0), 0),
+    overallStarterRecommended: inventoryProblems.length || rows.some(row => row.totalLbs == null) ? null : rows.reduce((sum, row) => sum + (row.starterRecommendedLbs ?? 0), 0),
+    overallGrowerRecommended: inventoryProblems.length || rows.some(row => row.totalLbs == null) ? null : rows.reduce((sum, row) => sum + (row.growerRecommendedLbs ?? 0), 0),
   };
 }
 
@@ -602,7 +604,7 @@ function toReportRow({
     barnCode: placement.barnCode,
     placementCode: placement.placementCode,
     ageDays: placement.ageDays,
-    statusLabel:
+    projectionProblems: projection.problems, statusLabel:
       placement.tileState === "scheduled"
         ? "Scheduled"
         : placement.tileState === "awaiting"
@@ -619,7 +621,7 @@ function toReportRow({
     // accuracy. The age-14 rule changes what should be ordered, not what the
     // flock was originally expected to consume as Starter.
     starterTotalLbs: placement.starterTargetLbs,
-    growerTotalLbs: typedProjection.growerTotal,
+    growerTotalLbs: projection.total === null ? null : typedProjection.growerTotal,
     starterTargetLbs: placement.starterTargetLbs,
     starterDeliveredLbs: placement.starterDeliveredLbs,
     starterRecognizedSupplyLbs,
@@ -636,17 +638,17 @@ function toReportRow({
     totalLbs: projection.total,
     onHandLbs: placement.feedInventoryOnHandLbs,
     onOrderLbs: windowOnOrderLbs,
-    recommendedOrderLbs: placement.feedInventoryOnHandLbs === null ? null : recommendedOrderLbs,
+    recommendedOrderLbs: placement.feedInventoryOnHandLbs === null || projection.total === null ? null : recommendedOrderLbs,
     starterAccessibleLbs: placement.feedInventoryStarterAccessibleLbs,
     growerAccessibleLbs: placement.feedInventoryGrowerAccessibleLbs,
     starterQueuedLbs: placement.feedInventoryStarterQueuedLbs,
     growerQueuedLbs: placement.feedInventoryGrowerQueuedLbs,
     starterOnOrderLbs: allOpenStarterOnOrderLbs,
     growerOnOrderLbs: windowGrowerOnOrderLbs,
-    starterRecommendedLbs: placement.feedInventoryOnHandLbs === null ? null : starterRecommendedLbs,
+    starterRecommendedLbs: placement.feedInventoryOnHandLbs === null || projection.total === null ? null : starterRecommendedLbs,
     historicalStarterShortfallLbs,
-    growerRecommendedLbs: placement.feedInventoryOnHandLbs === null ? null : growerRecommendedLbs,
-    orderingMode: placement.feedInventoryOnHandLbs === null ? "pending" : orderingMode,
+    growerRecommendedLbs: placement.feedInventoryOnHandLbs === null || projection.total === null ? null : growerRecommendedLbs,
+    orderingMode: placement.feedInventoryOnHandLbs === null || projection.total === null ? "pending" : orderingMode,
   };
 }
 
@@ -1344,6 +1346,7 @@ function buildFeedProjection({
   const liveHaulEventByDate = new Map(scheduledLiveHaulEvents.map((event) => [event.date, event]));
   const liveHaulIndexByDate = new Map(scheduledLiveHaulDates.map((date, index) => [date, index]));
 
+  const problems = new Set<string>();
   let femalePopulation = currentFemaleCount;
   let malePopulation = currentMaleCount;
   let firstLiveHaulFemaleRemoval: number | null = null;
@@ -1420,8 +1423,19 @@ function buildFeedProjection({
     }
     const femaleFeedPerBird = resolveBreedDayFeedPerBird(breedFemales, projectedAgeDays, breedById, breedSpecRows);
     const maleFeedPerBird = resolveBreedDayFeedPerBird(breedMales, projectedAgeDays, breedById, breedSpecRows);
+    for (const [label, population, breedId, metric] of [
+      ["Female", femalePopulation, breedFemales, femaleFeedPerBird],
+      ["Male", malePopulation, breedMales, maleFeedPerBird],
+    ] as const) {
+      if (population <= 0 || metric !== null) continue;
+      problems.add(!breedId
+        ? `${label} breed is missing. Assign the breed in the flock record.`
+        : !breedById.has(breedId)
+          ? `${label} breed is inactive or unavailable. Review the flock's breed assignment.`
+          : `${label} breed is missing daily feed standards for this projection period. Update its breed standards.`);
+    }
     let totalFeed =
-      femaleFeedPerBird === null && maleFeedPerBird === null
+      (femalePopulation > 0 && femaleFeedPerBird === null) || (malePopulation > 0 && maleFeedPerBird === null)
         ? null
         : (femaleFeedPerBird ?? 0) * femalePopulation + (maleFeedPerBird ?? 0) * malePopulation;
     const liveHaulIndex = liveHaulIndexByDate.get(date);
@@ -1493,9 +1507,9 @@ function buildFeedProjection({
   const feedValues = daily
     .map((entry) => entry.totalFeed)
     .filter((value): value is number => value !== null && Number.isFinite(value));
-  const total = feedValues.length > 0 ? feedValues.reduce((sum, value) => sum + value, 0) : null;
+  const total = feedValues.length === daily.length && feedValues.length > 0 ? feedValues.reduce((sum, value) => sum + value, 0) : null;
 
-  return { total, daily };
+  return { total, daily, problems: Array.from(problems) };
 }
 
 function splitFeedProjectionByType({
