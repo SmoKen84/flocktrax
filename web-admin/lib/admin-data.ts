@@ -1,3 +1,4 @@
+import { resolveFeedInventoryReading } from "@/lib/feed-inventory-reading";
 import { compareBarnOrder } from "@/lib/barn-sort";
 import { getBarnOrder, getSortBySortCode } from "@/lib/barn-sort-settings";
 import { unstable_noStore as noStore } from "next/cache";
@@ -934,16 +935,10 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         continue;
       }
 
-      const accessibleType = normalizeFeedType(row.accessible_feed_type);
+      const reading = resolveFeedInventoryReading(latestInventoryByKey.get(row.id), row);
+      const accessibleType = normalizeFeedType(reading.feedType);
       const queuedType = normalizeFeedType(row.queued_feed_type);
-      const accessibleLbs =
-        accessibleType
-          ? typeof row.binsentry_last_inventory_lbs === "number" && Number.isFinite(row.binsentry_last_inventory_lbs)
-            ? Math.max(0, row.binsentry_last_inventory_lbs)
-            : typeof row.accessible_feed_lbs === "number" && Number.isFinite(row.accessible_feed_lbs)
-              ? Math.max(0, row.accessible_feed_lbs)
-              : 0
-          : 0;
+      const accessibleLbs = accessibleType ? reading.pounds : 0;
       const queuedLbs =
         typeof row.queued_feed_lbs === "number" && Number.isFinite(row.queued_feed_lbs)
           ? Math.max(0, row.queued_feed_lbs)
