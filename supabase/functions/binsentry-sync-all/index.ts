@@ -1,3 +1,4 @@
+import { binSentryReadingTime } from "../_shared/binsentry-reading-time.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getSupabaseSecretKey } from "../_shared/service-key.ts";
 import { assertOutboundIntegrationAllowed } from "../_shared/environment-safety.ts";
@@ -26,7 +27,7 @@ type InventorySnapshotWrite = {
   bulkDensityLbPerFt3: number | null;
   estimatedVolumeM3: number | null;
   inventoryWeightSource: string;
-  capturedAt: string;
+  capturedAt: string | null;
   rawPayload: unknown;
   accessibleFeedType: string | null;
 };
@@ -376,7 +377,7 @@ function pickFirstString(source: Record<string, unknown>, keys: string[]) {
 async function fetchBestInventoryPayload(entityUrl: string) {
   const binPayload = (await fetchBinSentryEntity(entityUrl)) as SirenEntity | Record<string, unknown>;
   if (!("entities" in binPayload) && !("links" in binPayload)) {
-    return binPayload;
+    return { payload: binPayload, readingTime: binSentryReadingTime((binPayload.properties ?? binPayload) as Record<string, unknown>, false) };
   }
 
   const sirenPayload = binPayload as SirenEntity;
@@ -385,7 +386,7 @@ async function fetchBestInventoryPayload(entityUrl: string) {
     findHrefByRel(sirenPayload, ["/bin-level-latest", "bin-level-latest"]);
 
   if (!latestLevelUrl) {
-    return binPayload;
+    return { payload: binPayload, readingTime: binSentryReadingTime((binPayload.properties ?? binPayload) as Record<string, unknown>, false) };
   }
 
   const latestPayload = (await fetchBinSentryEntity(latestLevelUrl)) as SirenEntity | Record<string, unknown>;
@@ -394,13 +395,13 @@ async function fetchBestInventoryPayload(entityUrl: string) {
       ? latestPayload.properties as Record<string, unknown>
       : latestPayload as Record<string, unknown>;
 
-  return {
+  return { readingTime: binSentryReadingTime(latestProperties, true), payload: {
     ...latestPayload,
     properties: {
       ...(sirenPayload.properties ?? {}),
       ...latestProperties,
     },
-  };
+  } };
 }
 
 async function fetchCurrentFeedTypeFromOrderHistory(entityUrl: string) {
@@ -447,6 +448,7 @@ async function extractInventorySnapshot(
   payload: SirenEntity | Record<string, unknown>,
   mapping: FeedBinMapping,
   entityUrl: string,
+  capturedAt: string | null,
 ): Promise<InventorySnapshotWrite | null> {
   const properties =
     "properties" in payload && payload.properties && typeof payload.properties === "object"
@@ -492,18 +494,6 @@ async function extractInventorySnapshot(
   if (inventoryLbs === null || !mapping.barn_id) {
     return null;
   }
-
-  const capturedAt =
-    pickFirstString(properties, [
-      "captured_at",
-      "capturedAt",
-      "last_reading_at",
-      "lastReadingAt",
-      "measured_at",
-      "measuredAt",
-      "updated_at",
-      "updatedAt",
-    ]) ?? new Date().toISOString();
 
   const feedName = pickFirstString(properties, ["feed_name", "feedName", "ration_name", "rationName", "product_name", "productName"]);
   const currentOrderFeedType = await fetchCurrentFeedTypeFromOrderHistory(entityUrl);
@@ -583,8 +573,8 @@ async function syncBarnInventory(
     const entityUrl = buildBinSentryEntityUrl(binRef);
 
     try {
-      const payload = await fetchBestInventoryPayload(entityUrl);
-      const snapshot = await extractInventorySnapshot(payload, mapping, entityUrl);
+      const { payload, readingTime } = await fetchBestInventoryPayload(entityUrl);
+      const snapshot = await extractInventorySnapshot(payload, mapping, entityUrl, readingTime);
       if (!snapshot) {
         syncErrors.push(`Bin ${mapping.bin_num ?? "?"}: inventory pounds were not found in the BinSentry payload.`);
         await supabase
@@ -615,15 +605,17 @@ async function syncBarnInventory(
     }
   }
 
-  if (snapshots.length > 0) {
+  const datedSnapshots = snapshots.filter(snapshot => snapshot.capturedAt !== null);
+  if (datedSnapshots.length > 0) {
     const insertResult = await supabase.from("feed_inventory_snapshots").insert(
-      snapshots.map((snapshot) => ({
+      datedSnapshots.map((snapshot) => ({
         farm_id: snapshot.farmId,
         barn_id: snapshot.barnId,
         feed_bin_id: snapshot.feedBinId,
         source: "binsentry",
         captured_at: snapshot.capturedAt,
         inventory_lbs: snapshot.inventoryLbs,
+        accessible_feed_type: snapshot.accessibleFeedType,
         feed_name: snapshot.feedName,
         raw_payload: snapshot.rawPayload,
       })),
