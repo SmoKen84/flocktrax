@@ -43,6 +43,7 @@ export function CloseoutDocumentChecklist({
   placementCode,
   placementId,
   archiveWarning,
+  activeFlock = false,
 }: {
   closeoutSummary: DocumentArchiveSummary | null;
   hatchTicket: DocumentArchiveSummary | null;
@@ -51,6 +52,7 @@ export function CloseoutDocumentChecklist({
   placementCode: string;
   placementId: string;
   archiveWarning?: string | null;
+  activeFlock?: boolean;
 }) {
   const [modal, setModal] = useState<
     | { kind: "hatch" }
@@ -66,9 +68,11 @@ export function CloseoutDocumentChecklist({
         <div className="closeout-document-checklist-head">
           <div>
             <p className="eyebrow">Document Archive</p>
-            <h3>Closeout Document Checklist</h3>
+            <h3>{activeFlock ? "Flock Documents" : "Closeout Document Checklist"}</h3>
             <p className="table-subtitle">
-              Required flock documents live here in one place during closeout. Open filed originals or attach missing ones without leaving this workspace.
+              {activeFlock
+                ? "Open original flock documents or add supporting paperwork at any time during the flock. Additional hatch tickets can be saved under Other Documents."
+                : "Required flock documents live here in one place during closeout. Open filed originals or attach missing ones without leaving this workspace."}
             </p>
             {archiveWarning ? <p className="feed-ticket-doc-error">{archiveWarning}</p> : null}
           </div>
@@ -89,27 +93,27 @@ export function CloseoutDocumentChecklist({
             summary={hatchTicket}
           />
 
-          <RequiredDocumentRow
+          {!activeFlock ? <RequiredDocumentRow
             actionLabel={livehaulPacket?.isOnFile ? "Replace" : "Attach"}
             documentLabel="Livehaul Packet"
             note="Combined GPC bill of lading and all included weight tickets for the placement."
             onArchive={() => setModal({ kind: "livehaul" })}
             summary={livehaulPacket}
-          />
+          /> : null}
 
-          <RequiredDocumentRow
+          {!activeFlock ? <RequiredDocumentRow
             actionLabel={closeoutSummary?.isOnFile ? "Replace" : "Attach"}
             documentLabel="Summary Snapshot"
             onArchive={() => setModal({ kind: "summary" })}
             summary={closeoutSummary}
-          />
+          /> : null}
         </div>
 
         <div className="closeout-document-misc-block">
           <div className="closeout-document-misc-head">
             <div>
               <strong>Other Documents</strong>
-              <p className="table-subtitle">Supporting flock paperwork like declarations, veterinary statements, or inspection support files.</p>
+              <p className="table-subtitle">Additional hatch tickets, declarations, veterinary statements, or other supporting flock paperwork.</p>
             </div>
             <button className="button-secondary" onClick={() => setModal({ kind: "misc" })} type="button">
               Add Other Doc
@@ -343,7 +347,7 @@ function MiscDocumentUploader({
         <>
           <label className="feed-ticket-doc-field">
             <span>Document Title</span>
-            <input name="title" placeholder="Clean wood declaration, vet statement, etc." type="text" />
+            <input name="title" placeholder="Second hatch ticket, vet statement, etc." required type="text" />
           </label>
         </>
       }

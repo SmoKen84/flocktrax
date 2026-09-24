@@ -2,12 +2,14 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { PlacementHatchTicketPanel } from "@/app/admin/placements/[placementId]/logs/placement-hatch-ticket-panel";
+import { CloseoutDocumentChecklist } from "@/app/admin/flock-closeout/closeout-document-panels";
 import { PlacementLogMatrixEditor } from "@/app/admin/placements/[placementId]/logs/placement-log-matrix-editor";
 import { PageHeader } from "@/components/page-header";
 import {
   getPlacementDocumentSummaryMap,
   HATCH_TICKET_DOCUMENT_ROLE,
+  getPlacementDocumentListMap,
+  MISC_DOCUMENT_ROLE,
 } from "@/lib/document-archive";
 import { getPlacementLogMatrixBundle } from "@/lib/placement-log-matrix";
 import { buildPlacementLogEditorAccess, getPlacementEditorActorAccess } from "@/lib/placement-editor-access";
@@ -29,9 +31,10 @@ export async function generateMetadata({ params }: PlacementLogsPageProps): Prom
 
 export default async function PlacementLogsPage({ params }: PlacementLogsPageProps) {
   const { placementId } = await params;
-  const [bundle, hatchTicketSummaryMap] = await Promise.all([
+  const [bundle, hatchTicketSummaryMap, miscDocumentMap] = await Promise.all([
     getPlacementLogMatrixBundle(placementId),
     getPlacementDocumentSummaryMap([placementId], HATCH_TICKET_DOCUMENT_ROLE),
+    getPlacementDocumentListMap([placementId], MISC_DOCUMENT_ROLE),
   ]);
 
   if (!bundle) {
@@ -106,10 +109,14 @@ export default async function PlacementLogsPage({ params }: PlacementLogsPagePro
         }
       />
 
-      <PlacementHatchTicketPanel
+      <CloseoutDocumentChecklist
+        activeFlock
+        closeoutSummary={null}
+        livehaulPacket={null}
+        miscDocuments={miscDocumentMap.get(placementId) ?? []}
         placementCode={bundle.placementCode}
         placementId={bundle.placementId}
-        summary={hatchTicketSummary}
+        hatchTicket={hatchTicketSummary}
       />
 
       <PlacementLogMatrixEditor bundle={bundle} />
