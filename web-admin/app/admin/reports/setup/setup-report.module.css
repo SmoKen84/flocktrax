@@ -1,0 +1,17 @@
+.report { display: grid; gap: 1rem; }
+:global(.admin-shell):has(.report) { grid-template-columns: minmax(0, 1fr); width: min(calc(100% - 48px), 1500px); }
+:global(.admin-shell):has(.report) :global(.splash-sidebar-stack) { display: none; }
+.tableWrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.table th, .table td { padding: .65rem; border-bottom: 1px solid #d8e1de; text-align: left; vertical-align: top; white-space: pre-wrap; overflow-wrap: anywhere; }
+.table th { background: #edf4f0; color: #194b38; }
+.table tbody tr:nth-child(even) { background: #f7faf8; }
+@media print {
+  .tableWrap { overflow: visible; }
+  .table { font-size: 9pt; table-layout: fixed; }
+  .table thead { display: table-header-group; }
+  .table tr { break-inside: avoid; }
+  .table th, .table td { padding: 5pt; }
+  .report { display: block; }
+  .report :global(.panel) { box-shadow: none; background: white; }
+}

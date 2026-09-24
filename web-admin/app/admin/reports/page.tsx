@@ -19,6 +19,14 @@ type ReportCategory = { key: string; label: string; reports: ReportOption[] };
 
 const reportCategories: ReportCategory[] = [
   {
+    key: "setup",
+    label: "Setup",
+    reports: [
+      { key: "app_settings", label: "Application Settings", minimumRank: 200 },
+      { key: "daily_log_reminders", label: "Daily Log Reminder Tasks", minimumRank: 200 },
+    ],
+  },
+  {
     key: "quick_access_reports",
     label: "Quick Access Reports",
     reports: [
@@ -278,11 +286,21 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
           <section className="reports-hub-filter-card panel card">
             <div className="reports-hub-section-header">
               <div>
-                <p className="eyebrow">Filters</p>
+                <p className="eyebrow">{categoryKey === "setup" ? "Setup Listing" : "Filters"}</p>
                 <h2>{selectedReport?.label ?? "Report Filters"}</h2>
               </div>
             </div>
 
+            {categoryKey === "setup" ? (
+              <>
+                <p>{reportKey === "app_settings"
+                  ? "All configurable application options, grouped by category, with current values and descriptions."
+                  : "All Daily Log reminder tasks, including age ranges, display order, and active or inactive status."}</p>
+                <Link className="button" href={`/admin/reports/setup?report=${reportKey}`} target="_blank" rel="noreferrer">
+                  Open Report
+                </Link>
+              </>
+            ) : null}
             {selectedReport?.key === "ten_day_feed_requirements" ||
             selectedReport?.key === "custom_feed_projection" ||
             selectedReport?.key === "at_a_glance" ||
