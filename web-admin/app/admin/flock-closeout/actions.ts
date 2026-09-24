@@ -494,6 +494,7 @@ export async function uploadPlacementMiscDocumentAction(
   revalidatePath("/admin/issues");
   revalidatePath("/admin/overview");
   revalidatePath(`/admin/flock-closeout/${placementId}`);
+  revalidatePath(`/admin/placements/${placementId}/logs`);
   return { status: "success", message: "Supporting document archived." };
 }
 
