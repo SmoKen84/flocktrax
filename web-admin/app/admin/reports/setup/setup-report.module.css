@@ -1,4 +1,12 @@
 .report { display: grid; gap: 1rem; }
+.options { padding: 1rem; }
+.ageColumns { columns: 2; column-gap: 1.5rem; }
+.ageGroup { break-inside: avoid; margin: 0 0 1rem; padding: .65rem; border: 1px solid #d8e1de; border-radius: .4rem; }
+.ageGroup h2 { font-size: 1rem; margin: 0 0 .5rem; color: #194b38; }
+.ageGroup ul { margin: 0; padding-left: 1.25rem; }
+.ageGroup li { margin: .25rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ageGroup del { text-decoration: line-through; }
+@media screen and (max-width: 600px) { .ageColumns { columns: 1; } }
 :global(.admin-shell):has(.report) { grid-template-columns: minmax(0, 1fr); width: min(calc(100% - 48px), 1500px); }
 :global(.admin-shell):has(.report) :global(.splash-sidebar-stack) { display: none; }
 .tableWrap { overflow-x: auto; }
@@ -7,6 +15,9 @@
 .table th { background: #edf4f0; color: #194b38; }
 .table tbody tr:nth-child(even) { background: #f7faf8; }
 @media print {
+  .options { display: none; }
+  .ageColumns { columns: 2; font-size: 9pt; }
+  .ageGroup h2 { font-size: 10pt; }
   .tableWrap { overflow: visible; }
   .table { font-size: 9pt; table-layout: fixed; }
   .table thead { display: table-header-group; }
