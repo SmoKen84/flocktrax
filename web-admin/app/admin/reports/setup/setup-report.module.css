@@ -36,6 +36,11 @@
 .settingsTable .optionName { padding-left: 1.5rem; }
 .groupHeading td { background: #edf4f0; }
 @media print {
+  @page setup-settings-report {
+    size: letter landscape;
+    margin: 0.35in;
+  }
+  .report:has(.settingsTable) { page: setup-settings-report; }
   .pager, .screenSettings { display: none; }
   .printSettings { display: block; }
   .options { display: none; }
