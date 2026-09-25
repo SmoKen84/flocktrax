@@ -15,12 +15,17 @@
 .table th { background: #edf4f0; color: #194b38; }
 .table tbody tr:nth-child(even) { background: #f7faf8; }
 .settingsTable { table-layout: auto; }
-.settingsTable .optionColumn { width: 1%; white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+.settingsTable .optionColumn { width: 1%; white-space: nowrap; overflow-wrap: normal; word-break: normal; text-align: right; }
+.settingsTable .groupColumn { width: 1%; min-width: 10rem; white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+.pager { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 0; flex-wrap: wrap; }
+.printSettings { display: none; }
 .groupHeading { break-after: avoid; }
 .groupHeading th { padding-top: 1rem; font-weight: 700; }
 .settingsTable .optionName { padding-left: 1.5rem; }
 .groupHeading td { background: #edf4f0; }
 @media print {
+  .pager, .screenSettings { display: none; }
+  .printSettings { display: block; }
   .options { display: none; }
   .ageColumns { columns: 2; font-size: 9pt; }
   .ageGroup h2 { font-size: 10pt; }
