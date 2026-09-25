@@ -48,7 +48,7 @@ export async function loginAction(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
 
-  redirect("/");
+  redirect("/admin/overview");
 }
 
 export async function forgotPasswordAction(formData: FormData) {

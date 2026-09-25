@@ -21,7 +21,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
 
   if (user) {
-    redirect("/");
+    redirect("/admin/overview");
   }
 
   return (
