@@ -18,6 +18,8 @@
 .settingsTable .optionColumn { width: 1%; white-space: nowrap; overflow-wrap: normal; word-break: normal; }
 .groupHeading { break-after: avoid; }
 .groupHeading th { padding-top: 1rem; font-weight: 700; }
+.settingsTable .optionName { padding-left: 1.5rem; }
+.groupHeading td { background: #edf4f0; }
 @media print {
   .options { display: none; }
   .ageColumns { columns: 2; font-size: 9pt; }
