@@ -1,5 +1,6 @@
 import { getBarnOrder } from "@/lib/barn-sort-settings";
 import Link from "next/link";
+import { ReminderReportOptions } from "@/app/admin/reports/setup/reminder-report-options";
 
 import { ReportsFilterPanel } from "@/app/admin/reports/reports-filter-panel";
 import { PageHeader } from "@/components/page-header";
@@ -296,9 +297,9 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                 <p>{reportKey === "app_settings"
                   ? "All configurable application options, grouped by category, with current values and descriptions."
                   : "All Daily Log reminder tasks, including age ranges, display order, and active or inactive status."}</p>
-                <Link className="button" href={`/admin/reports/setup?report=${reportKey}`} target="_blank" rel="noreferrer">
+                {reportKey === "daily_log_reminders" ? <ReminderReportOptions newWindow /> : <Link className="button" href={`/admin/reports/setup?report=${reportKey}`} target="_blank" rel="noreferrer">
                   Open Report
-                </Link>
+                </Link>}
               </>
             ) : null}
             {selectedReport?.key === "ten_day_feed_requirements" ||

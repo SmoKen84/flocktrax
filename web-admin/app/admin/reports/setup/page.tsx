@@ -5,6 +5,8 @@ import { FeedProjectionReportActions } from "@/app/admin/reports/feed-projection
 import { canAccessFarmManagerReport, getPlacementEditorActorAccess } from "@/lib/placement-editor-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import styles from "./setup-report.module.css";
+import { buildReminderAgeGroups } from "@/lib/daily-reminder-report";
+import { ReminderReportOptions } from "./reminder-report-options";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Setup Reports | FlockTrax Admin" };
@@ -16,8 +18,9 @@ export default async function SetupReportPage({ searchParams }: {
   if (!canAccessFarmManagerReport(actor)) redirect("/admin/reports");
   const params = await searchParams;
   const reminders = params.report === "daily_log_reminders";
+  const asDisplayed = reminders && params.type === "as_displayed";
   const reportKey = reminders ? "daily_log_reminders" : "app_settings";
-  const title = reminders ? "Daily Log Reminder Tasks" : "Application Settings";
+  const title = reminders ? `Daily Log Reminder Tasks — ${asDisplayed ? "As Displayed" : "Task List"}` : "Application Settings";
   const db = createSupabaseAdminClient();
   const settingsResult = !reminders && db
     ? await db.from("app_settings").select("id,group,name,value,desc").order("group").order("name")
@@ -29,6 +32,7 @@ export default async function SetupReportPage({ searchParams }: {
   const error = !db || settingsResult?.error || tasksResult?.error;
   const settings = settingsResult?.data ?? [];
   const tasks = tasksResult?.data ?? [];
+  const ageGroups = asDisplayed ? buildReminderAgeGroups(tasks) : [];
   const count = reminders ? tasks.length : settings.length;
   const generated = new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium", timeStyle: "short", timeZone: "America/Chicago",
@@ -42,10 +46,22 @@ export default async function SetupReportPage({ searchParams }: {
         actions={<><FeedProjectionReportActions /><Link className="button-secondary"
           href={`/admin/reports?category=setup&report=${reportKey}`}>Return To Reports</Link></>}
       />
+      {reminders ? <div className={styles.options}><ReminderReportOptions key={asDisplayed ? "as_displayed" : "task_list"} initialType={asDisplayed ? "as_displayed" : "task_list"} /></div> : null}
       <section className="panel card">
         <p>Generated {generated} (Central) · {error ? "Listing unavailable" : `${count} ${reminders ? "tasks" : "settings"}`}</p>
         {error ? <p role="alert">The setup listing could not be loaded. Please try again.</p> : (
-          <div className={styles.tableWrap}>
+          asDisplayed ? <>
+            <p>Age ranges include both endpoints. Tasks are in display order within each age. Inactive tasks are struck through for reference; workers do not see those tasks.</p>
+            <div className={styles.ageColumns}>
+              {ageGroups.map(group => <section className={styles.ageGroup} key={group.age}>
+                <h2>Age {group.age}{group.onward ? "+" : ""} {group.age === 1 && !group.onward ? "day" : "days"}</h2>
+                {group.tasks.length ? <ul>{group.tasks.map(task => <li key={task.id}>
+                  {task.is_active === false ? <del>{task.task_label}</del> : task.task_label}
+                </li>)}</ul> : <p>No reminders for this age.</p>}
+              </section>)}
+            </div>
+            {!ageGroups.length ? <p>No reminder tasks configured.</p> : null}
+          </> : <div className={styles.tableWrap}>
             {reminders ? <table className={styles.table}>
               <thead><tr><th>Display Order</th><th>Reminder Task</th><th>Minimum Age (Days)</th><th>Maximum Age (Days)</th><th>Status</th></tr></thead>
               <tbody>{tasks.map(task => <tr key={task.id}>
