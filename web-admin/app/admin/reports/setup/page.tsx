@@ -73,15 +73,15 @@ export default async function SetupReportPage({ searchParams }: {
               </tr>)}
               {!tasks.length ? <tr><td colSpan={5}>No reminder tasks configured.</td></tr> : null}</tbody>
             </table> : <table className={`${styles.table} ${styles.settingsTable}`}>
-              <thead><tr><th className={styles.optionColumn}>Option</th><th>Current Value</th><th>Description</th></tr></thead>
+              <thead><tr><th>Group</th><th className={styles.optionColumn}>Option</th><th>Current Value</th><th>Description</th></tr></thead>
               {settingGroups.map(group => <tbody key={group}>
-                <tr className={styles.groupHeading}><th colSpan={3} scope="rowgroup">Group: {group}</th></tr>
+                <tr className={styles.groupHeading}><th scope="rowgroup">{group}</th><td colSpan={3} /></tr>
                 {settings.filter(setting => (setting.group || "Ungrouped") === group).map(setting => <tr key={setting.id}>
-                <td className={styles.optionColumn}>{setting.name}</td>
+                <td /><td className={`${styles.optionColumn} ${styles.optionName}`}>{setting.name}</td>
                 <td>{setting.value === null || setting.value === "" ? "(Not set)" : setting.value}</td>
                 <td>{setting.desc || "—"}</td>
               </tr>)}</tbody>)}
-              {!settings.length ? <tbody><tr><td colSpan={3}>No application settings configured.</td></tr></tbody> : null}
+              {!settings.length ? <tbody><tr><td colSpan={4}>No application settings configured.</td></tr></tbody> : null}
             </table>}
           </div>
         )}
