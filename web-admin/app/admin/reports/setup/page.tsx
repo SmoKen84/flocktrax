@@ -7,6 +7,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import styles from "./setup-report.module.css";
 import { buildReminderAgeGroups } from "@/lib/daily-reminder-report";
 import { ReminderReportOptions } from "./reminder-report-options";
+import { SettingsReportTable } from "./settings-report-table";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Setup Reports | FlockTrax Admin" };
@@ -31,8 +32,6 @@ export default async function SetupReportPage({ searchParams }: {
     : null;
   const error = !db || settingsResult?.error || tasksResult?.error;
   const settings = settingsResult?.data ?? [];
-  const settingGroups = [...new Set(settings.map(setting => setting.group || "Ungrouped"))]
-    .sort((a, b) => a.localeCompare(b));
   const tasks = tasksResult?.data ?? [];
   const ageGroups = asDisplayed ? buildReminderAgeGroups(tasks) : [];
   const count = reminders ? tasks.length : settings.length;
@@ -72,17 +71,7 @@ export default async function SetupReportPage({ searchParams }: {
                 <td>{task.is_active === false ? "Inactive" : "Active"}</td>
               </tr>)}
               {!tasks.length ? <tr><td colSpan={5}>No reminder tasks configured.</td></tr> : null}</tbody>
-            </table> : <table className={`${styles.table} ${styles.settingsTable}`}>
-              <thead><tr><th>Group</th><th className={styles.optionColumn}>Option</th><th>Current Value</th><th>Description</th></tr></thead>
-              {settingGroups.map(group => <tbody key={group}>
-                <tr className={styles.groupHeading}><th scope="rowgroup">{group}</th><td colSpan={3} /></tr>
-                {settings.filter(setting => (setting.group || "Ungrouped") === group).map(setting => <tr key={setting.id}>
-                <td /><td className={`${styles.optionColumn} ${styles.optionName}`}>{setting.name}</td>
-                <td>{setting.value === null || setting.value === "" ? "(Not set)" : setting.value}</td>
-                <td>{setting.desc || "—"}</td>
-              </tr>)}</tbody>)}
-              {!settings.length ? <tbody><tr><td colSpan={4}>No application settings configured.</td></tr></tbody> : null}
-            </table>}
+            </table> : <SettingsReportTable settings={settings} />}
           </div>
         )}
       </section>
