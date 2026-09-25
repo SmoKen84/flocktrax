@@ -20,5 +20,5 @@ export function buildReminderAgeGroups(tasks: ReminderTask[]) {
   const unbounded = byAge.filter(t => t.max_age_days === null)
     .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0) || (a.task_label ?? "").localeCompare(b.task_label ?? "") || a.id.localeCompare(b.id));
   if (unbounded.length) groups.push({ age: lastAge + 1, onward: true, tasks: unbounded });
-  return groups;
+  return groups.filter(group => group.tasks.length > 0);
 }
