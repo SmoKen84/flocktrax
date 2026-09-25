@@ -31,6 +31,8 @@ export default async function SetupReportPage({ searchParams }: {
     : null;
   const error = !db || settingsResult?.error || tasksResult?.error;
   const settings = settingsResult?.data ?? [];
+  const settingGroups = [...new Set(settings.map(setting => setting.group || "Ungrouped"))]
+    .sort((a, b) => a.localeCompare(b));
   const tasks = tasksResult?.data ?? [];
   const ageGroups = asDisplayed ? buildReminderAgeGroups(tasks) : [];
   const count = reminders ? tasks.length : settings.length;
@@ -70,14 +72,16 @@ export default async function SetupReportPage({ searchParams }: {
                 <td>{task.is_active === false ? "Inactive" : "Active"}</td>
               </tr>)}
               {!tasks.length ? <tr><td colSpan={5}>No reminder tasks configured.</td></tr> : null}</tbody>
-            </table> : <table className={styles.table}>
-              <thead><tr><th>Group</th><th>Option</th><th>Current Value</th><th>Description</th></tr></thead>
-              <tbody>{settings.map(setting => <tr key={setting.id}>
-                <td>{setting.group || "Ungrouped"}</td><td>{setting.name}</td>
+            </table> : <table className={`${styles.table} ${styles.settingsTable}`}>
+              <thead><tr><th className={styles.optionColumn}>Option</th><th>Current Value</th><th>Description</th></tr></thead>
+              {settingGroups.map(group => <tbody key={group}>
+                <tr className={styles.groupHeading}><th colSpan={3} scope="rowgroup">Group: {group}</th></tr>
+                {settings.filter(setting => (setting.group || "Ungrouped") === group).map(setting => <tr key={setting.id}>
+                <td className={styles.optionColumn}>{setting.name}</td>
                 <td>{setting.value === null || setting.value === "" ? "(Not set)" : setting.value}</td>
                 <td>{setting.desc || "—"}</td>
-              </tr>)}
-              {!settings.length ? <tr><td colSpan={4}>No application settings configured.</td></tr> : null}</tbody>
+              </tr>)}</tbody>)}
+              {!settings.length ? <tbody><tr><td colSpan={3}>No application settings configured.</td></tr></tbody> : null}
             </table>}
           </div>
         )}

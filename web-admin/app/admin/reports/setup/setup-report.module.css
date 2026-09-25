@@ -14,12 +14,17 @@
 .table th, .table td { padding: .65rem; border-bottom: 1px solid #d8e1de; text-align: left; vertical-align: top; white-space: pre-wrap; overflow-wrap: anywhere; }
 .table th { background: #edf4f0; color: #194b38; }
 .table tbody tr:nth-child(even) { background: #f7faf8; }
+.settingsTable { table-layout: auto; }
+.settingsTable .optionColumn { width: 1%; white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+.groupHeading { break-after: avoid; }
+.groupHeading th { padding-top: 1rem; font-weight: 700; }
 @media print {
   .options { display: none; }
   .ageColumns { columns: 2; font-size: 9pt; }
   .ageGroup h2 { font-size: 10pt; }
   .tableWrap { overflow: visible; }
   .table { font-size: 9pt; table-layout: fixed; }
+  .settingsTable { table-layout: auto; }
   .table thead { display: table-header-group; }
   .table tr { break-inside: avoid; }
   .table th, .table td { padding: 5pt; }
