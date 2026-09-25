@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-09-18`
+Updated: `2026-09-25`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### September 2026
+
+- `2026-09-25` — Public marketing gatekeeper landing page production release
+  - [FlockTrax_Marketing_Gatekeeper_Production_Checkpoint_2026-09-25.md](FlockTrax_Marketing_Gatekeeper_Production_Checkpoint_2026-09-25.md)
+  - Approved presentation published at flocktrax.com; deployed source `0291cfa`, READY deployment `dpl_Fcz7gyoVWy33b2nasPyfLQiMc1KE`; real desktop/iPhone/iPad tours, workflow photography, shared live database messaging, contained privacy dialog and explicit Admin login routing. Includes asset provenance, validation limits, rollback and resume guidance.
 
 - `2026-09-18` — Inventory measurement-time correction
   - [FlockTrax_Inventory_Reading_Time_Hotfix_2026-09-18.md](FlockTrax_Inventory_Reading_Time_Hotfix_2026-09-18.md)
