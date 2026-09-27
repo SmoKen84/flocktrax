@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-09-25`
+Updated: `2026-09-27`
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### September 2026
+
+- `2026-09-27` — Marketing technical tour WIP / fresh-chat handoff
+  - [FlockTrax_Marketing_Technical_Tour_WIP_Handoff_2026-09-27.md](FlockTrax_Marketing_Technical_Tour_WIP_Handoff_2026-09-27.md)
+  - NOT deployed. Detailed approved-copy and illustrated-architecture state, final add-on module image, two source trees, pending image-hotspot verification, correct preview URL, recovery instructions and WIP checkpoint tag. Resume here before publishing.
 
 - `2026-09-25` — Public marketing gatekeeper landing page production release
   - [FlockTrax_Marketing_Gatekeeper_Production_Checkpoint_2026-09-25.md](FlockTrax_Marketing_Gatekeeper_Production_Checkpoint_2026-09-25.md)
