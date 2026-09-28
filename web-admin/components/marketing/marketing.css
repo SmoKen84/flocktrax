@@ -24,3 +24,43 @@
 
 .marketing .architecture-art{margin:30px 0 22px;background:#fbf8ef;border:1px solid #d7d1bd;border-radius:8px;overflow:hidden}.marketing .architecture-art img{display:block;width:100%;height:auto}.marketing .architecture-art figcaption{padding:14px 20px;color:#56624e;font-size:13px;line-height:1.6}.marketing .architecture-art figcaption a{text-decoration:underline;margin-left:10px}.marketing .architecture-controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:32px}.marketing .architecture-controls>div{display:flex}.marketing .architecture-controls .architecture-node{height:100%;padding:18px}.marketing .architecture-controls .architecture-node strong{font-size:19px}@media(max-width:900px){.marketing .architecture-controls{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.marketing .architecture-controls{grid-template-columns:1fr}}
 .marketing .architecture-interactive-image{position:relative}.marketing .architecture-hotspot{position:absolute;background:transparent;border:2px solid transparent;border-radius:12px;cursor:pointer;padding:0}.marketing .architecture-hotspot:hover,.architecture-hotspot:focus-visible{border-color:#ba9133;background:#dba93e18;outline:2px solid #fbf8ef;outline-offset:2px}.marketing .architecture-hotspot span{position:absolute;bottom:8px;left:8px;right:8px;background:#14382d;color:#fff;padding:6px;font-size:13px;border-radius:4px;opacity:0}.marketing .architecture-hotspot:hover span,.architecture-hotspot:focus-visible span{opacity:1}.marketing .hotspot-0{left:70%;top:14%;width:29%;height:76%}.marketing .hotspot-1{left:1%;top:14%;width:32%;height:44%}.marketing .hotspot-2{left:34%;top:24%;width:32%;height:43%}.marketing .hotspot-3{left:1%;top:61%;width:36%;height:26%}
+/* Presentation refinements: distinguish field collection from the Admin view. */
+.marketing .visual-story{grid-template-columns:25fr 18fr 3fr 54fr;background:var(--forest)}
+.marketing .visual-story figure{border:0}
+.marketing .visual-story figcaption{background:var(--forest)}
+.marketing .mobile-workflow-copy .work-order-title{display:block;font-size:clamp(42px,4.2vw,60px);line-height:1.05}
+.marketing .mobile-workflow-copy .work-order-subtitle{display:block;font-size:clamp(25px,2.4vw,33px);line-height:1.15;margin-top:8px}
+.marketing .technical-summary-lines{display:inline-flex;flex-direction:column;vertical-align:top;line-height:1.15;gap:0}
+.marketing .technical-summary-lines .wordmark{font-size:1.12em}
+@media(max-width:600px){
+.marketing .visual-story{grid-template-columns:1fr 1fr}
+.marketing .visual-story .admin{border:0}
+.marketing .mobile-connection summary{font-size:24px}
+}
+
+@media(max-width:600px){.marketing .hero-screen-gap{grid-column:1/-1;height:22px}}
+
+@media(min-width:601px){.marketing .hero .gold-rule{transform:translateX(-5.5vw)}}
+
+.marketing .demo-request{margin:24px auto;max-width:720px}
+.marketing .demo-request-form{text-align:left;margin-top:24px;padding:28px;background:var(--cream);color:var(--forest);border-radius:6px}
+.marketing .demo-request-fields{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:22px 0}
+.marketing .demo-request-form label{display:flex;flex-direction:column;gap:6px;font-weight:650}
+.marketing .demo-request-form input,.marketing .demo-request-form select{width:100%;min-height:44px;padding:10px;border:1px solid #a6b3a0;border-radius:4px;font:inherit;background:#fff;color:#172e26}
+.marketing .demo-request-form .demo-request-trap{display:none}
+.marketing .demo-request-privacy{font-size:14px;margin-bottom:20px}
+.marketing .demo-request-form [role=status]{margin-top:16px}
+.marketing .demo-request-form button:disabled{opacity:.6;cursor:wait}
+@media(max-width:600px){.marketing .demo-request-fields{grid-template-columns:1fr}.marketing .demo-request-form{padding:20px}}
+
+/* Original FlockTrax bird branding. */
+.marketing .header .wordmark,.marketing footer .wordmark{display:inline-flex;align-items:center}
+.marketing .brand-bird{width:54px;height:58px;object-fit:contain;flex-shrink:0;margin-right:10px}
+.marketing footer .brand-bird{width:44px;height:48px}
+.marketing .request-title-block{display:flex;align-items:center;justify-content:center;gap:30px;margin:0 auto;max-width:980px;text-align:left}
+.marketing .request-bird{width:180px;height:190px;object-fit:contain;flex-shrink:0}
+.marketing .architecture-art .architecture-brand-bird{position:absolute;left:25.5%;top:2%;width:9%;height:12%;object-fit:contain;z-index:1;pointer-events:none}
+@media(max-width:1000px){.marketing .header nav{gap:18px}.marketing .header .brand-bird{width:42px;height:46px;margin-right:7px}}
+@media(max-width:600px){.marketing .header .brand-bird{width:34px;height:38px;margin-right:5px}.marketing .request-title-block{gap:12px}.marketing .request-bird{width:86px;height:110px}.marketing .request-title-block h2{font-size:30px}.marketing .request-title-block .eyebrow{font-size:10px;letter-spacing:.1em}}
+
+.marketing .integration-chart{display:block;width:100%;max-width:520px;margin-top:24px;border-radius:4px;overflow:hidden}
