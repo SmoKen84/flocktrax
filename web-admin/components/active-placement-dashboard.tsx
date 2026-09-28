@@ -1018,7 +1018,6 @@ function PlacementTile({
     message: "",
   });
   const [mortalityPopupMode, setMortalityPopupMode] = useState<"first7" | "last7" | null>(null);
-  const [showFeedProjectionPopup, setShowFeedProjectionPopup] = useState(false);
   const [showCheckoutPopup, setShowCheckoutPopup] = useState(false);
   const [checkoutRemovedDate, setCheckoutRemovedDate] = useState(() => new Date().toISOString().slice(0, 10));
 
@@ -1408,14 +1407,15 @@ function PlacementTile({
       </div>
       {hasFeedProjection ? (
         <div className="tile-feed-action-row">
-          <button
+          <Link
             aria-label={`Open 10 day feed requirement for ${placement.placementCode}`}
             className="tile-feed-action-button"
-            onClick={() => setShowFeedProjectionPopup(true)}
-            type="button"
+            href={`/admin/reports/feed-projection?${new URLSearchParams({barnId:placement.barnId,includeBinSentryOnOrder:"1"}).toString()}`}
+            target="_blank"
+            rel="noreferrer"
           >
             <Image alt="" className="tile-feed-action-icon" priority={false} src={feedBinIcon} />
-          </button>
+          </Link>
         </div>
       ) : null}
       {mortalityPopupMode ? (
@@ -1424,9 +1424,6 @@ function PlacementTile({
           onClose={() => setMortalityPopupMode(null)}
           placement={placement}
         />
-      ) : null}
-      {showFeedProjectionPopup ? (
-        <FeedProjectionPopup onClose={() => setShowFeedProjectionPopup(false)} placement={placement} />
       ) : null}
       {showCheckoutPopup ? (
         <CheckoutFlockPopup
