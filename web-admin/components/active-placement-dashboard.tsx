@@ -1377,7 +1377,9 @@ function PlacementTile({
             <div className="tile-subpanel-item">
               <dt>As Of</dt>
               <dd className="tile-subpanel-value tile-subpanel-value--accent">
-                {placement.latestMaleWeightDate ?? placement.latestFemaleWeightDate ?? "No scale data yet"}
+                {placement.latestMaleWeightDate && placement.latestFemaleWeightDate && placement.latestMaleWeightDate !== placement.latestFemaleWeightDate
+                  ? `Male: ${placement.latestMaleWeightDate} / Female: ${placement.latestFemaleWeightDate}`
+                  : placement.latestMaleWeightDate ?? placement.latestFemaleWeightDate ?? "No scale data yet"}
               </dd>
             </div>
           </dl>
