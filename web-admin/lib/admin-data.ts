@@ -1,3 +1,4 @@
+import { isNewerValidWeight } from "./latest-valid-weight";
 import { resolveFeedInventoryReading } from "@/lib/feed-inventory-reading";
 import { compareBarnOrder } from "@/lib/barn-sort";
 import { getBarnOrder, getSortBySortCode } from "@/lib/barn-sort-settings";
@@ -1135,7 +1136,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
 
       const bucket = latestWeightByPlacement.get(row.placement_id) ?? emptyWeightSummary();
 
-      if (!bucket[sexKey].logDate) {
+      if (isNewerValidWeight(row.avg_weight, row.log_date, bucket[sexKey].logDate)) {
         bucket[sexKey] = {
           avgWeight: row.avg_weight ?? null,
           count: row.cnt_weighed ?? null,
