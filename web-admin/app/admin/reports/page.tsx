@@ -32,6 +32,7 @@ const reportCategories: ReportCategory[] = [
     label: "Quick Access Reports",
     reports: [
       { key: "at_a_glance", label: "At-a-Glance" },
+      { key: "my_permissions", label: "My Permissions" },
       { key: "quick_placements_report", label: "Placements Report" },
       { key: "quick_livehaul_report", label: "Livehaul Report" },
     ],
@@ -291,6 +292,11 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
                 <h2>{selectedReport?.label ?? "Report Filters"}</h2>
               </div>
             </div>
+
+            {reportKey === "my_permissions" && <>
+              <p>View what your current account can and cannot do. This report shows only your own permissions and requires no filters.</p>
+              <Link className="button" href="/admin/reports/my-permissions">Open Report</Link>
+            </>}
 
             {categoryKey === "setup" ? (
               <>

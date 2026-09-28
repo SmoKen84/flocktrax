@@ -24,6 +24,12 @@ export async function middleware(request:NextRequest) {
  if(user.app_metadata?.demo_evaluator!==true) return response;
  const status=await client.rpc("demo_evaluator_status");
  const blocked=status.error||!status.data?.evaluator||!status.data?.active||!status.data?.accepted;
+ // Evaluators can inspect their own permissions, but never enter user management.
+ if(!blocked && request.method==="GET" && (request.nextUrl.pathname==="/admin/user-access" || request.nextUrl.pathname.startsWith("/admin/user-access/"))) {
+  const destination=NextResponse.redirect(new URL("/admin/reports/my-permissions",request.url));
+  response.cookies.getAll().forEach(cookie=>destination.cookies.set(cookie));
+  return destination;
+ }
  if(blocked || !evaluatorPathAllowed(request.nextUrl.pathname, status.data?.role_code)) {
   const message=blocked?"Demo access is expired, disabled or awaiting setup. Contact the demo owner.":"This area is reserved for the demo owner.";
   if(request.nextUrl.pathname.startsWith("/api/")||request.method!=="GET")
