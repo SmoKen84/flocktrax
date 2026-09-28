@@ -1378,8 +1378,8 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const resolvedPlacementIssueCount = row ? (resolvedPlacementIssueCountByPlacementId.get(row.id) ?? 0) : 0;
       const startedFemaleCount = flock?.start_cnt_females ?? 0;
       const startedMaleCount = flock?.start_cnt_males ?? 0;
-      const femaleCountAfterMortality = Math.max(0, startedFemaleCount - mortalityTotals.femaleTotal);
-      const maleCountAfterMortality = Math.max(0, startedMaleCount - mortalityTotals.maleTotal);
+      const femaleCountAfterMortality = startedFemaleCount - mortalityTotals.femaleTotal;
+      const maleCountAfterMortality = startedMaleCount - mortalityTotals.maleTotal;
       const mortalityBreakdownByDate = row ? mortalityByPlacementAndDate.get(row.id) ?? new Map<string, { male: number; female: number }>() : new Map<string, { male: number; female: number }>();
       const mortalityFirst7DayBreakdown = buildMortalityWindowBreakdown({
         mode: "first7",
@@ -2280,8 +2280,8 @@ function applyPastLiveHaulEvents({
   femalePopulation: number;
   malePopulation: number;
 }) {
-  let remainingFemale = Math.max(0, Math.round(femalePopulation));
-  let remainingMale = Math.max(0, Math.round(malePopulation));
+  let remainingFemale = Math.round(femalePopulation);
+  let remainingMale = Math.round(malePopulation);
   let femaleRemoved = 0;
   let maleRemoved = 0;
 
@@ -2291,26 +2291,25 @@ function applyPastLiveHaulEvents({
     if (requestedRemoval === null) continue;
 
     if (event.targetSex === "female") {
-      const removal = Math.min(remainingFemale, requestedRemoval);
+      const removal = requestedRemoval;
       remainingFemale -= removal;
       femaleRemoved += removal;
       continue;
     }
     if (event.targetSex === "male") {
-      const removal = Math.min(remainingMale, requestedRemoval);
+      const removal = requestedRemoval;
       remainingMale -= removal;
       maleRemoved += removal;
       continue;
     }
 
-    const totalPopulation = remainingFemale + remainingMale;
-    const boundedRemoval = Math.min(totalPopulation, requestedRemoval);
-    if (boundedRemoval <= 0) continue;
-    const proportionalFemaleRemoval = Math.min(
-      remainingFemale,
-      Math.floor(boundedRemoval * (remainingFemale / totalPopulation)),
-    );
-    const proportionalMaleRemoval = Math.min(remainingMale, boundedRemoval - proportionalFemaleRemoval);
+    // Preserve the full haul even when the book balance becomes negative.
+    const availableFemale = Math.max(0, remainingFemale);
+    const availableMale = Math.max(0, remainingMale);
+    const totalPopulation = availableFemale + availableMale;
+    const proportionalFemaleRemoval = Math.floor(requestedRemoval *
+      (totalPopulation > 0 ? availableFemale / totalPopulation : 0.5));
+    const proportionalMaleRemoval = requestedRemoval - proportionalFemaleRemoval;
     remainingFemale -= proportionalFemaleRemoval;
     remainingMale -= proportionalMaleRemoval;
     femaleRemoved += proportionalFemaleRemoval;
@@ -2361,8 +2360,9 @@ function buildTenDayFeedProjection({
   const liveHaulEventByDate = new Map(scheduledLiveHaulEvents.map((event) => [event.date, event]));
   const liveHaulIndexByDate = new Map(scheduledLiveHaulDates.map((date, index) => [date, index]));
 
-  let femalePopulation = currentFemaleCount;
-  let malePopulation = currentMaleCount;
+  // Feed projections use physical birds, not negative reconciliation balances.
+  let femalePopulation = Math.max(0, currentFemaleCount);
+  let malePopulation = Math.max(0, currentMaleCount);
   let firstLiveHaulFemaleRemoval: number | null = null;
   let firstLiveHaulMaleRemoval: number | null = null;
   const daily: Array<{
