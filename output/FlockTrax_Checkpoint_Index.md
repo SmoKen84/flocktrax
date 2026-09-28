@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: `2026-09-27`
+Updated: 2026-09-28
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,11 @@ Purpose:
 ## Chronological Index
 
 ### September 2026
+
+- 2026-09-28 — Demo signup, permissions hierarchy and dashboard fixes — DEPLOYED
+  - [FlockTrax_Demo_Signup_Permissions_And_Dashboard_Checkpoint_2026-09-28.md](FlockTrax_Demo_Signup_Permissions_And_Dashboard_Checkpoint_2026-09-28.md)
+  - Production d2e5daa; demo b7e2f36. Both READY. Detailed mail workflow, evaluator list, memberships/permissions, independent weights, full livehaul totals, nonnegative feed inputs, barn-scoped BinSentry report, tests, deployment IDs and resume boundaries. Supersedes September 27 WIP status.
+
 
 - `2026-09-27` — Marketing technical tour WIP / fresh-chat handoff
   - [FlockTrax_Marketing_Technical_Tour_WIP_Handoff_2026-09-27.md](FlockTrax_Marketing_Technical_Tour_WIP_Handoff_2026-09-27.md)
