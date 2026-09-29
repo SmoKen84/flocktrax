@@ -3,6 +3,7 @@ import { resolveFeedInventoryReading } from "@/lib/feed-inventory-reading";
 import { compareBarnOrder } from "@/lib/barn-sort";
 import { getBarnOrder, getSortBySortCode } from "@/lib/barn-sort-settings";
 import { unstable_noStore as noStore } from "next/cache";
+import { getMortalityWindows } from "@/lib/mortality-window-data";
 
 import type {
   ActivePlacementRecord,
@@ -185,16 +186,6 @@ type IssueRow = {
   entity_type: string | null;
   entity_id: string | null;
   status: string | null;
-};
-
-type MortalityRow = {
-  placement_id: string;
-  log_date: string;
-  dead_female: number | null;
-  dead_male: number | null;
-  cull_female: number | null;
-  cull_male: number | null;
-  is_active: boolean | null;
 };
 
 type WeightRow = {
@@ -526,7 +517,6 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       livehaulScheduleResult,
       placementLogsResult,
       dailyFlagsResult,
-      mortalityLogsResult,
       weightLogsResult,
       appSettingsResult,
       breedsResult,
@@ -566,9 +556,6 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         .from("log_daily")
         .select("placement_id,log_date,updated_at,created_at,is_active"),
       supabase
-        .from("log_mortality")
-        .select("placement_id,log_date,dead_female,dead_male,cull_female,cull_male,is_active"),
-      supabase
         .from("log_weight")
         .select("placement_id,log_date,sex,cnt_weighed,avg_weight,is_active")
         .order("log_date", { ascending: false }),
@@ -604,7 +591,6 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       livehaulScheduleResult.error ||
       placementLogsResult.error ||
       dailyFlagsResult.error ||
-      mortalityLogsResult.error ||
       weightLogsResult.error ||
       appSettingsResult.error ||
       breedsResult.error ||
@@ -619,7 +605,6 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         livehaulScheduleResult.error ||
         placementLogsResult.error ||
         dailyFlagsResult.error ||
-        mortalityLogsResult.error ||
         weightLogsResult.error ||
         appSettingsResult.error ||
         breedsResult.error ||
@@ -643,7 +628,6 @@ export async function getAdminData(): Promise<AdminDataBundle> {
     const livehaulScheduleRows = (livehaulScheduleResult.data ?? []) as LivehaulScheduleDashboardRow[];
     const placementLogRows = (placementLogsResult.data ?? []) as PlacementLogRow[];
     const dailyFlagRows = (dailyFlagsResult.data ?? []) as DailyFlagRow[];
-    const mortalityRows = (mortalityLogsResult.data ?? []) as MortalityRow[];
     const weightRows = (weightLogsResult.data ?? []) as WeightRow[];
     const appSettingRows = (appSettingsResult.data ?? []) as AppSettingRow[];
     const breedRows = (breedsResult.data ?? []) as BreedRow[];
@@ -719,6 +703,13 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       row.lifecycle_stage === "awaiting_arrival" || row.lifecycle_stage === "in_barn_growing"
     );
     const activePlacementIds = new Set(activePlacementsRaw.map((row) => row.id));
+    const mortalityWindows = await getMortalityWindows(
+      supabase,
+      Array.from(activePlacementIds),
+      addDays(today, -6),
+      today,
+      true,
+    );
 
     const { error: derivedIssueSyncError } = await supabase.rpc("sync_derived_placement_issues", {
       p_placement_ids: Array.from(activePlacementIds),
@@ -1073,48 +1064,22 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       deliveredFeedByPlacementCode.set(placementCode, bucket);
     }
 
-    for (const row of mortalityRows) {
-      if (!activePlacementIds.has(row.placement_id) || row.is_active === false) {
-        continue;
-      }
-
-      const placement = activePlacementsRaw.find((item) => item.id === row.placement_id);
-      const flock = placement ? flockById.get(placement.flock_id) : null;
-      const placedDate = flock?.date_placed ?? null;
-      const bucket = mortalityTotalsByPlacement.get(row.placement_id) ?? {
-        femaleTotal: 0,
-        maleTotal: 0,
-        femaleFirst7Days: 0,
-        maleFirst7Days: 0,
-        femaleLast7Days: 0,
-        maleLast7Days: 0,
-      };
-
-      const femaleLoss = (row.dead_female ?? 0) + (row.cull_female ?? 0);
-      const maleLoss = (row.dead_male ?? 0) + (row.cull_male ?? 0);
-      bucket.femaleTotal += femaleLoss;
-      bucket.maleTotal += maleLoss;
-      const dailyBucket = mortalityByPlacementAndDate.get(row.placement_id) ?? new Map<string, { male: number; female: number }>();
-      const existingDay = dailyBucket.get(row.log_date) ?? { male: 0, female: 0 };
-      existingDay.female += femaleLoss;
-      existingDay.male += maleLoss;
-      dailyBucket.set(row.log_date, existingDay);
-      mortalityByPlacementAndDate.set(row.placement_id, dailyBucket);
-
-      const ageOnLogDate = placedDate ? daysBetween(row.log_date, placedDate) : null;
-      const daysFromToday = daysSince(row.log_date);
-
-      if (ageOnLogDate !== null && ageOnLogDate >= 0 && ageOnLogDate < 7) {
-        bucket.femaleFirst7Days += femaleLoss;
-        bucket.maleFirst7Days += maleLoss;
-      }
-
-      if (daysFromToday <= 7) {
-        bucket.femaleLast7Days += femaleLoss;
-        bucket.maleLast7Days += maleLoss;
-      }
-
-      mortalityTotalsByPlacement.set(row.placement_id, bucket);
+    for (const window of mortalityWindows) {
+      mortalityTotalsByPlacement.set(window.placement_id, {
+        femaleTotal: window.total_female,
+        maleTotal: window.total_male,
+        femaleFirst7Days: window.first_week_female,
+        maleFirst7Days: window.first_week_male,
+        femaleLast7Days: window.period_female,
+        maleLast7Days: window.period_male,
+      });
+      mortalityByPlacementAndDate.set(window.placement_id, new Map(window.days.map((day) => [
+        day.log_date,
+        {
+          female: (day.dead_female ?? 0) + (day.cull_female ?? 0),
+          male: (day.dead_male ?? 0) + (day.cull_male ?? 0),
+        },
+      ])));
     }
 
     for (const row of weightRows) {
