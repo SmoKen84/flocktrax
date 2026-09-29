@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 
 import { clampDateRange } from "@/lib/report-calendar";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { getMortalityWindows } from "@/lib/mortality-window-data";
 import type { PlacementLifecycleStage } from "@/lib/types";
 
 type PlacementRow = {
@@ -127,10 +128,13 @@ export async function getMortalityReportData(options: {
     farmId: options.farmId,
     barnId: options.barnId,
     includeMortality: true,
+    startDate,
+    endDate,
   });
   if (!source) return empty;
 
-  const { placements, flockById, farmById, barnById, mortalityRows } = source;
+  const { placements, flockById, farmById, barnById, mortalityRows, mortalityWindows } = source;
+  const openingByPlacement = new Map(mortalityWindows.map((row) => [row.placement_id, row]));
   const mortalityByPlacement = groupMortality(mortalityRows);
   const inferredEndByPlacement = inferPlacementEndDates(placements, flockById);
 
@@ -165,6 +169,7 @@ export async function getMortalityReportData(options: {
         sectionStart,
         rows,
         "female",
+        openingByPlacement.get(placement.id)?.opening_female ?? 0,
       );
       const openingMalePopulation = calculateOpeningPopulation(
         flock.start_cnt_males ?? 0,
@@ -172,6 +177,7 @@ export async function getMortalityReportData(options: {
         sectionStart,
         rows,
         "male",
+        openingByPlacement.get(placement.id)?.opening_male ?? 0,
       );
 
       let femalePopulation = openingFemalePopulation;
@@ -329,6 +335,8 @@ async function loadMortalitySources(options: {
   farmId?: string | null;
   barnId?: string | null;
   includeMortality: boolean;
+  startDate?: string;
+  endDate?: string;
 }) {
   const supabase = createSupabaseAdminClient();
   if (!supabase) return null;
@@ -341,41 +349,47 @@ async function loadMortalitySources(options: {
   if (options.barnId) placementsQuery = placementsQuery.eq("barn_id", options.barnId);
 
   const placementsResult = await placementsQuery;
+  if (placementsResult.error) throw new Error(`Mortality placements failed to load: ${placementsResult.error.message}`);
   const placements = (placementsResult.data ?? []) as PlacementRow[];
   const flockIds = unique(placements.map((row) => row.flock_id));
   const farmIds = unique(placements.map((row) => row.farm_id));
   const barnIds = unique(placements.map((row) => row.barn_id));
   const placementIds = unique(placements.map((row) => row.id));
 
-  const [flocksResult, farmsResult, barnsResult, mortalityResult] = await Promise.all([
+  const [flocksResult, farmsResult, barnsResult, mortalityWindows] = await Promise.all([
     flockIds.length
       ? supabase
           .from("flocks")
           .select("id,flock_number,date_placed,female_date_placed,male_date_placed,start_cnt_females,start_cnt_males")
           .in("id", flockIds)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     farmIds.length
       ? supabase.from("farms_ui").select("id,farm_name,farm_group_id,farm_group_name").in("id", farmIds)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     barnIds.length
       ? supabase.from("barns").select("id,barn_code").in("id", barnIds)
-      : Promise.resolve({ data: [] }),
-    options.includeMortality && placementIds.length
-      ? supabase
-          .from("log_mortality")
-          .select("placement_id,log_date,dead_female,dead_male,cull_female,cull_male,is_active")
-          .in("placement_id", placementIds)
-          .eq("is_active", true)
-          .order("log_date", { ascending: true })
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
+    options.includeMortality && options.startDate && options.endDate
+      ? getMortalityWindows(supabase, placementIds, options.startDate, options.endDate)
+      : Promise.resolve([]),
   ]);
+
+  const sourceError = flocksResult.error || farmsResult.error || barnsResult.error;
+  if (sourceError) {
+    throw new Error(`Mortality report failed to load: ${sourceError.message}`);
+  }
 
   return {
     placements,
     flockById: new Map(((flocksResult.data ?? []) as FlockRow[]).map((row) => [row.id, row])),
     farmById: new Map(((farmsResult.data ?? []) as FarmRow[]).map((row) => [row.id, row])),
     barnById: new Map(((barnsResult.data ?? []) as BarnRow[]).map((row) => [row.id, row])),
-    mortalityRows: (mortalityResult.data ?? []) as MortalityRow[],
+    mortalityWindows,
+    mortalityRows: mortalityWindows.flatMap((window) => window.days.map((day) => ({
+      ...day,
+      placement_id: window.placement_id,
+      is_active: true,
+    }))) as MortalityRow[],
   };
 }
 
@@ -404,6 +418,7 @@ function calculateOpeningPopulation(
   reportStart: string,
   mortalityRows: MortalityRow[],
   sex: "female" | "male",
+  historicalLoss: number,
 ) {
   if (!placedDate || placedDate > reportStart) return 0;
   const priorLoss = mortalityRows
@@ -416,7 +431,7 @@ function calculateOpeningPopulation(
           : (row.dead_male ?? 0) + (row.cull_male ?? 0)),
       0,
     );
-  return Math.max(0, placedCount - priorLoss);
+  return Math.max(0, placedCount - historicalLoss - priorLoss);
 }
 
 function sumNullableCounts(...values: Array<number | null | undefined>) {
