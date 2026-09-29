@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: 2026-09-28
+Updated: 2026-09-29
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### September 2026
+
+- 2026-09-29 — Mortality history summaries and date-range retrieval — DEPLOYED
+  - [FlockTrax_Mortality_Summary_Release_Checkpoint_2026-09-29.md](FlockTrax_Mortality_Summary_Release_Checkpoint_2026-09-29.md)
+  - Production `a37e7bc`; demo `33374c4`. Both databases migrated and Vercel deployments READY. Restores mortality beyond the 1,000-row API cap, summarizes history server-side, aligns seven-day totals with details, and records hosted comparisons, deployment IDs, and rollback guidance.
 
 - 2026-09-28 — Demo signup, permissions hierarchy and dashboard fixes — DEPLOYED
   - [FlockTrax_Demo_Signup_Permissions_And_Dashboard_Checkpoint_2026-09-28.md](FlockTrax_Demo_Signup_Permissions_And_Dashboard_Checkpoint_2026-09-28.md)
