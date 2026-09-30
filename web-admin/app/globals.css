@@ -17393,3 +17393,78 @@ tr:last-child td {
 @media print {
   .permissions-user-filter { display: none; }
 }
+
+.permissions-report-header {
+  margin-bottom: 1rem;
+}
+.permissions-report-generated {
+  color: #526050;
+  font-size: 0.85rem;
+}
+@media print {
+  @page permissions-report {
+    size: letter portrait;
+    margin: 0.5in;
+  }
+  body:has(.permissions-report-page) .splash-sidebar-stack {
+    display: none !important;
+  }
+  body:has(.permissions-report-page) .content-shell {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+  .permissions-report-page {
+    page: permissions-report;
+    width: 100%;
+    max-width: none;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+    color: #111 !important;
+    font: 10pt/1.4 Arial, sans-serif;
+  }
+  .permissions-report-header {
+    border-bottom: 2px solid #253125;
+    padding-bottom: 8pt;
+    break-inside: avoid;
+  }
+  .permissions-report-page h1 { margin: 3pt 0; font-size: 20pt; }
+  .permissions-report-page p { margin: 5pt 0; }
+  .permissions-report-page .permissions-user-filter,
+  .permissions-report-page .feed-ticket-report-screen-actions { display: none !important; }
+  .permissions-report-page .access-validation-grid,
+  .permissions-report-page .access-validation-block { display: block; }
+  .permissions-report-page .access-validation-block {
+    margin: 12pt 0 !important;
+    padding: 8pt 0;
+    border: 0;
+    border-top: 1px solid #aaa;
+    border-radius: 0;
+    background: white !important;
+    box-shadow: none;
+    break-inside: auto;
+  }
+  .permissions-report-page h3 {
+    color: #111 !important;
+    font-size: 12pt;
+    margin: 0 0 6pt;
+    break-after: avoid;
+  }
+  .permissions-report-page .access-validation-list {
+    display: block;
+    columns: 2;
+    column-gap: 24pt;
+    font-size: 10pt;
+    line-height: 1.4;
+    color: #111;
+  }
+  .permissions-report-page .access-validation-list li {
+    margin-bottom: 4pt;
+    break-inside: avoid;
+    overflow-wrap: anywhere;
+  }
+  .permissions-report-page p { orphans: 3; widows: 3; }
+}

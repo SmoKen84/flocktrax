@@ -63,6 +63,7 @@ test("page renders the selector only for Super Admin and labels the selected rep
     const mocks = {
       "react/jsx-runtime": require("react/jsx-runtime"),
       "./membership-hierarchy": { MembershipHierarchy: () => React.createElement("div", null, "Memberships") },
+      "./print-actions": { PermissionsPrintActions: () => React.createElement("button", null, "Print / Save PDF") },
       "next/navigation": { redirect: () => { throw new Error("Unexpected redirect"); } },
       "@/lib/access-control": { getUserAccessBundle: async () => displayBundle, buildAccessValidationSummary: user => ({ roleLabels: [user.role], can: [`Allowed for ${user.id}`], cannot: [] }) },
       "@/lib/permissions-report-user": exportsObject,
@@ -71,6 +72,8 @@ test("page renders the selector only for Super Admin and labels the selected rep
     new Function("exports", "require", pageCode)(pageExports, name => { assert.ok(name in mocks, name); return mocks[name]; });
     const html = renderToStaticMarkup(await pageExports.default({ searchParams: Promise.resolve({ userId: "worker" }) }));
     assert.equal(html.includes('<select'), actorId === "admin");
+    assert.ok(html.includes("Print / Save PDF"));
+    assert.ok(html.includes("permissions-report-page"));
     assert.ok(html.includes(`Allowed for ${actorId === "admin" ? "worker" : "manager"}`));
     if (actorId !== "admin") assert.equal(html.includes("worker@example.test"), false);
   }

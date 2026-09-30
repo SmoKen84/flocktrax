@@ -1,4 +1,5 @@
 import { MembershipHierarchy } from "./membership-hierarchy";
+import { PermissionsPrintActions } from "./print-actions";
 import { redirect } from "next/navigation";
 import { buildAccessValidationSummary, getUserAccessBundle } from "@/lib/access-control";
 import { resolvePermissionsReportUser } from "@/lib/permissions-report-user";
@@ -20,8 +21,13 @@ export default async function MyPermissionsPage({ searchParams }: PageProps) {
   );
   const summary = user && verified ? buildAccessValidationSummary(user, bundle.roles) : null;
 
-  return <section className="panel card">
-    <h1>My Permissions</h1>
+  return <section className="panel card permissions-report-page">
+    <header className="permissions-report-header">
+      <p className="eyebrow">FlockTrax · User Access</p>
+      <h1>My Permissions</h1>
+      <p className="permissions-report-generated">Generated {new Date().toLocaleString("en-US", { timeZone: "America/Chicago", timeZoneName: "short" })}</p>
+      {summary && <PermissionsPrintActions />}
+    </header>
     {canSelectUser && <form method="get" className="permissions-user-filter" style={{ marginBottom: "1rem" }}>
       <div className="field">
         <label htmlFor="permissions-user">Report for user</label>
