@@ -89,6 +89,7 @@ export function InstallFlockTraxApp({ title, details }: Props) {
         <p className="eyebrow">Desktop App</p>
         <h2>{title}</h2>
         <p className="table-subtitle">{details}</p>
+        <p>The desktop app opens the <a href="/login">Admin sign-in page</a> directly, bypassing the marketing presentation. If you are already signed in, it opens your dashboard.</p>
 
         <div className="about-install-actions">
           <button
