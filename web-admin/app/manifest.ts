@@ -10,7 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: environment.isDemo ? "FlockTrax Demo" : "FlockTrax",
     description: "Web-first admin console for FlockTrax operations and placement planning.",
     id: "/admin/overview",
-    start_url: "/admin/overview",
+    start_url: "/login",
     scope: "/",
     display: "standalone",
     background_color: "#f3efe6",
