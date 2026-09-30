@@ -4,6 +4,7 @@ import { compareBarnOrder } from "@/lib/barn-sort";
 import { getBarnOrder, getSortBySortCode } from "@/lib/barn-sort-settings";
 import { unstable_noStore as noStore } from "next/cache";
 import { getMortalityWindows } from "@/lib/mortality-window-data";
+import { capPacketCompletion, hasMortalityEnteredToday } from "@/lib/packet-completion";
 
 import type {
   ActivePlacementRecord,
@@ -1064,7 +1065,11 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       deliveredFeedByPlacementCode.set(placementCode, bucket);
     }
 
+    const mortalityEnteredToday = new Set<string>();
     for (const window of mortalityWindows) {
+      if (hasMortalityEnteredToday(window.days, today)) {
+        mortalityEnteredToday.add(window.placement_id);
+      }
       mortalityTotalsByPlacement.set(window.placement_id, {
         femaleTotal: window.total_female,
         maleTotal: window.total_male,
@@ -1189,7 +1194,7 @@ export async function getAdminData(): Promise<AdminDataBundle> {
         bucket.latestLogDate = row.log_date;
       }
       const completionLabel = formatCompletionBadgeLabel(row.updated_at ?? row.created_at, today);
-      if (completionLabel && row.log_date === today) {
+      if (completionLabel && row.log_date === today && mortalityEnteredToday.has(row.placement_id)) {
         bucket.completedTodayLabel = completionLabel;
       }
 
@@ -1278,7 +1283,11 @@ export async function getAdminData(): Promise<AdminDataBundle> {
       const placedDate = flock?.date_placed ?? row?.active_start ?? "";
       const latestLogDate = row ? latestLogByPlacement.get(row.id) ?? null : null;
       const submissionStatus =
-        row && isPlacementOperational(row.lifecycle_stage) ? deriveSubmissionStatus(latestLogDate, today) : "attention";
+        row && isPlacementOperational(row.lifecycle_stage)
+          ? latestLogDate === today && !mortalityEnteredToday.has(row.id)
+            ? "pending"
+            : deriveSubmissionStatus(latestLogDate, today)
+          : "attention";
       const baseCompletionPercent =
         row && isPlacementOperational(row.lifecycle_stage)
           ? submissionStatus === "submitted"
@@ -1374,7 +1383,10 @@ export async function getAdminData(): Promise<AdminDataBundle> {
               completedTodayLabel: dailyFlags.completedTodayLabel,
             })
           : deriveNonLiveDashboardStatus(tileState);
-      const completionPercent = tileState === "awaiting" ? 100 : baseCompletionPercent;
+      const completionPercent = tileState === "awaiting" ? 100 : capPacketCompletion(
+        baseCompletionPercent,
+        Boolean(row && mortalityEnteredToday.has(row.id)),
+      );
       const ageDays = daysRelativeToToday(placedDate);
       const canCheckoutByAge = ageDays >= checkoutAgeAvailability;
       const scheduledLiveHaulEvents = row ? liveHaulEventsByPlacementId.get(row.id) ?? [] : [];
