@@ -127,6 +127,7 @@ const PENDING_BINSENTRY_ORDER_STATES = new Set(["ready", "scheduled", "not-deliv
 const GROWER_ONLY_AGE_DAYS = 14;
 
 export type FeedProjectionReportRow = {
+  dailyDetails: ReturnType<typeof splitFeedProjectionByType>["daily"];
   barnId: string;
   placementId: string;
   whatIfDaily: Array<{ date: string; starter: number | null; grower: number | null }>;
@@ -606,6 +607,7 @@ function toReportRow({
   return {
     barnId: placement.barnId,
     placementId: placement.placementId,
+    dailyDetails: typedProjection.daily,
     whatIfDaily: typedProjection.daily.map(day => ({ date: day.date, starter: day.starterFeed, grower: day.growerFeed })),
     id: placement.id,
     farmName: placement.farmName,
