@@ -17389,3 +17389,7 @@ tr:last-child td {
   background: rgba(44, 34, 23, 0.28);
   backdrop-filter: blur(10px);
 }
+
+@media print {
+  .permissions-user-filter { display: none; }
+}
