@@ -17380,3 +17380,12 @@ tr:last-child td {
   .feed-ticket-filter-help { grid-column: 1; grid-row: auto; }
   .feed-ticket-filter-help:empty { display: none; }
 }
+
+.feed-quick-dialog {
+  margin: auto;
+}
+
+.feed-quick-dialog::backdrop {
+  background: rgba(44, 34, 23, 0.28);
+  backdrop-filter: blur(10px);
+}

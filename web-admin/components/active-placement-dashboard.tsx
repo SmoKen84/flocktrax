@@ -14,7 +14,7 @@ import {
   type LhDateActionResult,
 } from "@/app/admin/overview/actions";
 import { PlacementHatchTicketPanel } from "@/app/admin/placements/[placementId]/logs/placement-hatch-ticket-panel";
-import feedBinIcon from "@/screens/FeedBin.png";
+import { DashboardFeedProjection } from "@/components/dashboard-feed-projection";
 import logEditorIcon from "@/screens/logeditoricon.png";
 import type { ActivePlacementRecord, BreedOptionRecord, FarmGroupRecord, FarmRecord } from "@/lib/types";
 
@@ -62,32 +62,6 @@ function formatExpectedWeightPercent(value: number | null) {
 
 function formatSampleCount(value: number | null) {
   return value ?? 0;
-}
-
-function formatFeedAmount(value: number | null) {
-  if (value === null || Number.isNaN(value)) {
-    return "Pending";
-  }
-
-  return `${Math.round(value).toLocaleString()} lb`;
-}
-
-function formatFeedRange(first: number | null, last: number | null) {
-  if (first === null || last === null || Number.isNaN(first) || Number.isNaN(last)) {
-    return "Pending";
-  }
-
-  return `${Math.round(first).toLocaleString()} to ${Math.round(last).toLocaleString()} lb`;
-}
-
-function formatFeedSigned(value: number | null) {
-  if (value === null || Number.isNaN(value)) {
-    return "Pending";
-  }
-
-  const rounded = Math.round(value);
-  const prefix = rounded > 0 ? "+" : "";
-  return `${prefix}${rounded.toLocaleString()} lb`;
 }
 
 function formatShortDate(value: string) {
@@ -822,186 +796,6 @@ function MortalityPopup({
   );
 }
 
-function FeedProjectionPopup({
-  placement,
-  onClose,
-}: {
-  placement: ActivePlacementRecord;
-  onClose: () => void;
-}) {
-  const startDate = placement.feedProjectionTenDayDaily[0]?.date ?? null;
-  const endDate =
-    placement.feedProjectionTenDayDaily[placement.feedProjectionTenDayDaily.length - 1]?.date ?? null;
-  const liveHaulAdjustmentLabel =
-    placement.feedProjectionLiveHaulDates.length > 0
-      ? placement.feedProjectionLiveHaulDates.map((date) => formatShortDate(date)).join(", ")
-      : "None in window";
-  const inventoryStatusLabel =
-    placement.feedInventorySnapshotAt
-      ? `Inventory snapshot recorded ${formatShortDate(placement.feedInventorySnapshotAt.slice(0, 10))}.`
-      : "Inventory snapshot pending BinSentry sync.";
-  const inventoryTypeSplitLabel =
-    placement.feedInventoryStarterAccessibleLbs === null && placement.feedInventoryGrowerAccessibleLbs === null
-      ? "Layered feed state not assigned yet."
-      : `Accessible starter ${formatFeedAmount(placement.feedInventoryStarterAccessibleLbs)} Â· accessible grower ${formatFeedAmount(placement.feedInventoryGrowerAccessibleLbs)} Â· queued starter ${formatFeedAmount(placement.feedInventoryStarterQueuedLbs)} Â· queued grower ${formatFeedAmount(placement.feedInventoryGrowerQueuedLbs)}`;
-  const onOrderStatusLabel =
-    placement.feedOnOrderLbs === null
-      ? "Open feed orders are not connected yet."
-      : placement.feedOnOrderOpenCount > 0
-        ? `${placement.feedOnOrderOpenCount} open feed order${placement.feedOnOrderOpenCount === 1 ? "" : "s"}${
-            placement.feedOnOrderNextEta ? ` · next ETA ${formatShortDate(placement.feedOnOrderNextEta)}` : ""
-          }`
-        : "No open feed orders recorded.";
-  const onOrderTypeSplitLabel =
-    placement.feedOnOrderStarterLbs === null && placement.feedOnOrderGrowerLbs === null
-      ? "Typed open-order split pending."
-      : `Starter ${formatFeedAmount(placement.feedOnOrderStarterLbs)} Â· Grower ${formatFeedAmount(placement.feedOnOrderGrowerLbs)}`;
-  const recommendedOrderLabel =
-    placement.feedRecommendedOrderLbs === null
-      ? "Pending inventory / on-order inputs."
-      : placement.feedRecommendedOrderLbs > 0
-        ? "Recommended new feed to order now."
-        : "Current supply covers the next 10 days.";
-  const recommendedOrderSplitLabel =
-    placement.starterRecommendedOrderLbs === null && placement.growerRecommendedOrderLbs === null
-      ? placement.feedOrderingMode === "legacy"
-        ? "Using the legacy total-pound fallback until layered feed state is assigned."
-        : "Starter/grower recommendation split pending."
-      : `Starter ${formatFeedAmount(placement.starterRecommendedOrderLbs)} Â· Grower ${formatFeedAmount(placement.growerRecommendedOrderLbs)}`;
-  const requirementTypeSplitLabel =
-    placement.feedProjectionTenDayStarterTotal === null && placement.feedProjectionTenDayGrowerTotal === null
-      ? "Type split pending."
-      : `Starter ${formatFeedAmount(placement.feedProjectionTenDayStarterTotal)} · Grower ${formatFeedAmount(placement.feedProjectionTenDayGrowerTotal)}`;
-  const starterProgramLabel =
-    placement.starterTargetLbs > 0
-      ? `Target ${formatFeedAmount(placement.starterTargetLbs)} at ${placement.starterLbsPerChick.toFixed(2)} lbs/chick · delivered ${formatFeedAmount(placement.starterDeliveredLbs)} · remaining obligation ${formatFeedAmount(placement.starterOrderableRemainingLbs)}`
-      : "Starter target pending placement counts.";
-
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  return createPortal(
-    <div className="mortality-popup-shell" onClick={onClose}>
-      <div className="mortality-popup-panel feed-projection-popup-panel" onClick={(event) => event.stopPropagation()}>
-        <div className="mortality-popup-header">
-          <div className="mortality-popup-title-block">
-            <p className="mortality-popup-placement-line">
-              {placement.farmName} &middot; Barn {placement.barnCode} &middot; {placement.placementCode}
-            </p>
-            <h3>10 Day Feed Requirement</h3>
-          </div>
-          <div className="mortality-popup-sidecar">
-            <button className="button-secondary" onClick={onClose} type="button">
-              Close
-            </button>
-          </div>
-        </div>
-
-        <div className="mortality-popup-summary feed-projection-popup-summary">
-          <div className="mortality-popup-stat mortality-popup-stat-compact">
-            <span>Total Requirement</span>
-            <strong>{formatFeedAmount(placement.feedProjectionTenDayTotal)}</strong>
-          </div>
-          <div className="mortality-popup-stat mortality-popup-stat-compact">
-            <span>On Hand Inventory</span>
-            <strong>{formatFeedAmount(placement.feedInventoryOnHandLbs)}</strong>
-          </div>
-          <div className="mortality-popup-stat mortality-popup-stat-compact">
-            <span>Open Orders</span>
-            <strong>{formatFeedAmount(placement.feedOnOrderLbs)}</strong>
-          </div>
-          <div className="mortality-popup-stat mortality-popup-stat-compact">
-            <span>Recommended Order</span>
-            <strong>{formatFeedAmount(placement.feedRecommendedOrderLbs)}</strong>
-          </div>
-        </div>
-
-        <div className="mortality-popup-summary feed-projection-popup-summary">
-          <div className="mortality-popup-stat mortality-popup-stat-compact">
-            <span>Average Per Day</span>
-            <strong>{formatFeedAmount(placement.feedProjectionTenDayAverage)}</strong>
-          </div>
-          <div className="mortality-popup-stat mortality-popup-stat-compact">
-            <span>Daily Range</span>
-            <strong>
-              {formatFeedRange(
-                placement.feedProjectionTenDayRange.first,
-                placement.feedProjectionTenDayRange.last,
-              )}
-            </strong>
-          </div>
-          <div className="mortality-popup-stat mortality-popup-stat-compact">
-            <span>Window</span>
-            <strong>
-              {startDate && endDate ? `${formatShortDate(startDate)} to ${formatShortDate(endDate)}` : "Pending"}
-            </strong>
-          </div>
-          <div className="mortality-popup-stat mortality-popup-stat-compact">
-            <span>Net Position</span>
-            <strong>{formatFeedSigned(placement.feedProjectedNetPositionLbs)}</strong>
-          </div>
-        </div>
-
-        <div className="mortality-popup-stat feed-projection-popup-note">
-          <span>Live Haul Adjustment</span>
-          <strong>{liveHaulAdjustmentLabel}</strong>
-        </div>
-        <div className="mortality-popup-stat feed-projection-popup-note">
-          <span>Inventory</span>
-          <strong>{inventoryStatusLabel}</strong>
-        </div>
-        <div className="mortality-popup-stat feed-projection-popup-note">
-          <span>Inventory Split</span>
-          <strong>{inventoryTypeSplitLabel}</strong>
-        </div>
-        <div className="mortality-popup-stat feed-projection-popup-note">
-          <span>On Order</span>
-          <strong>{onOrderStatusLabel}</strong>
-        </div>
-        <div className="mortality-popup-stat feed-projection-popup-note">
-          <span>On Order Split</span>
-          <strong>{onOrderTypeSplitLabel}</strong>
-        </div>
-        <div className="mortality-popup-stat feed-projection-popup-note">
-          <span>Ordering Position</span>
-          <strong>{recommendedOrderLabel}</strong>
-        </div>
-        <div className="mortality-popup-stat feed-projection-popup-note">
-          <span>Recommendation Split</span>
-          <strong>{recommendedOrderSplitLabel}</strong>
-        </div>
-        <div className="mortality-popup-stat feed-projection-popup-note">
-          <span>Requirement Split</span>
-          <strong>{requirementTypeSplitLabel}</strong>
-        </div>
-        <div className="mortality-popup-stat feed-projection-popup-note">
-          <span>Starter Program</span>
-          <strong>{starterProgramLabel}</strong>
-        </div>
-
-        <div className="feed-projection-popup-grid">
-          {placement.feedProjectionTenDayDaily.map((day) => (
-            <div className="feed-projection-popup-day" key={`${placement.id}-${day.date}`}>
-              <strong>{formatShortDate(day.date)}</strong>
-              <span>Age {day.ageDays} days</span>
-              <p>{formatFeedAmount(day.totalFeed)}</p>
-              <small>Starter {formatFeedAmount(day.starterFeed)} · Grower {formatFeedAmount(day.growerFeed)}</small>
-              <small>{day.totalBirds.toLocaleString()} birds</small>
-              {day.liveHaulLabel ? (
-                <em>
-                  {day.liveHaulLabel}
-                </em>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
 function PlacementTile({
   historyReportLabel,
   onOpenPlacementEditor,
@@ -1407,15 +1201,7 @@ function PlacementTile({
       </div>
       {hasFeedProjection ? (
         <div className="tile-feed-action-row">
-          <Link
-            aria-label={`Open 10 day feed requirement for ${placement.placementCode}`}
-            className="tile-feed-action-button"
-            href={`/admin/reports/feed-projection?${new URLSearchParams({barnId:placement.barnId,includeBinSentryOnOrder:"1"}).toString()}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <Image alt="" className="tile-feed-action-icon" priority={false} src={feedBinIcon} />
-          </Link>
+          <DashboardFeedProjection placement={placement} />
         </div>
       ) : null}
       {mortalityPopupMode ? (
