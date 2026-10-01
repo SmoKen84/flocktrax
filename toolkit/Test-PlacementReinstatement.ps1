@@ -33,6 +33,7 @@ create extension btree_gist;
     Invoke-TestSql @'
 create trigger test_placements_sync after insert or update on placements for each row execute function placements_sync_barn_state();
 create trigger test_flocks_sync after update of is_in_barn,is_active on flocks for each row execute function flocks_sync_barn_state();
+create unique index idx_unique_active_placement_per_barn on placements(barn_id) where is_active=true and date_removed is null;
 alter table placements add constraint placements_no_overlap_per_barn exclude using gist
   (barn_id with =, daterange(active_start,coalesce(active_end,'infinity'::date),'[)') with &&)
   where (lifecycle_stage <> 'canceled');
@@ -40,6 +41,7 @@ alter table placements add constraint placements_no_overlap_per_barn exclude usi
     Invoke-TestSql (Get-Content -Raw (Join-Path $repoRoot 'supabase/migrations/20260922130000_fix_cancel_feed_drop_columns.sql'))
     Invoke-TestSql (Get-Content -Raw (Join-Path $repoRoot 'supabase/migrations/20261001150000_placement_reinstatement.sql'))
     Invoke-TestSql (Get-Content -Raw (Join-Path $repoRoot 'supabase/migrations/20261001153000_reinstatement_previous_placement_boundary.sql'))
+    Invoke-TestSql (Get-Content -Raw (Join-Path $repoRoot 'supabase/migrations/20261001160000_fix_reinstatement_active_barn_slot.sql'))
     Invoke-TestSql (Get-Content -Raw (Join-Path $repoRoot 'supabase/tests/placement_reinstatement.sql'))
     Write-Host 'Placement reinstatement SQL regression checks passed.'
 } finally {
