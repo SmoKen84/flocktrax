@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: 2026-09-29
+Updated: 2026-10-01
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -9,7 +9,17 @@ Purpose:
 
 ## Chronological Index
 
+### October 2026
+
+- 2026-10-01 — Storm-safety recovery checkpoint — SAVED / DEPLOYED STATE
+  - [FlockTrax_Storm_Safety_Checkpoint_2026-10-01.md](FlockTrax_Storm_Safety_Checkpoint_2026-10-01.md)
+  - Production `49acde2`: Super Admin permissions-user selector and formatted printing deployed; demo remains at `963d758` without these two permissions changes. Records current deployments, local server restart, tests and print-QA limits, canceled menu-selector change, preserved dirty files, and exact recovery guidance.
+
 ### September 2026
+
+- 2026-09-30 — Dashboard and desktop-app deployment backlog — DEPLOYED
+  - [FlockTrax_Deployment_Backlog_Checkpoint_2026-09-30.md](FlockTrax_Deployment_Backlog_Checkpoint_2026-09-30.md)
+  - Production and demo aligned for mortality completion, in-place feed popup and direct Admin sign-in launch; both databases current; deployment IDs and remaining research boundaries recorded.
 
 - 2026-09-29 — Mortality history summaries and date-range retrieval — DEPLOYED
   - [FlockTrax_Mortality_Summary_Release_Checkpoint_2026-09-29.md](FlockTrax_Mortality_Summary_Release_Checkpoint_2026-09-29.md)
