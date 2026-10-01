@@ -11,6 +11,10 @@ Purpose:
 
 ### October 2026
 
+- 2026-10-01 — Canceled placement reinstatement and empty-barn feed allocation
+  - [FlockTrax_Placement_Reinstatement_Checkpoint_2026-10-01.md](FlockTrax_Placement_Reinstatement_Checkpoint_2026-10-01.md)
+  - Editable reinstatement date; existing feed reassigned only for an empty-barn insertion ahead of the next placement. Farm-scoped manager access for cancellation/reinstatement, atomic verification, deployment and migration recovery notes.
+
 - 2026-10-01 — Feed projection pre-arrival fix and breed standards sync
   - [FlockTrax_Feed_Arrival_Standards_Checkpoint_2026-10-01.md](FlockTrax_Feed_Arrival_Standards_Checkpoint_2026-10-01.md)
   - Fixes 344-W1 pre-arrival standards errors; verifies 284 production standards copied to demo while preserving 182 demo-only rows. Includes regression/live-data checks and recovery snapshots.
@@ -716,4 +720,3 @@ For broader system state beyond the report feature, also use:
 For the shorter build-cut baseline specifically, also use:
 
 - [FlockTrax_Release_Build13_Checkpoint_2026-05-11_PM.md](C:\dev\FlockTrax\output\FlockTrax_Release_Build13_Checkpoint_2026-05-11_PM.md)
-
