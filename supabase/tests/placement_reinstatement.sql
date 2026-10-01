@@ -78,6 +78,8 @@ begin
   update barns set is_empty=false,has_flock=true where id=barn;
   r:=public.preview_placement_reinstatement(source_id,'2030-03-01',actor);
   assert not (r->>'move_feed')::boolean,'Occupied barn never transfers feed';
+  r:=public.preview_placement_reinstatement(source_id,'2029-09-01',actor);
+  assert r->>'blocker' is not null,'Occupied barn also protects prior occupancy chronology';
   update barns set is_empty=true,has_flock=false where id=barn;
   update feed_drops set placement_code='WRONG' where id=d1;
   r:=public.preview_placement_reinstatement(source_id,'2030-03-01',actor);
