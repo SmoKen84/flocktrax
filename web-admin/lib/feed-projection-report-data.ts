@@ -1249,6 +1249,7 @@ function buildFeedProjection({
   const liveHaulIndexByDate = new Map(scheduledLiveHaulDates.map((date, index) => [date, index]));
 
   const problems = new Set<string>();
+  const missingStandardAges = new Map<string, Set<number>>();
   let femalePopulation = currentFemaleCount;
   let malePopulation = currentMaleCount;
   let firstLiveHaulFemaleRemoval: number | null = null;
@@ -1319,6 +1320,13 @@ function buildFeedProjection({
   for (let dayOffset = 1; dayOffset <= windowDays; dayOffset += 1) {
     const date = addDays(today, dayOffset);
     const projectedAgeDays = ageDays + dayOffset;
+    // Report age 1 is placement day. Earlier dates have no birds consuming
+    // feed and must not require a day-zero or negative-age feed standard.
+    if (projectedAgeDays <= 0) {
+      daily.push({ date, ageDays: projectedAgeDays, totalBirds: 0, totalFeed: 0,
+        liveHaulFraction: null, liveHaulLabel: null });
+      continue;
+    }
     if (projectedAgeDays > 0) {
       femalePopulation = Math.max(0, femalePopulation - projectedFemaleMortalityPerDay);
       malePopulation = Math.max(0, malePopulation - projectedMaleMortalityPerDay);
@@ -1330,11 +1338,15 @@ function buildFeedProjection({
       ["Male", malePopulation, breedMales, maleFeedPerBird],
     ] as const) {
       if (population <= 0 || metric !== null) continue;
+      if (breedId && breedById.has(breedId)) {
+        const ages = missingStandardAges.get(label) ?? new Set<number>();
+        ages.add(projectedAgeDays);
+        missingStandardAges.set(label, ages);
+        continue;
+      }
       problems.add(!breedId
         ? `${label} breed is missing. Assign the breed in the flock record.`
-        : !breedById.has(breedId)
-          ? `${label} breed is inactive or unavailable. Review the flock's breed assignment.`
-          : `${label} breed is missing daily feed standards for this projection period. Update its breed standards.`);
+        : `${label} breed is inactive or unavailable. Review the flock's breed assignment.`);
     }
     let totalFeed =
       (femalePopulation > 0 && femaleFeedPerBird === null) || (malePopulation > 0 && maleFeedPerBird === null)
@@ -1406,6 +1418,9 @@ function buildFeedProjection({
     }
   }
 
+  for (const [label, ages] of missingStandardAges) {
+    problems.add(`${label} breed is missing daily feed standards for age days ${[...ages].join(", ")} in this projection period. Update its breed standards.`);
+  }
   const feedValues = daily
     .map((entry) => entry.totalFeed)
     .filter((value): value is number => value !== null && Number.isFinite(value));
