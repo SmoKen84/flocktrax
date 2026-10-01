@@ -1,0 +1,4662 @@
+[
+  {
+    "id": 911,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 0,
+    "dayfeedperbird": 0.03,
+    "targetweight": 0.1,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 912,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 0,
+    "dayfeedperbird": 0.0324,
+    "targetweight": 0.11,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 913,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 1,
+    "dayfeedperbird": 0.038,
+    "targetweight": 0.103,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 914,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 1,
+    "dayfeedperbird": 0.041,
+    "targetweight": 0.113,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 915,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 2,
+    "dayfeedperbird": 0.046,
+    "targetweight": 0.111,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 916,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 2,
+    "dayfeedperbird": 0.0497,
+    "targetweight": 0.122,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 917,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 3,
+    "dayfeedperbird": 0.054,
+    "targetweight": 0.124,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 918,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 3,
+    "dayfeedperbird": 0.0583,
+    "targetweight": 0.137,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 919,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 4,
+    "dayfeedperbird": 0.062,
+    "targetweight": 0.143,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 920,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 4,
+    "dayfeedperbird": 0.067,
+    "targetweight": 0.158,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 921,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 5,
+    "dayfeedperbird": 0.07,
+    "targetweight": 0.168,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 922,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 5,
+    "dayfeedperbird": 0.0756,
+    "targetweight": 0.184,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 923,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 6,
+    "dayfeedperbird": 0.078,
+    "targetweight": 0.197,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 924,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 6,
+    "dayfeedperbird": 0.0842,
+    "targetweight": 0.217,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 925,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 7,
+    "dayfeedperbird": 0.086,
+    "targetweight": 0.232,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 926,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 7,
+    "dayfeedperbird": 0.0929,
+    "targetweight": 0.256,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 927,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 8,
+    "dayfeedperbird": 0.096,
+    "targetweight": 0.273,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 928,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 8,
+    "dayfeedperbird": 0.1037,
+    "targetweight": 0.3,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 929,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 9,
+    "dayfeedperbird": 0.106,
+    "targetweight": 0.319,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 930,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 9,
+    "dayfeedperbird": 0.1145,
+    "targetweight": 0.351,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 931,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 10,
+    "dayfeedperbird": 0.116,
+    "targetweight": 0.37,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 932,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 10,
+    "dayfeedperbird": 0.1253,
+    "targetweight": 0.407,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 933,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 11,
+    "dayfeedperbird": 0.126,
+    "targetweight": 0.427,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 934,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 11,
+    "dayfeedperbird": 0.1361,
+    "targetweight": 0.469,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 935,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 12,
+    "dayfeedperbird": 0.136,
+    "targetweight": 0.489,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 936,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 12,
+    "dayfeedperbird": 0.1469,
+    "targetweight": 0.538,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 937,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 13,
+    "dayfeedperbird": 0.146,
+    "targetweight": 0.556,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 938,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 13,
+    "dayfeedperbird": 0.1577,
+    "targetweight": 0.612,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 939,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 14,
+    "dayfeedperbird": 0.156,
+    "targetweight": 0.629,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 940,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 14,
+    "dayfeedperbird": 0.1685,
+    "targetweight": 0.692,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 941,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 15,
+    "dayfeedperbird": 0.166,
+    "targetweight": 0.708,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 942,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 15,
+    "dayfeedperbird": 0.1793,
+    "targetweight": 0.778,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 943,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 16,
+    "dayfeedperbird": 0.176,
+    "targetweight": 0.791,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 944,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 16,
+    "dayfeedperbird": 0.1901,
+    "targetweight": 0.87,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 945,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 17,
+    "dayfeedperbird": 0.186,
+    "targetweight": 0.88,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 946,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 17,
+    "dayfeedperbird": 0.2009,
+    "targetweight": 0.968,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 947,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 18,
+    "dayfeedperbird": 0.196,
+    "targetweight": 0.975,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 948,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 18,
+    "dayfeedperbird": 0.2117,
+    "targetweight": 1.072,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 949,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 19,
+    "dayfeedperbird": 0.206,
+    "targetweight": 1.075,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 950,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 19,
+    "dayfeedperbird": 0.2225,
+    "targetweight": 1.182,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 951,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 20,
+    "dayfeedperbird": 0.216,
+    "targetweight": 1.18,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 952,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 20,
+    "dayfeedperbird": 0.2333,
+    "targetweight": 1.298,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 953,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 21,
+    "dayfeedperbird": 0.226,
+    "targetweight": 1.291,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 954,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 21,
+    "dayfeedperbird": 0.2441,
+    "targetweight": 1.42,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 955,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 22,
+    "dayfeedperbird": 0.237,
+    "targetweight": 1.407,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 956,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 22,
+    "dayfeedperbird": 0.256,
+    "targetweight": 1.547,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 957,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 23,
+    "dayfeedperbird": 0.248,
+    "targetweight": 1.528,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 958,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 23,
+    "dayfeedperbird": 0.2678,
+    "targetweight": 1.681,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 959,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 24,
+    "dayfeedperbird": 0.259,
+    "targetweight": 1.655,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 960,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 24,
+    "dayfeedperbird": 0.2797,
+    "targetweight": 1.821,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 961,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 25,
+    "dayfeedperbird": 0.27,
+    "targetweight": 1.788,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 962,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 25,
+    "dayfeedperbird": 0.2916,
+    "targetweight": 1.966,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 963,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 26,
+    "dayfeedperbird": 0.281,
+    "targetweight": 1.925,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 964,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 26,
+    "dayfeedperbird": 0.3035,
+    "targetweight": 2.118,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 965,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 27,
+    "dayfeedperbird": 0.292,
+    "targetweight": 2.068,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 966,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 27,
+    "dayfeedperbird": 0.3154,
+    "targetweight": 2.275,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 967,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 28,
+    "dayfeedperbird": 0.303,
+    "targetweight": 2.217,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 968,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 28,
+    "dayfeedperbird": 0.3272,
+    "targetweight": 2.438,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 969,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 29,
+    "dayfeedperbird": 0.314,
+    "targetweight": 2.371,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 970,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 29,
+    "dayfeedperbird": 0.3391,
+    "targetweight": 2.608,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 971,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 30,
+    "dayfeedperbird": 0.325,
+    "targetweight": 2.53,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 972,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 30,
+    "dayfeedperbird": 0.351,
+    "targetweight": 2.783,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 973,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 31,
+    "dayfeedperbird": 0.336,
+    "targetweight": 2.695,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 974,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 31,
+    "dayfeedperbird": 0.3629,
+    "targetweight": 2.964,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 975,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 32,
+    "dayfeedperbird": 0.347,
+    "targetweight": 2.865,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 976,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 32,
+    "dayfeedperbird": 0.3748,
+    "targetweight": 3.151,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 977,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 33,
+    "dayfeedperbird": 0.358,
+    "targetweight": 3.04,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 978,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 33,
+    "dayfeedperbird": 0.3866,
+    "targetweight": 3.344,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 979,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 34,
+    "dayfeedperbird": 0.369,
+    "targetweight": 3.221,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 980,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 34,
+    "dayfeedperbird": 0.3985,
+    "targetweight": 3.543,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 981,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 35,
+    "dayfeedperbird": 0.38,
+    "targetweight": 3.408,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 982,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 35,
+    "dayfeedperbird": 0.4104,
+    "targetweight": 3.748,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 983,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 36,
+    "dayfeedperbird": 0.391,
+    "targetweight": 3.599,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 984,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 36,
+    "dayfeedperbird": 0.4223,
+    "targetweight": 3.959,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 985,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 37,
+    "dayfeedperbird": 0.402,
+    "targetweight": 3.796,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 986,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 37,
+    "dayfeedperbird": 0.4342,
+    "targetweight": 4.176,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 987,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 38,
+    "dayfeedperbird": 0.413,
+    "targetweight": 3.999,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 988,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 38,
+    "dayfeedperbird": 0.446,
+    "targetweight": 4.399,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 989,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 39,
+    "dayfeedperbird": 0.424,
+    "targetweight": 4.207,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 990,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 39,
+    "dayfeedperbird": 0.4579,
+    "targetweight": 4.627,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 991,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 40,
+    "dayfeedperbird": 0.435,
+    "targetweight": 4.42,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 992,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 40,
+    "dayfeedperbird": 0.4698,
+    "targetweight": 4.862,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 993,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 41,
+    "dayfeedperbird": 0.446,
+    "targetweight": 4.639,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 994,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 41,
+    "dayfeedperbird": 0.4817,
+    "targetweight": 5.103,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 995,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 42,
+    "dayfeedperbird": 0.457,
+    "targetweight": 4.863,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 996,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 42,
+    "dayfeedperbird": 0.4936,
+    "targetweight": 5.349,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 997,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 43,
+    "dayfeedperbird": 0.461,
+    "targetweight": 5.092,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 998,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 43,
+    "dayfeedperbird": 0.4979,
+    "targetweight": 5.602,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 999,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 44,
+    "dayfeedperbird": 0.465,
+    "targetweight": 5.327,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1000,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 44,
+    "dayfeedperbird": 0.5022,
+    "targetweight": 5.86,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1001,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 45,
+    "dayfeedperbird": 0.469,
+    "targetweight": 5.568,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1002,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 45,
+    "dayfeedperbird": 0.5065,
+    "targetweight": 6.124,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1003,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 46,
+    "dayfeedperbird": 0.473,
+    "targetweight": 5.813,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1004,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 46,
+    "dayfeedperbird": 0.5108,
+    "targetweight": 6.395,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1005,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 47,
+    "dayfeedperbird": 0.477,
+    "targetweight": 6.064,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1006,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 47,
+    "dayfeedperbird": 0.5152,
+    "targetweight": 6.671,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1007,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 48,
+    "dayfeedperbird": 0.481,
+    "targetweight": 6.321,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1008,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 48,
+    "dayfeedperbird": 0.5195,
+    "targetweight": 6.953,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1009,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 49,
+    "dayfeedperbird": 0.485,
+    "targetweight": 6.583,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1010,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 49,
+    "dayfeedperbird": 0.5238,
+    "targetweight": 7.241,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1011,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 50,
+    "dayfeedperbird": 0.489,
+    "targetweight": 6.85,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1012,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 50,
+    "dayfeedperbird": 0.5281,
+    "targetweight": 7.535,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1013,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 51,
+    "dayfeedperbird": 0.493,
+    "targetweight": 7.123,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1014,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 51,
+    "dayfeedperbird": 0.5324,
+    "targetweight": 7.835,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1015,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 52,
+    "dayfeedperbird": 0.497,
+    "targetweight": 7.401,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1016,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 52,
+    "dayfeedperbird": 0.5368,
+    "targetweight": 8.141,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1017,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 53,
+    "dayfeedperbird": 0.501,
+    "targetweight": 7.684,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1018,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 53,
+    "dayfeedperbird": 0.5411,
+    "targetweight": 8.453,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1019,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 54,
+    "dayfeedperbird": 0.505,
+    "targetweight": 7.973,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1020,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 54,
+    "dayfeedperbird": 0.5454,
+    "targetweight": 8.771,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1021,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 55,
+    "dayfeedperbird": 0.509,
+    "targetweight": 8.268,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1022,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 55,
+    "dayfeedperbird": 0.5497,
+    "targetweight": 9.094,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1023,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 56,
+    "dayfeedperbird": 0.513,
+    "targetweight": 8.567,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1024,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 56,
+    "dayfeedperbird": 0.554,
+    "targetweight": 9.424,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1025,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 57,
+    "dayfeedperbird": 0.517,
+    "targetweight": 8.872,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1026,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 57,
+    "dayfeedperbird": 0.5584,
+    "targetweight": 9.76,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1027,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 58,
+    "dayfeedperbird": 0.521,
+    "targetweight": 9.183,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1028,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 58,
+    "dayfeedperbird": 0.5627,
+    "targetweight": 10.101,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1029,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 59,
+    "dayfeedperbird": 0.525,
+    "targetweight": 9.499,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1030,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 59,
+    "dayfeedperbird": 0.567,
+    "targetweight": 10.449,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1031,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 60,
+    "dayfeedperbird": 0.529,
+    "targetweight": 9.82,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1032,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 60,
+    "dayfeedperbird": 0.5713,
+    "targetweight": 10.802,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1033,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 61,
+    "dayfeedperbird": 0.533,
+    "targetweight": 10.147,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1034,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 61,
+    "dayfeedperbird": 0.5756,
+    "targetweight": 11.161,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1035,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 62,
+    "dayfeedperbird": 0.537,
+    "targetweight": 10.479,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1036,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 62,
+    "dayfeedperbird": 0.58,
+    "targetweight": 11.527,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1037,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 63,
+    "dayfeedperbird": 0.541,
+    "targetweight": 10.816,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1038,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 63,
+    "dayfeedperbird": 0.5843,
+    "targetweight": 11.898,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1039,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 64,
+    "dayfeedperbird": 0.545,
+    "targetweight": 11.159,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1040,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 64,
+    "dayfeedperbird": 0.5886,
+    "targetweight": 12.275,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1041,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 65,
+    "dayfeedperbird": 0.549,
+    "targetweight": 11.508,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1042,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 65,
+    "dayfeedperbird": 0.5929,
+    "targetweight": 12.658,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1043,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 66,
+    "dayfeedperbird": 0.553,
+    "targetweight": 11.861,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1044,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 66,
+    "dayfeedperbird": 0.5972,
+    "targetweight": 13.047,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1045,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 67,
+    "dayfeedperbird": 0.557,
+    "targetweight": 12.22,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1046,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 67,
+    "dayfeedperbird": 0.6016,
+    "targetweight": 13.442,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1047,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 68,
+    "dayfeedperbird": 0.561,
+    "targetweight": 12.585,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1048,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 68,
+    "dayfeedperbird": 0.6059,
+    "targetweight": 13.843,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1049,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 69,
+    "dayfeedperbird": 0.565,
+    "targetweight": 12.955,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1050,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 69,
+    "dayfeedperbird": 0.6102,
+    "targetweight": 14.25,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1051,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 70,
+    "dayfeedperbird": 0.569,
+    "targetweight": 13.33,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1052,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 70,
+    "dayfeedperbird": 0.6145,
+    "targetweight": 14.663,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1053,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 71,
+    "dayfeedperbird": 0.573,
+    "targetweight": 13.711,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1054,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 71,
+    "dayfeedperbird": 0.6188,
+    "targetweight": 15.082,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1055,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 72,
+    "dayfeedperbird": 0.577,
+    "targetweight": 14.097,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1056,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 72,
+    "dayfeedperbird": 0.6232,
+    "targetweight": 15.506,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1057,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 73,
+    "dayfeedperbird": 0.581,
+    "targetweight": 14.488,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1058,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 73,
+    "dayfeedperbird": 0.6275,
+    "targetweight": 15.937,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1059,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 74,
+    "dayfeedperbird": 0.585,
+    "targetweight": 14.885,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1060,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 74,
+    "dayfeedperbird": 0.6318,
+    "targetweight": 16.374,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1061,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 75,
+    "dayfeedperbird": 0.589,
+    "targetweight": 15.288,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1062,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 75,
+    "dayfeedperbird": 0.6361,
+    "targetweight": 16.816,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1063,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 76,
+    "dayfeedperbird": 0.593,
+    "targetweight": 15.695,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1064,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 76,
+    "dayfeedperbird": 0.6404,
+    "targetweight": 17.265,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1065,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 77,
+    "dayfeedperbird": 0.597,
+    "targetweight": 16.108,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1066,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 77,
+    "dayfeedperbird": 0.6448,
+    "targetweight": 17.719,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1067,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 78,
+    "dayfeedperbird": 0.601,
+    "targetweight": 16.527,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1068,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 78,
+    "dayfeedperbird": 0.6491,
+    "targetweight": 18.179,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1069,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 79,
+    "dayfeedperbird": 0.605,
+    "targetweight": 16.951,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1070,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 79,
+    "dayfeedperbird": 0.6534,
+    "targetweight": 18.646,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1071,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 80,
+    "dayfeedperbird": 0.609,
+    "targetweight": 17.38,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1072,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 80,
+    "dayfeedperbird": 0.6577,
+    "targetweight": 19.118,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1073,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 81,
+    "dayfeedperbird": 0.613,
+    "targetweight": 17.815,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1074,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 81,
+    "dayfeedperbird": 0.662,
+    "targetweight": 19.596,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1075,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 82,
+    "dayfeedperbird": 0.617,
+    "targetweight": 18.255,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1076,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 82,
+    "dayfeedperbird": 0.6664,
+    "targetweight": 20.08,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1077,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 83,
+    "dayfeedperbird": 0.621,
+    "targetweight": 18.7,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1078,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 83,
+    "dayfeedperbird": 0.6707,
+    "targetweight": 20.57,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1079,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 84,
+    "dayfeedperbird": 0.625,
+    "targetweight": 19.151,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1080,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 84,
+    "dayfeedperbird": 0.675,
+    "targetweight": 21.066,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1081,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 85,
+    "dayfeedperbird": 0.629,
+    "targetweight": 19.608,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1082,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 85,
+    "dayfeedperbird": 0.6793,
+    "targetweight": 21.568,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1083,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 86,
+    "dayfeedperbird": 0.633,
+    "targetweight": 20.069,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1084,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 86,
+    "dayfeedperbird": 0.6836,
+    "targetweight": 22.076,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1085,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 87,
+    "dayfeedperbird": 0.637,
+    "targetweight": 20.536,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1086,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 87,
+    "dayfeedperbird": 0.688,
+    "targetweight": 22.59,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1087,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 88,
+    "dayfeedperbird": 0.641,
+    "targetweight": 21.009,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1088,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 88,
+    "dayfeedperbird": 0.6923,
+    "targetweight": 23.11,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1089,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 89,
+    "dayfeedperbird": 0.645,
+    "targetweight": 21.487,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1090,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 89,
+    "dayfeedperbird": 0.6966,
+    "targetweight": 23.635,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1091,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 90,
+    "dayfeedperbird": 0.649,
+    "targetweight": 21.97,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1092,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 90,
+    "dayfeedperbird": 0.7009,
+    "targetweight": 24.167,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1093,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 1,
+    "dayfeedperbird": 0.034,
+    "targetweight": 0.09,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1094,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 2,
+    "dayfeedperbird": 0.034,
+    "targetweight": 0.097,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1095,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 3,
+    "dayfeedperbird": 0.034,
+    "targetweight": 0.131,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1096,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 4,
+    "dayfeedperbird": 0.042,
+    "targetweight": 0.17,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1097,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 5,
+    "dayfeedperbird": 0.049,
+    "targetweight": 0.214,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1098,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 6,
+    "dayfeedperbird": 0.057,
+    "targetweight": 0.263,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1099,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 7,
+    "dayfeedperbird": 0.065,
+    "targetweight": 0.319,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1100,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 8,
+    "dayfeedperbird": 0.073,
+    "targetweight": 0.38,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1101,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 9,
+    "dayfeedperbird": 0.082,
+    "targetweight": 0.449,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1102,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 10,
+    "dayfeedperbird": 0.09,
+    "targetweight": 0.524,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1103,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 11,
+    "dayfeedperbird": 0.1,
+    "targetweight": 0.606,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1104,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 12,
+    "dayfeedperbird": 0.109,
+    "targetweight": 0.695,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1105,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 13,
+    "dayfeedperbird": 0.119,
+    "targetweight": 0.791,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1106,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 14,
+    "dayfeedperbird": 0.129,
+    "targetweight": 0.894,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1107,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 15,
+    "dayfeedperbird": 0.139,
+    "targetweight": 1.004,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1108,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 16,
+    "dayfeedperbird": 0.15,
+    "targetweight": 1.122,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1109,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 17,
+    "dayfeedperbird": 0.161,
+    "targetweight": 1.246,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1110,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 18,
+    "dayfeedperbird": 0.172,
+    "targetweight": 1.378,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1111,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 19,
+    "dayfeedperbird": 0.184,
+    "targetweight": 1.515,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1112,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 20,
+    "dayfeedperbird": 0.195,
+    "targetweight": 1.66,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1113,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 21,
+    "dayfeedperbird": 0.207,
+    "targetweight": 1.81,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1114,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 22,
+    "dayfeedperbird": 0.219,
+    "targetweight": 1.967,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1115,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 23,
+    "dayfeedperbird": 0.231,
+    "targetweight": 2.129,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1116,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 24,
+    "dayfeedperbird": 0.243,
+    "targetweight": 2.297,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1117,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 25,
+    "dayfeedperbird": 0.255,
+    "targetweight": 2.47,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1118,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 26,
+    "dayfeedperbird": 0.266,
+    "targetweight": 2.648,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1119,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 27,
+    "dayfeedperbird": 0.278,
+    "targetweight": 2.831,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1120,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 28,
+    "dayfeedperbird": 0.401,
+    "targetweight": 3.017,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1121,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 29,
+    "dayfeedperbird": 0.301,
+    "targetweight": 3.208,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1122,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 30,
+    "dayfeedperbird": 0.313,
+    "targetweight": 3.402,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1123,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 31,
+    "dayfeedperbird": 0.324,
+    "targetweight": 3.599,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1124,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 32,
+    "dayfeedperbird": 0.334,
+    "targetweight": 3.799,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1125,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 33,
+    "dayfeedperbird": 0.345,
+    "targetweight": 4.002,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1126,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 34,
+    "dayfeedperbird": 0.355,
+    "targetweight": 4.207,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1127,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 35,
+    "dayfeedperbird": 0.365,
+    "targetweight": 4.414,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1128,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 36,
+    "dayfeedperbird": 0.401,
+    "targetweight": 4.622,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1129,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 37,
+    "dayfeedperbird": 0.401,
+    "targetweight": 4.831,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1130,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 38,
+    "dayfeedperbird": 0.401,
+    "targetweight": 5.042,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1131,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 39,
+    "dayfeedperbird": 0.401,
+    "targetweight": 5.253,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1132,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 40,
+    "dayfeedperbird": 0.401,
+    "targetweight": 5.465,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1133,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 41,
+    "dayfeedperbird": 0.401,
+    "targetweight": 5.676,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1134,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 42,
+    "dayfeedperbird": 0.401,
+    "targetweight": 5.888,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1135,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 43,
+    "dayfeedperbird": 0.401,
+    "targetweight": 6.099,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1136,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 44,
+    "dayfeedperbird": 0.401,
+    "targetweight": 6.309,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1137,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 45,
+    "dayfeedperbird": 0.401,
+    "targetweight": 6.519,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1138,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 46,
+    "dayfeedperbird": 0.401,
+    "targetweight": 6.728,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1139,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 47,
+    "dayfeedperbird": 0.401,
+    "targetweight": 6.935,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1140,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 48,
+    "dayfeedperbird": 0.401,
+    "targetweight": 7.141,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1141,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 49,
+    "dayfeedperbird": 0.401,
+    "targetweight": 7.345,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1142,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 50,
+    "dayfeedperbird": 0.401,
+    "targetweight": 7.547,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1143,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 51,
+    "dayfeedperbird": 0.401,
+    "targetweight": 7.748,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1144,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 52,
+    "dayfeedperbird": 0.401,
+    "targetweight": 7.946,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1145,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 53,
+    "dayfeedperbird": 0.401,
+    "targetweight": 8.143,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1146,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 54,
+    "dayfeedperbird": 0.401,
+    "targetweight": 8.337,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1147,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 55,
+    "dayfeedperbird": 0.401,
+    "targetweight": 8.528,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1148,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 56,
+    "dayfeedperbird": 0.401,
+    "targetweight": 8.717,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1149,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 57,
+    "dayfeedperbird": 0.401,
+    "targetweight": 8.903,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1150,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 1,
+    "dayfeedperbird": 0.34,
+    "targetweight": 0.9,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1151,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 2,
+    "dayfeedperbird": 0.034,
+    "targetweight": 0.09,
+    "note": "",
+    "is_active": true
+  },
+  {
+    "id": 1152,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 3,
+    "dayfeedperbird": 0.034,
+    "targetweight": 0.131,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1153,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 4,
+    "dayfeedperbird": 0.042,
+    "targetweight": 0.17,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1154,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 5,
+    "dayfeedperbird": 0.049,
+    "targetweight": 0.214,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1155,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 6,
+    "dayfeedperbird": 0.057,
+    "targetweight": 0.263,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1156,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 7,
+    "dayfeedperbird": 0.065,
+    "targetweight": 0.319,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1157,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 8,
+    "dayfeedperbird": 0.073,
+    "targetweight": 0.38,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1158,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 9,
+    "dayfeedperbird": 0.082,
+    "targetweight": 0.449,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1159,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 10,
+    "dayfeedperbird": 0.09,
+    "targetweight": 0.524,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1160,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 11,
+    "dayfeedperbird": 0.1,
+    "targetweight": 0.606,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1161,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 12,
+    "dayfeedperbird": 0.109,
+    "targetweight": 0.695,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1162,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 13,
+    "dayfeedperbird": 0.119,
+    "targetweight": 0.791,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1163,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 14,
+    "dayfeedperbird": 0.129,
+    "targetweight": 0.894,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1164,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 15,
+    "dayfeedperbird": 0.139,
+    "targetweight": 1.004,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1165,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 16,
+    "dayfeedperbird": 0.15,
+    "targetweight": 1.122,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1166,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 17,
+    "dayfeedperbird": 0.161,
+    "targetweight": 1.246,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1167,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 18,
+    "dayfeedperbird": 0.172,
+    "targetweight": 1.378,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1168,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 19,
+    "dayfeedperbird": 0.184,
+    "targetweight": 1.515,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1169,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 20,
+    "dayfeedperbird": 0.195,
+    "targetweight": 1.66,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1170,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 21,
+    "dayfeedperbird": 0.207,
+    "targetweight": 1.81,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1171,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 22,
+    "dayfeedperbird": 0.219,
+    "targetweight": 1.967,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1172,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 23,
+    "dayfeedperbird": 0.231,
+    "targetweight": 2.129,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1173,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 24,
+    "dayfeedperbird": 0.243,
+    "targetweight": 2.297,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1174,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 25,
+    "dayfeedperbird": 0.255,
+    "targetweight": 2.47,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1175,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 26,
+    "dayfeedperbird": 0.266,
+    "targetweight": 2.648,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1176,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 27,
+    "dayfeedperbird": 0.278,
+    "targetweight": 2.831,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1177,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 28,
+    "dayfeedperbird": 0.401,
+    "targetweight": 3.017,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1178,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 29,
+    "dayfeedperbird": 0.301,
+    "targetweight": 3.208,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1179,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 30,
+    "dayfeedperbird": 0.313,
+    "targetweight": 3.402,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1180,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 31,
+    "dayfeedperbird": 0.324,
+    "targetweight": 3.599,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1181,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 32,
+    "dayfeedperbird": 0.334,
+    "targetweight": 3.799,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1182,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 33,
+    "dayfeedperbird": 0.345,
+    "targetweight": 4.002,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1183,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 34,
+    "dayfeedperbird": 0.355,
+    "targetweight": 4.207,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1184,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 35,
+    "dayfeedperbird": 0.365,
+    "targetweight": 4.414,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1185,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 36,
+    "dayfeedperbird": 0.401,
+    "targetweight": 4.622,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1186,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 37,
+    "dayfeedperbird": 0.401,
+    "targetweight": 4.831,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1187,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 38,
+    "dayfeedperbird": 0.401,
+    "targetweight": 5.042,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1188,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 39,
+    "dayfeedperbird": 0.401,
+    "targetweight": 5.253,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1189,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 40,
+    "dayfeedperbird": 0.401,
+    "targetweight": 5.465,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1190,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 41,
+    "dayfeedperbird": 0.401,
+    "targetweight": 5.676,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1191,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 42,
+    "dayfeedperbird": 0.401,
+    "targetweight": 5.888,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1192,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 43,
+    "dayfeedperbird": 0.401,
+    "targetweight": 6.099,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1193,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 44,
+    "dayfeedperbird": 0.401,
+    "targetweight": 6.309,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1194,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 45,
+    "dayfeedperbird": 0.401,
+    "targetweight": 6.519,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1195,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 46,
+    "dayfeedperbird": 0.401,
+    "targetweight": 6.728,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1196,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 47,
+    "dayfeedperbird": 0.401,
+    "targetweight": 6.935,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1197,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 48,
+    "dayfeedperbird": 0.401,
+    "targetweight": 7.141,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1198,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 49,
+    "dayfeedperbird": 0.401,
+    "targetweight": 7.345,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1199,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 50,
+    "dayfeedperbird": 0.401,
+    "targetweight": 7.547,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1200,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 51,
+    "dayfeedperbird": 0.401,
+    "targetweight": 7.748,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1201,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 52,
+    "dayfeedperbird": 0.401,
+    "targetweight": 7.946,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1202,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 53,
+    "dayfeedperbird": 0.401,
+    "targetweight": 8.143,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1203,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 54,
+    "dayfeedperbird": 0.401,
+    "targetweight": 8.337,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1204,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 55,
+    "dayfeedperbird": 0.401,
+    "targetweight": 8.528,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1205,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 56,
+    "dayfeedperbird": 0.401,
+    "targetweight": 8.717,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1206,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 57,
+    "dayfeedperbird": 0.401,
+    "targetweight": 8.903,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1207,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 0,
+    "dayfeedperbird": null,
+    "targetweight": 0.09,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1208,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 1,
+    "dayfeedperbird": 0.043,
+    "targetweight": 0.137,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1209,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 2,
+    "dayfeedperbird": 0.043,
+    "targetweight": 0.184,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1210,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 3,
+    "dayfeedperbird": 0.043,
+    "targetweight": 0.231,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1211,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 4,
+    "dayfeedperbird": 0.043,
+    "targetweight": 0.279,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1212,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 5,
+    "dayfeedperbird": 0.043,
+    "targetweight": 0.326,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1213,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 6,
+    "dayfeedperbird": 0.043,
+    "targetweight": 0.373,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1214,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 7,
+    "dayfeedperbird": 0.043,
+    "targetweight": 0.42,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1215,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 8,
+    "dayfeedperbird": 0.107,
+    "targetweight": 0.51,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1216,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 9,
+    "dayfeedperbird": 0.107,
+    "targetweight": 0.6,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1217,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 10,
+    "dayfeedperbird": 0.107,
+    "targetweight": 0.69,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1218,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 11,
+    "dayfeedperbird": 0.107,
+    "targetweight": 0.78,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1219,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 12,
+    "dayfeedperbird": 0.107,
+    "targetweight": 0.87,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1220,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 13,
+    "dayfeedperbird": 0.107,
+    "targetweight": 0.96,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1221,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 14,
+    "dayfeedperbird": 0.107,
+    "targetweight": 1.05,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1222,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 15,
+    "dayfeedperbird": 0.179,
+    "targetweight": 1.186,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1223,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 16,
+    "dayfeedperbird": 0.179,
+    "targetweight": 1.321,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1224,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 17,
+    "dayfeedperbird": 0.179,
+    "targetweight": 1.457,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1225,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 18,
+    "dayfeedperbird": 0.179,
+    "targetweight": 1.593,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1226,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 19,
+    "dayfeedperbird": 0.179,
+    "targetweight": 1.729,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1227,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 20,
+    "dayfeedperbird": 0.179,
+    "targetweight": 1.864,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1228,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 21,
+    "dayfeedperbird": 0.179,
+    "targetweight": 2,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1229,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 22,
+    "dayfeedperbird": 0.243,
+    "targetweight": 2.171,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1230,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 23,
+    "dayfeedperbird": 0.243,
+    "targetweight": 2.343,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1231,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 24,
+    "dayfeedperbird": 0.243,
+    "targetweight": 2.514,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1232,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 25,
+    "dayfeedperbird": 0.243,
+    "targetweight": 2.686,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1233,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 26,
+    "dayfeedperbird": 0.243,
+    "targetweight": 2.857,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1234,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 27,
+    "dayfeedperbird": 0.243,
+    "targetweight": 3.029,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1235,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 28,
+    "dayfeedperbird": 0.243,
+    "targetweight": 3.2,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1236,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 29,
+    "dayfeedperbird": 0.3,
+    "targetweight": 3.386,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1237,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 30,
+    "dayfeedperbird": 0.3,
+    "targetweight": 3.571,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1238,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 31,
+    "dayfeedperbird": 0.3,
+    "targetweight": 3.757,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1239,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 32,
+    "dayfeedperbird": 0.3,
+    "targetweight": 3.943,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1240,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 33,
+    "dayfeedperbird": 0.3,
+    "targetweight": 4.129,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1241,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 34,
+    "dayfeedperbird": 0.3,
+    "targetweight": 4.314,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1242,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 35,
+    "dayfeedperbird": 0.3,
+    "targetweight": 4.5,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1243,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 36,
+    "dayfeedperbird": 0.371,
+    "targetweight": 4.686,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1244,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 37,
+    "dayfeedperbird": 0.371,
+    "targetweight": 4.871,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1245,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 38,
+    "dayfeedperbird": 0.371,
+    "targetweight": 5.057,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1246,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 39,
+    "dayfeedperbird": 0.371,
+    "targetweight": 5.243,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1247,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 40,
+    "dayfeedperbird": 0.371,
+    "targetweight": 5.429,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1248,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 41,
+    "dayfeedperbird": 0.371,
+    "targetweight": 5.614,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1249,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 42,
+    "dayfeedperbird": 0.371,
+    "targetweight": 5.8,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1250,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 43,
+    "dayfeedperbird": 0.4,
+    "targetweight": 5.971,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1251,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 44,
+    "dayfeedperbird": 0.4,
+    "targetweight": 6.143,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1252,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 45,
+    "dayfeedperbird": 0.4,
+    "targetweight": 6.314,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1253,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 46,
+    "dayfeedperbird": 0.4,
+    "targetweight": 6.486,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1254,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 47,
+    "dayfeedperbird": 0.4,
+    "targetweight": 6.657,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1255,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 48,
+    "dayfeedperbird": 0.4,
+    "targetweight": 6.829,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1256,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 49,
+    "dayfeedperbird": 0.4,
+    "targetweight": 7,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1257,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 50,
+    "dayfeedperbird": 0.429,
+    "targetweight": 7.157,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1258,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 51,
+    "dayfeedperbird": 0.429,
+    "targetweight": 7.314,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1259,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 52,
+    "dayfeedperbird": 0.429,
+    "targetweight": 7.471,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1260,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 53,
+    "dayfeedperbird": 0.429,
+    "targetweight": 7.629,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1261,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 54,
+    "dayfeedperbird": 0.429,
+    "targetweight": 7.786,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1262,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 55,
+    "dayfeedperbird": 0.429,
+    "targetweight": 7.943,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1263,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 56,
+    "dayfeedperbird": 0.429,
+    "targetweight": 8.1,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1264,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 57,
+    "dayfeedperbird": 0.471,
+    "targetweight": 8.214,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1265,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 58,
+    "dayfeedperbird": 0.471,
+    "targetweight": 8.329,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1266,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 59,
+    "dayfeedperbird": 0.471,
+    "targetweight": 8.443,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1267,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 60,
+    "dayfeedperbird": 0.471,
+    "targetweight": 8.557,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1268,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 61,
+    "dayfeedperbird": 0.471,
+    "targetweight": 8.671,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1269,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 62,
+    "dayfeedperbird": 0.471,
+    "targetweight": 8.786,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1270,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 63,
+    "dayfeedperbird": 0.471,
+    "targetweight": 8.9,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1271,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 64,
+    "dayfeedperbird": 0.486,
+    "targetweight": 8.986,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1272,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 65,
+    "dayfeedperbird": 0.486,
+    "targetweight": 9.071,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1273,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 66,
+    "dayfeedperbird": 0.486,
+    "targetweight": 9.157,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1274,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 67,
+    "dayfeedperbird": 0.486,
+    "targetweight": 9.243,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1275,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 68,
+    "dayfeedperbird": 0.486,
+    "targetweight": 9.329,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1276,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 69,
+    "dayfeedperbird": 0.486,
+    "targetweight": 9.414,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1277,
+    "geneticname": "CornishXRock",
+    "breedid": "Female",
+    "age": 70,
+    "dayfeedperbird": 0.486,
+    "targetweight": 9.5,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1278,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 0,
+    "dayfeedperbird": null,
+    "targetweight": 0.09,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1279,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 1,
+    "dayfeedperbird": 0.046,
+    "targetweight": 0.14,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1280,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 2,
+    "dayfeedperbird": 0.046,
+    "targetweight": 0.19,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1281,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 3,
+    "dayfeedperbird": 0.046,
+    "targetweight": 0.24,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1282,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 4,
+    "dayfeedperbird": 0.046,
+    "targetweight": 0.29,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1283,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 5,
+    "dayfeedperbird": 0.046,
+    "targetweight": 0.34,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1284,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 6,
+    "dayfeedperbird": 0.046,
+    "targetweight": 0.39,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1285,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 7,
+    "dayfeedperbird": 0.046,
+    "targetweight": 0.44,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1286,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 8,
+    "dayfeedperbird": 0.111,
+    "targetweight": 0.541,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1287,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 9,
+    "dayfeedperbird": 0.111,
+    "targetweight": 0.643,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1288,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 10,
+    "dayfeedperbird": 0.111,
+    "targetweight": 0.744,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1289,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 11,
+    "dayfeedperbird": 0.111,
+    "targetweight": 0.846,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1290,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 12,
+    "dayfeedperbird": 0.111,
+    "targetweight": 0.947,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1291,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 13,
+    "dayfeedperbird": 0.111,
+    "targetweight": 1.049,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1292,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 14,
+    "dayfeedperbird": 0.111,
+    "targetweight": 1.15,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1293,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 15,
+    "dayfeedperbird": 0.186,
+    "targetweight": 1.3,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1294,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 16,
+    "dayfeedperbird": 0.186,
+    "targetweight": 1.45,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1295,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 17,
+    "dayfeedperbird": 0.186,
+    "targetweight": 1.6,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1296,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 18,
+    "dayfeedperbird": 0.186,
+    "targetweight": 1.75,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1297,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 19,
+    "dayfeedperbird": 0.186,
+    "targetweight": 1.9,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1298,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 20,
+    "dayfeedperbird": 0.186,
+    "targetweight": 2.05,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1299,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 21,
+    "dayfeedperbird": 0.186,
+    "targetweight": 2.2,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1300,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 22,
+    "dayfeedperbird": 0.271,
+    "targetweight": 2.386,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1301,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 23,
+    "dayfeedperbird": 0.271,
+    "targetweight": 2.571,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1302,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 24,
+    "dayfeedperbird": 0.271,
+    "targetweight": 2.757,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1303,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 25,
+    "dayfeedperbird": 0.271,
+    "targetweight": 2.943,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1304,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 26,
+    "dayfeedperbird": 0.271,
+    "targetweight": 3.129,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1305,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 27,
+    "dayfeedperbird": 0.271,
+    "targetweight": 3.314,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1306,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 28,
+    "dayfeedperbird": 0.271,
+    "targetweight": 3.5,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1307,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 29,
+    "dayfeedperbird": 0.314,
+    "targetweight": 3.714,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1308,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 30,
+    "dayfeedperbird": 0.314,
+    "targetweight": 3.929,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1309,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 31,
+    "dayfeedperbird": 0.314,
+    "targetweight": 4.143,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1310,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 32,
+    "dayfeedperbird": 0.314,
+    "targetweight": 4.357,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1311,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 33,
+    "dayfeedperbird": 0.314,
+    "targetweight": 4.571,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1312,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 34,
+    "dayfeedperbird": 0.314,
+    "targetweight": 4.786,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1313,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 35,
+    "dayfeedperbird": 0.314,
+    "targetweight": 5,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1314,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 36,
+    "dayfeedperbird": 0.4,
+    "targetweight": 5.243,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1315,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 37,
+    "dayfeedperbird": 0.4,
+    "targetweight": 5.486,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1316,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 38,
+    "dayfeedperbird": 0.4,
+    "targetweight": 5.729,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1317,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 39,
+    "dayfeedperbird": 0.4,
+    "targetweight": 5.971,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1318,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 40,
+    "dayfeedperbird": 0.4,
+    "targetweight": 6.214,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1319,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 41,
+    "dayfeedperbird": 0.4,
+    "targetweight": 6.457,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1320,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 42,
+    "dayfeedperbird": 0.4,
+    "targetweight": 6.7,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1321,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 43,
+    "dayfeedperbird": 0.443,
+    "targetweight": 6.929,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1322,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 44,
+    "dayfeedperbird": 0.443,
+    "targetweight": 7.157,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1323,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 45,
+    "dayfeedperbird": 0.443,
+    "targetweight": 7.386,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1324,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 46,
+    "dayfeedperbird": 0.443,
+    "targetweight": 7.614,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1325,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 47,
+    "dayfeedperbird": 0.443,
+    "targetweight": 7.843,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1326,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 48,
+    "dayfeedperbird": 0.443,
+    "targetweight": 8.071,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1327,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 49,
+    "dayfeedperbird": 0.443,
+    "targetweight": 8.3,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1328,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 50,
+    "dayfeedperbird": 0.643,
+    "targetweight": 8.514,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1329,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 51,
+    "dayfeedperbird": 0.643,
+    "targetweight": 8.729,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1330,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 52,
+    "dayfeedperbird": 0.643,
+    "targetweight": 8.943,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1331,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 53,
+    "dayfeedperbird": 0.643,
+    "targetweight": 9.157,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1332,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 54,
+    "dayfeedperbird": 0.643,
+    "targetweight": 9.371,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1333,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 55,
+    "dayfeedperbird": 0.643,
+    "targetweight": 9.586,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1334,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 56,
+    "dayfeedperbird": 0.643,
+    "targetweight": 9.8,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1335,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 57,
+    "dayfeedperbird": 0.529,
+    "targetweight": 9.929,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1336,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 58,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.057,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1337,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 59,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.186,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1338,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 60,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.314,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1339,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 61,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.443,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1340,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 62,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.571,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1341,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 63,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.7,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1342,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 64,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.786,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1343,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 65,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.871,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1344,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 66,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.957,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1345,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 67,
+    "dayfeedperbird": 0.529,
+    "targetweight": 11.043,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1346,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 68,
+    "dayfeedperbird": 0.529,
+    "targetweight": 11.129,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1347,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 69,
+    "dayfeedperbird": 0.529,
+    "targetweight": 11.214,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1348,
+    "geneticname": "CornishXRock",
+    "breedid": "Male",
+    "age": 70,
+    "dayfeedperbird": 0.529,
+    "targetweight": 11.3,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1349,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 58,
+    "dayfeedperbird": 0.471,
+    "targetweight": 8.329,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1350,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 59,
+    "dayfeedperbird": 0.471,
+    "targetweight": 8.443,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1351,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 60,
+    "dayfeedperbird": 0.471,
+    "targetweight": 8.557,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1352,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 61,
+    "dayfeedperbird": 0.471,
+    "targetweight": 8.671,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1353,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 62,
+    "dayfeedperbird": 0.471,
+    "targetweight": 8.786,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1354,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 63,
+    "dayfeedperbird": 0.471,
+    "targetweight": 8.9,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1355,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 64,
+    "dayfeedperbird": 0.486,
+    "targetweight": 8.986,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1356,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 65,
+    "dayfeedperbird": 0.486,
+    "targetweight": 9.071,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1357,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 66,
+    "dayfeedperbird": 0.486,
+    "targetweight": 9.157,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1358,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 67,
+    "dayfeedperbird": 0.486,
+    "targetweight": 9.243,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1359,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 68,
+    "dayfeedperbird": 0.486,
+    "targetweight": 9.329,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1360,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 69,
+    "dayfeedperbird": 0.486,
+    "targetweight": 9.414,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1361,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 70,
+    "dayfeedperbird": 0.486,
+    "targetweight": 9.5,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1362,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 58,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.057,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1363,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 59,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.186,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1364,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 60,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.314,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1365,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 61,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.443,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1366,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 62,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.571,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1367,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 63,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.7,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1368,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 64,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.786,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1369,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 65,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.871,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1370,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 66,
+    "dayfeedperbird": 0.529,
+    "targetweight": 10.957,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1371,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 67,
+    "dayfeedperbird": 0.529,
+    "targetweight": 11.043,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1372,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 68,
+    "dayfeedperbird": 0.529,
+    "targetweight": 11.129,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1373,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 69,
+    "dayfeedperbird": 0.529,
+    "targetweight": 11.214,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1374,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 70,
+    "dayfeedperbird": 0.529,
+    "targetweight": 11.3,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1375,
+    "geneticname": "Ross308",
+    "breedid": "Male",
+    "age": 0,
+    "dayfeedperbird": 0.034,
+    "targetweight": 0.09,
+    "note": null,
+    "is_active": true
+  },
+  {
+    "id": 1376,
+    "geneticname": "Ross308",
+    "breedid": "Female",
+    "age": 0,
+    "dayfeedperbird": 0.034,
+    "targetweight": 0.09,
+    "note": null,
+    "is_active": true
+  }
+]

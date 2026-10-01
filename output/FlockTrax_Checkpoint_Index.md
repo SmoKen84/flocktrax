@@ -11,6 +11,10 @@ Purpose:
 
 ### October 2026
 
+- 2026-10-01 — Feed projection pre-arrival fix and breed standards sync
+  - [FlockTrax_Feed_Arrival_Standards_Checkpoint_2026-10-01.md](FlockTrax_Feed_Arrival_Standards_Checkpoint_2026-10-01.md)
+  - Fixes 344-W1 pre-arrival standards errors; verifies 284 production standards copied to demo while preserving 182 demo-only rows. Includes regression/live-data checks and recovery snapshots.
+
 - 2026-10-01 — Storm-safety recovery checkpoint — SAVED / DEPLOYED STATE
   - [FlockTrax_Storm_Safety_Checkpoint_2026-10-01.md](FlockTrax_Storm_Safety_Checkpoint_2026-10-01.md)
   - Production `49acde2`: Super Admin permissions-user selector and formatted printing deployed; demo remains at `963d758` without these two permissions changes. Records current deployments, local server restart, tests and print-QA limits, canceled menu-selector change, preserved dirty files, and exact recovery guidance.
@@ -712,3 +716,4 @@ For broader system state beyond the report feature, also use:
 For the shorter build-cut baseline specifically, also use:
 
 - [FlockTrax_Release_Build13_Checkpoint_2026-05-11_PM.md](C:\dev\FlockTrax\output\FlockTrax_Release_Build13_Checkpoint_2026-05-11_PM.md)
+
