@@ -39,6 +39,7 @@ alter table placements add constraint placements_no_overlap_per_barn exclude usi
 '@
     Invoke-TestSql (Get-Content -Raw (Join-Path $repoRoot 'supabase/migrations/20260922130000_fix_cancel_feed_drop_columns.sql'))
     Invoke-TestSql (Get-Content -Raw (Join-Path $repoRoot 'supabase/migrations/20261001150000_placement_reinstatement.sql'))
+    Invoke-TestSql (Get-Content -Raw (Join-Path $repoRoot 'supabase/migrations/20261001153000_reinstatement_previous_placement_boundary.sql'))
     Invoke-TestSql (Get-Content -Raw (Join-Path $repoRoot 'supabase/tests/placement_reinstatement.sql'))
     Write-Host 'Placement reinstatement SQL regression checks passed.'
 } finally {
