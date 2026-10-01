@@ -37,3 +37,9 @@ Production deployment: dpl_7SKf2nhpJqq9cR9B79Ezigyffziy, https://web-admin-b4rgw
 Keep both migrations with the application release. Do not reapply the first migration manually (it renames the existing cancellation function). Do not remove the database guard to work around a rejected reinstatement; correct the date window, membership, or inconsistent allocation instead. Preserve unrelated existing dirty files and historical worktrees. Prior Super Admin permission report/printing changes remain production-only. No mobile release.
 
 Final verification: production and demo deployments both READY with aliases updated. Both login URLs returned HTTP 200.
+
+## Active-placement correction — 2026-10-01
+
+346-W5 reinstatement for October 14 hit idx_unique_active_placement_per_barn because 364-W5 already held the awaiting-arrival slot. Migration 20261001160000_fix_reinstatement_active_barn_slot.sql returns the displaced current placement/flock to inactive future scheduling before making the inserted placement awaiting-arrival/current, all in the existing transaction. Occupied barns and later insertions keep the reinstated placement inactive/scheduled. No chicks are marked arrived.
+
+The local suite now includes the actual unique partial index as well as the barn-state triggers and verifies current-pointer handoff, former-next state, and inactive later reinstatement. All checks passed. This is a database-only correction; the sidebar highlight remains held on fix/placement-sidebar-highlight (7512e21), not included here. The failed user attempt rolled back and no live flock was reinstated by the agent.

@@ -24,7 +24,7 @@ begin
   insert into placements(id,farm_id,barn_id,flock_id,placement_key,active_start,active_end,lifecycle_stage,is_active,canceled_at,lh1_date,date_removed) values
     (source_id,farm,barn,sf,'REINSTATE','2030-02-01','2030-03-01','canceled',false,now(),'2030-02-20',null),
     (nextp,farm,barn,nf,'NEXT','2030-06-01','2030-07-01','awaiting_arrival',true,null,null,null),
-    (later,farm,barn,lf,'LATER','2030-09-01','2030-10-01','scheduled',true,null,null,null),
+    (later,farm,barn,lf,'LATER','2030-09-01','2030-10-01','scheduled',false,null,null,null),
     (prev,farm,barn,pf,'PREVIOUS','2029-11-01','2030-01-01','archived',false,null,null,'2030-01-01');
   insert into feed_drops(id,placement_id,placement_code,farm_id,barn_id,drop_weight,ticket_num,type) values
     (d1,nextp,'NEXT',farm,barn,125,'F2F-1','starter'),(d2,nextp,'NEXT',farm,barn,1000,'DELIVERY-1','grower'),
@@ -88,6 +88,9 @@ begin
   r:=public.preview_placement_reinstatement(source_id,'2030-03-01',actor);
   perform public.reinstate_canceled_placement(source_id,'2030-03-01',r->>'fingerprint',actor);
   assert (select count(*)=4 from feed_drops),'No feed drop created';
+  assert (select not is_active and lifecycle_stage='scheduled' from placements where id=nextp),'Former next placement returns to future schedule';
+  assert (select not is_active from flocks where id=nf),'Former next flock no longer current';
+  assert (select active_flock_id=sf and is_empty and not has_flock from barns where id=barn),'Barn current pointer follows reinstated flock without marking arrival';
   assert (select placement_id=source_id and placement_code='REINSTATE' and drop_weight=126 from feed_drops where id=d1),'F2F credit reassigned without changing weight';
   assert (select placement_id=source_id and placement_code='REINSTATE' from feed_drops where id=d2),'Regular delivery reassigned';
   assert (select queued_from_placement_id=source_id and queued_from_placement_code='REINSTATE' from feed_drops where id=queued),'Queue references follow placement';
@@ -95,7 +98,7 @@ begin
   assert (select placement_id=source_id from feed_order_commitments where commitment_id=ord),'Order follows allocation';
   assert (select placement_id=nextp from feed_order_commitments where commitment_id=canceled_ord),'Canceled order untouched';
   assert (select date_placed='2030-03-01' and male_date_placed='2030-03-02' and max_date='2030-03-29' and not is_in_barn from flocks where id=sf),'Date shift retains sex offset and arrival remains separate';
-  assert (select lifecycle_stage='scheduled' and canceled_at is null and lh1_date='2030-03-20' from placements where id=source_id),'Reinstated scheduling state and haul dates';
+  assert (select lifecycle_stage='awaiting_arrival' and is_active and canceled_at is null and lh1_date='2030-03-20' from placements where id=source_id),'Reinstated scheduling state and haul dates';
   failed:=false;
   begin perform public.reinstate_canceled_placement(source_id,'2030-03-01',r->>'fingerprint',actor); exception when others then failed:=true; end;
   assert failed,'Double submission cannot move feed twice';
@@ -114,6 +117,7 @@ begin
   assert (select count(*)=4 from feed_drops),'Cancel/reinstate cycle creates no feed drops';
   r:=public.preview_placement_reinstatement(source_id,'2030-07-02',actor);
   perform public.reinstate_canceled_placement(source_id,'2030-07-02',r->>'fingerprint',actor);
+  assert (select not is_active from placements where id=source_id),'Later reinstatement stays inactive';
   assert (select placement_id=nextp from feed_drops where id=d1),'Later reinstatement preserves next flock allocations';
   perform public.cancel_scheduled_placement(source_id,null,actor);
   update barns set is_empty=false,has_flock=true where id=barn;
@@ -126,7 +130,7 @@ begin
   r:=public.preview_placement_reinstatement(source_id,'2030-03-01',actor);
   assert not (r->>'move_feed')::boolean and r->>'next_id' is null,'No next placement needs no feed reassignment';
   perform public.reinstate_canceled_placement(source_id,'2030-03-01',r->>'fingerprint',actor);
-  assert (select lifecycle_stage='scheduled' from placements where id=source_id),'No-feed reinstatement succeeds';
+  assert (select lifecycle_stage='awaiting_arrival' and is_active from placements where id=source_id),'No-feed reinstatement succeeds';
   failed:=false;
   begin update placements set lifecycle_stage='canceled' where id=source_id; exception when others then failed:=true; end;
   assert failed,'Generic state updates cannot bypass cancellation checks';
