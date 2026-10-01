@@ -1,3 +1,4 @@
+import { canManagePlacementLifecycle } from "@/lib/placement-lifecycle-access";
 import { getBarnOrder } from "@/lib/barn-sort-settings";
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -237,7 +238,9 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
         ? windows.find((window) => selectedDate === window.startDate) ?? null
         : windows.find((window) => selectedDate >= window.startDate && selectedDate <= window.endDate) ?? null
       : null);
+  const canManageSelectedLifecycle = selectedPlacement ? await canManagePlacementLifecycle(selectedPlacement.farmId) : false;
   const canCancelSelectedPlacement = Boolean(
+    canManageSelectedLifecycle &&
     selectedPlacement &&
       !selectedPlacement.flockIsInBarn &&
       !selectedPlacement.actualEndDate &&
@@ -270,7 +273,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
              !window.actualEndDate &&
             !window.flockIsInBarn &&
             (window.lifecycleStage === "scheduled" || window.lifecycleStage === "awaiting_arrival") &&
-            (selectedPlacement.feedDropCount === 0 || window.barnId === selectedPlacement.barnId),
+            window.barnId === selectedPlacement.barnId,
         )
         .sort(
           (left, right) => {
@@ -285,6 +288,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
           },
         )
     : [];
+  cancellationTargets.splice(1); // Feed always follows the immediate next placement in this barn.
   const suggestedCancellationTargetId = cancellationTargets[0]?.id ?? null;
   const todayIso = new Date().toISOString().slice(0, 10);
   const selectedDateIsPast = Boolean(selectedDate && selectedDate < todayIso);
@@ -634,7 +638,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
 
                   <div className="helper-banner">
                     {selectedPlacementIsCanceled
-                      ? `${selectedPlacement.placementCode} was canceled and is retained here as a read-only scheduling record.`
+                      ? `${selectedPlacement.placementCode} was canceled. Authorized managers can use Reinstate Flock to review dates and feed before restoring it.`
                       : `Editing ${selectedPlacement.placementCode} from the farm board. You can update counts, flock dates, and actual live-haul dates without leaving this calendar.`}
                   </div>
 
@@ -763,6 +767,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                         Save Placement
                       </button>
                     ) : null}
+                    {selectedPlacementIsCanceled && canManageSelectedLifecycle ? <Link className="button" href={`/admin/placements/${selectedPlacement.id}/reinstate`}>Reinstate Flock</Link> : null}
                     {canCancelSelectedPlacement ? (
                       <UnassignFlockButton action={unassignScheduledPlacementAction} placementCode={selectedPlacement.placementCode} />
                     ) : null}
@@ -848,7 +853,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
 
               <div className="helper-banner">
                 {selectedPlacementIsCanceled
-                  ? `${selectedPlacement.placementCode} was canceled and is retained here as a read-only scheduling record.`
+                  ? `${selectedPlacement.placementCode} was canceled. Authorized managers can use Reinstate Flock to review dates and feed before restoring it.`
                   : "This flock is still scheduled for a future barn turn. Use the scheduler fields below to move the planned date or adjust the projected grow-out window before the flock goes live."}
               </div>
 
@@ -969,6 +974,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
               {canCancelSelectedPlacement ? (
                 <UnassignFlockButton action={unassignScheduledPlacementAction} placementCode={selectedPlacement.placementCode} />
               ) : null}
+              {selectedPlacementIsCanceled && canManageSelectedLifecycle ? <Link className="button" href={`/admin/placements/${selectedPlacement.id}/reinstate`}>Reinstate Flock</Link> : null}
               {canCancelSelectedPlacement ? (
                 <CancelScheduledPlacementControl
                   action={cancelScheduledPlacementAction}
@@ -1000,7 +1006,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
 
               <div className="helper-banner">
                 {selectedPlacementIsCanceled
-                  ? `${selectedPlacement.placementCode} was canceled and is retained here as a read-only scheduling record.`
+                  ? `${selectedPlacement.placementCode} was canceled. Authorized managers can use Reinstate Flock to review dates and feed before restoring it.`
                   : `Editing ${selectedPlacement.placementCode} in barn ${selectedBarn?.barnCode ?? ""}. Use this panel to update the flock profile, schedule dates, and live-haul dates.`}
               </div>
 
@@ -1138,6 +1144,7 @@ export default async function NewPlacementPage({ searchParams }: NewPlacementPag
                 {canCancelSelectedPlacement ? (
                   <UnassignFlockButton action={unassignScheduledPlacementAction} placementCode={selectedPlacement.placementCode} />
                 ) : null}
+                {selectedPlacementIsCanceled && canManageSelectedLifecycle ? <Link className="button" href={`/admin/placements/${selectedPlacement.id}/reinstate`}>Reinstate Flock</Link> : null}
                 {canCancelSelectedPlacement ? (
                   <CancelScheduledPlacementControl
                     action={cancelScheduledPlacementAction}

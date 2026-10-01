@@ -1,8 +1,10 @@
+import { canManagePlacementLifecycle } from "@/lib/placement-lifecycle-access";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { GoBackButton } from "@/components/go-back-button";
 import { PageHeader } from "@/components/page-header";
+import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { getFlockById } from "@/lib/admin-data";
 import { getFlockArchiveRecords } from "@/lib/flock-archive-data";
 import { getFlockHistoryReportBundle } from "@/lib/flock-history-report";
@@ -27,6 +29,8 @@ export default async function FlockDetailPage({ params }: FlockDetailPageProps) 
   const primaryPlacement = report.placements[0] ?? null;
   const archiveLabel = primaryPlacement?.placementCode ?? flock.flockCode;
   const isCanceled = archiveRecord.status === "canceled";
+  const source = isCanceled && primaryPlacement ? await createSupabaseAdminClient()?.from("placements").select("farm_id").eq("id", primaryPlacement.placementId).single() : null;
+  const canReinstate = source?.data ? await canManagePlacementLifecycle(source.data.farm_id) : false;
 
   return (
     <>
@@ -34,7 +38,7 @@ export default async function FlockDetailPage({ params }: FlockDetailPageProps) 
         eyebrow="Flock Detail"
         title={`${isCanceled ? "Canceled" : "Closed"} Flock ${archiveLabel}`}
         body={isCanceled
-          ? "This scheduled flock was canceled before placement. It is retained as a read-only historical record; no closeout, document, or editing actions are available."
+          ? "This scheduled flock was canceled before placement. Authorized managers can reinstate it after reviewing the placement date and feed allocations."
           : "This flock has been Completed & Archived. To preserve audit continuity; Documents may be attached for reference and Comments/Notes may be updated only. Final flock reports are also available to be reprinted."}
         actions={
           <>
@@ -58,6 +62,7 @@ export default async function FlockDetailPage({ params }: FlockDetailPageProps) 
                 </Link>
               </>
             ) : null}
+            {canReinstate && primaryPlacement ? <Link className="button" href={`/admin/placements/${primaryPlacement.placementId}/reinstate`}>Reinstate Flock</Link> : null}
             <GoBackButton />
           </>
         }
