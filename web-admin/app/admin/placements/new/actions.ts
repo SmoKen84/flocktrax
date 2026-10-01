@@ -529,6 +529,10 @@ export async function updatePlacementAction(formData: FormData) {
     | "canceled"
     | null;
 
+  if (requestedLifecycleStage === "canceled") {
+    redirect(buildLocation({ error: "Use Cancel Scheduled Flock so farm permissions and feed allocations are verified." }));
+  }
+
   if (requestedLifecycleStage === "archived") {
     redirect(
       buildLocation({
@@ -1271,11 +1275,8 @@ export async function deleteScheduledPlacementAction(formData: FormData) {
 }
 
 export async function cancelScheduledPlacementAction(formData: FormData) {
-  const { admin, actorId, actorName, actorRole } = await getAdminContext();
-  if (!canSchedulePlacements(actorRole)) {
-    redirect(buildLocation({ error: "Only authorized admin accounts can cancel scheduled placements." }));
-  }
-
+  const { admin, actorId, actorName } = await getAdminContext();
+  // The transactional RPC verifies role and real source/target farm memberships.
   if (!actorId) {
     redirect(buildLocation({ error: "A signed-in user is required to cancel a scheduled placement." }));
   }

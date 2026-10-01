@@ -69,7 +69,7 @@ export function CancelScheduledPlacementControl({
                 <div className="placement-cancel-warning">
                   <strong>Feed is associated with this flock.</strong>
                   <p>
-                    Choose the scheduled flock that should receive the feed before {placementCode} is canceled.
+                    The next scheduled flock in this barn receives the feed when {placementCode} is canceled.
                     The selection is checked again when you confirm.
                   </p>
                 </div>
@@ -95,7 +95,7 @@ export function CancelScheduledPlacementControl({
                       ))}
                     </select>
                     {suggestedTargetId ? (
-                      <small>The nearest logical scheduled flock is suggested, but you control the final destination.</small>
+                      <small>Feed stays in this barn and follows its next scheduled placement.</small>
                     ) : null}
                   </label>
                 ) : (
