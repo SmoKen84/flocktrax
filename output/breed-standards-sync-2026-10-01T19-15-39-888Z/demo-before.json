@@ -1,0 +1,1822 @@
+[
+  {
+    "id": 911,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 0,
+    "dayfeedperbird": 0.03,
+    "targetweight": 0.1,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 912,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 0,
+    "dayfeedperbird": 0.0324,
+    "targetweight": 0.11,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 913,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 1,
+    "dayfeedperbird": 0.038,
+    "targetweight": 0.103,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 914,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 1,
+    "dayfeedperbird": 0.041,
+    "targetweight": 0.113,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 915,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 2,
+    "dayfeedperbird": 0.046,
+    "targetweight": 0.111,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 916,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 2,
+    "dayfeedperbird": 0.0497,
+    "targetweight": 0.122,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 917,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 3,
+    "dayfeedperbird": 0.054,
+    "targetweight": 0.124,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 918,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 3,
+    "dayfeedperbird": 0.0583,
+    "targetweight": 0.137,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 919,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 4,
+    "dayfeedperbird": 0.062,
+    "targetweight": 0.143,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 920,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 4,
+    "dayfeedperbird": 0.067,
+    "targetweight": 0.158,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 921,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 5,
+    "dayfeedperbird": 0.07,
+    "targetweight": 0.168,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 922,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 5,
+    "dayfeedperbird": 0.0756,
+    "targetweight": 0.184,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 923,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 6,
+    "dayfeedperbird": 0.078,
+    "targetweight": 0.197,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 924,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 6,
+    "dayfeedperbird": 0.0842,
+    "targetweight": 0.217,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 925,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 7,
+    "dayfeedperbird": 0.086,
+    "targetweight": 0.232,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 926,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 7,
+    "dayfeedperbird": 0.0929,
+    "targetweight": 0.256,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 927,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 8,
+    "dayfeedperbird": 0.096,
+    "targetweight": 0.273,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 928,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 8,
+    "dayfeedperbird": 0.1037,
+    "targetweight": 0.3,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 929,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 9,
+    "dayfeedperbird": 0.106,
+    "targetweight": 0.319,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 930,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 9,
+    "dayfeedperbird": 0.1145,
+    "targetweight": 0.351,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 931,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 10,
+    "dayfeedperbird": 0.116,
+    "targetweight": 0.37,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 932,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 10,
+    "dayfeedperbird": 0.1253,
+    "targetweight": 0.407,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 933,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 11,
+    "dayfeedperbird": 0.126,
+    "targetweight": 0.427,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 934,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 11,
+    "dayfeedperbird": 0.1361,
+    "targetweight": 0.469,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 935,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 12,
+    "dayfeedperbird": 0.136,
+    "targetweight": 0.489,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 936,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 12,
+    "dayfeedperbird": 0.1469,
+    "targetweight": 0.538,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 937,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 13,
+    "dayfeedperbird": 0.146,
+    "targetweight": 0.556,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 938,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 13,
+    "dayfeedperbird": 0.1577,
+    "targetweight": 0.612,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 939,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 14,
+    "dayfeedperbird": 0.156,
+    "targetweight": 0.629,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 940,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 14,
+    "dayfeedperbird": 0.1685,
+    "targetweight": 0.692,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 941,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 15,
+    "dayfeedperbird": 0.166,
+    "targetweight": 0.708,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 942,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 15,
+    "dayfeedperbird": 0.1793,
+    "targetweight": 0.778,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 943,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 16,
+    "dayfeedperbird": 0.176,
+    "targetweight": 0.791,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 944,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 16,
+    "dayfeedperbird": 0.1901,
+    "targetweight": 0.87,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 945,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 17,
+    "dayfeedperbird": 0.186,
+    "targetweight": 0.88,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 946,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 17,
+    "dayfeedperbird": 0.2009,
+    "targetweight": 0.968,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 947,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 18,
+    "dayfeedperbird": 0.196,
+    "targetweight": 0.975,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 948,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 18,
+    "dayfeedperbird": 0.2117,
+    "targetweight": 1.072,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 949,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 19,
+    "dayfeedperbird": 0.206,
+    "targetweight": 1.075,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 950,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 19,
+    "dayfeedperbird": 0.2225,
+    "targetweight": 1.182,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 951,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 20,
+    "dayfeedperbird": 0.216,
+    "targetweight": 1.18,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 952,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 20,
+    "dayfeedperbird": 0.2333,
+    "targetweight": 1.298,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 953,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 21,
+    "dayfeedperbird": 0.226,
+    "targetweight": 1.291,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 954,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 21,
+    "dayfeedperbird": 0.2441,
+    "targetweight": 1.42,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 955,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 22,
+    "dayfeedperbird": 0.237,
+    "targetweight": 1.407,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 956,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 22,
+    "dayfeedperbird": 0.256,
+    "targetweight": 1.547,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 957,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 23,
+    "dayfeedperbird": 0.248,
+    "targetweight": 1.528,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 958,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 23,
+    "dayfeedperbird": 0.2678,
+    "targetweight": 1.681,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 959,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 24,
+    "dayfeedperbird": 0.259,
+    "targetweight": 1.655,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 960,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 24,
+    "dayfeedperbird": 0.2797,
+    "targetweight": 1.821,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 961,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 25,
+    "dayfeedperbird": 0.27,
+    "targetweight": 1.788,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 962,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 25,
+    "dayfeedperbird": 0.2916,
+    "targetweight": 1.966,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 963,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 26,
+    "dayfeedperbird": 0.281,
+    "targetweight": 1.925,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 964,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 26,
+    "dayfeedperbird": 0.3035,
+    "targetweight": 2.118,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 965,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 27,
+    "dayfeedperbird": 0.292,
+    "targetweight": 2.068,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 966,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 27,
+    "dayfeedperbird": 0.3154,
+    "targetweight": 2.275,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 967,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 28,
+    "dayfeedperbird": 0.303,
+    "targetweight": 2.217,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 968,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 28,
+    "dayfeedperbird": 0.3272,
+    "targetweight": 2.438,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 969,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 29,
+    "dayfeedperbird": 0.314,
+    "targetweight": 2.371,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 970,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 29,
+    "dayfeedperbird": 0.3391,
+    "targetweight": 2.608,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 971,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 30,
+    "dayfeedperbird": 0.325,
+    "targetweight": 2.53,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 972,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 30,
+    "dayfeedperbird": 0.351,
+    "targetweight": 2.783,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 973,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 31,
+    "dayfeedperbird": 0.336,
+    "targetweight": 2.695,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 974,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 31,
+    "dayfeedperbird": 0.3629,
+    "targetweight": 2.964,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 975,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 32,
+    "dayfeedperbird": 0.347,
+    "targetweight": 2.865,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 976,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 32,
+    "dayfeedperbird": 0.3748,
+    "targetweight": 3.151,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 977,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 33,
+    "dayfeedperbird": 0.358,
+    "targetweight": 3.04,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 978,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 33,
+    "dayfeedperbird": 0.3866,
+    "targetweight": 3.344,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 979,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 34,
+    "dayfeedperbird": 0.369,
+    "targetweight": 3.221,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 980,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 34,
+    "dayfeedperbird": 0.3985,
+    "targetweight": 3.543,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 981,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 35,
+    "dayfeedperbird": 0.38,
+    "targetweight": 3.408,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 982,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 35,
+    "dayfeedperbird": 0.4104,
+    "targetweight": 3.748,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 983,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 36,
+    "dayfeedperbird": 0.391,
+    "targetweight": 3.599,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 984,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 36,
+    "dayfeedperbird": 0.4223,
+    "targetweight": 3.959,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 985,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 37,
+    "dayfeedperbird": 0.402,
+    "targetweight": 3.796,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 986,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 37,
+    "dayfeedperbird": 0.4342,
+    "targetweight": 4.176,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 987,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 38,
+    "dayfeedperbird": 0.413,
+    "targetweight": 3.999,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 988,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 38,
+    "dayfeedperbird": 0.446,
+    "targetweight": 4.399,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 989,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 39,
+    "dayfeedperbird": 0.424,
+    "targetweight": 4.207,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 990,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 39,
+    "dayfeedperbird": 0.4579,
+    "targetweight": 4.627,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 991,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 40,
+    "dayfeedperbird": 0.435,
+    "targetweight": 4.42,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 992,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 40,
+    "dayfeedperbird": 0.4698,
+    "targetweight": 4.862,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 993,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 41,
+    "dayfeedperbird": 0.446,
+    "targetweight": 4.639,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 994,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 41,
+    "dayfeedperbird": 0.4817,
+    "targetweight": 5.103,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 995,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 42,
+    "dayfeedperbird": 0.457,
+    "targetweight": 4.863,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 996,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 42,
+    "dayfeedperbird": 0.4936,
+    "targetweight": 5.349,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 997,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 43,
+    "dayfeedperbird": 0.461,
+    "targetweight": 5.092,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 998,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 43,
+    "dayfeedperbird": 0.4979,
+    "targetweight": 5.602,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 999,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 44,
+    "dayfeedperbird": 0.465,
+    "targetweight": 5.327,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1000,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 44,
+    "dayfeedperbird": 0.5022,
+    "targetweight": 5.86,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1001,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 45,
+    "dayfeedperbird": 0.469,
+    "targetweight": 5.568,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1002,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 45,
+    "dayfeedperbird": 0.5065,
+    "targetweight": 6.124,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1003,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 46,
+    "dayfeedperbird": 0.473,
+    "targetweight": 5.813,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1004,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 46,
+    "dayfeedperbird": 0.5108,
+    "targetweight": 6.395,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1005,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 47,
+    "dayfeedperbird": 0.477,
+    "targetweight": 6.064,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1006,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 47,
+    "dayfeedperbird": 0.5152,
+    "targetweight": 6.671,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1007,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 48,
+    "dayfeedperbird": 0.481,
+    "targetweight": 6.321,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1008,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 48,
+    "dayfeedperbird": 0.5195,
+    "targetweight": 6.953,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1009,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 49,
+    "dayfeedperbird": 0.485,
+    "targetweight": 6.583,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1010,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 49,
+    "dayfeedperbird": 0.5238,
+    "targetweight": 7.241,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1011,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 50,
+    "dayfeedperbird": 0.489,
+    "targetweight": 6.85,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1012,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 50,
+    "dayfeedperbird": 0.5281,
+    "targetweight": 7.535,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1013,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 51,
+    "dayfeedperbird": 0.493,
+    "targetweight": 7.123,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1014,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 51,
+    "dayfeedperbird": 0.5324,
+    "targetweight": 7.835,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1015,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 52,
+    "dayfeedperbird": 0.497,
+    "targetweight": 7.401,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1016,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 52,
+    "dayfeedperbird": 0.5368,
+    "targetweight": 8.141,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1017,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 53,
+    "dayfeedperbird": 0.501,
+    "targetweight": 7.684,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1018,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 53,
+    "dayfeedperbird": 0.5411,
+    "targetweight": 8.453,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1019,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 54,
+    "dayfeedperbird": 0.505,
+    "targetweight": 7.973,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1020,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 54,
+    "dayfeedperbird": 0.5454,
+    "targetweight": 8.771,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1021,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 55,
+    "dayfeedperbird": 0.509,
+    "targetweight": 8.268,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1022,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 55,
+    "dayfeedperbird": 0.5497,
+    "targetweight": 9.094,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1023,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 56,
+    "dayfeedperbird": 0.513,
+    "targetweight": 8.567,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1024,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 56,
+    "dayfeedperbird": 0.554,
+    "targetweight": 9.424,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1025,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 57,
+    "dayfeedperbird": 0.517,
+    "targetweight": 8.872,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1026,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 57,
+    "dayfeedperbird": 0.5584,
+    "targetweight": 9.76,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1027,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 58,
+    "dayfeedperbird": 0.521,
+    "targetweight": 9.183,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1028,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 58,
+    "dayfeedperbird": 0.5627,
+    "targetweight": 10.101,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1029,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 59,
+    "dayfeedperbird": 0.525,
+    "targetweight": 9.499,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1030,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 59,
+    "dayfeedperbird": 0.567,
+    "targetweight": 10.449,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1031,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 60,
+    "dayfeedperbird": 0.529,
+    "targetweight": 9.82,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1032,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 60,
+    "dayfeedperbird": 0.5713,
+    "targetweight": 10.802,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1033,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 61,
+    "dayfeedperbird": 0.533,
+    "targetweight": 10.147,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1034,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 61,
+    "dayfeedperbird": 0.5756,
+    "targetweight": 11.161,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1035,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 62,
+    "dayfeedperbird": 0.537,
+    "targetweight": 10.479,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1036,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 62,
+    "dayfeedperbird": 0.58,
+    "targetweight": 11.527,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1037,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 63,
+    "dayfeedperbird": 0.541,
+    "targetweight": 10.816,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1038,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 63,
+    "dayfeedperbird": 0.5843,
+    "targetweight": 11.898,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1039,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 64,
+    "dayfeedperbird": 0.545,
+    "targetweight": 11.159,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1040,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 64,
+    "dayfeedperbird": 0.5886,
+    "targetweight": 12.275,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1041,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 65,
+    "dayfeedperbird": 0.549,
+    "targetweight": 11.508,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1042,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 65,
+    "dayfeedperbird": 0.5929,
+    "targetweight": 12.658,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1043,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 66,
+    "dayfeedperbird": 0.553,
+    "targetweight": 11.861,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1044,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 66,
+    "dayfeedperbird": 0.5972,
+    "targetweight": 13.047,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1045,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 67,
+    "dayfeedperbird": 0.557,
+    "targetweight": 12.22,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1046,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 67,
+    "dayfeedperbird": 0.6016,
+    "targetweight": 13.442,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1047,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 68,
+    "dayfeedperbird": 0.561,
+    "targetweight": 12.585,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1048,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 68,
+    "dayfeedperbird": 0.6059,
+    "targetweight": 13.843,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1049,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 69,
+    "dayfeedperbird": 0.565,
+    "targetweight": 12.955,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1050,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 69,
+    "dayfeedperbird": 0.6102,
+    "targetweight": 14.25,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1051,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 70,
+    "dayfeedperbird": 0.569,
+    "targetweight": 13.33,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1052,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 70,
+    "dayfeedperbird": 0.6145,
+    "targetweight": 14.663,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1053,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 71,
+    "dayfeedperbird": 0.573,
+    "targetweight": 13.711,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1054,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 71,
+    "dayfeedperbird": 0.6188,
+    "targetweight": 15.082,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1055,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 72,
+    "dayfeedperbird": 0.577,
+    "targetweight": 14.097,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1056,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 72,
+    "dayfeedperbird": 0.6232,
+    "targetweight": 15.506,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1057,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 73,
+    "dayfeedperbird": 0.581,
+    "targetweight": 14.488,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1058,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 73,
+    "dayfeedperbird": 0.6275,
+    "targetweight": 15.937,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1059,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 74,
+    "dayfeedperbird": 0.585,
+    "targetweight": 14.885,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1060,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 74,
+    "dayfeedperbird": 0.6318,
+    "targetweight": 16.374,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1061,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 75,
+    "dayfeedperbird": 0.589,
+    "targetweight": 15.288,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1062,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 75,
+    "dayfeedperbird": 0.6361,
+    "targetweight": 16.816,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1063,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 76,
+    "dayfeedperbird": 0.593,
+    "targetweight": 15.695,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1064,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 76,
+    "dayfeedperbird": 0.6404,
+    "targetweight": 17.265,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1065,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 77,
+    "dayfeedperbird": 0.597,
+    "targetweight": 16.108,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1066,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 77,
+    "dayfeedperbird": 0.6448,
+    "targetweight": 17.719,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1067,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 78,
+    "dayfeedperbird": 0.601,
+    "targetweight": 16.527,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1068,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 78,
+    "dayfeedperbird": 0.6491,
+    "targetweight": 18.179,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1069,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 79,
+    "dayfeedperbird": 0.605,
+    "targetweight": 16.951,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1070,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 79,
+    "dayfeedperbird": 0.6534,
+    "targetweight": 18.646,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1071,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 80,
+    "dayfeedperbird": 0.609,
+    "targetweight": 17.38,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1072,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 80,
+    "dayfeedperbird": 0.6577,
+    "targetweight": 19.118,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1073,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 81,
+    "dayfeedperbird": 0.613,
+    "targetweight": 17.815,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1074,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 81,
+    "dayfeedperbird": 0.662,
+    "targetweight": 19.596,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1075,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 82,
+    "dayfeedperbird": 0.617,
+    "targetweight": 18.255,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1076,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 82,
+    "dayfeedperbird": 0.6664,
+    "targetweight": 20.08,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1077,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 83,
+    "dayfeedperbird": 0.621,
+    "targetweight": 18.7,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1078,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 83,
+    "dayfeedperbird": 0.6707,
+    "targetweight": 20.57,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1079,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 84,
+    "dayfeedperbird": 0.625,
+    "targetweight": 19.151,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1080,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 84,
+    "dayfeedperbird": 0.675,
+    "targetweight": 21.066,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1081,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 85,
+    "dayfeedperbird": 0.629,
+    "targetweight": 19.608,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1082,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 85,
+    "dayfeedperbird": 0.6793,
+    "targetweight": 21.568,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1083,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 86,
+    "dayfeedperbird": 0.633,
+    "targetweight": 20.069,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1084,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 86,
+    "dayfeedperbird": 0.6836,
+    "targetweight": 22.076,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1085,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 87,
+    "dayfeedperbird": 0.637,
+    "targetweight": 20.536,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1086,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 87,
+    "dayfeedperbird": 0.688,
+    "targetweight": 22.59,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1087,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 88,
+    "dayfeedperbird": 0.641,
+    "targetweight": 21.009,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1088,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 88,
+    "dayfeedperbird": 0.6923,
+    "targetweight": 23.11,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1089,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 89,
+    "dayfeedperbird": 0.645,
+    "targetweight": 21.487,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1090,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 89,
+    "dayfeedperbird": 0.6966,
+    "targetweight": 23.635,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1091,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "female",
+    "age": 90,
+    "dayfeedperbird": 0.649,
+    "targetweight": 21.97,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  },
+  {
+    "id": 1092,
+    "geneticname": "Cobb 500 Demo",
+    "breedid": "male",
+    "age": 90,
+    "dayfeedperbird": 0.7009,
+    "targetweight": 24.167,
+    "note": "Synthetic breed standard used only by the isolated demo dataset.",
+    "is_active": true
+  }
+]
