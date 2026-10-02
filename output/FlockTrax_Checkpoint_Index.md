@@ -11,6 +11,10 @@ Purpose:
 
 ### October 2026
 
+- 2026-10-02 — Paywall discussion and starting-price hypotheses — DISCUSSION / NOT IMPLEMENTATION
+  - [FlockTrax_Paywall_Discussion_2026-10-02.md](FlockTrax_Paywall_Discussion_2026-10-02.md)
+  - Subscription/enterprise entitlements, server-side enforcement, grace periods, per-user versus farm/barn pricing, proposed USD 149 base package, and paid-pilot validation. Prices are unapproved hypotheses; no paywall implementation requested.
+
 - 2026-10-02 — Enterprise environment profiles and capacity planning — DISCUSSION / NOT IMPLEMENTATION
   - [FlockTrax_Enterprise_Environment_Architecture_Discussion_2026-10-02.md](FlockTrax_Enterprise_Environment_Architecture_Discussion_2026-10-02.md)
   - Records separate integrator projects, shared codebase, support-managed profile registry, secret handling, configuration independence, migration tracking, and future review triggers. No infrastructure build or deployment requested.
