@@ -1,6 +1,6 @@
 # FlockTrax Checkpoint Index
 
-Updated: 2026-10-01
+Updated: 2026-10-02
 
 Purpose:
 - one chronological list of the known FlockTrax checkpoint notes
@@ -10,6 +10,10 @@ Purpose:
 ## Chronological Index
 
 ### October 2026
+
+- 2026-10-02 — Enterprise environment profiles and capacity planning — DISCUSSION / NOT IMPLEMENTATION
+  - [FlockTrax_Enterprise_Environment_Architecture_Discussion_2026-10-02.md](FlockTrax_Enterprise_Environment_Architecture_Discussion_2026-10-02.md)
+  - Records separate integrator projects, shared codebase, support-managed profile registry, secret handling, configuration independence, migration tracking, and future review triggers. No infrastructure build or deployment requested.
 
 - 2026-10-01 — Canceled placement reinstatement and empty-barn feed allocation
   - [FlockTrax_Placement_Reinstatement_Checkpoint_2026-10-01.md](FlockTrax_Placement_Reinstatement_Checkpoint_2026-10-01.md)
