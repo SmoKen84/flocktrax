@@ -55,7 +55,8 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
           <p className="eyebrow">Detailed Report</p>
           <h1>Mortality</h1>
           <p>
-            Daily female and male mortality with opening balance-forward and ending population for each flock.
+            Daily female and male mortality, livehaul removals, and remaining barn population for each flock.
+            Population reflects recorded removals through each date; mixed-sex livehauls are allocated proportionally.
           </p>
         </header>
 
@@ -104,7 +105,7 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                         <th rowSpan={2}>Date</th>
                         <th colSpan={5}>Female</th>
                         <th colSpan={5}>Male</th>
-                        <th colSpan={2}>Combined</th>
+                        <th colSpan={3}>Combined</th>
                       </tr>
                       <tr>
                         <th>Placed</th>
@@ -118,6 +119,7 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                         <th>Daily Loss</th>
                         <th>Population</th>
                         <th>Daily Loss</th>
+                        <th>Livehaul Removed</th>
                         <th>Population</th>
                       </tr>
                     </thead>
@@ -134,6 +136,7 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                         <td>--</td>
                         <td>--</td>
                         <td>{formatWhole(section.openingMalePopulation)}</td>
+                        <td>--</td>
                         <td>--</td>
                         <td>{formatWhole(section.openingTotalPopulation)}</td>
                       </tr>
@@ -151,6 +154,7 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                           <td>{formatActivity(day.maleLoss)}</td>
                           <td>{formatWhole(day.malePopulation)}</td>
                           <td>{formatActivity(day.totalLoss)}</td>
+                          <td>{formatPlacementActivity(day.livehaulRemoved)}</td>
                           <td>{formatWhole(day.totalPopulation)}</td>
                         </tr>
                       ))}
@@ -163,6 +167,7 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                         <td>--</td>
                         <td>{formatWhole(section.endingMalePopulation)}</td>
                         <td>{formatWhole(section.totalLossInRange)}</td>
+                        <td>{formatWhole(section.livehaulRemovedInRange)}</td>
                         <td>{formatWhole(section.endingTotalPopulation)}</td>
                       </tr>
                     </tbody>
@@ -178,6 +183,7 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                       <col className="mortality-report-print-loss-column" />
                       <col className="mortality-report-print-population-column" />
                       <col className="mortality-report-print-loss-column" />
+                      <col className="mortality-report-print-loss-column" />
                       <col className="mortality-report-print-total-column" />
                     </colgroup>
                     <thead>
@@ -185,7 +191,7 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                         <th rowSpan={2}>Date</th>
                         <th colSpan={2}>Female</th>
                         <th colSpan={2}>Male</th>
-                        <th colSpan={2}>Combined</th>
+                        <th colSpan={3}>Combined</th>
                       </tr>
                       <tr>
                         <th>Mortality</th>
@@ -193,6 +199,7 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                         <th>Mortality</th>
                         <th>Population</th>
                         <th>Mortality</th>
+                        <th>Livehaul</th>
                         <th>Population</th>
                       </tr>
                     </thead>
@@ -203,6 +210,7 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                         <td>{formatWhole(section.openingFemalePopulation)}</td>
                         <td>--</td>
                         <td>{formatWhole(section.openingMalePopulation)}</td>
+                        <td>--</td>
                         <td>--</td>
                         <td>{formatWhole(section.openingTotalPopulation)}</td>
                       </tr>
@@ -220,6 +228,7 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                             {day.malePlaced > 0 ? <small>Placed +{formatWhole(day.malePlaced)}</small> : null}
                           </td>
                           <td>{formatActivity(day.totalLoss)}</td>
+                          <td>{formatPlacementActivity(day.livehaulRemoved)}</td>
                           <td>{formatWhole(day.totalPopulation)}</td>
                         </tr>
                       ))}
@@ -230,6 +239,7 @@ export default async function MortalityReportPage({ searchParams }: MortalityRep
                         <td>{formatWhole(section.maleLossInRange)}</td>
                         <td>{formatWhole(section.endingMalePopulation)}</td>
                         <td>{formatWhole(section.totalLossInRange)}</td>
+                        <td>{formatWhole(section.livehaulRemovedInRange)}</td>
                         <td>{formatWhole(section.endingTotalPopulation)}</td>
                       </tr>
                     </tbody>

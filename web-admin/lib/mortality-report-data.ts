@@ -3,6 +3,8 @@ import { unstable_noStore as noStore } from "next/cache";
 import { clampDateRange } from "@/lib/report-calendar";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { getMortalityWindows } from "@/lib/mortality-window-data";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
+import { removeLivehaulBirds, type MortalityPopulationHaul } from "@/lib/mortality-population";
 import type { PlacementLifecycleStage } from "@/lib/types";
 
 type PlacementRow = {
@@ -61,6 +63,7 @@ export type MortalityReportDay = {
   maleLoss: number | null;
   malePopulation: number;
   totalLoss: number | null;
+  livehaulRemoved: number;
   totalPopulation: number;
 };
 
@@ -80,6 +83,7 @@ export type MortalityReportSection = {
   femaleLossInRange: number;
   maleLossInRange: number;
   totalLossInRange: number;
+  livehaulRemovedInRange: number;
   endingFemalePopulation: number;
   endingMalePopulation: number;
   endingTotalPopulation: number;
@@ -133,7 +137,7 @@ export async function getMortalityReportData(options: {
   });
   if (!source) return empty;
 
-  const { placements, flockById, farmById, barnById, mortalityRows, mortalityWindows } = source;
+  const { placements, flockById, farmById, barnById, mortalityRows, mortalityWindows, livehaulsByPlacement } = source;
   const openingByPlacement = new Map(mortalityWindows.map((row) => [row.placement_id, row]));
   const mortalityByPlacement = groupMortality(mortalityRows);
   const inferredEndByPlacement = inferPlacementEndDates(placements, flockById);
@@ -163,18 +167,18 @@ export async function getMortalityReportData(options: {
       if (sectionStart > sectionEnd) return null;
 
       const rows = mortalityByPlacement.get(placement.id) ?? [];
-      const openingFemalePopulation = calculateOpeningPopulation(
+      let openingFemalePopulation = calculateOpeningPopulation(
         flock.start_cnt_females ?? 0,
         femalePlacedDate,
-        sectionStart,
+        placedDate,
         rows,
         "female",
         openingByPlacement.get(placement.id)?.opening_female ?? 0,
       );
-      const openingMalePopulation = calculateOpeningPopulation(
+      let openingMalePopulation = calculateOpeningPopulation(
         flock.start_cnt_males ?? 0,
         malePlacedDate,
-        sectionStart,
+        placedDate,
         rows,
         "male",
         openingByPlacement.get(placement.id)?.opening_male ?? 0,
@@ -184,12 +188,13 @@ export async function getMortalityReportData(options: {
       let malePopulation = openingMalePopulation;
       const days: MortalityReportDay[] = [];
 
-      for (const date of dateKeys(sectionStart, sectionEnd)) {
+      const hauls = livehaulsByPlacement.get(placement.id) ?? [];
+      for (const date of dateKeys(placedDate, sectionEnd)) {
         const daily = rows.find((row) => row.log_date === date);
         const femalePlaced =
-          femalePlacedDate === date && femalePlacedDate > sectionStart ? flock.start_cnt_females ?? 0 : 0;
+          femalePlacedDate === date && femalePlacedDate > placedDate ? flock.start_cnt_females ?? 0 : 0;
         const malePlaced =
-          malePlacedDate === date && malePlacedDate > sectionStart ? flock.start_cnt_males ?? 0 : 0;
+          malePlacedDate === date && malePlacedDate > placedDate ? flock.start_cnt_males ?? 0 : 0;
         const femaleDead = daily?.dead_female ?? null;
         const femaleCull = daily?.cull_female ?? null;
         const maleDead = daily?.dead_male ?? null;
@@ -197,22 +202,32 @@ export async function getMortalityReportData(options: {
         const femaleLoss = sumNullableCounts(femaleDead, femaleCull);
         const maleLoss = sumNullableCounts(maleDead, maleCull);
 
+        if (date === sectionStart) {
+          openingFemalePopulation = femalePopulation + femalePlaced;
+          openingMalePopulation = malePopulation + malePlaced;
+        }
         femalePopulation = Math.max(0, femalePopulation + femalePlaced - (femaleLoss ?? 0));
         malePopulation = Math.max(0, malePopulation + malePlaced - (maleLoss ?? 0));
 
+        const removal = removeLivehaulBirds(femalePopulation, malePopulation, hauls.filter((haul) => haul.date === date));
+        femalePopulation = removal.female;
+        malePopulation = removal.male;
+        if (date < sectionStart) continue;
+
         days.push({
           date,
-          femalePlaced,
+          femalePlaced: date === sectionStart ? 0 : femalePlaced,
           femaleDead,
           femaleCull,
           femaleLoss,
           femalePopulation,
-          malePlaced,
+          malePlaced: date === sectionStart ? 0 : malePlaced,
           maleDead,
           maleCull,
           maleLoss,
           malePopulation,
           totalLoss: sumNullableCounts(femaleLoss, maleLoss),
+          livehaulRemoved: removal.removed,
           totalPopulation: femalePopulation + malePopulation,
         });
       }
@@ -236,6 +251,7 @@ export async function getMortalityReportData(options: {
         femaleLossInRange,
         maleLossInRange,
         totalLossInRange: femaleLossInRange + maleLossInRange,
+        livehaulRemovedInRange: days.reduce((total, day) => total + day.livehaulRemoved, 0),
         endingFemalePopulation: femalePopulation,
         endingMalePopulation: malePopulation,
         endingTotalPopulation: femalePopulation + malePopulation,
@@ -356,7 +372,7 @@ async function loadMortalitySources(options: {
   const barnIds = unique(placements.map((row) => row.barn_id));
   const placementIds = unique(placements.map((row) => row.id));
 
-  const [flocksResult, farmsResult, barnsResult, mortalityWindows] = await Promise.all([
+  const [flocksResult, farmsResult, barnsResult] = await Promise.all([
     flockIds.length
       ? supabase
           .from("flocks")
@@ -369,9 +385,6 @@ async function loadMortalitySources(options: {
     barnIds.length
       ? supabase.from("barns").select("id,barn_code").in("id", barnIds)
       : Promise.resolve({ data: [], error: null }),
-    options.includeMortality && options.startDate && options.endDate
-      ? getMortalityWindows(supabase, placementIds, options.startDate, options.endDate)
-      : Promise.resolve([]),
   ]);
 
   const sourceError = flocksResult.error || farmsResult.error || barnsResult.error;
@@ -379,18 +392,66 @@ async function loadMortalitySources(options: {
     throw new Error(`Mortality report failed to load: ${sourceError.message}`);
   }
 
+  const flocks = (flocksResult.data ?? []) as FlockRow[];
+  // Replay history so mixed-sex hauls use the population on their actual date,
+  // and removals before the selected range carry into its opening balance.
+  const historyStart = earliestDate(options.startDate ?? null,
+    ...flocks.flatMap((flock) => [flock.female_date_placed, flock.male_date_placed, flock.date_placed]),
+    ...placements.map((placement) => placement.active_start));
+  const [mortalityWindows, livehaulsByPlacement] = await Promise.all([
+    options.includeMortality && historyStart && options.endDate
+      ? getMortalityWindows(supabase, placementIds, historyStart, options.endDate) : Promise.resolve([]),
+    options.includeMortality ? loadLivehaulRemovals(supabase, placementIds)
+      : Promise.resolve(new Map<string, MortalityPopulationHaul[]>()),
+  ]);
+
   return {
     placements,
     flockById: new Map(((flocksResult.data ?? []) as FlockRow[]).map((row) => [row.id, row])),
     farmById: new Map(((farmsResult.data ?? []) as FarmRow[]).map((row) => [row.id, row])),
     barnById: new Map(((barnsResult.data ?? []) as BarnRow[]).map((row) => [row.id, row])),
     mortalityWindows,
+    livehaulsByPlacement,
     mortalityRows: mortalityWindows.flatMap((window) => window.days.map((day) => ({
       ...day,
       placement_id: window.placement_id,
       is_active: true,
     }))) as MortalityRow[],
   };
+}
+
+async function loadLivehaulRemovals(supabase: NonNullable<ReturnType<typeof createSupabaseAdminClient>>, placementIds: string[]) {
+  const grouped = new Map<string, MortalityPopulationHaul[]>();
+  for (let offset = 0; offset < placementIds.length; offset += 100) {
+    const schedules = await fetchAllRows((from, to) => supabase.from("livehaul_schedule")
+      .select("livehaul_id,placement_id,lh_date,actual_date,target_sex,head_actual,status,sequence_num")
+      .in("placement_id", placementIds.slice(offset, offset + 100))
+      .order("lh_date").order("sequence_num").order("livehaul_id").range(from, to));
+    if (schedules.error) throw new Error(`Mortality livehauls failed to load: ${schedules.error.message}`);
+    const rows = schedules.data ?? [];
+    const heads = new Map<string, number>();
+    for (let loadOffset = 0; loadOffset < rows.length; loadOffset += 100) {
+      const loads = await fetchAllRows((from, to) => supabase.from("livehaul_loads").select("load_id,livehaul_id,head_count")
+        .in("livehaul_id", rows.slice(loadOffset, loadOffset + 100).map((row) => row.livehaul_id))
+        .order("load_id").range(from, to));
+      if (loads.error) throw new Error(`Mortality livehaul loads failed to load: ${loads.error.message}`);
+      for (const load of loads.data ?? []) {
+        if (load.head_count !== null) heads.set(load.livehaul_id, (heads.get(load.livehaul_id) ?? 0) + load.head_count);
+      }
+    }
+    for (const row of rows) {
+      if (row.status === "cancelled" || row.status === "canceled") continue;
+      const head = heads.get(row.livehaul_id) ?? row.head_actual;
+      if (head === null || head <= 0) continue;
+      const date = row.actual_date ?? row.lh_date;
+      if (!date) continue;
+      const hauls = grouped.get(row.placement_id) ?? [];
+      hauls.push({ date, head, sex: row.target_sex === "female" || row.target_sex === "male" ? row.target_sex : null });
+      grouped.set(row.placement_id, hauls);
+    }
+  }
+  for (const hauls of grouped.values()) hauls.sort((a, b) => a.date.localeCompare(b.date));
+  return grouped;
 }
 
 function groupMortality(rows: MortalityRow[]) {
