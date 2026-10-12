@@ -1,5 +1,11 @@
 # Barn Vacancy Calendar — production checkpoint, October 12, 2026
 
+## Follow-up: bold group and farm headings
+
+Deployed source `3800d41` adds bold Farm Group and Farm names above every calendar page. Farms are separated by group/farm IDs, with each farm's months together and a maximum of ten barns per continuation page. Printed pages begin with these headings; the overall screen introduction is hidden when printing. The vacancy calculation is unchanged.
+
+Production deployment `dpl_9k6wqMd9JUPuXqkrSN4X4jTQg79f` is READY at https://web-admin-a1e2uq2jx-flock-trax.vercel.app and aliased to https://flocktrax.com. Ten tests, TypeScript, and hosted build checks passed. Render coverage includes multiple groups, identically named farms in different groups, and an eleven-barn farm continuing onto a labeled second page. Authenticated production browser inspection confirmed bold Smotherman Farms / Woape headings on both October and November calendars. Native PDF pagination remains unverified visually.
+
 ## Delivered
 
 Reports → Quick Access Reports → Barn Vacancy Calendar → Preview.
