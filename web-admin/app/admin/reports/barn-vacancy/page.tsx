@@ -35,7 +35,7 @@ export default async function BarnVacancyPage({ searchParams }: {
     loadFailed = true;
   }
   return (
-    <div className={styles.report}>
+    <div className={`calendar-report-page ${styles.report}`}>
       <div className={`calendar-report-toolbar ${styles.toolbar}`}>
         <FeedProjectionReportActions />
         <Link className="button-secondary" href={`/admin/reports?${backParams}`}>← Back to Reports</Link>
