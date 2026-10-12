@@ -5,6 +5,7 @@ import { ReminderReportOptions } from "@/app/admin/reports/setup/reminder-report
 import { ReportsFilterPanel } from "@/app/admin/reports/reports-filter-panel";
 import { PageHeader } from "@/components/page-header";
 import { getAdminData } from "@/lib/admin-data";
+import { getVacancyBarnOptions, vacancyFilterOptions } from "@/lib/barn-vacancy-report-data";
 import { buildCloseoutQueueReportFilterOptions, getScopedCloseoutQueueItems } from "@/lib/closeout-queue-report-data";
 import { getFeedDropsReportFilterOptions } from "@/lib/feed-drops-report-data";
 import { getMortalityReportFilterOptions } from "@/lib/mortality-report-data";
@@ -35,6 +36,7 @@ const reportCategories: ReportCategory[] = [
       { key: "my_permissions", label: "My Permissions" },
       { key: "quick_placements_report", label: "Placements Report" },
       { key: "quick_livehaul_report", label: "Livehaul Report" },
+      { key: "barn_vacancy", label: "Barn Vacancy Calendar" },
     ],
   },
   {
@@ -136,6 +138,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
       : Promise.resolve(null),
   ]);
   const closeoutFilterOptions = closeoutQueueItems ? buildCloseoutQueueReportFilterOptions(closeoutQueueItems) : null;
+  const vacancyOptions = reportKey === "barn_vacancy" ? vacancyFilterOptions(await getVacancyBarnOptions(actor)) : null;
   const activeFarmGroups = dedupeBy(
     adminData.activePlacements.map((placement) => ({
       id: placement.farmGroupId,
@@ -174,10 +177,10 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
     })),
     (entry) => entry.id,
   ).sort((left, right) => left.label.localeCompare(right.label, undefined, { numeric: true }));
-  const filterFarmGroups = closeoutFilterOptions?.farmGroups ?? queuedFeedFilterOptions?.farmGroups ?? feedDropsFilterOptions?.farmGroups ?? mortalityFilterOptions?.farmGroups ?? activeFarmGroups;
-  const filterFarms = closeoutFilterOptions?.farms ?? queuedFeedFilterOptions?.farms ?? feedDropsFilterOptions?.farms ?? mortalityFilterOptions?.farms ?? activeFarms;
+  const filterFarmGroups = vacancyOptions?.farmGroups ?? closeoutFilterOptions?.farmGroups ?? queuedFeedFilterOptions?.farmGroups ?? feedDropsFilterOptions?.farmGroups ?? mortalityFilterOptions?.farmGroups ?? activeFarmGroups;
+  const filterFarms = vacancyOptions?.farms ?? closeoutFilterOptions?.farms ?? queuedFeedFilterOptions?.farms ?? feedDropsFilterOptions?.farms ?? mortalityFilterOptions?.farms ?? activeFarms;
   const barnOrder = await getBarnOrder();
-  const filterBarns = closeoutFilterOptions?.barns ?? queuedFeedFilterOptions?.barns ?? feedDropsFilterOptions?.barns ?? mortalityFilterOptions?.barns ?? activeBarns;
+  const filterBarns = vacancyOptions?.barns ?? closeoutFilterOptions?.barns ?? queuedFeedFilterOptions?.barns ?? feedDropsFilterOptions?.barns ?? mortalityFilterOptions?.barns ?? activeBarns;
   const filterFlocks = closeoutFilterOptions?.flocks ?? queuedFeedFilterOptions?.flocks ?? feedDropsFilterOptions?.flocks ?? mortalityFilterOptions?.flocks ?? activeFlocks;
 
   filterBarns.sort((a, b) => (barnOrder.get(a.id) ?? Infinity) - (barnOrder.get(b.id) ?? Infinity));
@@ -313,6 +316,7 @@ export default async function ReportsHubPage({ searchParams }: ReportsHubPagePro
             selectedReport?.key === "at_a_glance" ||
             selectedReport?.key === "quick_placements_report" ||
             selectedReport?.key === "quick_livehaul_report" ||
+            selectedReport?.key === "barn_vacancy" ||
             selectedReport?.key === "detailed_placements_report" ||
             selectedReport?.key === "detailed_livehaul_report" ||
             selectedReport?.key === "detailed_mortality_report" ||

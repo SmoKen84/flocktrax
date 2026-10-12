@@ -99,6 +99,7 @@ export function ReportsFilterPanel({
   const showDaysField = reportKey === "custom_feed_projection";
   const showDateField = reportKey === "at_a_glance";
   const showDateRangeField = [
+    "barn_vacancy",
     "quick_placements_report",
     "quick_livehaul_report",
     "detailed_placements_report",
@@ -109,7 +110,7 @@ export function ReportsFilterPanel({
     "queued_feed_deliveries",
   ].includes(reportKey);
   const showBarnField = true;
-  const showFlockField = reportKey !== "bulk_density_verification" && reportKey !== "feed_drops_report" && reportKey !== "queued_feed_deliveries" && reportKey !== "feed_inventory";
+  const showFlockField = reportKey !== "barn_vacancy" && reportKey !== "bulk_density_verification" && reportKey !== "feed_drops_report" && reportKey !== "queued_feed_deliveries" && reportKey !== "feed_inventory";
   const showFeedMillField = reportKey === "queued_feed_deliveries";
   const showSortOrderField = reportKey === "feed_drops_report" || reportKey === "closeout_queue_status";
   const isCloseoutQueueReport = reportKey === "closeout_queue_status";
@@ -674,7 +675,7 @@ function buildFeedProjectionPreviewHref({
     params.set("includeBinSentryOnOrder", includeBinSentryOnOrder ? "1" : "0");
   }
   if (reportKey === "at_a_glance" && reportDate) params.set("reportDate", reportDate);
-  if (["quick_placements_report", "quick_livehaul_report", "detailed_placements_report", "detailed_livehaul_report", "detailed_mortality_report", "closeout_queue_status", "feed_drops_report", "queued_feed_deliveries"].includes(reportKey)) {
+  if (["barn_vacancy", "quick_placements_report", "quick_livehaul_report", "detailed_placements_report", "detailed_livehaul_report", "detailed_mortality_report", "closeout_queue_status", "feed_drops_report", "queued_feed_deliveries"].includes(reportKey)) {
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
   }
@@ -685,6 +686,9 @@ function buildFeedProjectionPreviewHref({
   if (returnTo === "closeout") params.set("returnTo", "closeout");
   const query = params.toString();
   const pathname =
+    reportKey === "barn_vacancy"
+      ? "/admin/reports/barn-vacancy"
+      :
     reportKey === "bulk_density_verification"
       ? "/admin/reports/bulk-density-verification"
       : reportKey === "custom_feed_projection"
