@@ -49,7 +49,7 @@ export default async function BarnVacancyPage({ searchParams }: {
       </header>
       {loadFailed ? <p role="alert" className="panel card">The placement schedule could not be loaded. Please reload this report; vacancy dates have not been calculated.</p>
         : !rows.length ? <p className="panel card">No active barns match your filters and account access.</p>
-        : collectMonthKeys(startDate, endDate).map((monthKey) => {
+        : buildCalendarPages(rows, collectMonthKeys(startDate, endDate)).map(({ monthKey, barns, farmGroupName, farmName, pageKey, firstBarn, farmBarnCount }) => {
           const monthStart = `${monthKey}-01`;
           const date = new Date(`${monthStart}T00:00:00Z`);
           const dayCount = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
@@ -57,9 +57,14 @@ export default async function BarnVacancyPage({ searchParams }: {
           const dates = Array.from({ length: dayCount }, (_, index) => addCalendarDays(monthStart, index));
           const title = date.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
           return (
-            <section className={styles.month} key={monthKey} aria-label={`${title} vacancy calendar`}>
-              <h2>{title}</h2>
-              <p className={styles.note}>Each row is one barn. The line covers every vacant date, including weekends.</p>
+            <section className={styles.month} key={pageKey} aria-label={`${farmGroupName} — ${farmName} — ${title} vacancy calendar`}>
+              <header className={styles.farmHeading}>
+                <p><strong>Farm Group: {farmGroupName}</strong></p>
+                <p><strong>Farm: {farmName}</strong></p>
+              </header>
+              <h2>Barn Vacancy Calendar · {title}</h2>
+              {farmBarnCount > 10 ? <p className={styles.note}>Barns {firstBarn}–{firstBarn + barns.length - 1} of {farmBarnCount}</p> : null}
+              <p className={styles.note}>Solid colored lines show projected vacancy from placement start + 43 days until the next placement, including weekends.</p>
               <div className={styles.scroll} tabIndex={0} aria-label={`${title} calendar, scroll horizontally on smaller screens`}>
                 <div className={styles.calendar} role="table" aria-label={`${title} projected barn vacancies`}>
                   <div className={styles.row} role="row">
@@ -73,7 +78,7 @@ export default async function BarnVacancyPage({ searchParams }: {
                       })}
                     </div>
                   </div>
-                  {rows.map((barn) => {
+                  {barns.map((barn) => {
                     const intervals = barn.intervals.flatMap((interval) => {
                       const clipped = clipVacancy(interval, monthStart, monthEnd);
                       return clipped ? [clipped] : [];
@@ -93,7 +98,7 @@ export default async function BarnVacancyPage({ searchParams }: {
               </div>
               <details className={styles.details}>
                 <summary>Vacancy dates by barn</summary>
-                <dl>{rows.map((barn) => {
+                <dl>{barns.map((barn) => {
                   const intervals = barn.intervals.flatMap((interval) => { const clipped = clipVacancy(interval, monthStart, monthEnd); return clipped ? [clipped] : []; });
                   return <div key={barn.id}><dt>{barn.barnCode} · {barn.farmName}</dt><dd>{barn.unknown ? "Unknown — placement start date missing" : intervals.length ? intervals.map((interval) => `${formatDate(interval.startDate)} – ${formatDate(interval.endDate)}`).join("; ") : "No projected vacancy"}</dd></div>;
                 })}</dl>
@@ -106,6 +111,27 @@ export default async function BarnVacancyPage({ searchParams }: {
 }
 
 function first(value: string | string[] | undefined) { return (Array.isArray(value) ? value[0] : value) || null; }
+function buildCalendarPages(rows: Awaited<ReturnType<typeof getBarnVacancyReport>>, monthKeys: string[]) {
+  const farms = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const key = `${row.farmGroupId}/${row.farmId}`;
+    const barns = farms.get(key) ?? [];
+    barns.push(row);
+    farms.set(key, barns);
+  }
+  return Array.from(farms.entries()).flatMap(([farmKey, farmBarns]) => monthKeys.flatMap((monthKey) =>
+    // Bound each printed page so even a large farm repeats its group and farm heading.
+    Array.from({ length: Math.ceil(farmBarns.length / 10) }, (_, index) => ({
+      monthKey,
+      barns: farmBarns.slice(index * 10, index * 10 + 10),
+      farmGroupName: farmBarns[0].farmGroupName,
+      farmName: farmBarns[0].farmName,
+      pageKey: `${farmKey}/${monthKey}/${index}`,
+      firstBarn: index * 10 + 1,
+      farmBarnCount: farmBarns.length,
+    })),
+  ));
+}
 function formatDate(value: string) {
   return new Date(`${value}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }

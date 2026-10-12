@@ -114,12 +114,28 @@ test("calendar renders continuous spans, labels, empty/error states and scoped n
     const page = load("../app/admin/reports/barn-vacancy/page.tsx", { ...baseMocks,
       "@/lib/barn-vacancy-report-data": { getBarnVacancyReport: async () => {
         if (mode === "error") throw new Error("failure");
-        return mode === "empty" ? [] : [{ id: "a", barnCode: "A", farmName: "Farm One", unknown: false, intervals: [{ startDate: "2027-01-05", endDate: "2027-01-12" }] }];
+        const barn = { id: "a", barnCode: "A", farmId: "f1", farmGroupId: "g1", farmGroupName: "Group One", farmName: "Farm One", unknown: false, intervals: [{ startDate: "2027-01-05", endDate: "2027-01-12" }] };
+        return mode === "empty" ? [] : [
+          ...Array.from({ length: 11 }, (_, index) => ({ ...barn, id: `a${index}`, barnCode: `A${index}` })),
+          { ...barn, id: "b", barnCode: "B", farmId: "f2", farmName: "Farm Two" },
+          { ...barn, id: "c", barnCode: "C", farmId: "f3", farmGroupId: "g2", farmGroupName: "Group Two" },
+        ];
       } },
     });
     const html = renderToStaticMarkup(await page.default({ searchParams: Promise.resolve({ barnId: "a", startDate: "2027-01-01", endDate: "2027-01-31" }) }));
     assert.ok(html.includes("report=barn_vacancy"));
-    if (mode === "rows") { assert.ok(html.includes("grid-column:5 / 13")); assert.ok(html.includes("Jan 5, 2027 through Jan 12, 2027")); }
+    if (mode === "rows") {
+      assert.ok(html.includes("grid-column:5 / 13"));
+      assert.ok(html.includes("Jan 5, 2027 through Jan 12, 2027"));
+      const pages = [...html.matchAll(/<section[^>]*>(.*?)<\/section>/gs)].map(match => match[1]);
+      assert.equal(pages.length, 4, "11 barns continue on a labeled page, other farms get separate pages");
+      assert.ok(pages[0].includes("<strong>Farm Group: Group One</strong>"));
+      assert.ok(pages[1].includes("<strong>Farm: Farm One</strong>"));
+      assert.ok(pages[1].includes("Barns 11–11 of 11"));
+      assert.ok(pages[2].includes("<strong>Farm: Farm Two</strong>"));
+      assert.ok(!pages[2].includes("Farm One"));
+      assert.ok(pages[3].includes("<strong>Farm Group: Group Two</strong>"), "same farm name in another group stays separate");
+    }
     if (mode === "empty") assert.ok(html.includes("No active barns match"));
     if (mode === "error") { assert.ok(html.includes("could not be loaded")); assert.ok(!html.includes('role="table"')); }
   }

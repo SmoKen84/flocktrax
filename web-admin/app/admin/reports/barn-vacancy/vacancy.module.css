@@ -4,6 +4,9 @@
 .header p { max-width: 1050px; line-height: 1.55; }
 .note { color: #536a77; font-size: 13px; line-height: 1.5; }
 .month h2 { margin: 0 0 6px; }
+.farmHeading { border-bottom: 2px solid #cbd8df; padding-bottom: 10px; margin-bottom: 14px; }
+.farmHeading p { margin: 3px 0; font-size: 20px; line-height: 1.3; overflow-wrap: anywhere; }
+.farmHeading strong { font-weight: 800; }
 .scroll { overflow-x: auto; border: 1px solid #cbd8df; border-radius: 8px; margin-top: 16px; }
 .calendar { min-width: 1000px; }
 .row { display: grid; grid-template-columns: 155px minmax(0, 1fr); border-bottom: 1px solid #d5dfe5; }
@@ -36,13 +39,15 @@
   @page barn-vacancy { size: letter landscape; margin: 0.35in; }
   .report { page: barn-vacancy; display: block; font-size: 10px; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .toolbar { display: none !important; }
-  .header { border: 0; padding: 0; margin-bottom: 10px; }
+  .header { display: none; }
   .header h1 { font-size: 19px; margin: 0; }
   .header p { margin: 4px 0; line-height: 1.25; }
   .note { font-size: 9px; }
   .month { padding: 0; border: 0; border-radius: 0; margin-top: 12px; break-inside: avoid; }
   .month ~ .month { break-before: page; }
   .month h2 { font-size: 16px; }
+  .farmHeading { padding-bottom: 6px; margin-bottom: 8px; break-after: avoid; }
+  .farmHeading p { font-size: 16px; }
   .scroll { overflow: visible; margin-top: 6px; }
   .calendar { min-width: 0; }
   .row { grid-template-columns: 105px minmax(0, 1fr); break-inside: avoid; }
