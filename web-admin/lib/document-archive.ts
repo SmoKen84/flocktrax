@@ -30,6 +30,9 @@ export type DocumentArchiveListItem = {
 
 export type FlockDocumentInventoryItem = {
   documentId: string;
+  feedTicketId: string | null;
+  livehaulScheduleId: string | null;
+  livehaulLoadId: string | null;
   documentRole: string;
   documentLabel: string;
   originalFilename: string | null;
@@ -109,6 +112,9 @@ export async function getFlockDocumentInventory({
   return [...rowsById.values()]
     .map((row) => ({
       documentId: row.id,
+      feedTicketId: row.feed_ticket_id,
+      livehaulScheduleId: row.livehaul_schedule_id,
+      livehaulLoadId: row.livehaul_load_id ?? null,
       documentRole: String(row.document_role ?? "").trim(),
       documentLabel: formatDocumentRole(row.document_role),
       originalFilename: row.original_filename?.trim() || null,

@@ -3,11 +3,12 @@ import { Fragment } from "react";
 import { notFound } from "next/navigation";
 
 import { ArchiveSummaryActions } from "@/app/admin/flock-closeout/archive-summary-actions";
-import { FlockDocumentReportSection } from "@/components/flock-document-report";
+import { FlockDocumentLinks, FlockDocumentReportSection } from "@/components/flock-document-report";
+import { ReportDocumentLink } from "@/components/report-document-link";
 import { LogWeightReportSection } from "@/components/log-weight-report";
 import { PageHeader } from "@/components/page-header";
 import { getCloseoutQueueData } from "@/lib/closeout-data";
-import { getFlockDocumentInventory } from "@/lib/document-archive";
+import { FEED_TICKET_DOCUMENT_ROLE, getFlockDocumentInventory } from "@/lib/document-archive";
 import { getFeedTicketFlockReportBundle } from "@/lib/feed-ticket-data";
 import { getFlockHistoryReportBundle } from "@/lib/flock-history-report";
 import { getPlacementLogWeightReportBundle } from "@/lib/placement-log-weight-report";
@@ -247,6 +248,9 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
                         <div>
                           <p className="eyebrow">{`LH${livehaul.sequenceNum ?? "--"}`}</p>
                           <h3>{formatDayDate(livehaul.actualDate ?? livehaul.lhDate)}</h3>
+                          <FlockDocumentLinks documents={flockDocuments.filter((document) =>
+                            document.livehaulScheduleId === livehaul.livehaulId && !document.livehaulLoadId
+                          )} />
                         </div>
                         <div className="closeout-report-livehaul-pills">
                           <span className="closeout-report-summary-pill">
@@ -289,7 +293,7 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
                               <th>Loaded</th>
                               <th>Live Wt</th>
                               <th>Avg/Head</th>
-                              <th>Comment</th>
+                              <th>Comment / Documents</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -312,7 +316,12 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
                                     <td>{formatWeightNullable(load.scaleLoaded)}</td>
                                     <td>{formatWeightNullable(load.liveWeight)}</td>
                                     <td>{formatRatio(avgHeadWeight)}</td>
-                                    <td>{load.comment || "--"}</td>
+                                    <td>
+                                      {load.comment || "--"}
+                                      <FlockDocumentLinks documents={flockDocuments.filter((document) =>
+                                        document.livehaulLoadId === load.loadId
+                                      )} />
+                                    </td>
                                   </tr>
                                 );
                               })
@@ -418,7 +427,13 @@ export default async function ArchiveSummaryPage({ params }: ArchiveSummaryPageP
                       feedReport.rows.map((row) => (
                         <tr key={row.id}>
                           <td>{formatShortDate(row.deliveryDate)}</td>
-                          <td>{row.ticketNumber || "--"}</td>
+                          <td>
+                            <ReportDocumentLink documentId={flockDocuments.find((document) =>
+                              document.feedTicketId === row.ticketId && document.documentRole === FEED_TICKET_DOCUMENT_ROLE
+                            )?.documentId}>
+                              {row.ticketNumber || "--"}
+                            </ReportDocumentLink>
+                          </td>
                           <td>{row.ticketType || "--"}</td>
                           <td>{row.source || "--"}</td>
                           <td>{row.barnCode || "--"}</td>

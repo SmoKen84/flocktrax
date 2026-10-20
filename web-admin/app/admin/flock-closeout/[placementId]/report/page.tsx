@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { CloseoutReportActions } from "@/app/admin/flock-closeout/closeout-report-actions";
-import { FlockDocumentReportSection } from "@/components/flock-document-report";
+import { FlockDocumentLinks, FlockDocumentReportSection } from "@/components/flock-document-report";
+import { ReportDocumentLink } from "@/components/report-document-link";
 import { PageHeader } from "@/components/page-header";
 import { getUserAccessBundle } from "@/lib/access-control";
 import { getCloseoutQueueData } from "@/lib/closeout-data";
 import { getFeedTicketFlockReportBundle } from "@/lib/feed-ticket-data";
 import { getFlockHistoryReportBundle, type FlockHistoryActionItem } from "@/lib/flock-history-report";
-import { getFlockDocumentInventory } from "@/lib/document-archive";
+import { FEED_TICKET_DOCUMENT_ROLE, getFlockDocumentInventory } from "@/lib/document-archive";
 
 type CloseoutReportPageProps = {
   params: Promise<{
@@ -193,6 +194,9 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
                       <div>
                         <p className="eyebrow">{`LH${livehaul.sequenceNum ?? "--"}`}</p>
                         <h3>{formatDayDate(livehaul.actualDate ?? livehaul.lhDate)}</h3>
+                        <FlockDocumentLinks documents={flockDocuments.filter((document) =>
+                          document.livehaulScheduleId === livehaul.livehaulId && !document.livehaulLoadId
+                        )} />
                       </div>
                       <div className="closeout-report-livehaul-pills">
                         <span className="closeout-report-summary-pill">
@@ -235,7 +239,7 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
                             <th>Loaded</th>
                             <th>Live Wt</th>
                             <th>Avg/Head</th>
-                            <th>Comment</th>
+                            <th>Comment / Documents</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -258,7 +262,12 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
                                   <td>{formatWeightNullable(load.scaleLoaded)}</td>
                                   <td>{formatWeightNullable(load.liveWeight)}</td>
                                   <td>{formatRatio(avgHeadWeight)}</td>
-                                  <td>{load.comment || "--"}</td>
+                                  <td>
+                                    {load.comment || "--"}
+                                    <FlockDocumentLinks documents={flockDocuments.filter((document) =>
+                                      document.livehaulLoadId === load.loadId
+                                    )} />
+                                  </td>
                                 </tr>
                               );
                             })
@@ -364,7 +373,13 @@ export default async function CloseoutReportPage({ params }: CloseoutReportPageP
                     feedReport.rows.map((row) => (
                       <tr key={row.id}>
                         <td>{formatShortDate(row.deliveryDate)}</td>
-                        <td>{row.ticketNumber || "--"}</td>
+                        <td>
+                          <ReportDocumentLink documentId={flockDocuments.find((document) =>
+                            document.feedTicketId === row.ticketId && document.documentRole === FEED_TICKET_DOCUMENT_ROLE
+                          )?.documentId}>
+                            {row.ticketNumber || "--"}
+                          </ReportDocumentLink>
+                        </td>
                         <td>{row.ticketType || "--"}</td>
                         <td>{row.source || "--"}</td>
                         <td>{row.barnCode || "--"}</td>

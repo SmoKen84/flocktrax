@@ -16483,6 +16483,29 @@ tr:last-child td {
     overflow-x: auto;
   }
 }
+.report-document-link,
+.report-document-link:visited {
+  color: #000080;
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+  overflow-wrap: anywhere;
+}
+
+.report-document-link:hover {
+  text-decoration-thickness: 2px;
+}
+
+.report-document-link:focus-visible {
+  outline: 2px solid #000080;
+  outline-offset: 3px;
+}
+
+.report-document-links {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+
 .feed-ticket-flat-ticket-link {
   color: inherit;
   text-decoration: underline;
