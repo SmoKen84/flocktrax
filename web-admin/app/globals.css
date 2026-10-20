@@ -4924,6 +4924,8 @@ tr:last-child td {
 
 .placement-tile {
   position: relative;
+  display: flex;
+  flex-direction: column;
   padding: 20px;
   border-radius: 20px;
   border: 1px solid rgba(49, 67, 51, 0.12);
@@ -6048,7 +6050,8 @@ tr:last-child td {
   flex-wrap: wrap;
   justify-content: center;
   gap: 10px;
-  margin-top: 12px;
+  margin-top: auto;
+  padding-top: 12px;
 }
 
 .tile-feed-action-button {
