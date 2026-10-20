@@ -52,7 +52,7 @@ export function DashboardFeedProjection({ placement }: { placement: ActivePlacem
     ? row.onHandLbs + row.onOrderLbs - row.totalLbs : null;
 
   return <>
-    <button ref={trigger} type="button" className="tile-feed-action-button"
+    <button ref={trigger} type="button" className="tile-feed-action-button" title="10 day feed requirement"
       aria-label={`Open 10 day feed requirement for ${placement.placementCode}`} aria-haspopup="dialog"
       onMouseEnter={() => void load()} onFocus={() => void load()}
       onClick={() => { setOpen(true); void load(); }}>

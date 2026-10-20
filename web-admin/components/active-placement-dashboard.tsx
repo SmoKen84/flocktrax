@@ -1212,7 +1212,7 @@ function PlacementTile({
               href={feedReportHref}
               rel="noopener noreferrer"
               target="_blank"
-              title="Open flock feed report"
+              title="Flock feed report"
             >
               <svg aria-hidden="true" fill="none" height="24" viewBox="0 0 16 16" width="24">
                 <path
