@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 
 import type { FeedTicketAdminBundle, FeedTicketAdminRow } from "@/lib/feed-ticket-data";
@@ -767,9 +768,15 @@ export function FeedTicketConsole({
         />
       ) : null}
 
-      {selectorState ? (
+      {/* Keep the fixed selector outside the panel's backdrop-filter and overflow clipping. */}
+      {selectorState ? createPortal(
         <div className="feed-ticket-selector-scrim" onClick={() => setSelectorState(null)}>
-          <div className="feed-ticket-selector-card" onClick={(event) => event.stopPropagation()}>
+          <div
+            aria-label={selectorState.title}
+            className="feed-ticket-selector-card"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
             <p className="feed-ticket-selector-title">{selectorState.title}</p>
             <div className="feed-ticket-selector-list">
               <button
@@ -810,7 +817,8 @@ export function FeedTicketConsole({
               Close
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
 
       {readerState ? (

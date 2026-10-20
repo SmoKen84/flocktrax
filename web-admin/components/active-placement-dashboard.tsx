@@ -834,6 +834,9 @@ function PlacementTile({
   const shouldShowPendingBadge = placement.tileState === "live" && !hasOpenItems && !shouldShowCompletionBadge;
   const shouldShowDefaultHeaderBadge = placement.tileState !== "live";
   const hasFeedProjection = placement.feedProjectionTenDayDaily.length > 0 && placement.feedProjectionTenDayTotal !== null;
+  const feedReportHref = placement.tileState !== "empty" && placement.placementCode.trim()
+    ? `/admin/feed-tickets/report?${new URLSearchParams({ flockCode: placement.placementCode.trim() })}`
+    : null;
 
   function closeCheckoutPopup() {
     if (isPending) {
@@ -1199,9 +1202,29 @@ function PlacementTile({
           <div className="progress-fill" style={{ width: `${placement.completionPercent}%` }} />
         </div>
       </div>
-      {hasFeedProjection ? (
+      {hasFeedProjection || feedReportHref ? (
         <div className="tile-feed-action-row">
-          <DashboardFeedProjection placement={placement} />
+          {hasFeedProjection ? <DashboardFeedProjection placement={placement} /> : null}
+          {feedReportHref ? (
+            <Link
+              aria-label={`Open feed report for ${placement.placementCode}`}
+              className="tile-feed-action-button"
+              href={feedReportHref}
+              rel="noopener noreferrer"
+              target="_blank"
+              title="Open flock feed report"
+            >
+              <svg aria-hidden="true" fill="none" height="24" viewBox="0 0 16 16" width="24">
+                <path
+                  d="M4.75 2.75h6.5v3h-6.5zM3.5 4.5a1.75 1.75 0 0 0-1.75 1.75v3h2v4h8.5v-4h2v-3A1.75 1.75 0 0 0 12.5 4.5h-1M5.25 10.25h5.5M5.25 12h3.5"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.25"
+                />
+              </svg>
+            </Link>
+          ) : null}
         </div>
       ) : null}
       {mortalityPopupMode ? (

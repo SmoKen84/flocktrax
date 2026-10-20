@@ -6046,12 +6046,13 @@ tr:last-child td {
 .tile-feed-action-row {
   display: flex;
   justify-content: center;
+  gap: 10px;
   margin-top: 12px;
 }
 
 .tile-feed-action-button {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -6060,12 +6061,11 @@ tr:last-child td {
   background: rgba(255, 250, 242, 0.96);
   color: #6f331d;
   box-shadow: 0 10px 22px rgba(48, 41, 29, 0.08);
-  transform: translateX(-18px);
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
 
 .tile-feed-action-button:hover {
-  transform: translateX(-18px) translateY(-1px);
+  transform: translateY(-1px);
   border-color: rgba(84, 49, 30, 0.3);
   box-shadow: 0 14px 28px rgba(48, 41, 29, 0.12);
 }
@@ -12319,7 +12319,10 @@ tr:last-child td {
 
 .feed-ticket-selector-card {
   width: min(100%, 28rem);
+  max-height: calc(100vh - 3rem);
+  max-height: calc(100dvh - 3rem);
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0.9rem;
   padding: 1.1rem;
   border-radius: 1.25rem;
@@ -12337,11 +12340,14 @@ tr:last-child td {
 .feed-ticket-selector-list {
   display: grid;
   gap: 0.45rem;
+  min-height: 0;
   max-height: 18rem;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .feed-ticket-selector-option {
+  min-height: 44px;
   padding: 0.7rem 0.8rem;
   border-radius: 0.85rem;
   border: 1px solid rgba(131, 90, 42, 0.12);
