@@ -1207,12 +1207,12 @@ function PlacementTile({
           {hasFeedProjection ? <DashboardFeedProjection placement={placement} /> : null}
           {feedReportHref ? (
             <Link
-              aria-label={`Open feed report for ${placement.placementCode}`}
+              aria-label={`Open Feed Audit for ${placement.placementCode}`}
               className="tile-feed-action-button"
               href={feedReportHref}
               rel="noopener noreferrer"
               target="_blank"
-              title="Flock feed report"
+              title="Feed Audit"
             >
               <svg aria-hidden="true" fill="none" height="24" viewBox="0 0 16 16" width="24">
                 <path
@@ -1223,6 +1223,7 @@ function PlacementTile({
                   strokeWidth="1.25"
                 />
               </svg>
+              <span>Feed Audit</span>
             </Link>
           ) : null}
         </div>

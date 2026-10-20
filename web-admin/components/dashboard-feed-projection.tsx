@@ -52,11 +52,12 @@ export function DashboardFeedProjection({ placement }: { placement: ActivePlacem
     ? row.onHandLbs + row.onOrderLbs - row.totalLbs : null;
 
   return <>
-    <button ref={trigger} type="button" className="tile-feed-action-button" title="10 day feed requirement"
-      aria-label={`Open 10 day feed requirement for ${placement.placementCode}`} aria-haspopup="dialog"
+    <button ref={trigger} type="button" className="tile-feed-action-button" title="Feed Projection (10 days)"
+      aria-label={`Open Feed Projection for ${placement.placementCode}`} aria-haspopup="dialog"
       onMouseEnter={() => void load()} onFocus={() => void load()}
       onClick={() => { setOpen(true); void load(); }}>
       <Image alt="" className="tile-feed-action-icon" priority={false} src={feedBinIcon} />
+      <span>Feed Projection</span>
     </button>
     {open && createPortal(<dialog ref={dialog} className="mortality-popup-panel feed-projection-popup-panel feed-quick-dialog"
       aria-labelledby={titleId} onCancel={() => setOpen(false)} onClose={() => setOpen(false)}
