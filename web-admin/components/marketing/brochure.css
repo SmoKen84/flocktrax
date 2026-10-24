@@ -1,0 +1,132 @@
+.brochure { background: #fffdf8; }
+.brochure .header { height: auto; min-height: 88px; padding: 16px max(5vw, calc((100vw - 1380px) / 2)); border-bottom: 1px solid #dfd8c7; }
+.brochure .header nav { gap: 23px; }
+.brochure .header .wordmark { font-size: 34px; }
+.brochure .header .button { padding: 12px 17px; font-size: 15px; gap: 10px; }
+.brochure .section { padding: 88px max(6vw, calc((100vw - 1280px) / 2)); }
+.brochure h2 { font-size: clamp(36px, 4vw, 58px); line-height: 1.08; font-weight: 600; }
+.brochure h3 { font-size: clamp(26px, 2.7vw, 36px); line-height: 1.17; font-weight: 550; }
+.brochure h4 { margin: 0 0 14px; font-size: 18px; line-height: 1.3; }
+.brochure .section p { font-size: 19px; line-height: 1.6; }
+.brochure .section .eyebrow, .brochure .eyebrow { font-size: 12px; line-height: 1.5; margin-bottom: 18px; }
+.brochure .section h2 + p, .brochure .section h3 + p { margin-top: 22px; }
+.brochure .section p + p { margin-top: 16px; }
+.brochure-hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 50px; align-items: center; padding: 64px max(6vw, calc((100vw - 1280px) / 2)) 70px; background: #14382d; color: #fffdf5; }
+.brochure-hero .eyebrow { color: #e3bb6a; }
+.brochure-hero h1 { font-size: clamp(48px, 4.7vw, 68px); font-weight: 550; line-height: 1.06; letter-spacing: -.045em; }
+.brochure-hero-copy > p { max-width: 590px; font-size: 18px; color: #d5e0d4; }
+.brochure-hero-copy .hero-lead { margin: 26px 0 16px; font-size: 23px; line-height: 1.45; color: #fffdf5; }
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 30px; }
+.brochure-text-link { display: inline-flex; align-items: center; gap: 7px; border-bottom: 1px solid #b6c1ac; padding: 5px 0; }
+.hero-signature { display: flex; flex-wrap: wrap; gap: 5px 16px; margin-top: 38px; padding-top: 16px; border-top: 1px solid #587061; font-size: 13px; color: #c4d1c1; }
+.brochure-hero-photo img { width: 100%; height: 570px; object-fit: cover; object-position: 57% center; }
+.brochure-hero-photo figcaption { font-size: 13px; padding-top: 12px; color: #d2ddcd; }
+.brochure-connection { display: grid; grid-template-columns: 1.1fr 1fr; gap: 90px; align-items: center; }
+.connection-roles { margin-top: 32px; border-top: 1px solid #d4c7ac; }
+.connection-roles p { display: grid; grid-template-columns: 115px 1fr; gap: 15px; padding-top: 18px; }
+.connection-roles strong { font-size: 16px; color: #8c4b26; }
+.connection-roles span { font-size: 17px; }
+.brochure-capture { min-width: 0; }
+.brochure-capture > button { position: relative; display: block; width: 100%; padding: 0; border: 1px solid #d8cdb8; background: #f1ecdf; border-radius: 5px; overflow: hidden; }
+.brochure-capture > button:hover { outline: 2px solid #b57d31; outline-offset: 4px; }
+.brochure-capture img { display: block; width: 100%; height: auto; }
+.brochure-capture figcaption { padding-top: 12px; font-size: 14px; color: #526354; }
+.capture-enlarge { position: absolute; right: 9px; bottom: 9px; display: inline-flex; align-items: center; gap: 6px; background: #14382d; color: #fffdf5; border: 1px solid #a7b8a4; padding: 6px 9px; font-size: 12px; border-radius: 3px; }
+.admin-capture { max-width: 440px; justify-self: center; width: 100%; }
+.admin-capture > button { box-shadow: 0 18px 40px #172e2618; }
+.brochure-platform { background: #edeedf; }
+.brochure-section-heading { max-width: 860px; }
+.brochure-architecture { margin: 0 !important; }
+.brochure .brochure-layout-dialog { width: min(1200px, 94vw); }
+.layout-content { padding: 30px; }
+.layout-return { margin-top: 32px; }
+.brochure-architecture img { display: block; width: 100%; height: auto; max-width: 1100px; margin: auto; border: 1px solid #d8cfb9; }
+.brochure-architecture figcaption { text-align: center; font-size: 14px; color: #526354; margin-top: 14px; }
+.platform-key { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; margin-top: 38px; }
+.brochure .platform-key p { margin: 0; font-size: 16px; border-top: 2px solid #b48b3e; padding-top: 16px; }
+.platform-key strong { display: block; margin-bottom: 8px; color: #14382d; font-size: 19px; }
+.brochure .mobile-connection { margin-top: 36px; }
+.brochure .mobile-connection summary { font-size: 23px; cursor: pointer; }
+.brochure-split { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+.brochure-scene { width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
+.brochure .section .brochure-note { font-size: 14px; color: #57674f; }
+.brochure-tablets { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 44px; }
+.collected-data { margin-top: 54px; border-top: 1px solid #d4c7ac; padding-top: 34px; }
+.data-groups { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px; margin-top: 30px; }
+.data-groups h4 { color: #8c4b26; }
+.data-groups ul { margin: 0; padding-left: 17px; font-size: 16px; line-height: 1.5; }
+.data-groups li { margin-bottom: 8px; }
+.brochure .data-groups p { font-size: 13px; color: #58675d; margin-top: 14px; }
+.brochure-feed { background: #f2eddf; }
+.brochure-phones { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; max-width: 940px; margin: 44px auto 0; }
+.brochure-copy-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 70px; margin-top: 54px; padding-top: 32px; border-top: 1px solid #cfbea0; }
+.brochure .section .section-lead { font-size: 25px; color: #8c4b26; }
+.brochure-work-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 85px; align-items: center; }
+.brochure-work-layout .brochure-scene { margin-top: 30px; }
+.brochure-work-layout .work-capture { width: 100%; max-width: 320px; justify-self: center; }
+.brochure-audit { display: grid; grid-template-columns: 1fr 1.15fr; gap: 64px; align-items: center; background: #f2eddf; scroll-margin-top: 30px; }
+.brochure-audit h2 em { font-weight: 500; color: #8c4b26; }
+.brochure-integrations { background: #edf0e6; }
+.brochure-forecast { display: grid; gap: 30px; margin-top: 40px; }
+.brochure-forecast figcaption { font-weight: 650; color: #14382d; font-size: 17px; }
+.integration-split { margin-top: 64px; padding-top: 42px; border-top: 1px solid #c2ccb7; }
+.integration-split h4 { margin-top: 28px; }
+.integration-list { list-style: none; padding: 0; margin: 0; }
+.integration-list li { display: grid; grid-template-columns: 115px 1fr; gap: 10px; padding: 12px 0; border-top: 1px solid #c2ccb7; font-size: 16px; }
+.brochure-story { display: grid; grid-template-columns: .8fr 1.2fr; gap: 80px; background: #fffdf8; }
+.brochure .story-byline { color: #8c4b26; font-size: 16px; }
+.brochure .story-prose p { font-size: 19px; }
+.story-prose blockquote { margin: 24px 0; border-left: 3px solid #c69c48; padding-left: 24px; font-family: Fraunces, Georgia, serif; font-size: 30px; line-height: 1.3; }
+.brochure .story-signoff { font-weight: 700; padding-top: 18px; border-top: 1px solid #d4c7ac; margin-top: 28px; }
+.brochure .contact .request-title-block h2 { font-size: clamp(40px, 5vw, 68px); }
+.brochure .contact .credentials { max-width: 600px; margin: 12px auto 0; line-height: 1.6; }
+.brochure footer .footer-link { margin-left: 24px; }
+.brochure .brochure-viewer { width: min(1400px, 94vw); }
+.brochure .brochure-viewer .original { width: auto; max-width: 100%; max-height: none; margin: 0 auto; }
+.brochure .brochure-viewer .original[src*="work-orders"], .brochure .brochure-viewer .original[src*="feed-tickets"], .brochure .brochure-viewer .original[src*="feed-drops"], .brochure .brochure-viewer .original[src*="feed-allocation"] { max-height: 78vh; width: auto; }
+@media (max-width: 1100px) {
+  .brochure .header { flex-wrap: wrap; justify-content: center; gap: 14px; }
+  .brochure .header nav { flex-wrap: wrap; justify-content: center; gap: 12px 24px; }
+  .brochure-hero { gap: 28px; }
+  .brochure-hero-photo img { height: 520px; }
+  .brochure-hero h1 { font-size: 57px; }
+  .brochure .section { padding: 64px 5%; }
+  .brochure-connection, .brochure-split, .brochure-story { gap: 38px; }
+  .data-groups { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+  .brochure-audit, .brochure-work-layout { gap: 38px; }
+  .platform-key { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .brochure .header { padding: 15px 5%; gap: 14px; }
+  .brochure .header .wordmark { font-size: 32px; }
+  .brochure .header nav { font-size: 14px; gap: 12px 19px; }
+  .brochure .header nav > a[href='#story'] { display: inline; }
+  .brochure .header nav > a[href='#platform'] { display: inline; }
+  .brochure-hero { grid-template-columns: 1fr; padding: 40px 6% 35px; gap: 30px; }
+  .brochure-hero h1 { font-size: clamp(42px, 9.5vw, 64px); }
+  .brochure-hero-copy .hero-lead { font-size: 21px; }
+  .brochure-hero-photo img { height: auto; aspect-ratio: 3 / 2; object-position: center; }
+  .hero-signature { margin-top: 26px; }
+  .brochure .section { padding: 48px 6%; }
+  .brochure .section p { font-size: 17px; }
+  .brochure h2 { font-size: 37px; }
+  .brochure-connection, .brochure-split, .brochure-copy-columns, .brochure-story { grid-template-columns: 1fr; gap: 30px; }
+  .brochure-feed > .brochure-split > img { order: 2; }
+  .brochure-tablets { grid-template-columns: 1fr; margin-top: 30px; }
+  .brochure-phones { gap: 25px; grid-template-columns: 1fr; max-width: 300px; margin-top: 32px; }
+  .data-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .data-groups > div:last-child { grid-column: 1 / -1; }
+  .brochure .data-groups p { font-size: 13px; }
+  .platform-key { gap: 22px; }
+  .brochure .platform-key p { font-size: 15px; }
+  .brochure-copy-columns { margin-top: 36px; }
+  .brochure-audit, .brochure-work-layout { grid-template-columns: 1fr; gap: 30px; }
+  .brochure-work-layout .work-capture { max-width: 280px; }
+  .layout-content { padding: 20px; }
+  .integration-split { margin-top: 40px; padding-top: 30px; }
+  .story-prose blockquote { font-size: 26px; padding-left: 18px; }
+  .brochure .contact .request-title-block h2 { font-size: 38px; }
+  .brochure .brochure-viewer .dialog-head { flex-wrap: wrap; }
+  .brochure .brochure-viewer .dialog-head > div { width: 100%; justify-content: space-between; }
+}
+@media (prefers-reduced-motion: reduce) { .brochure *, .brochure *::before, .brochure *::after { scroll-behavior: auto; transition: none; } }

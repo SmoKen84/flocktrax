@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { MarketingLanding } from "@/components/marketing/marketing-landing";
 import { getPlatformPolicyByName } from "@/lib/platform-content";
 import "@/components/marketing/marketing.css";
+import "@/components/marketing/brochure.css";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
- title: "FlockTrax — From barn floor to the bigger picture",
- description: "Live flock records, feed planning and field workflows. FlockTrax connects farm teams and integrators from barn floor to the bigger picture.",
- openGraph: {title:"FlockTrax — From barn floor to the bigger picture",description:"One database. One live picture. Explore FlockTrax for your poultry operation.",url:"https://flocktrax.com",images:[{url:"https://flocktrax.com/marketing/media/barn-worker.png"}]},
+ title: "FlockTrax — From the Barn to the Big Picture",
+ description: "Connected flock management, from one farm to multiple growers. Daily records, feed planning, work orders and original documents. Built by a farmer, for farmers.",
+ openGraph: {title:"FlockTrax — From the Barn to the Big Picture",description:"Two applications. One connected operation. Explore daily flock records, feed management and document audits.",url:"https://flocktrax.com",images:[{url:"https://flocktrax.com/marketing/brochure/barn.webp"}]},
 };
 export default async function HomePage() {
  const policy = await getPlatformPolicyByName("privacy");
