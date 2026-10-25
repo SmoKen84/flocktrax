@@ -1,7 +1,7 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, ArrowUpRight, ArrowsOut, X } from "@phosphor-icons/react";
 import { DemoRequestForm } from "./demo-request-form";
 
@@ -43,6 +43,17 @@ const dataGroups = [
 ];
 
 export function MarketingLanding({ policyText }: { policyText: string }) {
+  const page = useRef<HTMLDivElement>(null);
+  const footer = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const element = footer.current;
+    if (!element) return;
+    const reserveFooterSpace = () => page.current?.style.setProperty("--footer-height", `${element.getBoundingClientRect().height}px`);
+    reserveFooterSpace();
+    const observer = new ResizeObserver(reserveFooterSpace);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const [expanded, setExpanded] = useState<Screen | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const privacyDialog = useRef<HTMLDialogElement>(null);
@@ -59,10 +70,10 @@ export function MarketingLanding({ policyText }: { policyText: string }) {
   }
   const brand = <><img className="brand-bird" src="/marketing/media/flocktrax-bird-original.svg" alt="" />Flock<span>Trax</span><sup>™</sup></>;
 
-  return <div className="marketing brochure">
+  return <div className="marketing brochure" ref={page}>
     <a className="skip" href="#main">Skip to content</a>
     <header className="header">
-      <a className="wordmark" href="#main" aria-label="FlockTrax home">{brand}</a>
+      <div className="header-brand"><a className="wordmark" href="#main" aria-label="FlockTrax home">{brand}</a><p className="brand-owner">Smotherman Farms, Ltd.  West, Texas USA</p></div>
       <nav aria-label="Main navigation">
         <a href="#platform">Platform</a><a href="#feed">Feed</a><a href="#documents">Documents</a><a href="#story">Our story</a>
         <a href="/login">Sign in</a><a className="button gold nav-cta" href="#contact">Request a demo <ArrowRight size={18} /></a>
@@ -130,7 +141,7 @@ export function MarketingLanding({ policyText }: { policyText: string }) {
       <section className="contact section" id="contact"><div className="request-title-block"><img className="request-bird" src="/marketing/media/flocktrax-bird-original.svg" alt="" /><div><p className="eyebrow">Let’s look at your operation</p><h2>It’s All About<br />the Flocks…</h2></div></div><p>See how FlockTrax brings your operation into focus.</p><DemoRequestForm /><div className="contact-details"><strong>Ken Smotherman</strong><a href="mailto:ken@FlockTrax.com">ken@FlockTrax.com</a><a href="tel:+12547156101">(254) 715-6101</a></div><a className="demo-link" href="https://flocktrax-demo.vercel.app">Already have demo access? Open the demo <ArrowUpRight size={16} /></a><small className="credentials">Evaluator credentials required. For the best Admin experience, use a desktop monitor or tablet.</small></section>
     </main>
 
-    <footer><div><a className="wordmark" href="#main">{brand}</a><p>© {new Date().getFullYear()} Smotherman Farms, Ltd. All rights reserved.<br />West, Texas, USA</p></div><div><a href="/login">Admin sign in</a><button className="footer-link" onClick={() => privacyDialog.current?.showModal()}>Privacy policy</button><p>Farm photographs are AI-generated.</p></div></footer>
+    <footer className="fixed-footer" ref={footer}><a className="wordmark" href="#main">{brand}</a><p className="ownership-claim">The FlockTrax™ Platform  (FlockTrax-ADMIN™, FlockTrax-MOBILE™ &amp; their hosted Postgres Database) are Trademarks of Smotherman Farms, Ltd.  West, Texas USA Copyright © 2026 All Rights Reserved.</p><div className="footer-actions"><div><a href="/login">Admin sign in</a><button className="footer-link" onClick={() => privacyDialog.current?.showModal()}>Privacy policy</button></div><p>Farm photographs are AI-generated.</p></div></footer>
     <dialog className="brochure-layout-dialog" ref={layoutDialog} aria-labelledby="layout-title" onClick={event => { if (event.target === layoutDialog.current) layoutDialog.current?.close(); }}>
       <div className="dialog-head"><strong id="layout-title">The FlockTrax layout</strong><button type="button" autoFocus onClick={() => layoutDialog.current?.close()} aria-label="Close FlockTrax layout"><X size={24} /></button></div>
       <div className="layout-content">
